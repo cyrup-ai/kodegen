@@ -25,7 +25,6 @@ cfg-if      = "1.0.3"
 base64      = "0.22.1"
 flate2      = { version = "1.1.4", default-features = false, features = ["rust_backend"] }
 async-recursion = "1.1.1"
-cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "kodegen_sugars", features = ["all"] }
 
 # Auto-configuration support
 kodegen_autoconfig = { path = "../autoconfig" }

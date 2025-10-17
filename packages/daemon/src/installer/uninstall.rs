@@ -11,13 +11,13 @@ use anyhow::{Context, Result};
 use log::{info, warn};
 
 // Removed unused import: use super::core::InstallProgress;
-use super::config::remove_sweetmcp_host_entries;
+use super::config::remove_kodegen_host_entries;
 use crate::install::fluent_voice;
 use crate::install::uninstall_daemon_async;
 
-/// Uninstall SweetMCP daemon with comprehensive cleanup
+/// Uninstall Kodegen daemon with comprehensive cleanup
 pub async fn uninstall_kodegen_daemon() -> Result<()> {
-    info!("Starting SweetMCP daemon uninstallation");
+    info!("Starting Kodegen daemon uninstallation");
 
     // Remove daemon service
     match uninstall_daemon_async("kodegend").await {
@@ -31,8 +31,8 @@ pub async fn uninstall_kodegen_daemon() -> Result<()> {
     }
 
     // Remove host entries
-    if let Err(e) = remove_sweetmcp_host_entries() {
-        warn!("Failed to remove SweetMCP host entries: {}", e);
+    if let Err(e) = remove_kodegen_host_entries() {
+        warn!("Failed to remove Kodegen host entries: {}", e);
     }
 
     // Remove wildcard certificate from system trust store
@@ -46,12 +46,12 @@ pub async fn uninstall_kodegen_daemon() -> Result<()> {
     }
 
     // Uninstall fluent-voice components
-    let fluent_voice_path = std::path::Path::new("/opt/sweetmcp/fluent-voice");
+    let fluent_voice_path = std::path::Path::new("/opt/kodegen/fluent-voice");
     if let Err(e) = fluent_voice::uninstall_fluent_voice(fluent_voice_path).await {
         warn!("Failed to uninstall fluent-voice components: {}", e);
     }
 
-    info!("SweetMCP daemon uninstallation completed");
+    info!("Kodegen daemon uninstallation completed");
     Ok(())
 }
 
@@ -62,10 +62,10 @@ pub fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
 
     // Basic validation - check if it contains the expected domains
     let required_domains = [
-        "sweetmcp.kodegen.dev",
-        "sweetmcp.kodegen.ai",
-        "sweetmcp.kodegen.cloud",
-        "sweetmcp.kodegen.pro",
+        "kodegen.kodegen.dev",
+        "kodegen.kodegen.ai",
+        "kodegen.kodegen.cloud",
+        "kodegen.kodegen.pro",
     ];
 
     for domain in &required_domains {
@@ -89,7 +89,7 @@ pub fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
 /// Import wildcard certificate on Linux
 #[cfg(target_os = "linux")]
 fn import_wildcard_certificate_linux(cert_path: &str) -> Result<()> {
-    info!("Importing SweetMCP wildcard certificate to Linux system trust store");
+    info!("Importing Kodegen wildcard certificate to Linux system trust store");
 
     // Extract just the certificate part from the combined PEM file
     let cert_content =
@@ -103,7 +103,7 @@ fn import_wildcard_certificate_linux(cert_path: &str) -> Result<()> {
     };
 
     // Copy certificate to system trust store
-    let system_cert_path = "/usr/local/share/ca-certificates/sweetmcp-wildcard.crt";
+    let system_cert_path = "/usr/local/share/ca-certificates/kodegen-wildcard.crt";
 
     // Ensure directory exists
     if let Some(parent) = std::path::Path::new(system_cert_path).parent() {
@@ -123,7 +123,7 @@ fn import_wildcard_certificate_linux(cert_path: &str) -> Result<()> {
         warn!("Failed to update certificate trust store: {}", stderr);
         // Don't fail the installation if this step fails
     } else {
-        info!("Successfully imported SweetMCP wildcard certificate to Linux system trust store");
+        info!("Successfully imported Kodegen wildcard certificate to Linux system trust store");
     }
 
     Ok(())
@@ -146,7 +146,7 @@ async fn remove_wildcard_certificate_from_system() -> Result<()> {
 /// Remove wildcard certificate from macOS keychain
 #[cfg(target_os = "macos")]
 async fn remove_wildcard_certificate_macos() -> Result<()> {
-    info!("Removing SweetMCP wildcard certificate from macOS System keychain");
+    info!("Removing Kodegen wildcard certificate from macOS System keychain");
 
     // Find and delete the certificate
     let output = Command::new("security")
@@ -167,7 +167,7 @@ async fn remove_wildcard_certificate_macos() -> Result<()> {
             stderr
         );
     } else {
-        info!("Successfully removed SweetMCP wildcard certificate from macOS System keychain");
+        info!("Successfully removed Kodegen wildcard certificate from macOS System keychain");
     }
 
     Ok(())
@@ -176,9 +176,9 @@ async fn remove_wildcard_certificate_macos() -> Result<()> {
 /// Remove wildcard certificate from Linux system trust store
 #[cfg(target_os = "linux")]
 async fn remove_wildcard_certificate_linux() -> Result<()> {
-    info!("Removing SweetMCP wildcard certificate from Linux system trust store");
+    info!("Removing Kodegen wildcard certificate from Linux system trust store");
 
-    let system_cert_path = "/usr/local/share/ca-certificates/sweetmcp-wildcard.crt";
+    let system_cert_path = "/usr/local/share/ca-certificates/kodegen-wildcard.crt";
 
     // Remove certificate file
     if std::path::Path::new(system_cert_path).exists() {
@@ -195,11 +195,11 @@ async fn remove_wildcard_certificate_linux() -> Result<()> {
             warn!("Failed to update certificate trust store: {}", stderr);
         } else {
             info!(
-                "Successfully removed SweetMCP wildcard certificate from Linux system trust store"
+                "Successfully removed Kodegen wildcard certificate from Linux system trust store"
             );
         }
     } else {
-        info!("SweetMCP wildcard certificate not found in system trust store");
+        info!("Kodegen wildcard certificate not found in system trust store");
     }
 
     Ok(())
@@ -230,24 +230,24 @@ fn cleanup_installation_directories() -> Result<()> {
 fn get_installation_directories() -> Vec<PathBuf> {
     vec![
         #[cfg(target_os = "macos")]
-        PathBuf::from("/usr/local/var/sweetmcp"),
+        PathBuf::from("/usr/local/var/kodegen"),
         #[cfg(target_os = "linux")]
-        PathBuf::from("/var/lib/sweetmcp"),
+        PathBuf::from("/var/lib/kodegen"),
         #[cfg(target_os = "linux")]
-        PathBuf::from("/etc/sweetmcp"),
+        PathBuf::from("/etc/kodegen"),
         #[cfg(target_os = "windows")]
-        PathBuf::from("C:\\ProgramData\\SweetMCP"),
+        PathBuf::from("C:\\ProgramData\\Kodegen"),
         #[cfg(target_os = "windows")]
-        PathBuf::from("C:\\Program Files\\SweetMCP"),
+        PathBuf::from("C:\\Program Files\\Kodegen"),
         // Common directories
-        PathBuf::from("/opt/sweetmcp"),
-        PathBuf::from("/tmp/sweetmcp"),
+        PathBuf::from("/opt/kodegen"),
+        PathBuf::from("/tmp/kodegen"),
     ]
 }
 
-/// Add SweetMCP host entries with optimized host file modification
+/// Add Kodegen host entries with optimized host file modification
 #[allow(dead_code)] // Library function for host file management operations
-fn add_sweetmcp_host_entries() -> Result<()> {
+fn add_kodegen_host_entries() -> Result<()> {
     let hosts_file = if cfg!(target_os = "windows") {
         "C:\\Windows\\System32\\drivers\\etc\\hosts"
     } else {
@@ -257,18 +257,18 @@ fn add_sweetmcp_host_entries() -> Result<()> {
     // Read current hosts file
     let current_hosts = fs::read_to_string(hosts_file).context("Failed to read hosts file")?;
 
-    let sweetmcp_domains = [
-        "sweetmcp.kodegen.dev",
-        "sweetmcp.kodegen.ai",
-        "sweetmcp.kodegen.cloud",
-        "sweetmcp.kodegen.pro",
+    let kodegen_domains = [
+        "kodegen.kodegen.dev",
+        "kodegen.kodegen.ai",
+        "kodegen.kodegen.cloud",
+        "kodegen.kodegen.pro",
     ];
 
     let mut new_entries = Vec::new();
     let mut entries_added = false;
 
     // Check which entries need to be added
-    for domain in &sweetmcp_domains {
+    for domain in &kodegen_domains {
         if !current_hosts.contains(domain) {
             new_entries.push(format!("127.0.0.1 {}", domain));
             entries_added = true;
@@ -278,7 +278,7 @@ fn add_sweetmcp_host_entries() -> Result<()> {
     }
 
     if !entries_added {
-        info!("All SweetMCP host entries already exist");
+        info!("All Kodegen host entries already exist");
         return Ok(());
     }
 
@@ -287,7 +287,7 @@ fn add_sweetmcp_host_entries() -> Result<()> {
     if !updated_hosts.ends_with('\n') {
         updated_hosts.push('\n');
     }
-    updated_hosts.push_str("\n# SweetMCP Auto-Integration\n");
+    updated_hosts.push_str("\n# Kodegen Auto-Integration\n");
     for entry in &new_entries {
         updated_hosts.push_str(&format!("{}\n", entry));
     }
@@ -296,7 +296,7 @@ fn add_sweetmcp_host_entries() -> Result<()> {
     fs::write(hosts_file, updated_hosts).context("Failed to write hosts file")?;
 
     info!(
-        "Successfully added {} SweetMCP host entries",
+        "Successfully added {} Kodegen host entries",
         new_entries.len()
     );
     Ok(())
@@ -361,7 +361,7 @@ pub fn backup_configuration() -> Result<PathBuf> {
 
     // Generate backup filename with timestamp
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let backup_path = backup_dir.join(format!("sweetmcp_config_backup_{}.tar.gz", timestamp));
+    let backup_path = backup_dir.join(format!("kodegen_config_backup_{}.tar.gz", timestamp));
 
     // Create tar archive of configuration
     let args = create_backup_args(&backup_path, &config_dir)
@@ -388,19 +388,19 @@ pub fn backup_configuration() -> Result<PathBuf> {
 fn get_config_directory() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from("/usr/local/var/sweetmcp")
+        PathBuf::from("/usr/local/var/kodegen")
     }
     #[cfg(target_os = "linux")]
     {
-        PathBuf::from("/var/lib/sweetmcp")
+        PathBuf::from("/var/lib/kodegen")
     }
     #[cfg(target_os = "windows")]
     {
-        PathBuf::from("C:\\ProgramData\\SweetMCP")
+        PathBuf::from("C:\\ProgramData\\Kodegen")
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
-        PathBuf::from("/tmp/sweetmcp")
+        PathBuf::from("/tmp/kodegen")
     }
 }
 
@@ -408,19 +408,19 @@ fn get_config_directory() -> PathBuf {
 fn get_backup_directory() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from("/usr/local/var/sweetmcp/backups")
+        PathBuf::from("/usr/local/var/kodegen/backups")
     }
     #[cfg(target_os = "linux")]
     {
-        PathBuf::from("/var/backups/sweetmcp")
+        PathBuf::from("/var/backups/kodegen")
     }
     #[cfg(target_os = "windows")]
     {
-        PathBuf::from("C:\\ProgramData\\SweetMCP\\backups")
+        PathBuf::from("C:\\ProgramData\\Kodegen\\backups")
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
-        PathBuf::from("/tmp/sweetmcp/backups")
+        PathBuf::from("/tmp/kodegen/backups")
     }
 }
 

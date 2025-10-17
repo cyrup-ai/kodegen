@@ -1,7 +1,7 @@
 //! SSE (Server-Sent Events) transport module for MCP Claude Code integration
 //!
 //! This module provides a complete SSE server implementation that enables
-//! Claude Code to connect to the SweetMCP daemon via the SSE transport protocol.
+//! Claude Code to connect to the Kodegen daemon via the SSE transport protocol.
 //!
 //! ## Architecture
 //!
@@ -14,7 +14,7 @@
 //! - `events` - SSE event types and wire format encoding
 //! - `session` - Session management and lifecycle
 //! - `server` - HTTP server with SSE and messages endpoints
-//! - `bridge` - Communication bridge to sweetmcp-axum MCP server
+//! - `bridge` - Communication bridge to kodegen-axum MCP server
 //! - `encoder` - SSE wire format encoding per RFC 6455
 
 pub mod bridge;

@@ -1,5 +1,5 @@
 [package]
-name = "sweetmcp-claude-desktop-configurator"
+name = "kodegen-claude-desktop-configurator"
 version = "0.1.0"
 edition = "2021"
 

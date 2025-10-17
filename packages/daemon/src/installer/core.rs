@@ -212,8 +212,8 @@ pub struct CertificateConfig {
 impl Default for CertificateConfig {
     fn default() -> Self {
         Self {
-            common_name: "SweetMCP Local CA".to_string(),
-            organization: "SweetMCP".to_string(),
+            common_name: "Kodegen Local CA".to_string(),
+            organization: "Kodegen".to_string(),
             country: "US".to_string(),
             validity_days: 365,
             key_size: 2048,
@@ -402,19 +402,19 @@ impl InstallContext {
     fn get_data_dir() -> PathBuf {
         #[cfg(target_os = "macos")]
         {
-            PathBuf::from("/usr/local/var/sweetmcp")
+            PathBuf::from("/usr/local/var/kodegen")
         }
         #[cfg(target_os = "linux")]
         {
-            PathBuf::from("/var/lib/sweetmcp")
+            PathBuf::from("/var/lib/kodegen")
         }
         #[cfg(target_os = "windows")]
         {
-            PathBuf::from("C:\\ProgramData\\SweetMCP")
+            PathBuf::from("C:\\ProgramData\\Kodegen")
         }
         #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
         {
-            PathBuf::from("/tmp/sweetmcp")
+            PathBuf::from("/tmp/kodegen")
         }
     }
 

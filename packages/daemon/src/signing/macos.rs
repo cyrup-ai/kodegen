@@ -191,7 +191,7 @@ fn staple_ticket(binary_path: &Path) -> Result<()> {
 #[allow(dead_code)] // Advanced certificate management API
 pub fn import_certificate(cert_path: &Path, password: Option<&str>) -> Result<String> {
     // Create temporary keychain
-    let keychain_name = format!("sweetmcp-signing-{}.keychain", std::process::id());
+    let keychain_name = format!("kodegen-signing-{}.keychain", std::process::id());
     let keychain_password = "temporary-keychain-password";
 
     // Create keychain
@@ -278,7 +278,10 @@ pub fn import_certificate(cert_path: &Path, password: Option<&str>) -> Result<St
         .to_string();
 
     // Store keychain name for cleanup later
-    env::set_var("SWEETMCP_TEMP_KEYCHAIN", &keychain_name);
+    // SAFETY: We are in single-threaded context during daemon startup
+    unsafe {
+        env::set_var("KODEGEN_TEMP_KEYCHAIN", &keychain_name);
+    }
 
     Ok(identity)
 }
@@ -286,12 +289,15 @@ pub fn import_certificate(cert_path: &Path, password: Option<&str>) -> Result<St
 /// Clean up temporary keychain
 #[allow(dead_code)] // Advanced certificate management API
 pub fn cleanup_keychain() -> Result<()> {
-    if let Ok(keychain_name) = env::var("SWEETMCP_TEMP_KEYCHAIN") {
+    if let Ok(keychain_name) = env::var("KODEGEN_TEMP_KEYCHAIN") {
         let _ = Command::new("security")
             .args(["delete-keychain", &keychain_name])
             .output();
 
-        env::remove_var("SWEETMCP_TEMP_KEYCHAIN");
+        // SAFETY: We are cleaning up after ourselves in controlled context
+        unsafe {
+            env::remove_var("KODEGEN_TEMP_KEYCHAIN");
+        }
     }
     Ok(())
 }

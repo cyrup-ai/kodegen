@@ -1,7 +1,7 @@
 //! MCP server communication bridge
 //!
 //! This module provides the main bridge interface for communicating with
-//! the sweetmcp-axum MCP server. It re-exports functionality from the
+//! the kodegen-axum MCP server. It re-exports functionality from the
 //! decomposed bridge modules.
 
 // Re-export all bridge functionality

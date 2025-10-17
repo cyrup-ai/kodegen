@@ -50,8 +50,8 @@ pub fn get_metadata(_: ()) -> FnResult<Json<Metadata>> {
     let metadata = Metadata {
         name: "claude-desktop".to_string(),
         version: "0.1.0".to_string(),
-        author: "SweetMCP Team".to_string(),
-        description: "Auto-configures Claude Desktop for SweetMCP".to_string(),
+        author: "Kodegen Team".to_string(),
+        description: "Auto-configures Claude Desktop for Kodegen".to_string(),
         supported_platforms: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
     };
     Ok(Json(metadata))
@@ -142,7 +142,7 @@ pub fn update_config(Json(request): Json<ConfigUpdateRequest>) -> FnResult<Json<
         },
     };
     
-    // Add or update the SweetMCP server
+    // Add or update the Kodegen server
     config.mcp_servers.insert(request.server_name.clone(), request.server_config);
     
     // Ensure directory exists

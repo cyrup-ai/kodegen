@@ -80,10 +80,10 @@ fn load_config_file() -> Result<SigningConfigFile> {
         PathBuf::from("kodegen_daemon/signing.toml"),
         // User config directory
         dirs::config_dir()
-            .map(|p| p.join("sweetmcp/signing.toml"))
+            .map(|p| p.join("kodegen/signing.toml"))
             .unwrap_or_default(),
         // System config
-        PathBuf::from("/etc/sweetmcp/signing.toml"),
+        PathBuf::from("/etc/kodegen/signing.toml"),
     ];
 
     for path in search_paths {
@@ -169,10 +169,10 @@ fn merge_config(config: &mut SigningConfig, file_config: SigningConfigFile) {
 /// Override configuration from environment variables
 fn override_from_env(config: &mut SigningConfig) {
     // Binary paths from environment
-    if let Ok(bin_path) = env::var("SWEETMCP_BINARY_PATH") {
+    if let Ok(bin_path) = env::var("KODEGEN_BINARY_PATH") {
         config.binary_path = PathBuf::from(bin_path);
     }
-    if let Ok(out_path) = env::var("SWEETMCP_OUTPUT_PATH") {
+    if let Ok(out_path) = env::var("KODEGEN_OUTPUT_PATH") {
         config.output_path = PathBuf::from(out_path);
     }
 

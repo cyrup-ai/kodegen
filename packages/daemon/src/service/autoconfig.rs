@@ -5,7 +5,7 @@ use std::thread;
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use log::{error, info};
-use sweetmcp_client_autoconfig::{clients::all_clients, watcher::AutoConfigWatcher};
+use kodegen_client_autoconfig::{clients::all_clients, watcher::AutoConfigWatcher};
 use tokio_util::sync::CancellationToken;
 
 use crate::config::ServiceDefinition;

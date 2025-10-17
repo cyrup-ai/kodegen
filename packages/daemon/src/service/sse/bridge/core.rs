@@ -1,7 +1,7 @@
 //! MCP bridge core implementation
 //!
 //! This module provides the core McpBridge struct and HTTP client setup
-//! for communicating with the sweetmcp-axum MCP server with zero allocation
+//! for communicating with the kodegen-axum MCP server with zero allocation
 //! patterns and blazing-fast performance.
 
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -49,7 +49,7 @@ impl ConnectionStatsTracker {
 
 /// Bridge for communicating with the MCP server
 ///
-/// Handles HTTP communication with the sweetmcp-axum server,
+/// Handles HTTP communication with the kodegen-axum server,
 /// including request forwarding, response processing, and error handling.
 #[derive(Debug, Clone)]
 pub struct McpBridge {

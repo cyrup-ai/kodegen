@@ -27,7 +27,7 @@ const MAX_DESCRIPTION: usize = 512;
 static HELPER_PATH: OnceCell<PathBuf> = OnceCell::new();
 
 // Embedded helper executable data (like macOS APP_ZIP_DATA and Windows HELPER_EXE_DATA)
-const HELPER_BINARY_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/sweetmcp-helper"));
+const HELPER_BINARY_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/kodegen-helper"));
 
 // Atomic state for service operations
 static SERVICE_OPERATION_STATE: AtomicU32 = AtomicU32::new(0);
@@ -128,7 +128,7 @@ impl PlatformExecutor {
 
         // Create unique helper path in temp directory
         let temp_dir = std::env::temp_dir();
-        let helper_name = format!("sweetmcp-helper-{}", std::process::id());
+        let helper_name = format!("kodegen-helper-{}", std::process::id());
         let helper_path = temp_dir.join(helper_name);
 
         // Extract embedded helper executable
@@ -234,7 +234,7 @@ impl PlatformExecutor {
         // [Unit] section
         content.push_str("[Unit]\n");
         content.push_str(&format!("Description={}\n", config.description));
-        content.push_str("Documentation=https://github.com/kodegen/sweetmcp\n");
+        content.push_str("Documentation=https://github.com/kodegen/kodegen\n");
 
         if config.wants_network {
             content.push_str("Wants=network-online.target\n");
@@ -309,7 +309,7 @@ impl PlatformExecutor {
         // Logging
         content.push_str("StandardOutput=journal\n");
         content.push_str("StandardError=journal\n");
-        content.push_str("SyslogIdentifier=sweetmcp\n");
+        content.push_str("SyslogIdentifier=kodegen\n");
 
         // Watchdog support
         content.push_str("WatchdogSec=30s\n");
@@ -362,13 +362,13 @@ OOMScoreAdjust=-100
 Nice=-5
 
 # Service metadata
-X-SweetMCP-Service=true
-X-SweetMCP-Version={}
+X-Kodegen-Service=true
+X-Kodegen-Version={}
 "#,
             env!("CARGO_PKG_VERSION")
         );
 
-        let override_path = dropin_dir.join("10-sweetmcp.conf");
+        let override_path = dropin_dir.join("10-kodegen.conf");
         Self::write_file_atomic(&override_path, &override_content)?;
 
         Ok(())
@@ -592,7 +592,7 @@ Compress=yes
             })?;
 
             // Create services directory
-            let services_dir = PathBuf::from("/etc/sweetmcp/services");
+            let services_dir = PathBuf::from("/etc/kodegen/services");
             fs::create_dir_all(&services_dir).map_err(|e| {
                 InstallerError::System(format!("Failed to create services directory: {}", e))
             })?;

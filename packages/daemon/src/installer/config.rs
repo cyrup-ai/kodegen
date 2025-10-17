@@ -20,7 +20,7 @@ use crate::install::fluent_voice;
 use crate::install::{install_daemon_async, InstallerBuilder};
 use crate::signing;
 
-/// Configure and install the SweetMCP daemon with optimized installation flow
+/// Configure and install the Kodegen daemon with optimized installation flow
 pub async fn install_kodegen_daemon(
     exe_path: PathBuf,
     config_path: PathBuf,
@@ -55,14 +55,14 @@ pub async fn install_kodegen_daemon(
                 // Don't fail installation if certificate import fails
             }
 
-            // Add host entries for all SweetMCP domains pointing to 127.0.0.1
-            if let Err(e) = add_sweetmcp_host_entries() {
-                warn!("Failed to add SweetMCP host entries: {}", e);
+            // Add host entries for all Kodegen domains pointing to 127.0.0.1
+            if let Err(e) = add_kodegen_host_entries() {
+                warn!("Failed to add Kodegen host entries: {}", e);
                 // Don't fail installation if host entries fail
             }
 
             // Install fluent-voice components
-            let fluent_voice_path = std::path::Path::new("/opt/sweetmcp/fluent-voice");
+            let fluent_voice_path = std::path::Path::new("/opt/kodegen/fluent-voice");
             if let Err(e) = fluent_voice::install_fluent_voice(fluent_voice_path).await {
                 warn!("Failed to install fluent-voice components: {}", e);
                 // Don't fail installation if fluent-voice installation fails
@@ -100,7 +100,7 @@ pub async fn install_kodegen_daemon(
 
             context.send_progress(InstallProgress::complete(
                 "installation".to_string(),
-                "SweetMCP daemon installed successfully".to_string(),
+                "Kodegen daemon installed successfully".to_string(),
             ));
 
             Ok(())
@@ -117,27 +117,16 @@ pub async fn install_kodegen_daemon(
 
 /// Configure services for the installer with optimized service configuration
 fn configure_services(context: &mut InstallContext) -> Result<()> {
-    // Configure Pingora service
-    let pingora_service = ServiceConfig::new(
-        "sweetmcp-pingora".to_string(),
-        "internal:pingora".to_string(), // Special command handled internally
-    )
-    .description("SweetMCP Edge Proxy Service".to_string())
-    .env("RUST_LOG".to_string(), "info".to_string())
-    .auto_restart(true)
-    .depends_on("kodegen_daemon".to_string());
-
     // Configure autoconfig service
     let autoconfig_service = ServiceConfig::new(
-        "sweetmcp-autoconfig".to_string(),
+        "kodegen-autoconfig".to_string(),
         "internal:autoconfig".to_string(), // Special command handled internally
     )
     .description("Automatic MCP client configuration service".to_string())
     .env("RUST_LOG".to_string(), "info".to_string())
     .auto_restart(true)
-    .depends_on("sweetmcp-pingora".to_string()); // Start after pingora
+    .depends_on("kodegen_daemon".to_string());
 
-    context.add_service(pingora_service);
     context.add_service(autoconfig_service);
 
     context.send_progress(InstallProgress::new(
@@ -205,16 +194,7 @@ fn convert_to_service_definition(
 
     // Create health check configuration based on service type
     let health_check = match service.name.as_str() {
-        "sweetmcp-pingora" => Some(crate::config::HealthCheckConfig {
-            check_type: "tcp".to_string(),
-            target: "127.0.0.1:8443".to_string(),
-            interval_secs: 60,
-            timeout_secs: 10,
-            retries: 3,
-            expected_response: None,
-            on_failure: vec![],
-        }),
-        "sweetmcp-autoconfig" => Some(crate::config::HealthCheckConfig {
+        "kodegen-autoconfig" => Some(crate::config::HealthCheckConfig {
             check_type: "tcp".to_string(),
             target: "127.0.0.1:8443".to_string(),
             interval_secs: 300, // Check every 5 minutes
@@ -245,8 +225,7 @@ fn convert_to_service_definition(
         watch_dirs: Vec::new(),
         ephemeral_dir: None,
         service_type: Some(match service.name.as_str() {
-            "sweetmcp-pingora" => "proxy".to_string(),
-            "sweetmcp-autoconfig" => "autoconfig".to_string(),
+            "kodegen-autoconfig" => "autoconfig".to_string(),
             _ => "service".to_string(),
         }),
         memfs: None,
@@ -265,7 +244,7 @@ fn get_installed_daemon_path() -> PathBuf {
     }
     #[cfg(target_os = "windows")]
     {
-        PathBuf::from("C:\\Program Files\\SweetMCP\\kodegend.exe")
+        PathBuf::from("C:\\Program Files\\Kodegen\\kodegend.exe")
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
@@ -293,28 +272,28 @@ async fn generate_and_import_wildcard_certificate() -> Result<()> {
         .await
         .context("Failed to create certificate directory")?;
 
-    info!("Generating SweetMCP wildcard certificate...");
+    info!("Generating Kodegen wildcard certificate...");
 
     // Create certificate parameters for wildcard certificate
     let mut params = CertificateParams::new(vec!["*.kodegen.dev".to_string()])?;
 
-    // Add subject alternative names for all SweetMCP domains
+    // Add subject alternative names for all Kodegen domains
     params.subject_alt_names = vec![
         SanType::DnsName(Ia5String::try_from("*.kodegen.dev").context("Invalid DNS name")?),
         SanType::DnsName(Ia5String::try_from("kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("*.sweetmcp.kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("sweetmcp.kodegen.dev").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("*.kodegen.kodegen.dev").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.dev").context("Invalid DNS name")?),
         SanType::DnsName(
-            Ia5String::try_from("*.sweetmcp.kodegen.cloud").context("Invalid DNS name")?,
+            Ia5String::try_from("*.kodegen.kodegen.cloud").context("Invalid DNS name")?,
         ),
-        SanType::DnsName(Ia5String::try_from("sweetmcp.kodegen.cloud").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("*.sweetmcp.kodegen.pro").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("sweetmcp.kodegen.pro").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.cloud").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("*.kodegen.kodegen.pro").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.pro").context("Invalid DNS name")?),
     ];
 
     // Set distinguished name
     let mut dn = DistinguishedName::new();
-    dn.push(DnType::OrganizationName, "SweetMCP");
+    dn.push(DnType::OrganizationName, "Kodegen");
     dn.push(DnType::CommonName, "*.kodegen.dev");
     params.distinguished_name = dn;
 
@@ -354,7 +333,7 @@ async fn generate_and_import_wildcard_certificate() -> Result<()> {
     }
 
     info!(
-        "SweetMCP wildcard certificate generated successfully at {}",
+        "Kodegen wildcard certificate generated successfully at {}",
         wildcard_cert_path.display()
     );
     Ok(())
@@ -364,19 +343,19 @@ async fn generate_and_import_wildcard_certificate() -> Result<()> {
 fn get_cert_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from("/usr/local/var/sweetmcp/certs")
+        PathBuf::from("/usr/local/var/kodegen/certs")
     }
     #[cfg(target_os = "linux")]
     {
-        PathBuf::from("/var/lib/sweetmcp/certs")
+        PathBuf::from("/var/lib/kodegen/certs")
     }
     #[cfg(target_os = "windows")]
     {
-        PathBuf::from("C:\\ProgramData\\SweetMCP\\certs")
+        PathBuf::from("C:\\ProgramData\\Kodegen\\certs")
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
-        PathBuf::from("/tmp/sweetmcp/certs")
+        PathBuf::from("/tmp/kodegen/certs")
     }
 }
 
@@ -417,49 +396,49 @@ fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Add SweetMCP host entries with optimized host file modification
-fn add_sweetmcp_host_entries() -> Result<()> {
+/// Add Kodegen host entries with optimized host file modification
+fn add_kodegen_host_entries() -> Result<()> {
     let hosts_file_path = get_hosts_file_path();
 
     // Read existing hosts file
     let existing_content =
         fs::read_to_string(&hosts_file_path).context("Failed to read hosts file")?;
 
-    // Check if SweetMCP entries already exist
-    if existing_content.contains("# SweetMCP entries") {
-        info!("SweetMCP host entries already exist, skipping");
+    // Check if Kodegen entries already exist
+    if existing_content.contains("# Kodegen entries") {
+        info!("Kodegen host entries already exist, skipping");
         return Ok(());
     }
 
-    // Prepare SweetMCP host entries
-    let sweetmcp_entries = vec![
-        "# SweetMCP entries",
-        "127.0.0.1 sweetmcp.kodegen.dev",
-        "127.0.0.1 api.sweetmcp.kodegen.dev",
-        "127.0.0.1 ws.sweetmcp.kodegen.dev",
-        "127.0.0.1 sweetmcp.kodegen.cloud",
-        "127.0.0.1 api.sweetmcp.kodegen.cloud",
-        "127.0.0.1 ws.sweetmcp.kodegen.cloud",
-        "127.0.0.1 sweetmcp.kodegen.pro",
-        "127.0.0.1 api.sweetmcp.kodegen.pro",
-        "127.0.0.1 ws.sweetmcp.kodegen.pro",
-        "# End SweetMCP entries",
+    // Prepare Kodegen host entries
+    let kodegen_entries = vec![
+        "# Kodegen entries",
+        "127.0.0.1 kodegen.kodegen.dev",
+        "127.0.0.1 api.kodegen.kodegen.dev",
+        "127.0.0.1 ws.kodegen.kodegen.dev",
+        "127.0.0.1 kodegen.kodegen.cloud",
+        "127.0.0.1 api.kodegen.kodegen.cloud",
+        "127.0.0.1 ws.kodegen.kodegen.cloud",
+        "127.0.0.1 kodegen.kodegen.pro",
+        "127.0.0.1 api.kodegen.kodegen.pro",
+        "127.0.0.1 ws.kodegen.kodegen.pro",
+        "# End Kodegen entries",
     ];
 
-    // Append SweetMCP entries to hosts file
+    // Append Kodegen entries to hosts file
     let mut new_content = existing_content;
     if !new_content.ends_with('\n') {
         new_content.push('\n');
     }
     new_content.push('\n');
-    new_content.push_str(&sweetmcp_entries.join("\n"));
+    new_content.push_str(&kodegen_entries.join("\n"));
     new_content.push('\n');
 
     // Write updated hosts file
     fs::write(&hosts_file_path, new_content).context("Failed to write hosts file")?;
 
     info!(
-        "Added SweetMCP host entries to {}",
+        "Added Kodegen host entries to {}",
         hosts_file_path.display()
     );
     Ok(())
@@ -481,35 +460,35 @@ fn get_hosts_file_path() -> PathBuf {
     }
 }
 
-/// Remove SweetMCP host entries with optimized host file cleanup
-pub fn remove_sweetmcp_host_entries() -> Result<()> {
+/// Remove Kodegen host entries with optimized host file cleanup
+pub fn remove_kodegen_host_entries() -> Result<()> {
     let hosts_file_path = get_hosts_file_path();
 
     // Read existing hosts file
     let existing_content =
         fs::read_to_string(&hosts_file_path).context("Failed to read hosts file")?;
 
-    // Check if SweetMCP entries exist
-    if !existing_content.contains("# SweetMCP entries") {
-        info!("No SweetMCP host entries found, skipping removal");
+    // Check if Kodegen entries exist
+    if !existing_content.contains("# Kodegen entries") {
+        info!("No Kodegen host entries found, skipping removal");
         return Ok(());
     }
 
-    // Remove SweetMCP entries
+    // Remove Kodegen entries
     let lines: Vec<&str> = existing_content.lines().collect();
     let mut new_lines = Vec::new();
-    let mut in_sweetmcp_section = false;
+    let mut in_kodegen_section = false;
 
     for line in lines {
-        if line.trim() == "# SweetMCP entries" {
-            in_sweetmcp_section = true;
+        if line.trim() == "# Kodegen entries" {
+            in_kodegen_section = true;
             continue;
         }
-        if line.trim() == "# End SweetMCP entries" {
-            in_sweetmcp_section = false;
+        if line.trim() == "# End Kodegen entries" {
+            in_kodegen_section = false;
             continue;
         }
-        if !in_sweetmcp_section {
+        if !in_kodegen_section {
             new_lines.push(line);
         }
     }
@@ -519,7 +498,7 @@ pub fn remove_sweetmcp_host_entries() -> Result<()> {
     fs::write(&hosts_file_path, new_content).context("Failed to write hosts file")?;
 
     info!(
-        "Removed SweetMCP host entries from {}",
+        "Removed Kodegen host entries from {}",
         hosts_file_path.display()
     );
     Ok(())
@@ -558,13 +537,13 @@ pub fn create_default_configuration(config_path: &Path) -> Result<()> {
 
     // Default configuration content
     let default_config = r#"
-# SweetMCP Daemon Configuration
+# Kodegen Daemon Configuration
 
 [daemon]
 # Daemon process settings
-pid_file = "/var/run/sweetmcp/daemon.pid"
+pid_file = "/var/run/kodegen/daemon.pid"
 log_level = "info"
-log_file = "/var/log/sweetmcp/daemon.log"
+log_file = "/var/log/kodegen/daemon.log"
 
 [network]
 # Network configuration
@@ -575,25 +554,24 @@ max_connections = 1000
 [security]
 # Security settings
 enable_tls = true
-cert_file = "/usr/local/var/sweetmcp/certs/server.crt"
-key_file = "/usr/local/var/sweetmcp/certs/server.key"
-ca_file = "/usr/local/var/sweetmcp/certs/ca.crt"
+cert_file = "/usr/local/var/kodegen/certs/server.crt"
+key_file = "/usr/local/var/kodegen/certs/server.key"
+ca_file = "/usr/local/var/kodegen/certs/ca.crt"
 
 [services]
 # Service configuration
-enable_pingora = true
 enable_autoconfig = true
 enable_voice = false
 
 [database]
 # Database configuration
-url = "surrealkv:///usr/local/var/sweetmcp/data/sweetmcp.db"
-namespace = "sweetmcp"
+url = "surrealkv:///usr/local/var/kodegen/data/kodegen.db"
+namespace = "kodegen"
 database = "main"
 
 [plugins]
 # Plugin configuration
-plugin_dir = "/usr/local/var/sweetmcp/plugins"
+plugin_dir = "/usr/local/var/kodegen/plugins"
 enable_sandboxing = true
 max_memory_mb = 256
 timeout_seconds = 30

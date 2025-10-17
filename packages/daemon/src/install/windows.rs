@@ -47,7 +47,7 @@ const MAX_DEPENDENCIES: usize = 1024;
 static HELPER_PATH: OnceCell<PathBuf> = OnceCell::new();
 
 // Embedded helper executable data (like macOS APP_ZIP_DATA)
-const HELPER_EXE_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SweetMCPHelper.exe"));
+const HELPER_EXE_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/KodegenHelper.exe"));
 
 // Atomic state for service operations
 static SERVICE_OPERATION_STATE: AtomicU32 = AtomicU32::new(0);
@@ -219,7 +219,7 @@ impl PlatformExecutor {
 
         // Create unique helper path in temp directory
         let temp_dir = std::env::temp_dir();
-        let helper_name = format!("SweetMCPHelper_{}.exe", std::process::id());
+        let helper_name = format!("KodegenHelper_{}.exe", std::process::id());
         let helper_path = temp_dir.join(helper_name);
 
         // Extract embedded helper executable
@@ -579,7 +579,7 @@ impl PlatformExecutor {
             })?;
 
             // Create services directory
-            let services_dir = PathBuf::from(r"C:\ProgramData\sweetmcp\services");
+            let services_dir = PathBuf::from(r"C:\ProgramData\kodegen\services");
             std::fs::create_dir_all(&services_dir).map_err(|e| {
                 InstallerError::System(format!("Failed to create services directory: {}", e))
             })?;

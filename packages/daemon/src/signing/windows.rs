@@ -163,7 +163,7 @@ pub fn sign_with_azure(
             "trusted-signing-cli not found. Install with: cargo install trusted-signing-cli",
         )?;
 
-    let description = format!("SweetMCP Daemon v{}", env!("CARGO_PKG_VERSION"));
+    let description = format!("Kodegen Daemon v{}", env!("CARGO_PKG_VERSION"));
 
     let output = Command::new(tsc)
         .args(&[

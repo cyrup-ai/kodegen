@@ -1,4 +1,4 @@
-//! Security module for SweetMCP daemon
+//! Security module for Kodegen daemon
 //!
 //! This module provides comprehensive security functionality including:
 //! - Zero-allocation vulnerability scanning

@@ -26,8 +26,8 @@ pub struct RegistryConfig {
 impl RegistryConfig {
     /// Create config from environment variables
     pub fn from_env() -> Result<Self> {
-        let plugins_str = std::env::var("SWEETMCP_PLUGINS")
-            .context("SWEETMCP_PLUGINS not configured")?;
+        let plugins_str = std::env::var("KODEGEN_PLUGINS")
+            .context("KODEGEN_PLUGINS not configured")?;
         
         let plugins: Vec<String> = plugins_str
             .split(',')
@@ -36,25 +36,25 @@ impl RegistryConfig {
             .collect();
         
         if plugins.is_empty() {
-            anyhow::bail!("No plugins configured in SWEETMCP_PLUGINS");
+            anyhow::bail!("No plugins configured in KODEGEN_PLUGINS");
         }
         
         let cache_dir = if let Ok(cache_home) = std::env::var("XDG_CACHE_HOME") {
-            PathBuf::from(cache_home).join("sweetmcp/plugins")
+            PathBuf::from(cache_home).join("kodegen/plugins")
         } else if let Some(home) = dirs::home_dir() {
-            home.join(".cache/sweetmcp/plugins")
+            home.join(".cache/kodegen/plugins")
         } else {
-            PathBuf::from("/tmp/sweetmcp/plugins")
+            PathBuf::from("/tmp/kodegen/plugins")
         };
         
         Ok(Self {
-            registry_url: std::env::var("SWEETMCP_REGISTRY_URL")
+            registry_url: std::env::var("KODEGEN_REGISTRY_URL")
                 .unwrap_or_else(|_| "https://ghcr.io".to_string()),
-            username: std::env::var("SWEETMCP_REGISTRY_USER").ok(),
-            password: std::env::var("SWEETMCP_REGISTRY_TOKEN").ok(),
+            username: std::env::var("KODEGEN_REGISTRY_USER").ok(),
+            password: std::env::var("KODEGEN_REGISTRY_TOKEN").ok(),
             plugins,
             cache_dir,
-            verify_signatures: std::env::var("SWEETMCP_VERIFY_SIGNATURES")
+            verify_signatures: std::env::var("KODEGEN_VERIFY_SIGNATURES")
                 .map(|v| v.to_lowercase() == "true")
                 .unwrap_or(false),
         })
@@ -117,11 +117,11 @@ impl ToolConfiguratorHost {
         let mut discovery_paths = vec![];
         
         // System-wide plugins
-        discovery_paths.push(PathBuf::from("/usr/local/lib/sweetmcp/tool-configurators"));
+        discovery_paths.push(PathBuf::from("/usr/local/lib/kodegen/tool-configurators"));
         
         // User plugins
         if let Some(config_dir) = dirs::config_dir() {
-            discovery_paths.push(config_dir.join("sweetmcp/tool-configurators"));
+            discovery_paths.push(config_dir.join("kodegen/tool-configurators"));
         }
         
         Self {

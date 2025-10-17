@@ -27,7 +27,7 @@ pub fn install(dry: bool, sign: bool, _identity: Option<String>) -> AsyncTask<Re
                 // Dry run mode
                 let config_path = dirs::config_dir()
                     .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
-                    .join("sweetmcp")
+                    .join("kodegen")
                     .join("config.toml");
                 config::validate_configuration(&config_path)
             } else {
@@ -36,7 +36,7 @@ pub fn install(dry: bool, sign: bool, _identity: Option<String>) -> AsyncTask<Re
                     std::env::current_exe().context("Failed to get current executable path")?;
                 let config_path = dirs::config_dir()
                     .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
-                    .join("sweetmcp")
+                    .join("kodegen")
                     .join("config.toml");
                 config::install_kodegen_daemon(exe_path, config_path, sign).await
             }
@@ -55,7 +55,7 @@ pub async fn uninstall_async(dry: bool) -> Result<()> {
         // Dry run - just validate current state
         let config_path = dirs::config_dir()
             .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
-            .join("sweetmcp")
+            .join("kodegen")
             .join("config.toml");
         config::validate_configuration(&config_path)
     } else {

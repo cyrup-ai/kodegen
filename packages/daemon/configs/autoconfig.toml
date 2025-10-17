@@ -1,7 +1,7 @@
-name = "sweetmcp-autoconfig"
+name = "kodegen-autoconfig"
 description = "Automatic MCP client configuration service"
 service_type = "autoconfig"
-command = "sweetmcp-autoconfig"  # This is handled internally
+command = "kodegen-autoconfig"  # This is handled internally
 auto_restart = true
 
 [health_check]
@@ -9,4 +9,4 @@ enabled = true
 interval_s = 300  # Check every 5 minutes
 
 # This service watches for MCP client installations and automatically
-# configures them to use SweetMCP. Zero configuration required!
+# configures them to use Kodegen. Zero configuration required!

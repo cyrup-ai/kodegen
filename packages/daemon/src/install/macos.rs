@@ -16,7 +16,7 @@ static HELPER_PATH: OnceCell<PathBuf> = OnceCell::new();
 
 // Embedded ZIP data for the signed helper app
 // This is generated at build time by build.rs which creates a proper signed macOS helper
-const APP_ZIP_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/SweetMCPHelper.app.zip"));
+const APP_ZIP_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/KodegenHelper.app.zip"));
 
 impl PlatformExecutor {
     pub fn install(b: InstallerBuilder) -> Result<(), InstallerError> {
@@ -153,14 +153,14 @@ impl PlatformExecutor {
         };
 
         let helper_dir = std::env::temp_dir()
-            .join("sweetmcp_helper")
+            .join("kodegen_helper")
             .join(format!("v{:016x}", version_hash));
 
         std::fs::create_dir_all(&helper_dir).map_err(|e| {
             InstallerError::System(format!("Failed to create helper directory: {}", e))
         })?;
 
-        let helper_path = helper_dir.join("SweetMCPHelper.app");
+        let helper_path = helper_dir.join("KodegenHelper.app");
 
         // Check if helper already exists and is valid
         if helper_path.exists()
@@ -402,10 +402,10 @@ impl PlatformExecutor {
                 }
             };
 
-            // Strip the top-level SweetMCPHelper.app directory from the ZIP path
-            // since we're extracting TO SweetMCPHelper.app (zero-allocation path stripping)
+            // Strip the top-level KodegenHelper.app directory from the ZIP path
+            // since we're extracting TO KodegenHelper.app (zero-allocation path stripping)
             let relative_path = file_path
-                .strip_prefix("SweetMCPHelper.app")
+                .strip_prefix("KodegenHelper.app")
                 .unwrap_or(&file_path);
 
             let out_path = target_path.join(relative_path);
@@ -491,7 +491,7 @@ impl PlatformExecutor {
         let contents = helper_path.join("Contents");
         let macos = contents.join("MacOS");
         let info_plist = contents.join("Info.plist");
-        let executable = macos.join("SweetMCPHelper");
+        let executable = macos.join("KodegenHelper");
 
         // Verify all required components exist (zero-allocation existence checks)
         if !contents.exists() || !macos.exists() || !info_plist.exists() || !executable.exists() {
@@ -531,7 +531,7 @@ impl PlatformExecutor {
         }
 
         // Verify executable exists and has proper permissions
-        let executable = helper_path.join("Contents/MacOS/SweetMCPHelper");
+        let executable = helper_path.join("Contents/MacOS/KodegenHelper");
         if !executable.exists() {
             return Err(InstallerError::System(
                 "Helper app missing executable".to_string(),
@@ -566,9 +566,9 @@ impl PlatformExecutor {
         if let plist::Value::Dictionary(dict) = plist_value {
             // Verify bundle identifier matches expected value
             if let Some(plist::Value::String(bundle_id)) = dict.get("CFBundleIdentifier") {
-                if bundle_id != "com.kodegend.sweetmcp.helper" {
+                if bundle_id != "com.kodegend.kodegen.helper" {
                     return Err(InstallerError::System(format!(
-                        "Unexpected bundle identifier: {} (expected: com.kodegend.sweetmcp.helper)",
+                        "Unexpected bundle identifier: {} (expected: com.kodegend.kodegen.helper)",
                         bundle_id
                     )));
                 }
@@ -718,7 +718,7 @@ impl PlatformExecutor {
             .get()
             .ok_or_else(|| InstallerError::System("Helper app not initialized".to_string()))?;
 
-        let helper_exe = helper_path.join("Contents/MacOS/SweetMCPHelper");
+        let helper_exe = helper_path.join("Contents/MacOS/KodegenHelper");
 
         // Launch helper with elevated privileges using osascript
         // The helper itself is what gets elevated, not the script
