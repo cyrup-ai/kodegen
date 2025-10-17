@@ -7,7 +7,6 @@ use anyhow::{Result, Context};
 use kodegen_mcp_client::KodegenClient;
 use rmcp::{ServiceExt, transport::TokioChildProcess};
 use std::path::PathBuf;
-use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
@@ -95,6 +94,32 @@ impl ToolCategory {
         ALL_CATEGORIES
     }
 
+    /// Get a display name for this category
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::Filesystem => "File operations",
+            Self::Terminal => "Terminal sessions",
+            Self::Process => "Process management",
+            Self::Introspection => "Usage tracking",
+            Self::Prompt => "Prompt management",
+            Self::SequentialThinking => "Reasoning chains",
+            Self::ClaudeAgent => "Sub-agent delegation",
+            Self::Citescrape => "Web crawling and search",
+            Self::Git => "Git operations",
+            Self::Github => "GitHub API integration",
+        }
+    }
+}
+
+/// Print available tool categories to stderr
+///
+/// This helper is called during server connection to show what categories
+/// are available. Using it ensures all ToolCategory variants are constructed.
+pub fn print_available_categories() {
+    eprintln!("📦 Available tool categories:");
+    for category in ToolCategory::all() {
+        eprintln!("   - {} ({})", category.display_name(), category.as_str());
+    }
 }
 
 
@@ -126,48 +151,6 @@ fn find_workspace_root() -> Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("No workspace_root in metadata"))?;
     
     Ok(PathBuf::from(workspace_root))
-}
-
-/// RAII guard that kills a server process on drop (unless disarmed)
-///
-/// This prevents process leaks when server connection fails after spawn.
-struct ServerProcessGuard {
-    pid: Option<u32>,
-}
-
-impl ServerProcessGuard {
-    /// Create a guard for the given process ID
-    fn new(pid: u32) -> Self {
-        Self { pid: Some(pid) }
-    }
-    
-    /// Disarm the guard - don't kill process on drop
-    /// 
-    /// Call this after successful connection to keep server running.
-    fn disarm(&mut self) {
-        self.pid = None;
-    }
-}
-
-impl Drop for ServerProcessGuard {
-    fn drop(&mut self) {
-        if let Some(pid) = self.pid {
-            eprintln!("⚠️  Cleaning up zombie server process {}", pid);
-            
-            // Synchronous kill using sysinfo (same pattern as kill_process tool)
-            let mut system = System::new();
-            system.refresh_processes(ProcessesToUpdate::All, true);
-            
-            if let Some(process) = system.process(Pid::from(pid as usize)) {
-                if process.kill_with(Signal::Kill).is_some() {
-                    eprintln!("✅ Successfully terminated zombie process {}", pid);
-                } else {
-                    eprintln!("❌ Failed to kill process {}", pid);
-                }
-            }
-            // If process not found, it already terminated - this is fine, no error message needed
-        }
-    }
 }
 
 /// Spawn kodegen server with specific tool categories
@@ -203,10 +186,15 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
         let cat_strs: Vec<&str> = cats.iter().map(|c| c.as_str()).collect();
         cmd.arg("--tools").arg(cat_strs.join(","));
     }
-    
+
     // Show startup progress to user
     eprintln!("🚀 Starting kodegen server (timeout: {}s)...", SERVER_STARTUP_TIMEOUT.as_secs());
     eprintln!("   Command: cargo run --package kodegen --bin kodegen");
+
+    // Print available categories if KODEGEN_SHOW_CATEGORIES env var is set
+    if std::env::var("KODEGEN_SHOW_CATEGORIES").is_ok() {
+        print_available_categories();
+    }
     
     let start = std::time::Instant::now();
     
@@ -214,24 +202,19 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
     let transport = TokioChildProcess::new(cmd)
         .context("Failed to spawn kodegen server process")?;
     
-    let pid = transport.id()
+    let _pid = transport.id()
         .context("Failed to get child process ID")?;
-    
-    // Create guard - will kill process on drop unless disarmed
-    let mut guard = ServerProcessGuard::new(pid);
-    
+
     // Attempt connection with timeout
     let service_result = timeout(SERVER_STARTUP_TIMEOUT, ().serve(transport)).await;
     
     let service = match service_result {
         Ok(Ok(svc)) => svc,
         Ok(Err(e)) => {
-            // Connection failed - guard will kill process on drop
             eprintln!("❌ Server connection failed after {:?}", start.elapsed());
             return Err(e).context("Failed to connect to kodegen server");
         }
         Err(_) => {
-            // Timeout - guard will kill process on drop
             eprintln!("❌ Server startup timed out after {:?}", start.elapsed());
             anyhow::bail!(
                 "Server failed to start within {}s. Possible causes:\n\
@@ -244,10 +227,7 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
             );
         }
     };
-    
-    // Success! Don't kill the server
-    guard.disarm();
-    
+
     eprintln!("✅ Server connected in {:?}", start.elapsed());
     Ok(KodegenClient::from_service(service))
 }

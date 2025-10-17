@@ -460,17 +460,17 @@ impl McpBridge {
         }
 
         // Ensure jsonrpc field is present
-        if processed_response.get("jsonrpc").is_none() {
-            if let Some(obj) = processed_response.as_object_mut() {
-                obj.insert("jsonrpc".to_string(), Value::String("2.0".to_string()));
-            }
+        if processed_response.get("jsonrpc").is_none()
+            && let Some(obj) = processed_response.as_object_mut()
+        {
+            obj.insert("jsonrpc".to_string(), Value::String("2.0".to_string()));
         }
 
         // Ensure id field matches request
-        if let Some(request_id) = original_request.get("id") {
-            if let Some(obj) = processed_response.as_object_mut() {
-                obj.insert("id".to_string(), request_id.clone());
-            }
+        if let Some(request_id) = original_request.get("id")
+            && let Some(obj) = processed_response.as_object_mut()
+        {
+            obj.insert("id".to_string(), request_id.clone());
         }
 
         processed_response

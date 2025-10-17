@@ -292,10 +292,10 @@ pub fn create_server_error_response(
 #[allow(dead_code)]
 pub fn extract_request_id(request_text: &str) -> Option<Value> {
     // Try to parse as JSON first
-    if let Ok(json) = serde_json::from_str::<Value>(request_text) {
-        if let Some(obj) = json.as_object() {
-            return obj.get("id").cloned();
-        }
+    if let Ok(json) = serde_json::from_str::<Value>(request_text)
+        && let Some(obj) = json.as_object()
+    {
+        return obj.get("id").cloned();
     }
 
     // If parsing fails, try to extract ID with regex
@@ -303,25 +303,24 @@ pub fn extract_request_id(request_text: &str) -> Option<Value> {
     if let Some(captures) = regex::Regex::new(r#""id"\s*:\s*([^,}]+)"#)
         .ok()?
         .captures(request_text)
+        && let Some(id_match) = captures.get(1)
     {
-        if let Some(id_match) = captures.get(1) {
-            let id_str = id_match.as_str().trim();
+        let id_str = id_match.as_str().trim();
 
-            // Try to parse as number
-            if let Ok(num) = id_str.parse::<i64>() {
-                return Some(Value::Number(serde_json::Number::from(num)));
-            }
+        // Try to parse as number
+        if let Ok(num) = id_str.parse::<i64>() {
+            return Some(Value::Number(serde_json::Number::from(num)));
+        }
 
-            // Try to parse as string (remove quotes)
-            if id_str.starts_with('"') && id_str.ends_with('"') {
-                let unquoted = &id_str[1..id_str.len() - 1];
-                return Some(Value::String(unquoted.to_string()));
-            }
+        // Try to parse as string (remove quotes)
+        if id_str.starts_with('"') && id_str.ends_with('"') {
+            let unquoted = &id_str[1..id_str.len() - 1];
+            return Some(Value::String(unquoted.to_string()));
+        }
 
-            // Check for null
-            if id_str == "null" {
-                return Some(Value::Null);
-            }
+        // Check for null
+        if id_str == "null" {
+            return Some(Value::Null);
         }
     }
 
@@ -407,10 +406,10 @@ pub fn validate_security(request: &Value) -> Result<(), anyhow::Error> {
         }
 
         // Check for excessively nested parameters
-        if let Some(params) = obj.get("params") {
-            if get_json_depth(params) > 10 {
-                return Err(anyhow::anyhow!("Parameters exceed maximum nesting depth"));
-            }
+        if let Some(params) = obj.get("params")
+            && get_json_depth(params) > 10
+        {
+            return Err(anyhow::anyhow!("Parameters exceed maximum nesting depth"));
         }
     }
 

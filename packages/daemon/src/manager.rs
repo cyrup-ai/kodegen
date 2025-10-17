@@ -53,9 +53,10 @@ impl ServiceManager {
         }
 
         // Load services from services directory
-        if let Some(services_dir) = &cfg.services_dir {
-            if let Ok(entries) = std::fs::read_dir(services_dir) {
-                for entry in entries.flatten() {
+        if let Some(services_dir) = &cfg.services_dir
+            && let Ok(entries) = std::fs::read_dir(services_dir)
+        {
+            for entry in entries.flatten() {
                     let path = entry.path();
                     if path.extension().and_then(|s| s.to_str()) == Some("toml") {
                         match std::fs::read_to_string(&path) {
@@ -95,7 +96,6 @@ impl ServiceManager {
                         }
                     }
                 }
-            }
         }
 
         Ok(Self {
@@ -113,27 +113,27 @@ impl ServiceManager {
     pub async fn start_sse_server(&mut self, cfg: &ServiceConfig) -> Result<()> {
         use std::net::SocketAddr;
 
-        if let Some(sse_config) = &cfg.sse {
-            if sse_config.enabled {
-                info!("Starting SSE server on port {}", sse_config.port);
+        if let Some(sse_config) = &cfg.sse
+            && sse_config.enabled
+        {
+            info!("Starting SSE server on port {}", sse_config.port);
 
-                let (shutdown_tx, shutdown_rx) = oneshot::channel();
-                let sse_cfg: crate::service::sse::SseConfig = sse_config.clone().into();
-                let addr: SocketAddr = ([127, 0, 0, 1], sse_config.port).into();
+            let (shutdown_tx, shutdown_rx) = oneshot::channel();
+            let sse_cfg: crate::service::sse::SseConfig = sse_config.clone().into();
+            let addr: SocketAddr = ([127, 0, 0, 1], sse_config.port).into();
 
-                let task = tokio::spawn(async move {
-                    if let Err(e) =
-                        crate::service::sse::start_sse_server(sse_cfg, shutdown_rx).await
-                    {
-                        error!("SSE server error: {}", e);
-                    }
-                });
+            let task = tokio::spawn(async move {
+                if let Err(e) =
+                    crate::service::sse::start_sse_server(sse_cfg, shutdown_rx).await
+                {
+                    error!("SSE server error: {}", e);
+                }
+            });
 
-                self.sse_shutdown_tx = Some(shutdown_tx);
-                self.sse_task = Some(task);
+            self.sse_shutdown_tx = Some(shutdown_tx);
+            self.sse_task = Some(task);
 
-                info!("SSE server started on {}", addr);
-            }
+            info!("SSE server started on {}", addr);
         }
         Ok(())
     }
@@ -326,19 +326,19 @@ impl ServiceManager {
 
         // Restart ready services
         for service in to_restart {
-            if let Some(state) = self.pending_restarts.remove(&service) {
-                if let Some(tx) = self.workers.get(&service) {
-                    info!("Restarting {} (attempt #{})", service, state.attempts);
-                    tx.send(Cmd::Start).ok();
-                    self.bus_tx
-                        .send(Evt::State {
-                            service: "manager".to_string(),
-                            kind: "restarted-service",
-                            ts: chrono::Utc::now(),
-                            pid: Some(std::process::id()),
-                        })
-                        .ok();
-                }
+            if let Some(state) = self.pending_restarts.remove(&service)
+                && let Some(tx) = self.workers.get(&service)
+            {
+                info!("Restarting {} (attempt #{})", service, state.attempts);
+                tx.send(Cmd::Start).ok();
+                self.bus_tx
+                    .send(Evt::State {
+                        service: "manager".to_string(),
+                        kind: "restarted-service",
+                        ts: chrono::Utc::now(),
+                        pid: Some(std::process::id()),
+                    })
+                    .ok();
             }
         }
     }
