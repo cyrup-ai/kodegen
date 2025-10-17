@@ -1,0 +1,8 @@
+/// Configuration for page data extraction
+pub struct ExtractPageDataConfig {
+    pub output_dir: std::path::PathBuf,
+    pub link_rewriter: super::link_rewriter::LinkRewriter,
+    pub max_inline_image_size_bytes: Option<usize>,
+    pub crawl_rate_rps: Option<f64>,
+    pub save_html: bool,
+}

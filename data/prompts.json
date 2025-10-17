@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "description": "Curated prompts for Kodegen MCP workflows",
+  "prompts": [
+    {
+      "id": "onb_001",
+      "title": "Getting Started with Kodegen",
+      "description": "Learn basics of file operations and command execution",
+      "prompt": "Let's explore the basics of Kodegen MCP! I'll show you how to:\n\n1. Read files from disk\n2. List directory contents\n3. Search for files and content\n4. Execute shell commands safely\n\nWhat would you like to start with?",
+      "categories": ["onboarding"],
+      "secondary_tag": "Quick Start",
+      "votes": 150,
+      "ga_clicks": 500,
+      "icon": "🚀",
+      "author": "kodegen-team",
+      "verified": true
+    },
+    {
+      "id": "code_001",
+      "title": "Analyze Project Structure",
+      "description": "Deep dive into codebase organization",
+      "prompt": "I'll help you understand this project's structure. First, what's the path to the project you'd like me to analyze?\n\nI'll examine:\n- Directory structure and organization\n- Key files and their purposes\n- Dependencies and build configuration\n- Entry points and main modules",
+      "categories": ["Explore codebase", "onboarding"],
+      "secondary_tag": "Code Analysis",
+      "votes": 85,
+      "ga_clicks": 300,
+      "icon": "💻",
+      "author": "kodegen-team",
+      "verified": true
+    }
+  ]
+}

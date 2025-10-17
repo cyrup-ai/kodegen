@@ -1,0 +1,58 @@
+    Checking claude-agent-mcp v0.1.0 (/Volumes/samsung_t9/claude-agent)
+error: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+  --> src/transport/mod.rs:21:5
+   |
+21 |     async fn connect(&mut self) -> Result<()>;
+   |     ^^^^^
+   |
+   = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+   = note: `-D async-fn-in-trait` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(async_fn_in_trait)]`
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+   |
+21 -     async fn connect(&mut self) -> Result<()>;
+21 +     fn connect(&mut self) -> impl std::future::Future<Output = Result<()>> + Send;
+   |
+
+error: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+  --> src/transport/mod.rs:30:5
+   |
+30 |     async fn write(&mut self, data: &str) -> Result<()>;
+   |     ^^^^^
+   |
+   = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+   |
+30 -     async fn write(&mut self, data: &str) -> Result<()>;
+30 +     fn write(&mut self, data: &str) -> impl std::future::Future<Output = Result<()>> + Send;
+   |
+
+error: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+  --> src/transport/mod.rs:36:5
+   |
+36 |     async fn end_input(&mut self) -> Result<()>;
+   |     ^^^^^
+   |
+   = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+   |
+36 -     async fn end_input(&mut self) -> Result<()>;
+36 +     fn end_input(&mut self) -> impl std::future::Future<Output = Result<()>> + Send;
+   |
+
+error: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+  --> src/transport/mod.rs:52:5
+   |
+52 |     async fn close(&mut self) -> Result<()>;
+   |     ^^^^^
+   |
+   = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+   |
+52 -     async fn close(&mut self) -> Result<()>;
+52 +     fn close(&mut self) -> impl std::future::Future<Output = Result<()>> + Send;
+   |
+
+error: could not compile `claude-agent-mcp` (lib test) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `claude-agent-mcp` (lib) due to 4 previous errors

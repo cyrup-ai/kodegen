@@ -1,0 +1,248 @@
+//! HTML to Markdown conversion functionality.
+//!
+//! This module wraps the html2md library and adds additional post-processing
+//! to produce clean, well-formatted markdown output.
+
+use anyhow::Result;
+use html2md::parse_html;
+use regex::Regex;
+use std::sync::LazyLock;
+
+use crate::runtime::{spawn_async, AsyncTask};
+
+// Compile regex patterns once at first use
+// These are syntactically valid and will never fail to compile
+static EMPTY_LINES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\n{3,}").expect("EMPTY_LINES regex pattern is valid")
+});
+
+static SPACE_AFTER_LIST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?m)^(\s*[-*+])\s*").expect("SPACE_AFTER_LIST regex pattern is valid")
+});
+
+static HEADING_SPACE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?m)^(#+)([^ ])").expect("HEADING_SPACE regex pattern is valid")
+});
+
+static TABLE_ALIGN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\|(\s*:?-+:?\s*\|)+").expect("TABLE_ALIGN regex pattern is valid")
+});
+
+static CODE_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"```([a-zA-Z]*)\n").expect("CODE_BLOCK regex pattern is valid")
+});
+
+static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[([^\]]+)\]\([^\)]+\)")
+        .expect("LINK_RE: hardcoded regex is valid")
+});
+
+static IMAGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"!\[[^\]]*\]\([^\)]+\)")
+        .expect("IMAGE_RE: hardcoded regex is valid")
+});
+
+/// HTML to Markdown converter with configurable options
+pub struct MarkdownConverter {
+    preserve_tables: bool,
+    preserve_links: bool,
+    preserve_images: bool,
+    code_highlighting: bool,
+}
+
+impl Default for MarkdownConverter {
+    fn default() -> Self {
+        Self {
+            preserve_tables: true,
+            preserve_links: true,
+            preserve_images: true,
+            code_highlighting: true,
+        }
+    }
+}
+
+impl MarkdownConverter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_preserve_tables(mut self, preserve: bool) -> Self {
+        self.preserve_tables = preserve;
+        self
+    }
+
+    pub fn with_preserve_links(mut self, preserve: bool) -> Self {
+        self.preserve_links = preserve;
+        self
+    }
+
+    pub fn with_preserve_images(mut self, preserve: bool) -> Self {
+        self.preserve_images = preserve;
+        self
+    }
+
+    pub fn with_code_highlighting(mut self, highlight: bool) -> Self {
+        self.code_highlighting = highlight;
+        self
+    }
+
+    /// Convert HTML to Markdown synchronously (with built-in fallback)
+    pub fn convert_sync(&self, html: &str) -> Result<String> {
+        // First pass: Convert HTML to basic markdown
+        let mut markdown = parse_html(html);
+
+        // Clean up the markdown
+        markdown = Self::clean_markdown_static(&markdown);
+
+        // Handle code blocks
+        if self.code_highlighting {
+            markdown = CODE_BLOCK.replace_all(&markdown, "```$1\n").to_string();
+        }
+
+        // Clean up lists
+        markdown = SPACE_AFTER_LIST.replace_all(&markdown, "$1 ").to_string();
+
+        // Fix heading spacing
+        markdown = HEADING_SPACE.replace_all(&markdown, "$1 $2").to_string();
+
+        // Handle tables if enabled
+        if self.preserve_tables {
+            markdown = Self::format_tables_static(&markdown);
+        }
+
+        // Remove excessive newlines
+        markdown = EMPTY_LINES.replace_all(&markdown, "\n\n").to_string();
+
+        // Handle links and images based on settings
+        if !self.preserve_links {
+            markdown = Self::remove_links_static(&markdown);
+        }
+        if !self.preserve_images {
+            markdown = Self::remove_images_static(&markdown);
+        }
+
+        Ok(markdown.trim().to_string())
+    }
+
+    /// Convert HTML to Markdown asynchronously (callback-based)
+    ///
+    /// Performs the same conversion as `convert_sync()` but executes asynchronously
+    /// and delivers results via callback.
+    pub fn convert(
+        &self,
+        html: &str,
+        on_result: impl FnOnce(Result<String, anyhow::Error>) + Send + 'static,
+    ) -> AsyncTask<()> {
+        let html = html.to_string();
+        let preserve_tables = self.preserve_tables;
+        let preserve_links = self.preserve_links;
+        let preserve_images = self.preserve_images;
+        let code_highlighting = self.code_highlighting;
+
+        spawn_async(async move {
+            let result = {
+                // First pass: Convert HTML to basic markdown
+                let mut markdown = parse_html(&html);
+
+                // Clean up the markdown
+                markdown = Self::clean_markdown_static(&markdown);
+
+                // Handle code blocks
+                if code_highlighting {
+                    markdown = CODE_BLOCK.replace_all(&markdown, "```$1\n").to_string();
+                }
+
+                // Clean up lists
+                markdown = SPACE_AFTER_LIST.replace_all(&markdown, "$1 ").to_string();
+
+                // Fix heading spacing
+                markdown = HEADING_SPACE.replace_all(&markdown, "$1 $2").to_string();
+
+                // Handle tables if enabled
+                if preserve_tables {
+                    markdown = Self::format_tables_static(&markdown);
+                }
+
+                // Remove excessive newlines
+                markdown = EMPTY_LINES.replace_all(&markdown, "\n\n").to_string();
+
+                // Handle links and images based on settings
+                if !preserve_links {
+                    markdown = Self::remove_links_static(&markdown);
+                }
+                if !preserve_images {
+                    markdown = Self::remove_images_static(&markdown);
+                }
+
+                Ok(markdown.trim().to_string())
+            };
+
+            on_result(result);
+        })
+    }
+
+    fn clean_markdown_static(markdown: &str) -> String {
+        let mut cleaned = markdown.to_string();
+
+        // Remove HTML comments
+        cleaned = cleaned
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("<!--"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Fix list indentation
+        cleaned = cleaned
+            .lines()
+            .map(|line| {
+                if line.trim_start().starts_with(['-', '*', '+']) {
+                    let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+                    format!("{}{}", " ".repeat(indent), line.trim_start())
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        cleaned
+    }
+
+    fn format_tables_static(markdown: &str) -> String {
+        let mut formatted = markdown.to_string();
+
+        // Ensure table headers are properly aligned
+        formatted = TABLE_ALIGN
+            .replace_all(&formatted, |caps: &regex::Captures| {
+                caps[0]
+                    .trim_matches('|')
+                    .split('|')
+                    .map(|col| col.trim())
+                    .map(|col| {
+                        if col.starts_with(':') && col.ends_with(':') {
+                            "|:---:|"
+                        } else if col.starts_with(':') {
+                            "|:---|"
+                        } else if col.ends_with(':') {
+                            "|---:|"
+                        } else {
+                            "|---|"
+                        }
+                    })
+                    .collect::<String>()
+            })
+            .to_string();
+
+        formatted
+    }
+
+    fn remove_links_static(markdown: &str) -> String {
+        // Convert [text](url) to just text
+        LINK_RE.replace_all(markdown, "$1").to_string()
+    }
+
+    fn remove_images_static(markdown: &str) -> String {
+        // Remove ![alt](url) completely
+        IMAGE_RE.replace_all(markdown, "").to_string()
+    }
+}

@@ -1,0 +1,121 @@
+//! Streaming and filtering functionality for event receivers
+//!
+//! This module provides filtered event receivers and streaming utilities
+//! for selective event consumption.
+
+use std::sync::Arc;
+use tokio::sync::broadcast;
+
+use super::errors::EventBusError;
+use super::types::CrawlEvent;
+
+/// Filtered event receiver wrapper
+pub struct FilteredReceiver<F>
+where
+    F: Fn(&CrawlEvent) -> bool + Send + Sync + 'static,
+{
+    receiver: broadcast::Receiver<CrawlEvent>,
+    filter: Arc<F>,
+}
+
+impl<F> FilteredReceiver<F>
+where
+    F: Fn(&CrawlEvent) -> bool + Send + Sync + 'static,
+{
+    pub fn new(receiver: broadcast::Receiver<CrawlEvent>, filter: F) -> Self {
+        Self { 
+            receiver, 
+            filter: Arc::new(filter)
+        }
+    }
+
+    /// Receive the next filtered event
+    /// 
+    /// # Returns
+    /// * `Ok(CrawlEvent)` - The next event that passes the filter
+    /// * `Err(EventBusError)` - If receiving failed or receiver lagged
+    pub fn recv(
+        &mut self,
+        on_result: impl FnOnce(Result<CrawlEvent, EventBusError>) + Send + 'static,
+    ) -> crate::runtime::AsyncTask<()> {
+        use crate::runtime::spawn_async;
+        
+        // Take the receiver to move it into the async task
+        // Replace it with a resubscribed receiver for potential future calls
+        let new_receiver = self.receiver.resubscribe();
+        let mut receiver = std::mem::replace(&mut self.receiver, new_receiver);
+        let filter = Arc::clone(&self.filter);
+        
+        spawn_async(async move {
+            let result = async {
+                loop {
+                    match receiver.recv().await {
+                        Ok(event) => {
+                            if filter(&event) {
+                                return Ok(event);
+                            }
+                            // Continue loop if event doesn't pass filter
+                        }
+                        Err(broadcast::error::RecvError::Closed) => {
+                            return Err(EventBusError::Shutdown);
+                        }
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            return Err(EventBusError::ReceiverLagged(skipped));
+                        }
+                    }
+                }
+            }.await;
+            
+            on_result(result);
+        })
+    }
+
+    /// Try to receive the next filtered event without blocking
+    /// 
+    /// # Returns
+    /// * `Ok(Some(CrawlEvent))` - Event received and passed filter
+    /// * `Ok(None)` - No events available or available events don't pass filter
+    /// * `Err(EventBusError)` - If receiving failed or receiver lagged
+    pub fn try_recv(
+        &mut self,
+        on_result: impl FnOnce(Result<Option<CrawlEvent>, EventBusError>) + Send + 'static,
+    ) -> crate::runtime::AsyncTask<()> {
+        use crate::runtime::spawn_async;
+        
+        let mut receiver = self.receiver.resubscribe();
+        let filter = Arc::clone(&self.filter);
+        
+        spawn_async(async move {
+            let result = async {
+                loop {
+                    match receiver.try_recv() {
+                        Ok(event) => {
+                            if filter(&event) {
+                                return Ok(Some(event));
+                            }
+                        }
+                        Err(broadcast::error::TryRecvError::Empty) => {
+                            return Ok(None);
+                        }
+                        Err(broadcast::error::TryRecvError::Closed) => {
+                            return Err(EventBusError::Shutdown);
+                        }
+                        Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
+                            return Err(EventBusError::ReceiverLagged(skipped));
+                        }
+                    }
+                }
+            }.await;
+            
+            on_result(result);
+        })
+    }
+
+    /// Check if this receiver will receive specific event types
+    /// 
+    /// # Arguments
+    /// * `event` - Test event to check against filter
+    pub fn would_receive(&self, event: &CrawlEvent) -> bool {
+        (self.filter)(event)
+    }
+}

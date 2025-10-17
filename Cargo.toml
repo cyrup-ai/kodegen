@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "packages/autoconfig",
+    "packages/citescrape",
+    "packages/claude-agent",
+    "packages/config",
+    "packages/daemon",
+    "packages/filesystem",
+    "packages/git",
+    "packages/github",
+    "packages/introspection",
+    "packages/mcp-client",
+    "packages/pingora",
+    "packages/process",
+    "packages/prompt",
+    "packages/sequential-thinking",
+    "packages/server",
+    "packages/terminal",
+    "packages/utils",
+    "packages/tool"
+]
+exclude = ["tmp/*", "docs/*", "forks/*"]
+resolver = "3"
+
+[patch.crates-io]
+termcolor = { git = "https://github.com/cyrup-ai/termcolor", branch = "main" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[workspace.package]
+license = "Apache-2.0 OR MIT"
+
+[workspace.dependencies]
+termcolor = { git = "https://github.com/cyrup-ai/termcolor", branch = "main" }

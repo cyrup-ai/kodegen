@@ -1,0 +1,76 @@
+[package]
+name = "kodegen_claude_agent"
+version = "0.1.0"
+edition = "2024"
+authors = ["David Maple<david@kodegen.ai>"]
+description = "Claude Agent as an MCP Tool"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/cyrup-ai/kodegen"
+keywords = ["claude", "ai", "code", "anthropic", "agent"]
+categories = ["api-bindings", "asynchronous"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Session management
+uuid = { version = "1.18", features = ["v4", "serde"] }
+
+# HTTP client (for future MCP HTTP support)
+reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
+
+# Error handling
+thiserror = "2.0"
+
+# Async streams
+futures = "0.3"
+async-stream = "0.3"
+
+# Process utilities
+which = "8.0"
+
+# Bitflags for capability sets
+bitflags = "2.9"
+
+# Logging - standardized on env_logger
+log = "0.4"
+env_logger = "0.11"
+
+# Date/time utilities
+chrono = "0.4"
+
+# Terminal colors - for formatted output
+termcolor = { git = "https://github.com/cyrup-ai/termcolor", branch = "main" }
+
+# MCP SDK - official protocol implementation
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server"], version = "0.8.1" }
+
+# Tool trait and error types
+kodegen_tool = { path = "../tool" }
+
+# Prompt template system
+kodegen_prompt = { path = "../prompt" }
+
+# JSON Schema generation
+schemars = "1.0"
+
+# Error handling for tool conversion
+anyhow = "1.0"
+
+# Concurrent access for session manager
+parking_lot = "0.12"
+
+[dev-dependencies]
+anyhow = "1.0"
+tokio-test = "0.4"
+tempfile = "3.23"
+
+[features]
+default = []
+http = ["reqwest"]
+
