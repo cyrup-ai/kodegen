@@ -134,23 +134,4 @@ impl KodegenSseService {
         
         Ok(())
     }
-    
-    /// Check if the kodegen subprocess is still running
-    pub fn is_running(&mut self) -> bool {
-        if let Some(ref mut child) = self.child_process {
-            match child.try_wait() {
-                Ok(None) => true,  // Process still running
-                Ok(Some(status)) => {
-                    log::error!("Kodegen SSE server exited unexpectedly with status: {}", status);
-                    false
-                }
-                Err(e) => {
-                    log::error!("Error checking kodegen process status: {}", e);
-                    false
-                }
-            }
-        } else {
-            false  // No child process
-        }
-    }
 }

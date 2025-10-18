@@ -105,7 +105,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
         
         // Wait for crawl to complete
         tracing::info!("Waiting for crawl to complete...");
-        wait_for_crawl_completion(&client, &session_id, Duration::from_secs(60)).await?;
+        wait_for_crawl_completion(client, &session_id, Duration::from_secs(60)).await?;
         
         // Test 2: Get crawl results
         tracing::info!("\n=== Testing get_crawl_results ===");
@@ -254,7 +254,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
         tracing::info!("Crawl respects robots.txt directives");
         
         // Wait and get results
-        wait_for_crawl_completion(&client, &session_id_2, Duration::from_secs(60)).await?;
+        wait_for_crawl_completion(client, &session_id_2, Duration::from_secs(60)).await?;
         
         let _result = client.call_tool("get_crawl_results", json!({
             "sessionId": session_id_2,

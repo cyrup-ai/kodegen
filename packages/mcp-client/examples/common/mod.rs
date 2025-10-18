@@ -146,8 +146,6 @@ pub fn print_available_categories() {
     }
 }
 
-/// Extract text content from MCP CallToolResult
-///
 /// Cached workspace root to avoid repeated cargo metadata executions
 ///
 /// This is populated on first call to find_workspace_root() and reused for all

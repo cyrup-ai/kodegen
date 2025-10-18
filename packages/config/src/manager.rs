@@ -16,6 +16,10 @@ fn default_fuzzy_search_threshold() -> f64 {
     0.7
 }
 
+fn default_sse_connection_timeout_secs() -> u64 {
+    5
+}
+
 // ============================================================================
 // PROFILING INSTRUMENTATION
 // ============================================================================
@@ -54,6 +58,10 @@ pub struct ServerConfig {
     /// Default: 0.7 (70% similarity required)
     #[serde(default = "default_fuzzy_search_threshold")]
     pub fuzzy_search_threshold: f64,
+
+    /// SSE connection timeout in seconds (default: 5)
+    #[serde(default = "default_sse_connection_timeout_secs")]
+    pub sse_connection_timeout_secs: u64,
 
     /// Currently connected client (if any)
     #[serde(skip_serializing_if = "Option::is_none")]
