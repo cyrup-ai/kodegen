@@ -1,20 +1,23 @@
 use rmcp::{
-    model::{CallToolRequestParam, CallToolResult, InitializeResult},
+    model::{CallToolRequestParam, CallToolResult, InitializeRequestParam, InitializeResult},
     service::RunningService,
 };
 use tokio::time::{timeout, Duration};
 
 pub mod error;
+pub mod responses;
 pub mod tools;
+pub mod transports;
 
 pub use error::ClientError;
+pub use transports::{create_sse_client, create_streamable_client};
 
 /// Default timeout for MCP operations (30 seconds)
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Generic MCP Client
 pub struct KodegenClient {
-    client: RunningService<rmcp::RoleClient, ()>,
+    client: RunningService<rmcp::RoleClient, InitializeRequestParam>,
     default_timeout: Duration,
 }
 
@@ -24,7 +27,7 @@ impl KodegenClient {
     /// # Errors
     ///
     /// Returns `ClientError` if the connection fails.
-    pub fn from_service(client: RunningService<rmcp::RoleClient, ()>) -> Self {
+    pub fn from_service(client: RunningService<rmcp::RoleClient, InitializeRequestParam>) -> Self {
         Self { 
             client,
             default_timeout: DEFAULT_TIMEOUT,
@@ -90,6 +93,47 @@ impl KodegenClient {
                 format!("Tool '{}' timed out after {}s", name, self.default_timeout.as_secs())
             ))?
             .map_err(ClientError::from)
+    }
+    
+    /// Call a tool and deserialize the response to a typed structure
+    /// 
+    /// This provides type-safe parsing with clear error messages instead of fragile
+    /// manual JSON extraction with nested Options. Use this with response types from
+    /// the `responses` module for better error handling.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use kodegen_mcp_client::responses::StartCrawlResponse;
+    /// 
+    /// let response: StartCrawlResponse = client
+    ///     .call_tool_typed("start_crawl", json!({...}))
+    ///     .await?;
+    /// let session_id = response.session_id;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `ClientError::ParseError` if the response cannot be deserialized,
+    /// or any error from the underlying `call_tool` method.
+    pub async fn call_tool_typed<T>(&self, name: &str, arguments: serde_json::Value) -> Result<T, ClientError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let result = self.call_tool(name, arguments).await?;
+        
+        // Extract text content from response
+        let text_content = result.content.first()
+            .and_then(|c| c.as_text())
+            .ok_or_else(|| ClientError::ParseError(
+                format!("No text content in response from tool '{}'", name)
+            ))?;
+        
+        // Deserialize to target type with context
+        serde_json::from_str(&text_content.text)
+            .map_err(|e| ClientError::ParseError(
+                format!("Failed to parse response from tool '{}': {}", name, e)
+            ))
     }
     
     /// Graceful shutdown with proper MCP protocol cancellation

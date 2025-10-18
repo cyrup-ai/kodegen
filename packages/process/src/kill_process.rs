@@ -6,6 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 
+// Compile-time platform validation for PID conversion safety
+// This ensures u32 → usize conversion cannot truncate
+#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+compile_error!("KillProcessTool only supports 32-bit and 64-bit platforms");
+
 // ============================================================================
 // TOOL ARGUMENTS
 // ============================================================================
@@ -66,12 +71,34 @@ impl Tool for KillProcessTool {
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         let pid = args.pid;
 
+        // Validate PID
+        if pid == 0 {
+            return Err(McpError::InvalidArguments(
+                "Invalid PID 0: cannot kill process with ID 0".to_string()
+            ));
+        }
+
         // Use spawn_blocking for sysinfo operations
         let result = tokio::task::spawn_blocking(move || {
             let mut system = System::new();
             system.refresh_processes(ProcessesToUpdate::All, true);
 
-            if let Some(process) = system.process(Pid::from(pid as usize)) {
+            // Platform-validated PID conversion
+            // Safe: u32 fits in usize on 32-bit and 64-bit platforms
+            #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+            let sysinfo_pid = {
+                // Document why conversion is safe on supported platforms:
+                // - On 64-bit: usize = u64, conversion u32 → u64 is lossless
+                // - On 32-bit: usize = u32, conversion u32 → u32 is identity
+                Pid::from(pid as usize)
+            };
+
+            #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+            {
+                return Err("Process termination not supported on this platform");
+            }
+
+            if let Some(process) = system.process(sysinfo_pid) {
                 let process_name = process.name().to_string_lossy().to_string();
                 let killed = process.kill_with(Signal::Kill);
 

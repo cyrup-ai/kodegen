@@ -37,6 +37,7 @@ kodegen_config = { path = "../config" }
 kodegen_tool = { path = "../tool" }
 kodegen_utils = { path = "../utils" }
 kodegen_autoconfig = { path = "../autoconfig" }
+kodegen_mcp_client = { path = "../mcp-client" }
 
 # CLI argument parsing
 clap = { version = "4.5", features = ["derive", "env"] }

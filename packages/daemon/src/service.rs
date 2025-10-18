@@ -1,6 +1,7 @@
 mod autoconfig;
 
 pub mod sse;
+pub mod kodegen_sse;
 
 use std::process::{Child, Command, Stdio};
 use std::thread;

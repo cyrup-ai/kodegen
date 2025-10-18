@@ -33,7 +33,7 @@ impl ConfigMerger {
                 "mcpServers": {
                     "kodegen": {
                         "command": "kodegen",
-                        "args": [],
+                        "args": ["--proxy-sse", "http://localhost:8081/sse"],
                         "env": {}
                     }
                 }
@@ -48,7 +48,10 @@ impl ConfigMerger {
                 );
                 kodegen.insert(
                     "args".to_string(),
-                    TomlValue::Array(vec![]),
+                    TomlValue::Array(vec![
+                        TomlValue::String("--proxy-sse".to_string()),
+                        TomlValue::String("http://localhost:8081/sse".to_string()),
+                    ]),
                 );
                 mcp_servers.insert("kodegen".to_string(), TomlValue::Table(kodegen));
                 map.insert("mcpServers".to_string(), TomlValue::Table(mcp_servers));
@@ -59,7 +62,9 @@ impl ConfigMerger {
 mcpServers:
   kodegen:
     command: kodegen
-    args: []
+    args:
+      - --proxy-sse
+      - http://localhost:8081/sse
     env: {}
 ";
                 serde_yaml::from_str(yaml_str).ok().unwrap_or(YamlValue::Null)
@@ -70,7 +75,10 @@ mcpServers:
                 
                 let mut kodegen = plist::Dictionary::new();
                 kodegen.insert("command".to_string(), Value::String("kodegen".to_string()));
-                kodegen.insert("args".to_string(), Value::Array(vec![]));
+                kodegen.insert("args".to_string(), Value::Array(vec![
+                    Value::String("--proxy-sse".to_string()),
+                    Value::String("http://localhost:8081/sse".to_string()),
+                ]));
                 kodegen.insert("env".to_string(), Value::Dictionary(plist::Dictionary::new()));
                 
                 let mut servers = plist::Dictionary::new();

@@ -20,4 +20,10 @@ pub enum ClientError {
     
     #[error("Operation timed out: {0}")]
     Timeout(String),
+    
+    #[error("Failed to parse response: {0}")]
+    ParseError(String),
+    
+    #[error("Connection error: {0}")]
+    Connection(String),
 }

@@ -118,6 +118,9 @@ async fn run_daemon(
     // Start SSE server if enabled
     mgr.start_sse_server(&cfg).await?;
 
+    // Start kodegen SSE server if enabled
+    mgr.start_kodegen_sse_server(&cfg).await?;
+
     daemon::systemd_ready(); // tell systemd we are ready
     info!("kodegen daemon started (pid {})", std::process::id());
     mgr.run()?;

@@ -13,6 +13,16 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting github tools example");
 
+    // Check for required environment variables
+    if std::env::var("GITHUB_TOKEN").is_err() {
+        tracing::warn!("⚠️  GITHUB_TOKEN not set. GitHub operations require authentication.");
+        tracing::warn!("Get a token at: https://github.com/settings/tokens");
+        tracing::warn!("Set it with: export GITHUB_TOKEN=your_token_here");
+        tracing::warn!("Required scopes: 'repo' or 'public_repo'");
+        info!("⏭️  Skipping example - set token to run this test");
+        return Ok(());
+    }
+
     // Connect to kodegen server with github category
     let client = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::Github])
@@ -20,9 +30,18 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Connected to server: {:?}", client.server_info());
 
-    let test_repo = "owner/repo";  // Placeholder
+    // Use environment-configured repo or default to GitHub's official example repo
+    let test_repo = std::env::var("GITHUB_TEST_REPO")
+        .unwrap_or_else(|_| {
+            tracing::info!("Using default test repository: octocat/Hello-World");
+            tracing::info!("Set GITHUB_TEST_REPO to use your own repository");
+            "octocat/Hello-World".to_string()
+        });
+
     let test_issue_number = 1;
     let test_pr_number = 1;
+
+    tracing::info!("Testing with repository: {}", test_repo);
 
     // ISSUE TOOLS (7 tools)
 

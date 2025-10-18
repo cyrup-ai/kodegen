@@ -31,6 +31,7 @@ pub struct ServiceManager {
     lifecycle: Lifecycle,
     sse_shutdown_tx: Option<oneshot::Sender<()>>,
     sse_task: Option<tokio::task::JoinHandle<()>>,
+    kodegen_sse_service: Option<crate::service::kodegen_sse::KodegenSseService>,
 }
 
 impl ServiceManager {
@@ -106,6 +107,7 @@ impl ServiceManager {
             lifecycle: Lifecycle::default(),
             sse_shutdown_tx: None,
             sse_task: None,
+            kodegen_sse_service: None,
         })
     }
 
@@ -135,6 +137,14 @@ impl ServiceManager {
 
             info!("SSE server started on {}", addr);
         }
+        Ok(())
+    }
+
+    /// Start the kodegen SSE server if configured
+    pub async fn start_kodegen_sse_server(&mut self, cfg: &ServiceConfig) -> Result<()> {
+        let mut service = crate::service::kodegen_sse::KodegenSseService::new(cfg.kodegen_sse.clone());
+        service.start().await?;
+        self.kodegen_sse_service = Some(service);
         Ok(())
     }
 
@@ -189,6 +199,12 @@ impl ServiceManager {
                             info!("Shutting down SSE server");
                             shutdown_tx.send(()).ok();
                         }
+
+                        // Shutdown kodegen SSE server if running
+                        if let Some(mut service) = self.kodegen_sse_service.take()
+                            && let Err(e) = service.stop() {
+                                error!("Error stopping kodegen SSE server: {}", e);
+                            }
 
                         for tx in self.workers.values() { tx.send(Cmd::Shutdown).ok(); }
                         break;

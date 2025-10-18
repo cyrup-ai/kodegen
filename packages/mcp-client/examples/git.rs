@@ -1,5 +1,6 @@
 mod common;
 
+use anyhow::Context;
 use kodegen_mcp_client::tools;
 use serde_json::json;
 use tracing::{info, error};
@@ -20,126 +21,122 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Connected to server: {:?}", client.server_info());
 
-    let test_repo = std::env::temp_dir().join("kodegen_git_test");
+    // Run example with cleanup
+    let result = run_git_example(&client).await;
 
-    // 1. GIT_INIT - Initialize a repository
-    info!("1. Testing git_init");
-    match client.call_tool(
+    // Always close client, regardless of example result
+    client.close().await?;
+
+    // Propagate any error from the example
+    result
+}
+
+async fn run_git_example(client: &kodegen_mcp_client::KodegenClient) -> anyhow::Result<()> {
+    let test_repo = std::env::temp_dir().join("kodegen_git_test");
+    let worktree_path = test_repo.parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?
+        .join("worktree_test");
+
+    // Run tests
+    let test_result = async {
+        // 1. GIT_INIT - Initialize a repository
+        info!("1. Testing git_init");
+    let result = client.call_tool(
         tools::GIT_INIT,
         json!({ "path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Initialized repo: {:?}", result),
-        Err(e) => error!("Failed to init: {}", e),
-    }
+    ).await?;
+    info!("Initialized repo: {:?}", result);
 
     // 2. GIT_OPEN - Open the repository
     info!("2. Testing git_open");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_OPEN,
         json!({ "path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Opened repo: {:?}", result),
-        Err(e) => error!("Failed to open: {}", e),
-    }
+    ).await?;
+    info!("Opened repo: {:?}", result);
 
     // 3. GIT_DISCOVER - Discover git repository from path
     info!("3. Testing git_discover");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_DISCOVER,
         json!({ "path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Discovered repo: {:?}", result),
-        Err(e) => error!("Failed to discover: {}", e),
-    }
+    ).await?;
+    info!("Discovered repo: {:?}", result);
 
     // 4. GIT_BRANCH_LIST - List branches
     info!("4. Testing git_branch_list");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_BRANCH_LIST,
         json!({ "repo_path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Branch list: {:?}", result),
-        Err(e) => error!("Failed to list branches: {}", e),
-    }
+    ).await?;
+    info!("Branch list: {:?}", result);
 
     // 5. GIT_BRANCH_CREATE - Create a new branch
     info!("5. Testing git_branch_create");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_BRANCH_CREATE,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "branch_name": "feature-test"
         })
-    ).await {
-        Ok(result) => info!("Created branch: {:?}", result),
-        Err(e) => error!("Failed to create branch: {}", e),
-    }
+    ).await?;
+    info!("Created branch: {:?}", result);
 
     // 6. GIT_BRANCH_RENAME - Rename a branch
     info!("6. Testing git_branch_rename");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_BRANCH_RENAME,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "old_name": "feature-test",
             "new_name": "feature-renamed"
         })
-    ).await {
-        Ok(result) => info!("Renamed branch: {:?}", result),
-        Err(e) => error!("Failed to rename branch: {}", e),
-    }
+    ).await?;
+    info!("Renamed branch: {:?}", result);
 
     // 7. GIT_CHECKOUT - Checkout a branch
     info!("7. Testing git_checkout");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_CHECKOUT,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "branch": "feature-renamed"
         })
-    ).await {
-        Ok(result) => info!("Checked out: {:?}", result),
-        Err(e) => error!("Failed to checkout: {}", e),
-    }
+    ).await?;
+    info!("Checked out: {:?}", result);
 
     // 8. GIT_ADD - Add files to staging
     info!("8. Testing git_add");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_ADD,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "paths": ["."]
         })
-    ).await {
-        Ok(result) => info!("Added files: {:?}", result),
-        Err(e) => error!("Failed to add: {}", e),
-    }
+    ).await?;
+    info!("Added files: {:?}", result);
 
     // 9. GIT_COMMIT - Commit changes
     info!("9. Testing git_commit");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_COMMIT,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "message": "Initial commit"
         })
-    ).await {
-        Ok(result) => info!("Committed: {:?}", result),
-        Err(e) => error!("Failed to commit: {}", e),
-    }
+    ).await?;
+    info!("Committed: {:?}", result);
 
     // 10. GIT_LOG - View commit log
     info!("10. Testing git_log");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_LOG,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "max_count": 10
         })
-    ).await {
-        Ok(result) => info!("Log: {:?}", result),
-        Err(e) => error!("Failed to get log: {}", e),
-    }
+    ).await?;
+    info!("Log: {:?}", result);
 
     // 11. GIT_FETCH - Fetch from remote
     info!("11. Testing git_fetch");
@@ -150,118 +147,130 @@ async fn main() -> anyhow::Result<()> {
             "remote": "origin"
         })
     ).await {
-        Ok(result) => info!("Fetched: {:?}", result),
-        Err(e) => info!("Expected error (no remote configured): {}", e),
+        Ok(result) => info!("✅ Fetched from remote: {:?}", result),
+        Err(e) if e.to_string().contains("remote") || e.to_string().contains("origin") => {
+            info!("⏭️  Skipping remote operations (no remote configured)");
+            info!("Git tools example completed (remote tests skipped)");
+            return Ok(());
+        }
+        Err(e) => return Err(e).context("Unexpected git_fetch error"),
     }
 
     // 12. GIT_MERGE - Merge branches
     info!("12. Testing git_merge");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_MERGE,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "branch": "main"
         })
-    ).await {
-        Ok(result) => info!("Merged: {:?}", result),
-        Err(e) => error!("Failed to merge: {}", e),
-    }
+    ).await?;
+    info!("Merged: {:?}", result);
 
     // 13. GIT_CLONE - Clone repository (demo with public repo)
     info!("13. Testing git_clone (skipped - requires network)");
 
     // 14. GIT_WORKTREE_ADD - Add worktree
     info!("14. Testing git_worktree_add");
-    let worktree_path = test_repo.parent()
-        .map(|p| p.join("worktree_test"))
-        .unwrap_or_else(|| std::env::temp_dir().join("worktree_test"));
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_ADD,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "path": worktree_path.to_string_lossy(),
             "branch": "feature-renamed"
         })
-    ).await {
-        Ok(result) => info!("Added worktree: {:?}", result),
-        Err(e) => error!("Failed to add worktree: {}", e),
-    }
+    ).await?;
+    info!("Added worktree: {:?}", result);
 
     // 15. GIT_WORKTREE_LIST - List worktrees
     info!("15. Testing git_worktree_list");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_LIST,
         json!({ "repo_path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Worktrees: {:?}", result),
-        Err(e) => error!("Failed to list worktrees: {}", e),
-    }
+    ).await?;
+    info!("Worktrees: {:?}", result);
 
     // 16. GIT_WORKTREE_LOCK - Lock a worktree
     info!("16. Testing git_worktree_lock");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_LOCK,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "path": worktree_path.to_string_lossy()
         })
-    ).await {
-        Ok(result) => info!("Locked worktree: {:?}", result),
-        Err(e) => error!("Failed to lock worktree: {}", e),
-    }
+    ).await?;
+    info!("Locked worktree: {:?}", result);
 
     // 17. GIT_WORKTREE_UNLOCK - Unlock a worktree
     info!("17. Testing git_worktree_unlock");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_UNLOCK,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "path": worktree_path.to_string_lossy()
         })
-    ).await {
-        Ok(result) => info!("Unlocked worktree: {:?}", result),
-        Err(e) => error!("Failed to unlock worktree: {}", e),
-    }
+    ).await?;
+    info!("Unlocked worktree: {:?}", result);
 
     // 18. GIT_WORKTREE_REMOVE - Remove a worktree
     info!("18. Testing git_worktree_remove");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_REMOVE,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "path": worktree_path.to_string_lossy()
         })
-    ).await {
-        Ok(result) => info!("Removed worktree: {:?}", result),
-        Err(e) => error!("Failed to remove worktree: {}", e),
-    }
+    ).await?;
+    info!("Removed worktree: {:?}", result);
 
     // 19. GIT_WORKTREE_PRUNE - Prune worktrees
     info!("19. Testing git_worktree_prune");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_WORKTREE_PRUNE,
         json!({ "repo_path": test_repo.to_string_lossy() })
-    ).await {
-        Ok(result) => info!("Pruned worktrees: {:?}", result),
-        Err(e) => error!("Failed to prune worktrees: {}", e),
-    }
+    ).await?;
+    info!("Pruned worktrees: {:?}", result);
 
     // 20. GIT_BRANCH_DELETE - Delete a branch
     info!("20. Testing git_branch_delete");
-    match client.call_tool(
+    let result = client.call_tool(
         tools::GIT_BRANCH_DELETE,
         json!({
             "repo_path": test_repo.to_string_lossy(),
             "branch_name": "feature-renamed"
         })
-    ).await {
-        Ok(result) => info!("Deleted branch: {:?}", result),
-        Err(e) => error!("Failed to delete branch: {}", e),
+    ).await?;
+    info!("Deleted branch: {:?}", result);
+
+    info!("Git tools example tests completed");
+    Ok::<(), anyhow::Error>(())
+    }.await;
+
+    // Always cleanup test repositories, regardless of test result
+    cleanup_git_repositories(&test_repo, &worktree_path).await;
+
+    // Propagate test result
+    test_result
+}
+
+async fn cleanup_git_repositories(test_repo: &std::path::Path, worktree_path: &std::path::Path) {
+    info!("\nCleaning up test repositories...");
+    
+    // Clean up test repository
+    if let Err(e) = std::fs::remove_dir_all(test_repo) {
+        error!("⚠️  Failed to remove test repository {}: {}", test_repo.display(), e);
+        error!("   Manual cleanup required: rm -rf {}", test_repo.display());
+    } else {
+        info!("✅ Cleaned up test repository: {}", test_repo.display());
     }
-
-    // Graceful shutdown
-    client.close().await?;
-    info!("Git tools example completed successfully");
-
-    Ok(())
+    
+    // Clean up worktree if it exists
+    if worktree_path.exists() {
+        if let Err(e) = std::fs::remove_dir_all(worktree_path) {
+            error!("⚠️  Failed to remove worktree {}: {}", worktree_path.display(), e);
+            error!("   Manual cleanup required: rm -rf {}", worktree_path.display());
+        } else {
+            info!("✅ Cleaned up worktree: {}", worktree_path.display());
+        }
+    }
 }

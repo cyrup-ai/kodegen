@@ -15,7 +15,7 @@ enum TxInner<T> {
 
 /// Internal enum unifying bounded and unbounded receiver types
 enum RxInner<T> {
-    Bounded(Receiver<T>),
+    Bounded(Receiver<T>, usize),
     Unbounded(UnboundedReceiver<T>),
 }
 
@@ -63,25 +63,26 @@ impl<T: Send + 'static> Tx<T> {
     }
 
     /// Returns the number of messages currently in the channel.
-    /// For unbounded channels, this is an estimate.
+    /// Returns None for unbounded channels (tokio doesn't expose len for unbounded).
     #[inline]
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> Option<usize> {
         match &self.0 {
             TxInner::Bounded(s) => {
                 // Accurate count: total capacity - remaining capacity
-                s.max_capacity() - s.capacity()
+                Some(s.max_capacity() - s.capacity())
             }
             TxInner::Unbounded(_) => {
-                // Conservative default: unknown size
-                0
+                // Tokio doesn't expose len() for UnboundedSender
+                None
             }
         }
     }
 
     /// Returns true if the channel is empty.
+    /// Only for bounded channels where we can check len.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.len() == Some(0)
     }
 
     /// Returns the channel capacity, None for unbounded channels.
@@ -111,7 +112,7 @@ impl<T: Send + 'static> Rx<T> {
     #[inline]
     pub async fn recv(&mut self) -> Option<T> {
         match &mut self.0 {
-            RxInner::Bounded(r) => r.recv().await,
+            RxInner::Bounded(r, _) => r.recv().await,
             RxInner::Unbounded(r) => r.recv().await,
         }
     }
@@ -121,7 +122,7 @@ impl<T: Send + 'static> Rx<T> {
     #[inline]
     pub fn try_recv(&mut self) -> Result<T, TryRecvError> {
         match &mut self.0 {
-            RxInner::Bounded(r) => r.try_recv(),
+            RxInner::Bounded(r, _) => r.try_recv(),
             RxInner::Unbounded(r) => r.try_recv(),
         }
     }
@@ -141,7 +142,7 @@ impl<T: Send + 'static> Rx<T> {
     #[inline]
     pub fn is_empty(&mut self) -> bool {
         match &mut self.0 {
-            RxInner::Bounded(r) => {
+            RxInner::Bounded(r, _) => {
                 // Check if value is immediately available
                 matches!(
                     r.try_recv(),
@@ -158,23 +159,11 @@ impl<T: Send + 'static> Rx<T> {
         }
     }
 
-
-
-    /// Returns true if the channel is closed and no more messages will be sent.
-    #[inline]
-    pub fn is_disconnected(&self) -> bool {
-        false // Conservative default - tokio doesn't expose this easily
-    }
-
     /// Returns the channel capacity, None for unbounded channels.
     #[inline]
     pub fn capacity(&self) -> Option<usize> {
         match &self.0 {
-            RxInner::Bounded(_) => {
-                // For bounded receivers, we can't access capacity directly
-                // Return None as conservative default
-                None
-            }
+            RxInner::Bounded(_, cap) => Some(*cap),
             RxInner::Unbounded(_) => None,
         }
     }
@@ -196,7 +185,7 @@ pub fn unbounded<T>() -> (Tx<T>, Rx<T>) {
 #[inline]
 pub fn bounded<T>(cap: usize) -> (Tx<T>, Rx<T>) {
     let (s, r) = tokio::sync::mpsc::channel(cap);
-    (Tx(TxInner::Bounded(s)), Rx(RxInner::Bounded(r)))
+    (Tx(TxInner::Bounded(s)), Rx(RxInner::Bounded(r, cap)))
 }
 
 /// Performance-optimized channel creation for single-shot communication.
@@ -215,8 +204,11 @@ pub fn sync_channel<T>(cap: usize) -> (Tx<T>, Rx<T>) {
 
 impl<T: Send + 'static> std::fmt::Debug for Tx<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Tx")
-            .field("len", &self.len())
+        let mut debug = f.debug_struct("Tx");
+        if let Some(len) = self.len() {
+            debug.field("len", &len);
+        }
+        debug
             .field("capacity", &self.capacity())
             .field("is_empty", &self.is_empty())
             .finish()

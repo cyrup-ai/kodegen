@@ -14,6 +14,9 @@ pub struct ServiceConfig {
     pub sse: Option<SseServerConfig>,
     /// MCP Streamable HTTP transport binding (host:port)
     pub mcp_bind: Option<String>,
+    /// Kodegen SSE server configuration
+    #[serde(default)]
+    pub kodegen_sse: KodegenSseConfig,
 }
 
 /// SSE server configuration
@@ -48,6 +51,12 @@ fn default_true() -> bool {
 fn default_sse_port() -> u16 {
     30436
 }
+fn default_kodegen_port() -> u16 {
+    30437
+}
+fn default_bind_address() -> String {
+    "127.0.0.1".to_string()
+}
 fn default_mcp_server_url() -> String {
     "http://127.0.0.1:3000".to_string()
 }
@@ -78,6 +87,37 @@ impl Default for SseServerConfig {
     }
 }
 
+/// Kodegen SSE server configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KodegenSseConfig {
+    /// Enable kodegen SSE server
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    
+    /// Port for kodegen SSE server
+    #[serde(default = "default_kodegen_port")]
+    pub port: u16,
+    
+    /// Bind address
+    #[serde(default = "default_bind_address")]
+    pub bind_address: String,
+    
+    /// Tool categories to enable
+    #[serde(default)]
+    pub enabled_tools: Option<Vec<String>>,
+}
+
+impl Default for KodegenSseConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: 30437,
+            bind_address: "127.0.0.1".to_string(),
+            enabled_tools: None,
+        }
+    }
+}
+
 impl From<SseServerConfig> for crate::service::sse::SseConfig {
     fn from(config: SseServerConfig) -> Self {
         Self {
@@ -102,6 +142,7 @@ impl Default for ServiceConfig {
             services: vec![],
             sse: Some(SseServerConfig::default()),
             mcp_bind: Some("0.0.0.0:33399".into()),
+            kodegen_sse: KodegenSseConfig::default(),
         }
     }
 }

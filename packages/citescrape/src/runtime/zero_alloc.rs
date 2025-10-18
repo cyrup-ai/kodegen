@@ -3,9 +3,30 @@
 //! This module provides a zero-allocation async runtime with lock-free synchronization
 //! and pre-allocated channel pools for maximum performance.
 
+use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
+
+/// Error type for AsyncTask execution failures
+#[derive(Debug, Clone)]
+pub enum TaskError {
+    /// Sender was dropped without sending a value (task panicked or executor died)
+    Disconnected,
+}
+
+impl fmt::Display for TaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TaskError::Disconnected => write!(
+                f,
+                "AsyncTask sender dropped without sending value (task panicked or failed to complete)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TaskError {}
 
 /// Stack size for channel pools
 const CHANNEL_POOL_SIZE: usize = 64;  // Reduced to avoid initialization overhead
@@ -73,23 +94,83 @@ impl<T> AsyncTask<T> {
 }
 
 impl<T> std::future::Future for AsyncTask<T> {
-    type Output = T;
+    type Output = Result<T, TaskError>;
     
     #[inline(always)]
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
         let rx = &mut self.get_mut().rx;
         match rx.try_recv() {
-            Ok(value) => std::task::Poll::Ready(value),
+            Ok(value) => std::task::Poll::Ready(Ok(value)),
             Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
                 // Zero-allocation waker registration
                 cx.waker().wake_by_ref();
                 std::task::Poll::Pending
             }
             Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
-                eprintln!("ERROR: AsyncTask channel disconnected");
-                // Return Pending to avoid panic
-                std::task::Poll::Pending
+                std::task::Poll::Ready(Err(TaskError::Disconnected))
             }
+        }
+    }
+}
+
+impl<T> AsyncTask<T> {
+    /// Await the task, panicking on disconnection (for infallible tasks).
+    /// 
+    /// Use this for cleanup tasks, internal operations, or any task that
+    /// should never fail. Provides a custom panic message for debugging.
+    /// 
+    /// # Panics
+    /// Panics if the task's sender was dropped without sending a value
+    /// (task panicked or executor died).
+    /// 
+    /// # Example
+    /// ```ignore
+    /// let result = spawn_async(cleanup()).expect_ok("cleanup failed").await;
+    /// ```
+    #[inline]
+    pub async fn expect_ok(self, msg: &str) -> T {
+        self.await.expect(msg)
+    }
+
+    /// Await the task, converting TaskError to anyhow::Error.
+    /// 
+    /// Use this in functions returning anyhow::Result to enable the ? operator.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// async fn fetch_data() -> anyhow::Result<Data> {
+    ///     let data = spawn_async(async_fetch()).into_anyhow().await?;
+    ///     Ok(data)
+    /// }
+    /// ```
+    #[inline]
+    pub async fn into_anyhow(self) -> anyhow::Result<T> {
+        self.await.map_err(|e| anyhow::anyhow!("{}", e))
+    }
+}
+
+impl<T, E> AsyncTask<Result<T, E>> 
+where 
+    E: std::error::Error + Send + Sync + 'static 
+{
+    /// Flatten Result<Result<T, E>, TaskError> into Result<T, anyhow::Error>.
+    /// 
+    /// Use this when spawning tasks that themselves return Results. Converts
+    /// both the inner error (E) and outer error (TaskError) to anyhow::Error.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// async fn process() -> anyhow::Result<String> {
+    ///     spawn_async(async {
+    ///         fetch_url("https://example.com").await
+    ///     }).flatten().await?
+    /// }
+    /// ```
+    #[inline]
+    pub async fn flatten(self) -> anyhow::Result<T> {
+        match self.await {
+            Ok(inner_result) => inner_result.map_err(|e| anyhow::anyhow!("{}", e)),
+            Err(task_err) => Err(anyhow::anyhow!("{}", task_err)),
         }
     }
 }

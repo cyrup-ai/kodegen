@@ -1,55 +1,26 @@
-//! Kodegen MCP Server Library
-//!
-//! Exposes reusable components for MCP server implementation
-
-// Re-export main module items by declaring main as a public module
-// This allows external crates to use server components without duplication
-
-// Since main.rs has #[tokio::main], we can't directly include it as a module
-// Instead, we duplicate the minimal necessary types and functions here
-
-pub mod cli;
-pub mod common;
-pub mod sse;
-pub mod stdio;
-
-// Export SseServer type for external crates
-pub use sse::SseServer;
-// Export StdioProxyServer type for external crates
-pub use stdio::StdioProxyServer;
-
+// packages/server/src/sse/server.rs
 use anyhow::Result;
-use rmcp::handler::server::router::{tool::ToolRouter, prompt::PromptRouter};
-use std::collections::HashSet;
+use rmcp::{
+    ErrorData as McpError, RoleServer, ServerHandler,
+    handler::server::router::{tool::ToolRouter, prompt::PromptRouter},
+    model::*,
+    service::RequestContext,
+};
+use std::net::SocketAddr;
 use kodegen_utils::usage_tracker::UsageTracker;
+use tokio_util::sync::CancellationToken;
 
-// For now, just re-export a stub that directs users to compile with the right features
-// The proper solution would be to move shared code to a separate module
-// This is a minimal implementation to allow compilation
-
-pub async fn build_routers<T>(
-    _config_manager: &kodegen_config::ConfigManager,
-    _usage_tracker: &UsageTracker,
-    _enabled_categories: &Option<HashSet<String>>,
-) -> Result<(ToolRouter<T>, PromptRouter<T>)> {
-    anyhow::bail!("Library mode not yet fully implemented - use the binary version. Compile mcp-backend with filesystem and other features enabled.")
-}
-
-// Minimal StdioServer export for type compatibility
-use rmcp::{ErrorData as McpError, RoleServer, ServerHandler};
-use rmcp::model::*;
-use rmcp::service::RequestContext;
-use serde_json::json;
-
+/// MCP Server that serves tools via SSE transport
 #[derive(Clone)]
-pub struct StdioServer {
-    pub(crate) tool_router: ToolRouter<Self>,
-    pub(crate) prompt_router: PromptRouter<Self>,
-    pub(crate) usage_tracker: UsageTracker,
-    pub(crate) config_manager: kodegen_config::ConfigManager,
+pub struct SseServer {
+    tool_router: ToolRouter<Self>,
+    prompt_router: PromptRouter<Self>,
+    usage_tracker: UsageTracker,
+    config_manager: kodegen_config::ConfigManager,
 }
 
-impl StdioServer {
+impl SseServer {
+    /// Create a new SSE server with pre-built routers
     pub fn new(
         tool_router: ToolRouter<Self>,
         prompt_router: PromptRouter<Self>,
@@ -63,9 +34,25 @@ impl StdioServer {
             config_manager,
         }
     }
+    
+    /// Create and serve SSE server on the given address
+    pub async fn serve(self, addr: SocketAddr) -> Result<CancellationToken> {
+        use rmcp::transport::sse_server::SseServer as RmcpSseServer;
+        
+        log::info!("Starting SSE server on http://{}", addr);
+        log::info!("SSE endpoint: http://{}/sse", addr);
+        log::info!("Message endpoint: http://{}/message", addr);
+        
+        // Use the simplified pattern from counter_sse_directly.rs
+        let ct = RmcpSseServer::serve(addr)
+            .await?
+            .with_service_directly(move || self.clone());
+        
+        Ok(ct)
+    }
 }
 
-impl ServerHandler for StdioServer {
+impl ServerHandler for SseServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,
@@ -75,7 +62,7 @@ impl ServerHandler for StdioServer {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "KODEGEN MCP Server".to_string(),
+                "KODEGEN SSE Server - Direct tool execution over HTTP/SSE".to_string(),
             ),
         }
     }
@@ -86,10 +73,16 @@ impl ServerHandler for StdioServer {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tool_name = request.name.clone();
-        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(
+            self, 
+            request, 
+            context
+        );
         
+        // ACTUAL TOOL EXECUTION via router
         let result = self.tool_router.call(tcc).await;
         
+        // Track usage metrics
         if result.is_ok() {
             self.usage_tracker.track_success(&tool_name);
         } else {
@@ -144,12 +137,13 @@ impl ServerHandler for StdioServer {
 
     async fn read_resource(
         &self,
-        ReadResourceRequestParam { uri }: ReadResourceRequestParam,
+        request: ReadResourceRequestParam,
         _: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
+        use serde_json::json;
         Err(McpError::resource_not_found(
             "resource_not_found",
-            Some(json!({ "uri": uri })),
+            Some(json!({ "uri": request.uri })),
         ))
     }
 
@@ -169,6 +163,7 @@ impl ServerHandler for StdioServer {
         request: InitializeRequestParam,
         _context: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, McpError> {
+        // Capture client information from MCP handshake
         if let Err(e) = self.config_manager.set_client_info(request.client_info).await {
             log::warn!("Failed to store client info: {:?}", e);
         }

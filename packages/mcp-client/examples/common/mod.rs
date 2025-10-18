@@ -5,19 +5,43 @@
 
 use anyhow::{Result, Context};
 use kodegen_mcp_client::KodegenClient;
-use rmcp::{ServiceExt, transport::TokioChildProcess};
+use rmcp::{
+    ServiceExt, 
+    transport::TokioChildProcess,
+    model::{ClientCapabilities, ClientInfo, Implementation},
+};
 use std::path::PathBuf;
+use std::sync::{OnceLock, Mutex};
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
-/// Timeout for server startup operations
+/// Calculate adaptive timeout for server startup operations
 ///
 /// This prevents indefinite hangs when:
 /// - Server has compilation errors
 /// - Server deadlocks during initialization
 /// - Dependencies are missing
 /// - Server panics during startup
-const SERVER_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+///
+/// Timeout adapts based on:
+/// - KODEGEN_SERVER_TIMEOUT env var (if set)
+/// - Debug vs release build (debug gets 3x multiplier)
+///
+/// # Returns
+/// - Custom timeout from env var if KODEGEN_SERVER_TIMEOUT is set and parseable
+/// - 45s for debug builds (15s base × 3)
+/// - 15s for release builds (15s base × 1)
+fn server_startup_timeout() -> Duration {
+    if let Ok(timeout) = std::env::var("KODEGEN_SERVER_TIMEOUT")
+        && let Ok(secs) = timeout.parse::<u64>() {
+            return Duration::from_secs(secs);
+        }
+
+    let base = Duration::from_secs(15);
+    let multiplier = if cfg!(debug_assertions) { 3 } else { 1 };
+
+    base * multiplier
+}
 
 /// Tool categories supported by the kodegen server
 ///
@@ -122,35 +146,77 @@ pub fn print_available_categories() {
     }
 }
 
+/// Cached workspace root to avoid repeated cargo metadata executions
+///
+/// This is populated on first call to find_workspace_root() and reused for all
+/// subsequent calls. Cargo metadata takes 50-100ms per execution, so caching
+/// provides significant performance improvements in test suites.
+///
+/// Uses Mutex<Option<PathBuf>> instead of OnceLock::get_or_try_init because
+/// the latter requires unstable features. The mutex is only held briefly during
+/// initialization, so contention is negligible.
+static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
+static WORKSPACE_ROOT_INIT: Mutex<()> = Mutex::new(());
 
 /// Find the workspace root by querying cargo metadata
 ///
-/// This is more robust than path manipulation as it works with:
-/// - Symlinked packages
-/// - Unusual directory layouts
-/// - Nested workspaces
+/// This function is cached - the first call executes `cargo metadata`,
+/// subsequent calls return the cached result.
+///
+/// # Performance
+/// - First call: ~50-100ms (cargo metadata execution)
+/// - Subsequent calls: <1µs (cache lookup)
+///
+/// # Safety
+/// This function uses compile-time constants and is safe from injection:
+/// - `env!("CARGO_MANIFEST_DIR")` is set by rustc at compile time
+/// - No user input is passed to the shell command
+/// - Error messages do not leak sensitive information
 ///
 /// # Errors
-///
-/// Returns error if cargo metadata fails or workspace root cannot be determined
-fn find_workspace_root() -> Result<PathBuf> {
-    // Run `cargo metadata` to get workspace root
+/// Returns error if:
+/// - cargo is not in PATH
+/// - cargo metadata fails (corrupted Cargo.toml, etc.)
+/// - workspace_root field is missing from metadata
+fn find_workspace_root() -> Result<&'static PathBuf> {
+    // Fast path: already initialized
+    if let Some(root) = WORKSPACE_ROOT.get() {
+        return Ok(root);
+    }
+
+    // Slow path: need to initialize
+    let _lock = WORKSPACE_ROOT_INIT.lock().map_err(|e| anyhow::anyhow!("Lock poisoned: {}", e))?;
+
+    // Check again in case another thread initialized while we were waiting
+    if let Some(root) = WORKSPACE_ROOT.get() {
+        return Ok(root);
+    }
+
+    // Actually initialize
     let output = std::process::Command::new("cargo")
         .args(["metadata", "--no-deps", "--format-version=1"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .output()?;
-    
+        .output()
+        .context("Failed to execute cargo metadata")?;
+
     if !output.status.success() {
-        anyhow::bail!("cargo metadata failed: {}", String::from_utf8_lossy(&output.stderr));
+        anyhow::bail!("cargo metadata failed (exit code: {:?})", output.status.code());
     }
-    
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    
+
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .context("Invalid JSON from cargo metadata")?;
+
     let workspace_root = metadata["workspace_root"]
         .as_str()
-        .ok_or_else(|| anyhow::anyhow!("No workspace_root in metadata"))?;
+        .context("No workspace_root in metadata")?;
+
+    let path = PathBuf::from(workspace_root);
     
-    Ok(PathBuf::from(workspace_root))
+    // Store in OnceLock - this should always succeed since we hold the lock
+    WORKSPACE_ROOT.set(path).map_err(|_| anyhow::anyhow!("Failed to cache workspace root"))?;
+    
+    // Return the cached value - we just set it, so this should always succeed
+    WORKSPACE_ROOT.get().ok_or_else(|| anyhow::anyhow!("Failed to retrieve cached workspace root"))
 }
 
 /// Spawn kodegen server with specific tool categories
@@ -187,8 +253,13 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
         cmd.arg("--tools").arg(cat_strs.join(","));
     }
 
+    // Ensure child process is killed if connection fails
+    cmd.kill_on_drop(true);
+
+    let timeout_duration = server_startup_timeout();
+
     // Show startup progress to user
-    eprintln!("🚀 Starting kodegen server (timeout: {}s)...", SERVER_STARTUP_TIMEOUT.as_secs());
+    eprintln!("🚀 Starting kodegen server (timeout: {}s)...", timeout_duration.as_secs());
     eprintln!("   Command: cargo run --package kodegen --bin kodegen");
 
     // Print available categories if KODEGEN_SHOW_CATEGORIES env var is set
@@ -198,23 +269,37 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
     
     let start = std::time::Instant::now();
     
-    // Spawn process and get PID BEFORE attempting connection
+    // Spawn process - will be killed on drop if connection fails (due to kill_on_drop above)
     let transport = TokioChildProcess::new(cmd)
         .context("Failed to spawn kodegen server process")?;
-    
-    let _pid = transport.id()
-        .context("Failed to get child process ID")?;
 
-    // Attempt connection with timeout
-    let service_result = timeout(SERVER_STARTUP_TIMEOUT, ().serve(transport)).await;
-    
-    let service = match service_result {
-        Ok(Ok(svc)) => svc,
+    // Create client info for MCP initialization
+    let client_info = ClientInfo {
+        protocol_version: Default::default(),
+        capabilities: ClientCapabilities::default(),
+        client_info: Implementation {
+            name: "kodegen-example-client".to_string(),
+            title: None,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            website_url: None,
+            icons: None,
+        },
+    };
+
+    // Attempt connection with timeout - transport consumed here
+    match timeout(timeout_duration, client_info.serve(transport)).await {
+        Ok(Ok(service)) => {
+            // Success! Transport ownership transferred to service
+            eprintln!("✅ Server connected in {:?}", start.elapsed());
+            Ok(KodegenClient::from_service(service))
+        }
         Ok(Err(e)) => {
+            // Connection failed - transport dropped, child killed automatically
             eprintln!("❌ Server connection failed after {:?}", start.elapsed());
-            return Err(e).context("Failed to connect to kodegen server");
+            Err(e).context("Failed to connect to kodegen server")
         }
         Err(_) => {
+            // Timeout - transport dropped, child killed automatically
             eprintln!("❌ Server startup timed out after {:?}", start.elapsed());
             anyhow::bail!(
                 "Server failed to start within {}s. Possible causes:\n\
@@ -223,13 +308,10 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
                  - Missing dependencies\n\
                  - Check server logs for details\n\
                  - Run manually: cargo run --package kodegen --bin kodegen",
-                SERVER_STARTUP_TIMEOUT.as_secs()
+                timeout_duration.as_secs()
             );
         }
-    };
-
-    eprintln!("✅ Server connected in {:?}", start.elapsed());
-    Ok(KodegenClient::from_service(service))
+    }
 }
 
 #[cfg(test)]

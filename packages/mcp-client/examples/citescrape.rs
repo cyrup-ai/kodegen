@@ -1,9 +1,65 @@
 mod common;
 
 use anyhow::Result;
+use kodegen_mcp_client::responses::StartCrawlResponse;
+use kodegen_mcp_client::KodegenClient;
 use serde_json::json;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tokio::time::{sleep, Duration};
+
+/// Wait for a crawl to complete by polling its status
+///
+/// Polls get_crawl_results periodically with exponential backoff until
+/// the crawl completes, fails, or times out.
+///
+/// # Arguments
+///
+/// * `client` - The kodegen client to use for polling
+/// * `session_id` - The crawl session ID to monitor
+/// * `timeout` - Maximum time to wait before giving up
+///
+/// # Returns
+///
+/// - `Ok(())` if crawl completes successfully
+/// - `Err(_)` if crawl fails, errors, or times out
+async fn wait_for_crawl_completion(
+    client: &KodegenClient,
+    session_id: &str,
+    timeout: Duration,
+) -> anyhow::Result<()> {
+    let start = tokio::time::Instant::now();
+    let mut backoff = Duration::from_millis(100);
+
+    loop {
+        let result = client.call_tool("get_crawl_results", json!({
+            "sessionId": session_id,
+            "includeContent": false
+        })).await?;
+
+        // Parse status from result
+        if let Some(text) = result.content.first().and_then(|c| c.as_text())
+            && let Ok(crawl_data) = serde_json::from_str::<serde_json::Value>(&text.text)
+            && let Some(status) = crawl_data.get("status").and_then(|s| s.as_str()) {
+                match status {
+                    "completed" => return Ok(()),
+                    "failed" | "error" => {
+                        anyhow::bail!("Crawl failed with status: {}", status)
+                    }
+                    _ => {
+                        // Still running, continue polling
+                    }
+                }
+            }
+
+        if start.elapsed() > timeout {
+            anyhow::bail!("Crawl timed out after {:?}", timeout);
+        }
+
+        // Exponential backoff: 100ms -> 200ms -> 400ms -> 500ms (capped)
+        sleep(backoff).await;
+        backoff = (backoff * 2).min(Duration::from_millis(500));
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,7 +80,7 @@ async fn main() -> Result<()> {
     tracing::info!("\n=== Testing start_crawl ===");
     tracing::info!("Starting crawl of Rust documentation...");
     
-    let result = client.call_tool("start_crawl", json!({
+    let response: StartCrawlResponse = client.call_tool_typed("start_crawl", json!({
         "url": "https://doc.rust-lang.org/book/",
         "maxPages": 5,
         "maxDepth": 2,
@@ -32,23 +88,12 @@ async fn main() -> Result<()> {
         "timeout": 30000
     })).await?;
     
-    tracing::info!("Crawl started: {:?}", result);
-    
-    // Extract session ID
-    let session_id: String = serde_json::from_value(
-        result.content.first()
-            .and_then(|c| c.as_text())
-            .map(|t| t.text.as_str())
-            .and_then(|t| serde_json::from_str(t).ok())
-            .and_then(|v: serde_json::Value| v.get("sessionId").cloned())
-            .unwrap_or_default()
-    )?;
-    
+    let session_id = response.session_id;
     tracing::info!("✅ Crawl session ID: {}", session_id);
     
     // Wait for crawl to complete
     tracing::info!("Waiting for crawl to complete...");
-    sleep(Duration::from_secs(10)).await;
+    wait_for_crawl_completion(&client, &session_id, Duration::from_secs(60)).await?;
     
     // Test 2: Get crawl results
     tracing::info!("\n=== Testing get_crawl_results ===");
@@ -89,8 +134,15 @@ async fn main() -> Result<()> {
     })).await;
     
     match error_result {
-        Ok(_) => tracing::info!("Unexpected success with invalid URL"),
-        Err(e) => tracing::info!("✅ Proper error handling: {}", e),
+        Ok(_) => anyhow::bail!("Expected error for invalid URL, but got success"),
+        Err(e) => {
+            tracing::info!("✅ Correctly handled invalid URL: {}", e);
+            assert!(
+                e.to_string().contains("invalid") ||
+                e.to_string().contains("not found") ||
+                e.to_string().contains("failed")
+            );
+        }
     }
     
     // Test 3: Get full content for one page
@@ -175,7 +227,7 @@ async fn main() -> Result<()> {
     // Test 6: Start another crawl with different settings
     tracing::info!("\n=== Testing crawl with custom settings ===");
     
-    let result = client.call_tool("start_crawl", json!({
+    let response_2: StartCrawlResponse = client.call_tool_typed("start_crawl", json!({
         "url": "https://www.rust-lang.org/",
         "maxPages": 3,
         "maxDepth": 1,
@@ -184,20 +236,12 @@ async fn main() -> Result<()> {
         "userAgent": "KodegenMCPClient/1.0"
     })).await?;
     
-    let session_id_2: String = serde_json::from_value(
-        result.content.first()
-            .and_then(|c| c.as_text())
-            .map(|t| t.text.as_str())
-            .and_then(|t| serde_json::from_str(t).ok())
-            .and_then(|v: serde_json::Value| v.get("sessionId").cloned())
-            .unwrap_or_default()
-    )?;
-    
+    let session_id_2 = response_2.session_id;
     tracing::info!("✅ Second crawl started: {}", session_id_2);
     tracing::info!("Crawl respects robots.txt directives");
     
     // Wait and get results
-    sleep(Duration::from_secs(5)).await;
+    wait_for_crawl_completion(&client, &session_id_2, Duration::from_secs(60)).await?;
     
     let _result = client.call_tool("get_crawl_results", json!({
         "sessionId": session_id_2,

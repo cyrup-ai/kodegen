@@ -1,9 +1,10 @@
 mod common;
 
+use anyhow::Context;
+use kodegen_mcp_client::responses::SpawnClaudeAgentResponse;
 use kodegen_mcp_client::tools;
 use serde_json::json;
-use tracing::{info, error};
-use tokio::time::{sleep, Duration};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -31,225 +32,185 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. SPAWN_CLAUDE_AGENT - Spawn a new Claude agent
     info!("1. Testing spawn_claude_agent");
-    let spawn_result = client.call_tool(
+    let response: SpawnClaudeAgentResponse = client.call_tool_typed(
         tools::SPAWN_CLAUDE_AGENT,
         json!({
             "prompt": "You are a helpful assistant. Answer questions concisely.",
             "model": "claude-3-5-sonnet-20241022"
         })
-    ).await;
+    ).await?;
 
-    let session_id = if let Ok(result) = &spawn_result {
-        // Parse session_id from CallToolResult content
-        let sid = result.content.first()
-            .and_then(|content| content.as_text())
-            .and_then(|text_content| {
-                serde_json::from_str::<serde_json::Value>(&text_content.text)
-                    .ok()
-                    .and_then(|v| v["session_id"].as_str().map(String::from))
-            });
-        
-        if let Some(ref s) = sid {
-            info!("✅ Spawned agent with session ID: {}", s);
-        } else {
-            info!("Spawned agent: {:?}", result);
-        }
-        sid
-    } else {
-        error!("Failed to spawn agent: {:?}", spawn_result);
-        None
-    };
+    let session_id = response.session_id;
+    info!("✅ Spawned agent with session ID: {}", session_id);
 
-    if let Some(sid) = session_id {
-        // 2. SEND_CLAUDE_AGENT_PROMPT - Send a prompt to the agent
-        info!("2. Testing send_claude_agent_prompt");
-        match client.call_tool(
-            tools::SEND_CLAUDE_AGENT_PROMPT,
-            json!({
-                "session_id": sid,
-                "prompt": "What is 2 + 2?"
-            })
-        ).await {
-            Ok(result) => info!("Sent prompt: {:?}", result),
-            Err(e) => error!("Failed to send prompt: {}", e),
-        }
+    // 2. SEND_CLAUDE_AGENT_PROMPT - Send a prompt to the agent
+    info!("2. Testing send_claude_agent_prompt");
+    client.call_tool(
+        tools::SEND_CLAUDE_AGENT_PROMPT,
+        json!({
+            "session_id": session_id,
+            "prompt": "What is 2 + 2?"
+        })
+    )
+    .await
+    .context("Failed to send prompt to agent")?;
+    info!("✅ Sent prompt successfully");
 
-        // 3. READ_CLAUDE_AGENT_OUTPUT - Read agent response
-        info!("3. Testing read_claude_agent_output");
-        match client.call_tool(
-            tools::READ_CLAUDE_AGENT_OUTPUT,
-            json!({
-                "session_id": sid,
-                "timeout_ms": 5000
-            })
-        ).await {
-            Ok(result) => {
-                if let Some(content) = result.content.first()
-                    && let Some(text) = content.as_text() {
-                    if let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text) {
-                        if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
-                            for msg in messages {
-                                if let Some(role) = msg.get("role").and_then(|r| r.as_str())
-                                    && let Some(content_arr) = msg.get("content").and_then(|c| c.as_array()) {
-                                    for content_item in content_arr {
-                                        if let Some(text_content) = content_item.get("text").and_then(|t| t.as_str()) {
-                                            info!("{}: {}", role, text_content);
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            info!("Agent output: {:?}", output);
-                        }
-                    } else {
-                        info!("Agent output: {:?}", result);
-                    }
-                }
-            },
-            Err(e) => error!("Failed to read output: {}", e),
-        }
-        
-        // 3b. Multi-turn conversation
-        info!("\n=== Testing multi-turn conversation ===");
-        
-        sleep(Duration::from_secs(2)).await;
-        
-        match client.call_tool(
-            tools::SEND_CLAUDE_AGENT_PROMPT,
-            json!({
-                "session_id": sid,
-                "prompt": "Now explain it in simpler terms for a beginner."
-            })
-        ).await {
-            Ok(_) => info!("Sent follow-up prompt"),
-            Err(e) => error!("Failed to send follow-up prompt: {}", e),
-        }
-        
-        sleep(Duration::from_secs(2)).await;
-        
-        match client.call_tool(
-            tools::READ_CLAUDE_AGENT_OUTPUT,
-            json!({
-                "session_id": sid,
-                "timeout_ms": 5000
-            })
-        ).await {
-            Ok(result) => {
-                if let Some(content) = result.content.first()
-                    && let Some(text) = content.as_text()
-                    && let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text)
-                    && let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
-                    info!("Follow-up response received ({} messages)", messages.len());
-                }
-            },
-            Err(e) => error!("Failed to read follow-up output: {}", e),
-        }
-
-        // 4. LIST_CLAUDE_AGENTS - List all active agents
-        info!("4. Testing list_claude_agents");
-        match client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({})).await {
-            Ok(result) => {
-                if let Some(content) = result.content.first()
-                    && let Some(text) = content.as_text() {
-                    if let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text) {
-                        if let Some(arr) = agents.as_array() {
-                            info!("Total active agents: {}", arr.len());
-                            for agent in arr {
-                                let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
-                                let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-                                info!("  Agent {}: {}", id, model);
+    // 3. READ_CLAUDE_AGENT_OUTPUT - Read agent response
+    info!("3. Testing read_claude_agent_output");
+    let result = client.call_tool(
+        tools::READ_CLAUDE_AGENT_OUTPUT,
+        json!({
+            "session_id": session_id,
+            "timeout_ms": 5000
+        })
+    )
+    .await
+    .context("Failed to read agent output")?;
+    
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        if let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text) {
+            if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
+                for msg in messages {
+                    if let Some(role) = msg.get("role").and_then(|r| r.as_str())
+                        && let Some(content_arr) = msg.get("content").and_then(|c| c.as_array()) {
+                        for content_item in content_arr {
+                            if let Some(text_content) = content_item.get("text").and_then(|t| t.as_str()) {
+                                info!("{}: {}", role, text_content);
                             }
                         }
-                    } else {
-                        info!("Active agents: {:?}", result);
                     }
                 }
-            },
-            Err(e) => error!("Failed to list agents: {}", e),
-        }
-        
-        // 4b. Multiple concurrent agents
-        info!("\n=== Testing multiple concurrent agents ===");
-        
-        let spawn_result_2 = client.call_tool(
-            tools::SPAWN_CLAUDE_AGENT,
-            json!({
-                "prompt": "You are a technical writer. Explain concepts clearly and simply.",
-                "model": "claude-3-5-sonnet-20241022",
-                "maxTokens": 512
-            })
-        ).await;
-        
-        let session_id_2 = if let Ok(result) = &spawn_result_2 {
-            result.content.first()
-                .and_then(|content| content.as_text())
-                .and_then(|text_content| {
-                    serde_json::from_str::<serde_json::Value>(&text_content.text)
-                        .ok()
-                        .and_then(|v| v["session_id"].as_str().map(String::from))
-                })
+            } else {
+                info!("Agent output: {:?}", output);
+            }
         } else {
-            error!("Failed to spawn second agent: {:?}", spawn_result_2);
-            None
-        };
-        
-        if let Some(sid2) = session_id_2.as_ref() {
-            info!("✅ Second agent spawned: {}", sid2);
-            
-            // List all agents to verify both active
-            match client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({})).await {
-                Ok(result) => {
-                    if let Some(content) = result.content.first()
-                        && let Some(text) = content.as_text()
-                        && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
-                        && let Some(arr) = agents.as_array() {
-                        info!("Total active agents: {}", arr.len());
-                        for agent in arr {
-                            let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
-                            let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-                            info!("  Agent {}: {}", id, model);
-                        }
-                    }
-                },
-                Err(e) => error!("Failed to list agents: {}", e),
-            }
-        }
-
-        // 5. TERMINATE_CLAUDE_AGENT_SESSION - Terminate the agent
-        info!("5. Testing terminate_claude_agent_session");
-        match client.call_tool(
-            tools::TERMINATE_CLAUDE_AGENT_SESSION,
-            json!({ "session_id": sid })
-        ).await {
-            Ok(_) => info!("✅ Terminated first agent: {}", sid),
-            Err(e) => error!("Failed to terminate agent: {}", e),
-        }
-        
-        // Terminate second agent if it exists
-        if let Some(sid2) = session_id_2 {
-            match client.call_tool(
-                tools::TERMINATE_CLAUDE_AGENT_SESSION,
-                json!({ "session_id": sid2 })
-            ).await {
-                Ok(_) => info!("✅ Terminated second agent: {}", sid2),
-                Err(e) => error!("Failed to terminate second agent: {}", e),
-            }
-        }
-        
-        // Verify all agents terminated
-        info!("\n=== Verifying cleanup ===");
-        match client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({})).await {
-            Ok(result) => {
-                if let Some(content) = result.content.first()
-                    && let Some(text) = content.as_text()
-                    && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
-                    && let Some(arr) = agents.as_array() {
-                    info!("Active agents after termination: {}", arr.len());
-                }
-            },
-            Err(e) => error!("Failed to verify cleanup: {}", e),
+            info!("Agent output: {:?}", result);
         }
     }
+    info!("✅ Read agent output successfully");
+    
+    // 3b. Multi-turn conversation
+    info!("\n=== Testing multi-turn conversation ===");
+    
+    client.call_tool(
+        tools::SEND_CLAUDE_AGENT_PROMPT,
+        json!({
+            "session_id": session_id,
+            "prompt": "Now explain it in simpler terms for a beginner."
+        })
+    )
+    .await
+    .context("Failed to send follow-up prompt")?;
+    info!("✅ Sent follow-up prompt");
+    
+    let result = client.call_tool(
+        tools::READ_CLAUDE_AGENT_OUTPUT,
+        json!({
+            "session_id": session_id,
+            "timeout_ms": 5000
+        })
+    )
+    .await
+    .context("Failed to read follow-up output")?;
+    
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text()
+        && let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text)
+        && let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
+        info!("Follow-up response received ({} messages)", messages.len());
+    }
+    info!("✅ Read follow-up output successfully");
+
+    // 4. LIST_CLAUDE_AGENTS - List all active agents
+    info!("4. Testing list_claude_agents");
+    let result = client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({}))
+        .await
+        .context("Failed to list agents")?;
+    
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        if let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text) {
+            if let Some(arr) = agents.as_array() {
+                info!("Total active agents: {}", arr.len());
+                for agent in arr {
+                    let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
+                    let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
+                    info!("  Agent {}: {}", id, model);
+                }
+            }
+        } else {
+            info!("Active agents: {:?}", result);
+        }
+    }
+    info!("✅ Listed agents successfully");
+    
+    // 4b. Multiple concurrent agents
+    info!("\n=== Testing multiple concurrent agents ===");
+    
+    let response_2: SpawnClaudeAgentResponse = client.call_tool_typed(
+        tools::SPAWN_CLAUDE_AGENT,
+        json!({
+            "prompt": "You are a technical writer. Explain concepts clearly and simply.",
+            "model": "claude-3-5-sonnet-20241022",
+            "maxTokens": 512
+        })
+    ).await?;
+    
+    let session_id_2 = response_2.session_id;
+    info!("✅ Second agent spawned: {}", session_id_2);
+    
+    // List all agents to verify both active
+    let result = client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({}))
+        .await
+        .context("Failed to list agents for verification")?;
+    
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text()
+        && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
+        && let Some(arr) = agents.as_array() {
+        info!("Total active agents: {}", arr.len());
+        for agent in arr {
+            let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
+            let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
+            info!("  Agent {}: {}", id, model);
+        }
+    }
+    info!("✅ Listed agents for verification");
+
+    // 5. TERMINATE_CLAUDE_AGENT_SESSION - Terminate the agent
+    info!("5. Testing terminate_claude_agent_session");
+    client.call_tool(
+        tools::TERMINATE_CLAUDE_AGENT_SESSION,
+        json!({ "session_id": session_id })
+    )
+    .await
+    .context("Failed to terminate first agent")?;
+    info!("✅ Terminated first agent: {}", session_id);
+    
+    // Terminate second agent if it exists
+    client.call_tool(
+        tools::TERMINATE_CLAUDE_AGENT_SESSION,
+        json!({ "session_id": session_id_2 })
+    )
+    .await
+    .context("Failed to terminate second agent")?;
+    info!("✅ Terminated second agent: {}", session_id_2);
+    
+    // Verify all agents terminated
+    info!("\n=== Verifying cleanup ===");
+    let result = client.call_tool(tools::LIST_CLAUDE_AGENTS, json!({}))
+        .await
+        .context("Failed to verify cleanup")?;
+    
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text()
+        && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
+        && let Some(arr) = agents.as_array() {
+        info!("Active agents after termination: {}", arr.len());
+    }
+    info!("✅ Verified cleanup successfully");
 
     // Graceful shutdown
     client.close().await?;

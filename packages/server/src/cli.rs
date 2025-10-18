@@ -43,6 +43,11 @@ pub struct Cli {
     #[arg(long, value_name = "ADDR", conflicts_with = "list_categories")]
     pub sse: Option<SocketAddr>,
 
+    /// SSE server URL for proxy mode (stdio server only)
+    /// Example: --proxy-sse http://localhost:8080/sse
+    #[arg(long, value_name = "URL", conflicts_with = "sse")]
+    pub proxy_sse: Option<String>,
+
     /// List available tool categories and exit
     #[arg(long)]
     pub list_categories: bool,
@@ -57,8 +62,8 @@ pub enum Commands {
 /// Server mode selection
 #[derive(Debug, Clone)]
 pub enum ServerMode {
-    /// Run as stdio server (default)
-    Stdio,
+    /// Run as stdio server with optional SSE proxy
+    Stdio { proxy_url: Option<String> },
     /// Run as SSE server on the specified address
     Sse(SocketAddr),
 }
@@ -88,7 +93,9 @@ impl Cli {
         if let Some(addr) = self.sse {
             ServerMode::Sse(addr)
         } else {
-            ServerMode::Stdio
+            ServerMode::Stdio { 
+                proxy_url: self.proxy_sse.clone() 
+            }
         }
     }
 }

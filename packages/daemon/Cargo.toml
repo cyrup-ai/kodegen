@@ -29,6 +29,11 @@ async-recursion = "1.1.1"
 # Auto-configuration support
 kodegen_autoconfig = { path = "../autoconfig" }
 
+# Kodegen server for SSE
+kodegen = { path = "../server" }
+kodegen_config = { path = "../config" }
+kodegen_utils = { path = "../utils" }
+
 # Plugin system support
 extism = "1.12"
 oci-client = "0.15"
