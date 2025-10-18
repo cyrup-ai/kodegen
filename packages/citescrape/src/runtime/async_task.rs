@@ -44,9 +44,7 @@ impl<T> Future for AsyncTask<T> {
         match rx.try_recv() {
             Ok(value) => Poll::Ready(Ok(value)),
             Err(mpsc::error::TryRecvError::Empty) => {
-                // Register waker for notification and double-check atomically
-                super::executor::register_waker(cx.waker().clone());
-                
+                // Tokio runtime handles waker registration automatically
                 // Double-check pattern to avoid race conditions
                 match rx.try_recv() {
                     Ok(value) => Poll::Ready(Ok(value)),

@@ -25,20 +25,22 @@ async fn save_markdown_content(content: &str, url: &str, output_dir: &Path) -> R
     // Note: This helper function does not have access to an IndexingSender,
     // so markdown will be saved without indexing. For indexed saves, use
     // content_saver::save_markdown_content directly with an IndexingSender.
-    let _task = content_saver::save_markdown_content(
+    match content_saver::save_markdown_content(
         content.to_string(),
         url.to_string(),
         output_dir.to_path_buf(),
         MessagePriority::Normal,
         None, // No indexing sender available
-        |result| {
-            match result {
-                Ok(()) => eprintln!("Markdown content saved successfully"),
-                Err(e) => eprintln!("Failed to save markdown content: {}", e),
-            }
+    ).await {
+        Ok(()) => {
+            eprintln!("Markdown content saved successfully");
+            Ok(())
         }
-    );
-    Ok(())
+        Err(e) => {
+            eprintln!("Failed to save markdown content: {}", e);
+            Err(e)
+        }
+    }
 }
 
 

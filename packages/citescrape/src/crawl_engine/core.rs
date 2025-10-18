@@ -30,7 +30,7 @@ use super::{CircuitBreaker, extract_domain, DomainLimiter};
 
 use super::link_processor::{CrawlState, process_page_links};
 use crate::content_saver;
-use crate::content_saver::markdown_converter::{convert_html_to_markdown_async, ConversionOptions};
+use crate::content_saver::markdown_converter::{convert_html_to_markdown, ConversionOptions};
 use html2md;
 
 /// Helper function to wrap async page operations with explicit timeout
@@ -631,44 +631,28 @@ async fn process_single_page(
         let _markdown_guard = TaskGuard::new(task, "markdown_conversion");
 
         if let Ok(processed_markdown) = markdown_rx.await {
-            let (save_tx, save_rx) = tokio::sync::oneshot::channel();
-            let task = content_saver::save_markdown_content(
+            match content_saver::save_markdown_content(
                 processed_markdown,
                 item.url.clone(),
                 config.storage_dir.clone(),
                 crate::search::MessagePriority::Normal,
                 indexing_sender.clone(),
-                move |result| {
-                    let _ = save_tx.send(result);
-                }
-            );
-            let _save_guard = TaskGuard::new(task, "save_markdown_content");
-
-            match save_rx.await {
-                Ok(Ok(())) => debug!("Markdown saved for {}", item.url),
-                Ok(Err(e)) => warn!("Failed to save markdown for {}: {}", item.url, e),
-                Err(_) => warn!("Markdown save channel closed for {}", item.url),
+            ).await {
+                Ok(()) => debug!("Markdown saved for {}", item.url),
+                Err(e) => warn!("Failed to save markdown for {}: {}", item.url, e),
             }
         }
     }
 
     // Save JSON if requested
     if config.save_json() {
-        let (json_tx, json_rx) = tokio::sync::oneshot::channel();
-        let task = content_saver::save_page_data(
+        match content_saver::save_page_data(
             Arc::new(page_data.clone()),
             item.url.clone(),
             config.storage_dir.clone(),
-            move |result| {
-                let _ = json_tx.send(result);
-            }
-        );
-        let _json_guard = TaskGuard::new(task, "save_page_data");
-        
-        match json_rx.await {
-            Ok(Ok(())) => debug!("Page data saved for {}", item.url),
-            Ok(Err(e)) => warn!("Failed to save page data for {}: {}", item.url, e),
-            Err(_) => warn!("Page data save channel closed for {}", item.url),
+        ).await {
+            Ok(()) => debug!("Page data saved for {}", item.url),
+            Err(e) => warn!("Failed to save page data for {}: {}", item.url, e),
         }
     }
 

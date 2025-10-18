@@ -8,8 +8,6 @@ use html2md::parse_html;
 use regex::Regex;
 use std::sync::LazyLock;
 
-use crate::runtime::{spawn_async, AsyncTask};
-
 // Compile regex patterns once at first use
 // These are syntactically valid and will never fail to compile
 static EMPTY_LINES: LazyLock<Regex> = LazyLock::new(|| {
@@ -124,61 +122,21 @@ impl MarkdownConverter {
         Ok(markdown.trim().to_string())
     }
 
-    /// Convert HTML to Markdown asynchronously (callback-based)
+    /// Convert HTML to Markdown asynchronously
     ///
-    /// Performs the same conversion as `convert_sync()` but executes asynchronously
-    /// and delivers results via callback.
-    pub fn convert(
-        &self,
-        html: &str,
-        on_result: impl FnOnce(Result<String, anyhow::Error>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        let html = html.to_string();
-        let preserve_tables = self.preserve_tables;
-        let preserve_links = self.preserve_links;
-        let preserve_images = self.preserve_images;
-        let code_highlighting = self.code_highlighting;
-
-        spawn_async(async move {
-            let result = {
-                // First pass: Convert HTML to basic markdown
-                let mut markdown = parse_html(&html);
-
-                // Clean up the markdown
-                markdown = Self::clean_markdown_static(&markdown);
-
-                // Handle code blocks
-                if code_highlighting {
-                    markdown = CODE_BLOCK.replace_all(&markdown, "```$1\n").to_string();
-                }
-
-                // Clean up lists
-                markdown = SPACE_AFTER_LIST.replace_all(&markdown, "$1 ").to_string();
-
-                // Fix heading spacing
-                markdown = HEADING_SPACE.replace_all(&markdown, "$1 $2").to_string();
-
-                // Handle tables if enabled
-                if preserve_tables {
-                    markdown = Self::format_tables_static(&markdown);
-                }
-
-                // Remove excessive newlines
-                markdown = EMPTY_LINES.replace_all(&markdown, "\n\n").to_string();
-
-                // Handle links and images based on settings
-                if !preserve_links {
-                    markdown = Self::remove_links_static(&markdown);
-                }
-                if !preserve_images {
-                    markdown = Self::remove_images_static(&markdown);
-                }
-
-                Ok(markdown.trim().to_string())
-            };
-
-            on_result(result);
-        })
+    /// Performs the same conversion as `convert_sync()` but in an async context.
+    /// Since the work is CPU-bound, this simply calls the sync version.
+    ///
+    /// # Arguments
+    ///
+    /// * `html` - Raw HTML content to convert
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Converted markdown
+    /// * `Err(anyhow::Error)` - Conversion error
+    pub async fn convert(&self, html: &str) -> Result<String> {
+        self.convert_sync(html)
     }
 
     fn clean_markdown_static(markdown: &str) -> String {

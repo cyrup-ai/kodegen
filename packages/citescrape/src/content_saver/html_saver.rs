@@ -133,18 +133,17 @@ pub fn save_html_content_with_resources(
             
             // Start both operations in parallel
             let config = crate::inline_css::InlineConfig::default();
-            let (html_res_inline_tx, html_res_inline_rx) = tokio::sync::oneshot::channel();
             let (html_res_path_tx, html_res_path_rx) = tokio::sync::oneshot::channel();
             
-            let url_for_inline_res = url.clone();
             let html_for_inline_res = Arc::clone(&html_arc);
-            let inline_res_task = crate::inline_css::inline_resources_from_info((*html_for_inline_res).clone(), url.clone(), &config, resources.clone(), max_inline_image_size_bytes, rate_rps, move |result| {
-                super::log_send_error::<crate::inline_css::InliningResult, anyhow::Error>(
-                    html_res_inline_tx.send(result),
-                    "inline_resources_from_info",
-                    &url_for_inline_res
-                );
-            });
+            let inline_future = crate::inline_css::inline_resources_from_info(
+                (*html_for_inline_res).clone(), 
+                url.clone(), 
+                &config, 
+                resources.clone(), 
+                max_inline_image_size_bytes, 
+                rate_rps
+            );
             
             let url_for_path_res = url.clone();
             let path_res_task = get_mirror_path(&url, &output_dir, "index.html", move |result| {
@@ -155,35 +154,24 @@ pub fn save_html_content_with_resources(
                 );
             });
             
-            // Keep guards alive
-            let _inline_res_guard = crate::runtime::TaskGuard::new(inline_res_task, "inline_resources_from_info");
+            // Keep path_res guard alive (inline_future doesn't need guard - it's pure async)
             let _path_res_guard = crate::runtime::TaskGuard::new(path_res_task, "get_mirror_path_html_res");
             
             // Wait for both in parallel
             let (inline_result, path_result) = tokio::join!(
-                await_with_timeout(html_res_inline_rx, 120, "inline resources from info"),
+                inline_future,
                 await_with_timeout(html_res_path_rx, 30, "mirror path resolution for HTML with resources")
             );
             
             let inlined_html = match inline_result {
-                Ok(result) => match result {
-                    Ok(inlined) => {
-                        log::info!("Successfully inlined {} resources for: {} ({} failures)", 
-                            inlined.successes, url, inlined.failures.len());
-                        inlined.html
-                    }
-                    Err(e) => {
-                        log::warn!(
-                            "Failed to inline resources for {}: {}, using original HTML",
-                            url,
-                            e
-                        );
-                        (*html_arc).clone()
-                    }
+                Ok(inlined) => {
+                    log::info!("Successfully inlined {} resources for: {} ({} failures)", 
+                        inlined.successes, url, inlined.failures.len());
+                    inlined.html
                 }
                 Err(e) => {
                     log::warn!(
-                        "Failed to receive inline result for {}: {}, using original HTML",
+                        "Failed to inline resources for {}: {}, using original HTML",
                         url,
                         e
                     );

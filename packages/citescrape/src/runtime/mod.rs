@@ -64,64 +64,7 @@ macro_rules! recv_async {
 }
 */
 
-/// Pattern for handling Result in callbacks - unwrap and send value
-/// 
-/// Usage:
-/// ```ignore
-/// let (tx, rx) = std::sync::mpsc::channel();
-/// let _task = some_async_method(param, move |result| {
-///     on_result!(result, tx, "Error message");
-/// });
-/// let value = recv_async!(rx)?;
-/// ```
-#[macro_export]
-macro_rules! on_result {
-    ($result:expr, $tx:expr, $err_msg:expr) => {
-        match $result {
-            Ok(value) => { let _ = $tx.send(value); }
-            Err(e) => { 
-                log::error!("{}: {}", $err_msg, e);
-                // For critical errors, you might want to send a default value
-                // or handle differently based on your needs
-            }
-        }
-    };
-}
 
-/// Optimized callback pattern for unit results
-#[macro_export]
-macro_rules! on_unit_result {
-    ($result:expr, $tx:expr) => {
-        match $result {
-            Ok(()) => { let _ = $tx.send(()); }
-            Err(e) => { log::error!("Operation failed: {}", e); }
-        }
-    };
-}
-
-/// Global executor module providing async runtime services.
-/// Note: Currently using tokio for async execution
-pub mod executor {
-    use std::{
-        future::Future,
-        task::Waker,
-    };
-
-    /// Spawn a future onto the tokio runtime
-    #[inline(always)]
-    pub fn spawn<F>(future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        tokio::task::spawn(future);
-    }
-    
-    /// Register a waker for notifications (no-op - tokio handles this)
-    #[inline(always)]
-    pub fn register_waker(_waker: Waker) {
-        // Tokio runtime handles waker registration internally
-    }
-}
 
 /// Create channel with optimal configuration
 #[inline(always)]

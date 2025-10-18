@@ -455,17 +455,16 @@ impl CrawlEventBus {
     /// # Best-Effort Semantics
     /// 
     /// All events are attempted. Failures (typically due to no active subscribers) don't
-    /// stop processing of remaining events. The callback receives a `BatchPublishResult`
-    /// with explicit counts showing exactly how many succeeded vs failed.
+    /// stop processing of remaining events. Returns a `BatchPublishResult` with explicit 
+    /// counts showing exactly how many succeeded vs failed.
     /// 
     /// # Arguments
     /// 
     /// * `events` - Vector of events to publish
-    /// * `on_result` - Callback that receives detailed result with success/failure counts
     /// 
     /// # Returns
     /// 
-    /// `AsyncTask` that completes when batch publishing finishes
+    /// `BatchPublishResult` with detailed success/failure statistics
     /// 
     /// # Example
     /// 
@@ -476,64 +475,53 @@ impl CrawlEventBus {
     ///     CrawlEvent::crawl_completed(...),
     /// ];
     /// 
-    /// bus.publish_batch(events, |result| {
-    ///     println!("Published {}/{} events to {} subscribers",
-    ///              result.published, result.total, result.max_subscribers);
-    ///     
-    ///     if result.has_failures() {
-    ///         log::warn!("{} events failed (no subscribers)", result.failed);
-    ///     }
-    ///     
-    ///     if result.is_complete() {
-    ///         log::info!("All events delivered successfully");
-    ///     }
-    /// });
+    /// let result = bus.publish_batch(events).await;
+    /// println!("Published {}/{} events to {} subscribers",
+    ///          result.published, result.total, result.max_subscribers);
+    /// 
+    /// if result.has_failures() {
+    ///     log::warn!("{} events failed (no subscribers)", result.failed);
+    /// }
+    /// 
+    /// if result.is_complete() {
+    ///     log::info!("All events delivered successfully");
+    /// }
     /// ```
-    pub fn publish_batch(
-        &self,
-        events: Vec<CrawlEvent>,
-        on_result: impl FnOnce(super::types::BatchPublishResult) + Send + 'static,
-    ) -> AsyncTask<()> {
-        let sender = self.sender.clone();
-        let config = self.config.clone();
-        let metrics = self.metrics.clone();
-        
-        spawn_async(async move {
-            let total = events.len();
-            let mut published = 0;
-            let mut failed = 0;
-            let mut max_subscribers = 0;
+    pub async fn publish_batch(&self, events: Vec<CrawlEvent>) -> BatchPublishResult {
+        let total = events.len();
+        let mut published = 0;
+        let mut failed = 0;
+        let mut max_subscribers = 0;
 
-            for event in events {
-                match sender.send(event) {
-                    Ok(count) => {
-                        published += 1;
-                        max_subscribers = std::cmp::max(max_subscribers, count);
-                        
-                        if config.enable_metrics {
-                            metrics.increment_published();
-                            metrics.update_subscriber_count(count);
-                            if count == 0 {
-                                metrics.increment_dropped();
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        failed += 1;
-                        if config.enable_metrics {
-                            metrics.increment_failed();
+        for event in events {
+            match self.sender.send(event) {
+                Ok(count) => {
+                    published += 1;
+                    max_subscribers = std::cmp::max(max_subscribers, count);
+                    
+                    if self.config.enable_metrics {
+                        self.metrics.increment_published();
+                        self.metrics.update_subscriber_count(count);
+                        if count == 0 {
+                            self.metrics.increment_dropped();
                         }
                     }
                 }
+                Err(_) => {
+                    failed += 1;
+                    if self.config.enable_metrics {
+                        self.metrics.increment_failed();
+                    }
+                }
             }
+        }
 
-            on_result(super::types::BatchPublishResult {
-                total,
-                published,
-                failed,
-                max_subscribers,
-            });
-        })
+        BatchPublishResult {
+            total,
+            published,
+            failed,
+            max_subscribers,
+        }
     }
 
     /// Get detailed metrics report

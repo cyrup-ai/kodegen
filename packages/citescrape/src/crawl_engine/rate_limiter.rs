@@ -15,7 +15,7 @@
 //! - Fixed-point arithmetic for sub-token precision
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, OnceLock};
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 use lru::LruCache;
@@ -71,7 +71,7 @@ impl DomainRateLimiter {
     #[inline]
     fn current_time_nanos() -> u64 {
         // Use global base time for consistent time calculations across threads
-        BASE_TIME.elapsed().as_nanos() as u64
+        get_base_time().elapsed().as_nanos() as u64
     }
 
     /// Attempt to consume one token from the bucket
@@ -178,8 +178,13 @@ async fn get_domain_limiters() -> &'static Mutex<LruCache<String, Arc<DomainRate
 }
 
 /// Base time for all rate limit calculations (shared across threads)
-/// This can remain LazyLock as Instant::now() is non-blocking
-static BASE_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
+static BASE_TIME: OnceLock<Instant> = OnceLock::new();
+
+/// Get or initialize the base time  
+#[inline]
+fn get_base_time() -> &'static Instant {
+    BASE_TIME.get_or_init(|| Instant::now())
+}
 
 /// Extract domain from URL
 #[inline]

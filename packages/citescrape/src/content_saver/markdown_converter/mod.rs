@@ -8,28 +8,22 @@
 //!
 //! # Usage
 //!
-//! ## Synchronous (simple)
+//! ## Synchronous (for blocking contexts)
+//! ```rust
+//! use citescrape::content_saver::markdown_converter::{convert_html_to_markdown_sync, ConversionOptions};
+//!
+//! let html = "<html><body><h1>Title</h1><p>Content</p></body></html>";
+//! let options = ConversionOptions::default();
+//! let markdown = convert_html_to_markdown_sync(html, &options)?;
+//! ```
+//!
+//! ## Asynchronous (recommended)
 //! ```rust
 //! use citescrape::content_saver::markdown_converter::{convert_html_to_markdown, ConversionOptions};
 //!
 //! let html = "<html><body><h1>Title</h1><p>Content</p></body></html>";
 //! let options = ConversionOptions::default();
-//! let markdown = convert_html_to_markdown(html, &options)?;
-//! ```
-//!
-//! ## Asynchronous (callback-based)
-//! ```rust
-//! use citescrape::content_saver::markdown_converter::{convert_html_to_markdown_async, ConversionOptions};
-//!
-//! let html = "<html><body><h1>Title</h1><p>Content</p></body></html>";
-//! let options = ConversionOptions::default();
-//!
-//! let task = convert_html_to_markdown_async(html, &options, |result| {
-//!     match result {
-//!         Ok(markdown) => println!("Converted: {}", markdown),
-//!         Err(e) => eprintln!("Error: {}", e),
-//!     }
-//! });
+//! let markdown = convert_html_to_markdown(html, &options).await?;
 //! ```
 //!
 //! ## Custom Configuration
@@ -199,11 +193,11 @@ impl ConversionOptions {
 ///     </html>
 /// "#;
 ///
-/// let markdown = convert_html_to_markdown(html, &ConversionOptions::default())?;
+/// let markdown = convert_html_to_markdown_sync(html, &ConversionOptions::default())?;
 /// assert!(markdown.contains("# My Article"));
 /// assert!(markdown.contains("**important**"));
 /// ```
-pub fn convert_html_to_markdown(html: &str, options: &ConversionOptions) -> Result<String> {
+pub fn convert_html_to_markdown_sync(html: &str, options: &ConversionOptions) -> Result<String> {
     // Stage 1: Extract main content (with fallback to full HTML)
     let main_html = if options.extract_main_content {
         match extract_main_content(html) {
@@ -245,56 +239,35 @@ pub fn convert_html_to_markdown(html: &str, options: &ConversionOptions) -> Resu
     Ok(final_markdown)
 }
 
-/// Convert HTML to Markdown asynchronously (callback-based)
+/// Convert HTML to Markdown asynchronously
 ///
-/// Identical to `convert_html_to_markdown()` but executes asynchronously and
-/// delivers results via callback. Useful for non-blocking operations.
+/// This is a thin async wrapper around the synchronous conversion logic.
+/// Since HTML parsing/conversion is CPU-bound and typically fast (<100ms),
+/// we call the sync function directly rather than using spawn_blocking.
 ///
 /// # Arguments
 ///
 /// * `html` - Raw HTML content to convert
 /// * `options` - Configuration controlling the conversion pipeline
-/// * `on_result` - Callback invoked with conversion result
 ///
 /// # Returns
 ///
-/// * `AsyncTask<()>` - Handle to the background task (can be awaited or detached)
+/// * `Ok(String)` - Clean, well-formatted markdown
+/// * `Err(anyhow::Error)` - Only if conversion fails catastrophically
 ///
 /// # Examples
 ///
 /// ```rust
 /// let html = "<html><body><h1>Title</h1></body></html>";
 /// let options = ConversionOptions::default();
-///
-/// let task = convert_html_to_markdown_async(html, &options, |result| {
-///     match result {
-///         Ok(markdown) => {
-///             println!("Conversion successful!");
-///             // Save to file, send to client, etc.
-///         }
-///         Err(e) => {
-///             eprintln!("Conversion failed: {}", e);
-///         }
-///     }
-/// });
-///
-/// // Optionally await the task
-/// task.await;
+/// let markdown = convert_html_to_markdown(html, &options).await?;
 /// ```
-pub fn convert_html_to_markdown_async(
+pub async fn convert_html_to_markdown(
     html: &str,
     options: &ConversionOptions,
-    on_result: impl FnOnce(Result<String>) + Send + 'static,
-) -> AsyncTask<()> {
-    let html = html.to_string();
-    let options = options.clone();
-
-    spawn_async(async move {
-        // Execute the entire pipeline synchronously within the async task
-        // This is appropriate because the pipeline is CPU-bound, not I/O-bound
-        let result = convert_html_to_markdown(&html, &options);
-        on_result(result);
-    })
+) -> Result<String> {
+    // Direct call to sync version (it's fast enough)
+    convert_html_to_markdown_sync(html, options)
 }
 
 #[cfg(test)]

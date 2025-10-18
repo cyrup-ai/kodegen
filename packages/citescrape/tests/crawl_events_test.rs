@@ -273,12 +273,7 @@ async fn test_batch_publish() {
         CrawlEvent::link_rewrite_completed("https://test.com/target".to_string(), 5, 20),
     ];
 
-    let (batch_tx, batch_rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish_batch(events, move |result| {
-        let _ = batch_tx.send(result);
-    });
-    
-    let result = batch_rx.await.unwrap();
+    let result = bus.publish_batch(events).await;
     assert!(result.is_complete());
     assert_eq!(result.published, 3); // All three events published
     assert_eq!(result.failed, 0); // No failures

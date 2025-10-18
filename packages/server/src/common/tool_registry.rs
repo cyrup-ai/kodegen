@@ -329,8 +329,6 @@ where
 {
     log::debug!("Initializing citescrape tools");
     
-    kodegen_citescrape::preinit_lazy_statics();
-    
     let session_manager = Arc::new(kodegen_citescrape::CrawlSessionManager::new());
     let engine_cache = Arc::new(kodegen_citescrape::SearchEngineCache::new());
     

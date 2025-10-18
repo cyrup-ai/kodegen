@@ -9,7 +9,6 @@ use tantivy::{
     tokenizer::{TokenizerManager, TextAnalyzer, SimpleTokenizer, WhitespaceTokenizer, NgramTokenizer, LowerCaser, AlphaNumOnlyFilter, Stemmer, Language},
 };
 use std::collections::{HashMap, HashSet};
-use crate::runtime::{spawn_async, AsyncTask};
 
 /// Tokenizer name constants for zero-allocation lookups
 const EXACT_MATCH_TOKENIZER: &str = "exact_match";
@@ -75,12 +74,8 @@ impl From<anyhow::Error> for SchemaError {
 impl SearchSchema {
     /// Create optimized search schema with production defaults asynchronously
     #[inline]
-    pub fn create_async(
-        on_result: impl FnOnce(Result<Self>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        // Delegate directly to builder().build() without intermediate channel
-        // to avoid nested spawn + blocking recv anti-pattern
-        Self::builder().build(on_result)
+    pub async fn create_async() -> Result<Self> {
+        Self::builder().build().await
     }
 
     /// Create schema builder for custom configuration
@@ -354,66 +349,54 @@ impl SearchSchemaBuilder {
     }
 
     /// Register all custom tokenizers with the tokenizer manager
-    pub fn register_tokenizers(
+    pub async fn register_tokenizers(
         &self,
         tokenizer_manager: &TokenizerManager,
-        on_result: impl FnOnce(Result<()>) + Send + 'static,
-    ) -> crate::runtime::AsyncTask<()> {
+    ) -> Result<()> {
         let ngram_min_size = self.ngram_min_size;
         let ngram_max_size = self.ngram_max_size;
         let ngram_prefix_only = self.ngram_prefix_only;
         let manager = tokenizer_manager.clone();
         
-        spawn_async(async move {
-            let result = (|| -> Result<()> {
-                // Exact match tokenizer for URLs and file paths
-                let exact_tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
-                    .filter(LowerCaser)
-                    .build();
-                
-                manager.register(EXACT_MATCH_TOKENIZER, exact_tokenizer);
+        // Exact match tokenizer for URLs and file paths
+        let exact_tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
+            .filter(LowerCaser)
+            .build();
+        
+        manager.register(EXACT_MATCH_TOKENIZER, exact_tokenizer);
 
-                // Raw markdown tokenizer preserving syntax structure
-                let raw_markdown_tokenizer = TextAnalyzer::builder(WhitespaceTokenizer::default())
-                    .build();
-                
-                manager.register(RAW_MARKDOWN_TOKENIZER, raw_markdown_tokenizer);
+        // Raw markdown tokenizer preserving syntax structure
+        let raw_markdown_tokenizer = TextAnalyzer::builder(WhitespaceTokenizer::default())
+            .build();
+        
+        manager.register(RAW_MARKDOWN_TOKENIZER, raw_markdown_tokenizer);
 
-                // Content search tokenizer with aggressive natural language processing
-                let content_tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
-                    .filter(LowerCaser)
-                    .filter(AlphaNumOnlyFilter)
-                    .filter(Stemmer::new(Language::English))
-                    .build();
-                
-                manager.register(CONTENT_SEARCH_TOKENIZER, content_tokenizer);
+        // Content search tokenizer with aggressive natural language processing
+        let content_tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
+            .filter(LowerCaser)
+            .filter(AlphaNumOnlyFilter)
+            .filter(Stemmer::new(Language::English))
+            .build();
+        
+        manager.register(CONTENT_SEARCH_TOKENIZER, content_tokenizer);
 
-                // N-gram tokenizer for fuzzy search and partial matching
-                // Uses configurable parameters from builder
-                let ngram_tokenizer = TextAnalyzer::builder(
-                    NgramTokenizer::new(ngram_min_size, ngram_max_size, ngram_prefix_only)
-                        .map_err(|e| anyhow::anyhow!("Failed to create N-gram tokenizer: {}", e))?
-                )
-                    .filter(LowerCaser)
-                    .build();
-                
-                manager.register(NGRAM_TOKENIZER, ngram_tokenizer);
+        // N-gram tokenizer for fuzzy search and partial matching
+        // Uses configurable parameters from builder
+        let ngram_tokenizer = TextAnalyzer::builder(
+            NgramTokenizer::new(ngram_min_size, ngram_max_size, ngram_prefix_only)
+                .map_err(|e| anyhow::anyhow!("Failed to create N-gram tokenizer: {}", e))?
+        )
+            .filter(LowerCaser)
+            .build();
+        
+        manager.register(NGRAM_TOKENIZER, ngram_tokenizer);
 
-                Ok(())
-            })();
-            
-            on_result(result);
-        })
+        Ok(())
     }
 
     /// Build the final schema with all configurations applied
-    pub fn build(
-        self,
-        on_result: impl FnOnce(Result<SearchSchema>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        spawn_async(async move {
-            let result = (|| -> Result<SearchSchema> {
-                let mut schema_builder = Schema::builder();
+    pub async fn build(self) -> Result<SearchSchema> {
+        let mut schema_builder = Schema::builder();
 
                 // Build URL field with exact matching
                 let url_options = self.field_overrides.get("url").cloned().unwrap_or_else(|| {
@@ -529,11 +512,7 @@ impl SearchSchemaBuilder {
                 .map_err(|e| anyhow::anyhow!("Schema validation failed: {}", e))?;
         }
 
-                Ok(search_schema)
-            })();
-            
-            on_result(result);
-        })
+        Ok(search_schema)
     }
 }
 

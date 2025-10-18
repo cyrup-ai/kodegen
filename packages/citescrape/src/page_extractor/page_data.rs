@@ -8,8 +8,6 @@ use chromiumoxide::Page;
 
 use crate::content_saver;
 use crate::content_saver::await_with_timeout;
-use crate::runtime::{spawn_async, AsyncTask};
-use crate::on_result;
 
 use super::extractors::*;
 
@@ -192,201 +190,117 @@ fn extract_validation(attributes: &std::collections::HashMap<String, String>) ->
 
 /// Extract all page data including metadata, resources, timing, and content
 /// This is the production function used by the crawler, with LinkRewriter integration
-pub fn extract_page_data(
+pub async fn extract_page_data(
     page: Page,
     url: String,
     config: ExtractPageDataConfig,
-    on_result: impl FnOnce(Result<super::schema::PageData>) + Send + 'static,
-) -> AsyncTask<()> {
-    spawn_async(async move {
-        let result = async {
-            log::info!("Starting to extract page data for URL: {}", url);
+) -> Result<super::schema::PageData> {
+    log::info!("Starting to extract page data for URL: {}", url);
 
-            // Pre-allocate all channels for parallel extraction
-            let (metadata_tx, metadata_rx) = tokio::sync::oneshot::channel();
-            let (resources_tx, resources_rx) = tokio::sync::oneshot::channel();
-            let (timing_tx, timing_rx) = tokio::sync::oneshot::channel();
-            let (security_tx, security_rx) = tokio::sync::oneshot::channel();
-            let (title_tx, title_rx) = tokio::sync::oneshot::channel();
-            let (interactive_tx, interactive_rx) = tokio::sync::oneshot::channel();
-            let (links_tx, links_rx) = tokio::sync::oneshot::channel::<Vec<super::schema::CrawlLink>>();
+    // Launch all extractions in parallel with tokio::try_join!
+    let (metadata, resources, timing, security, title, interactive_elements_vec, links) = tokio::try_join!(
+        extract_metadata(page.clone()),
+        extract_resources(page.clone()),
+        extract_timing_info(page.clone()),
+        extract_security_info(page.clone()),
+        async {
+            let result: Result<String> = async {
+                let title_value = page
+                    .evaluate("document.title")
+                    .await
+                    .context("Failed to evaluate document.title")?
+                    .into_value()
+                    .map_err(|e| anyhow::anyhow!("Failed to get page title: {}", e))?;
 
-            // Launch all extraction tasks in parallel
-            let page_clone = page.clone();
-            let _metadata_task = extract_metadata(page_clone, move |result| {
-                on_result!(result, metadata_tx, "Failed to extract metadata");
-            });
+                if let serde_json::Value::String(title) = title_value {
+                    Ok(title)
+                } else {
+                    Ok(String::new())
+                }
+            }.await;
+            result
+        },
+        extract_interactive_elements(page.clone()),
+        extract_links(page.clone()),
+    )?;
 
-            let page_clone = page.clone();
-            let _resources_task = extract_resources(page_clone, move |result| {
-                on_result!(result, resources_tx, "Failed to extract resources");
-            });
+    // Get HTML content
+    let content = page.content().await
+        .map_err(|e| anyhow::anyhow!("Failed to get page content: {}", e))?;
 
-            let page_clone = page.clone();
-            let _timing_task = extract_timing_info(page_clone, move |result| {
-                on_result!(result, timing_tx, "Failed to extract timing info");
-            });
+    // Phase 1: Mark all links with data attributes for discovery tracking
+    let content_with_data_attrs = config.link_rewriter
+        .mark_links_for_discovery(&content, &url)
+        .await?;
 
-            let page_clone = page.clone();
-            let _security_task = extract_security_info(page_clone, move |result| {
-                on_result!(result, security_tx, "Failed to extract security info");
-            });
+    // Phase 2: Rewrite links using data attributes and registered URL mappings
+    let content_with_rewritten_links = config.link_rewriter
+        .rewrite_links_from_data_attrs(content_with_data_attrs)
+        .await?;
 
-            let page_clone = page.clone();
-            let _title_task = spawn_async(async move {
-                let result: Result<String> = async {
-                    let title_value = page_clone
-                        .evaluate("document.title")
-                        .await
-                        .context("Failed to evaluate document.title")?
-                        .into_value()
-                        .map_err(|e| anyhow::anyhow!("Failed to get page title: {}", e))?;
+    // Convert Vec<InteractiveElement> to InteractiveElements (FIX for the bug!)
+    let interactive_elements = convert_interactive_elements(interactive_elements_vec);
 
-                    if let serde_json::Value::String(title) = title_value {
-                        Ok(title)
-                    } else {
-                        Ok(String::new())
+    // Get local path for URL registration BEFORE saving
+    // This allows us to register the URL→path mapping after successful save
+    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await {
+        Ok(path) => path.to_string_lossy().to_string(),
+        Err(e) => {
+            log::warn!("Failed to get mirror path for URL registration: {}", e);
+            // Fallback path - registration will still work but path may be incorrect
+            config.output_dir.join("index.html").to_string_lossy().to_string()
+        }
+    };
+
+    // Register URL → local path mapping BEFORE saving
+    // This enables progressive rewriting: pages crawled later can immediately
+    // link to this page using relative paths instead of external URLs
+    config.link_rewriter.register_url(&url, &local_path_str).await;
+
+    log::debug!(
+        "Registered URL mapping: {} → {} (enables progressive link rewriting)",
+        url,
+        local_path_str
+    );
+
+    // Save HTML content if enabled
+    if config.save_html {
+        // Prepare data for callback
+        let url_for_registration = url.clone();
+
+        let _task = content_saver::save_html_content_with_resources(
+            &content_with_rewritten_links,
+            url.clone(),
+            config.output_dir.clone(),
+            &resources,
+            config.max_inline_image_size_bytes,
+            config.crawl_rate_rps,
+            move |result| {
+                match result {
+                    Ok(()) => {
+                        log::info!("HTML content saved successfully for: {}", url_for_registration);
                     }
-                }.await;
-
-                on_result!(result, title_tx, "Failed to extract title");
-            });
-
-            let page_clone = page.clone();
-            let _interactive_task = extract_interactive_elements(page_clone, move |result| {
-                on_result!(result, interactive_tx, "Failed to extract interactive elements");
-            });
-
-            let page_clone = page.clone();
-            let _links_task = extract_links(page_clone, move |result| {
-                on_result!(result, links_tx, "Failed to extract links");
-            });
-
-            // Get HTML content
-            let content = page.content().await
-                .map_err(|e| anyhow::anyhow!("Failed to get page content: {}", e))?;
-
-            // Await all parallel extractions
-            let (metadata_result, resources_result, timing_result,
-                 security_result, title_result, interactive_result, links_result) = tokio::join!(
-                async { metadata_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract metadata")) },
-                async { resources_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract resources")) },
-                async { timing_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract timing info")) },
-                async { security_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract security info")) },
-                async { title_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract title")) },
-                async { interactive_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract interactive elements")) },
-                async { links_rx.await.map_err(|_| anyhow::anyhow!("Failed to extract links")) },
-            );
-
-            let metadata = metadata_result?;
-            let resources = resources_result?;
-            let timing = timing_result?;
-            let security = security_result?;
-            let title = title_result?;
-            let interactive_elements_vec = interactive_result?;
-            let links = links_result?;
-
-            // Phase 1: Mark all links with data attributes for discovery tracking
-            let (link_tx, link_rx) = tokio::sync::oneshot::channel();
-            let _link_task = config.link_rewriter.mark_links_for_discovery(&content, &url, move |result| {
-                crate::on_result!(result, link_tx, "Failed to mark links for discovery");
-            });
-            let content_with_data_attrs = link_rx.await
-                .map_err(|_| anyhow::anyhow!("Failed to mark links for discovery"))?;
-
-            // Phase 2: Rewrite links using data attributes and registered URL mappings
-            let (rewrite_tx, rewrite_rx) = tokio::sync::oneshot::channel();
-            let _rewrite_task = config.link_rewriter.rewrite_links_from_data_attrs(content_with_data_attrs, move |result| {
-                crate::on_result!(result, rewrite_tx, "Failed to rewrite links");
-            });
-            let content_with_rewritten_links = rewrite_rx.await
-                .map_err(|_| anyhow::anyhow!("Failed to rewrite links"))?;
-
-            // Convert Vec<InteractiveElement> to InteractiveElements (FIX for the bug!)
-            let interactive_elements = convert_interactive_elements(interactive_elements_vec);
-
-            // Get local path for URL registration BEFORE saving
-            // This allows us to register the URL→path mapping after successful save
-            let (path_tx, path_rx) = tokio::sync::oneshot::channel();
-            let path_url = url.clone();
-            let path_output = config.output_dir.clone();
-            let path_task = crate::utils::get_mirror_path(
-                &path_url,
-                &path_output,
-                "index.html",
-                move |result| {
-                    let _ = path_tx.send(result);
-                }
-            );
-            let _path_guard = crate::runtime::TaskGuard::new(path_task, "get_mirror_path_for_registration");
-
-            let local_path_result = await_with_timeout(path_rx, 30, "mirror path for URL registration").await;
-            let local_path_str = match local_path_result {
-                Ok(Ok(path)) => path.to_string_lossy().to_string(),
-                Ok(Err(e)) => {
-                    log::warn!("Failed to get mirror path for URL registration: {}", e);
-                    // Fallback path - registration will still work but path may be incorrect
-                    config.output_dir.join("index.html").to_string_lossy().to_string()
-                }
-                Err(e) => {
-                    log::warn!("Timeout getting mirror path for URL registration: {}", e);
-                    config.output_dir.join("index.html").to_string_lossy().to_string()
-                }
-            };
-
-            // Register URL → local path mapping BEFORE saving
-            // This enables progressive rewriting: pages crawled later can immediately
-            // link to this page using relative paths instead of external URLs
-            config.link_rewriter.register_url(&url, &local_path_str).await;
-
-            log::debug!(
-                "Registered URL mapping: {} → {} (enables progressive link rewriting)",
-                url,
-                local_path_str
-            );
-
-            // Save HTML content if enabled
-            if config.save_html {
-                // Prepare data for callback
-                let url_for_registration = url.clone();
-
-                let _task = content_saver::save_html_content_with_resources(
-                    &content_with_rewritten_links,
-                    url.clone(),
-                    config.output_dir.clone(),
-                    &resources,
-                    config.max_inline_image_size_bytes,
-                    config.crawl_rate_rps,
-                    move |result| {
-                        match result {
-                            Ok(()) => {
-                                log::info!("HTML content saved successfully for: {}", url_for_registration);
-                            }
-                            Err(e) => {
-                                log::warn!("Failed to save HTML for {}: {}", url_for_registration, e);
-                                // Note: URL is already registered even if save failed
-                                // This is acceptable - worst case is a 404 for a registered path
-                            }
-                        }
+                    Err(e) => {
+                        log::warn!("Failed to save HTML for {}: {}", url_for_registration, e);
+                        // Note: URL is already registered even if save failed
+                        // This is acceptable - worst case is a 404 for a registered path
                     }
-                );
+                }
             }
+        );
+    }
 
-            log::info!("Successfully extracted page data for URL: {}", url);
-            Ok(super::schema::PageData {
-                url: url.to_string(),
-                title,
-                content: content_with_rewritten_links,
-                metadata,
-                interactive_elements,
-                links,
-                resources,
-                timing,
-                security,
-                crawled_at: chrono::Utc::now(),
-            })
-        }.await;
-
-        on_result(result);
+    log::info!("Successfully extracted page data for URL: {}", url);
+    Ok(super::schema::PageData {
+        url: url.to_string(),
+        title,
+        content: content_with_rewritten_links,
+        metadata,
+        interactive_elements,
+        links,
+        resources,
+        timing,
+        security,
+        crawled_at: chrono::Utc::now(),
     })
 }

@@ -7,7 +7,6 @@ use tokio::sync::Mutex;
 use url::Url;
 use uuid::Uuid;
 use lol_html::{element, HtmlRewriter, Settings};
-use crate::runtime::{spawn_async, AsyncTask};
 use lru::LruCache;
 use std::num::NonZeroUsize;
 
@@ -91,184 +90,166 @@ impl LinkRewriter {
     }
 
     /// Add data attributes to all links in HTML for tracking
-    pub fn mark_links_for_discovery(
+    pub async fn mark_links_for_discovery(
         &self, 
         html: &str, 
         current_url: &str,
-        on_result: impl FnOnce(Result<String>) + Send + 'static,
-    ) -> AsyncTask<()> {
+    ) -> Result<String> {
         let html = html.to_string();
         let current_url = current_url.to_string();
         
-        spawn_async(async move {
-            let result = (|| -> Result<String> {
-                let current_url_parsed = Url::parse(&current_url)?;
-                let crawler_id = Uuid::new_v4().to_string();
-                
-                let mut output = Vec::new();
-                
-                // Clone values for closure capture
-                let current_url_for_closure = current_url.clone();
-                let crawler_id_for_closure = crawler_id.clone();
-                
-                let mut rewriter = HtmlRewriter::new(
-                    Settings {
-                        element_content_handlers: vec![
-                            element!("a[href]", move |el| {
-                                let href = match el.get_attribute("href") {
-                                    Some(h) => h,
-                                    None => return Ok(()), // Skip if no href
-                                };
-                                
-                                // Skip non-http(s) links
-                                if href.starts_with("mailto:") 
-                                    || href.starts_with("javascript:") 
-                                    || href.starts_with("tel:") 
-                                    || href.starts_with("data:") {
-                                    return Ok(());
-                                }
-                                
-                                // Convert to absolute URL
-                                let absolute_url = match current_url_parsed.join(&href) {
-                                    Ok(url) => url,
-                                    Err(_) => return Ok(()), // Skip invalid URLs
-                                };
-                                
-                                // Add tracking attributes
-                                el.set_attribute("data-crawler-id", &crawler_id_for_closure)?;
-                                el.set_attribute("data-original-href", &href)?;
-                                el.set_attribute("data-absolute-href", absolute_url.as_str())?;
-                                el.set_attribute("data-crawler-current-url", &current_url_for_closure)?;
-                                
-                                Ok(())
-                            })
-                        ],
-                        ..Settings::default()
-                    },
-                    |c: &[u8]| output.extend_from_slice(c),
-                );
-                
-                rewriter.write(html.as_bytes())
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
-                rewriter.end()
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
-                
-                String::from_utf8(output)
-                    .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
-            })();
-            
-            on_result(result);
-        })
+        let current_url_parsed = Url::parse(&current_url)?;
+        let crawler_id = Uuid::new_v4().to_string();
+        
+        let mut output = Vec::new();
+        
+        // Clone values for closure capture
+        let current_url_for_closure = current_url.clone();
+        let crawler_id_for_closure = crawler_id.clone();
+        
+        let mut rewriter = HtmlRewriter::new(
+            Settings {
+                element_content_handlers: vec![
+                    element!("a[href]", move |el| {
+                        let href = match el.get_attribute("href") {
+                            Some(h) => h,
+                            None => return Ok(()), // Skip if no href
+                        };
+                        
+                        // Skip non-http(s) links
+                        if href.starts_with("mailto:") 
+                            || href.starts_with("javascript:") 
+                            || href.starts_with("tel:") 
+                            || href.starts_with("data:") {
+                            return Ok(());
+                        }
+                        
+                        // Convert to absolute URL
+                        let absolute_url = match current_url_parsed.join(&href) {
+                            Ok(url) => url,
+                            Err(_) => return Ok(()), // Skip invalid URLs
+                        };
+                        
+                        // Add tracking attributes
+                        el.set_attribute("data-crawler-id", &crawler_id_for_closure)?;
+                        el.set_attribute("data-original-href", &href)?;
+                        el.set_attribute("data-absolute-href", absolute_url.as_str())?;
+                        el.set_attribute("data-crawler-current-url", &current_url_for_closure)?;
+                        
+                        Ok(())
+                    })
+                ],
+                ..Settings::default()
+            },
+            |c: &[u8]| output.extend_from_slice(c),
+        );
+        
+        rewriter.write(html.as_bytes())
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
+        rewriter.end()
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
+        
+        String::from_utf8(output)
+            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
     }
 
     /// Rewrite all links in HTML to point to local files
-    pub fn rewrite_links(
+    pub async fn rewrite_links(
         &self,
         html: String,
         current_url: String,
-        on_result: impl FnOnce(Result<String>) + Send + 'static,
-    ) -> AsyncTask<()> {
+    ) -> Result<String> {
         let state = self.state.clone();
         let output_dir = self.output_dir.clone();
         
-        spawn_async(async move {
-            let result = (|| -> Result<String> {
-                let current_url_parsed = Url::parse(&current_url)?;
-                
-                let mut output = Vec::new();
+        let current_url_parsed = Url::parse(&current_url)?;
+        
+        let mut output = Vec::new();
 
-                // Clone for closure capture
-                let state_for_closure = state.clone();
-                let current_url_for_closure = current_url.clone();
-                let output_dir_for_closure = output_dir.clone();
-                
-                let mut rewriter = HtmlRewriter::new(
-                    Settings {
-                        element_content_handlers: vec![
-                            element!("a[href]", move |el| {
-                                let href = match el.get_attribute("href") {
-                                    Some(h) => h,
-                                    None => return Ok(()),
-                                };
-                                
-                                // Skip special protocols
-                                if href.starts_with("mailto:") 
-                                    || href.starts_with("javascript:") 
-                                    || href.starts_with("#") {
-                                    return Ok(());
+        // Clone for closure capture
+        let state_for_closure = state.clone();
+        let current_url_for_closure = current_url.clone();
+        let output_dir_for_closure = output_dir.clone();
+        
+        let mut rewriter = HtmlRewriter::new(
+            Settings {
+                element_content_handlers: vec![
+                    element!("a[href]", move |el| {
+                        let href = match el.get_attribute("href") {
+                            Some(h) => h,
+                            None => return Ok(()),
+                        };
+                        
+                        // Skip special protocols
+                        if href.starts_with("mailto:") 
+                            || href.starts_with("javascript:") 
+                            || href.starts_with("#") {
+                            return Ok(());
+                        }
+                        
+                        // Convert to absolute URL
+                        let absolute_url = match current_url_parsed.join(&href) {
+                            Ok(url) => url,
+                            Err(_) => return Ok(()),
+                        };
+                        
+                        // Check if we have a local version
+                        let local_path = {
+                            match state_for_closure.try_lock() {
+                                Ok(mut state_guard) => {
+                                    // LruCache::get needs mutable access to update LRU order
+                                    state_guard.url_to_local.get(absolute_url.as_str()).cloned()
                                 }
-                                
-                                // Convert to absolute URL
-                                let absolute_url = match current_url_parsed.join(&href) {
-                                    Ok(url) => url,
-                                    Err(_) => return Ok(()),
-                                };
-                                
-                                // Check if we have a local version
-                                let local_path = {
-                                    match state_for_closure.try_lock() {
-                                        Ok(mut state_guard) => {
-                                            // LruCache::get needs mutable access to update LRU order
-                                            state_guard.url_to_local.get(absolute_url.as_str()).cloned()
-                                        }
-                                        Err(_) => None, // Lock contended, skip this link
-                                    }
-                                };
-                                
-                                if let Some(local_path) = local_path {
-                                    // Calculate relative path
-                                    match Self::calculate_relative_path_sync(
-                                        &current_url_for_closure,
-                                        &local_path,
-                                        &output_dir_for_closure,
-                                    ) {
-                                        Ok(relative_path) => {
-                                            el.set_attribute("href", &relative_path)?;
-                                        }
-                                        Err(e) => {
-                                            log::warn!("Failed to calculate relative path for {}: {}", href, e);
-                                        }
-                                    }
+                                Err(_) => None, // Lock contended, skip this link
+                            }
+                        };
+                        
+                        if let Some(local_path) = local_path {
+                            // Calculate relative path
+                            match Self::calculate_relative_path_sync(
+                                &current_url_for_closure,
+                                &local_path,
+                                &output_dir_for_closure,
+                            ) {
+                                Ok(relative_path) => {
+                                    el.set_attribute("href", &relative_path)?;
                                 }
-                                // If not crawled, leave as external link
-                                
-                                Ok(())
-                            })
-                        ],
-                        ..Settings::default()
-                    },
-                    |c: &[u8]| output.extend_from_slice(c),
-                );
-                
-                rewriter.write(html.as_bytes())
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
-                rewriter.end()
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
-                
-                String::from_utf8(output)
-                    .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
-            })();
-            
-            on_result(result);
-        })
+                                Err(e) => {
+                                    log::warn!("Failed to calculate relative path for {}: {}", href, e);
+                                }
+                            }
+                        }
+                        // If not crawled, leave as external link
+                        
+                        Ok(())
+                    })
+                ],
+                ..Settings::default()
+            },
+            |c: &[u8]| output.extend_from_slice(c),
+        );
+        
+        rewriter.write(html.as_bytes())
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
+        rewriter.end()
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
+        
+        String::from_utf8(output)
+            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
     }
 
     /// Calculate relative path from one URL to another local path
-    pub fn calculate_relative_path(
+    pub async fn calculate_relative_path(
         &self,
         from_url: String,
         to_local_path: String,
-        on_result: impl FnOnce(Result<String>) + Send + 'static,
-    ) -> AsyncTask<()> {
+    ) -> Result<String> {
         let output_dir = self.output_dir.clone();
-        spawn_async(async move {
-            let result = Self::calculate_relative_path_sync(
-                &from_url,
-                &to_local_path,
-                &output_dir,
-            );
-            on_result(result);
-        })
+        Self::calculate_relative_path_sync(
+            &from_url,
+            &to_local_path,
+            &output_dir,
+        )
     }
 
     /// Calculate relative path from source URL to target local path (synchronous)
@@ -318,38 +299,6 @@ impl LinkRewriter {
         Ok(relative.to_string_lossy().to_string())
     }
 
-    /// Convert URL to local file path using same logic as get_mirror_path
-    #[allow(dead_code)]
-    fn url_to_local_path(
-        &self,
-        url: &str,
-        on_result: impl FnOnce(Result<String>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        let url = url.to_string();
-        let output_dir = self.output_dir.clone();
-        
-        spawn_async(async move {
-            let result: Result<String> = (|| -> Result<String> {
-                let parsed_url = Url::parse(&url)?;
-                let host = parsed_url.host_str().ok_or_else(|| anyhow::anyhow!("No host"))?;
-                let url_path = if parsed_url.path() == "/" {
-                    std::path::PathBuf::new()
-                } else {
-                    std::path::PathBuf::from(parsed_url.path().trim_start_matches('/'))
-                };
-
-                let local_path = std::path::PathBuf::from(&output_dir)
-                    .join(host)
-                    .join(url_path)
-                    .join("index.html");
-                
-                Ok(local_path.to_string_lossy().to_string())
-            })();
-            
-            on_result(result);
-        })
-    }
-
     /// Get a map of all registered URLs
     pub async fn get_url_map(&self) -> HashMap<String, String> {
         let state = self.state.lock().await;
@@ -360,85 +309,78 @@ impl LinkRewriter {
     }
 
     /// Rewrite links using data attributes (more efficient approach)
-    pub fn rewrite_links_from_data_attrs(
+    pub async fn rewrite_links_from_data_attrs(
         &self,
         html: String,
-        on_result: impl FnOnce(Result<String>) + Send + 'static,
-    ) -> AsyncTask<()> {
+    ) -> Result<String> {
         let state = self.state.clone();
         let output_dir = self.output_dir.clone();
         
-        spawn_async(async move {
-            let result = (|| -> Result<String> {
-                let mut output = Vec::new();
-                
-                // Clone for closure capture
-                let state_for_closure = state.clone();
-                let output_dir_for_closure = output_dir.clone();
-                
-                let mut rewriter = HtmlRewriter::new(
-                    Settings {
-                        element_content_handlers: vec![
-                            element!("a[data-absolute-href]", move |el| {
-                                let absolute_href = match el.get_attribute("data-absolute-href") {
-                                    Some(h) => h,
-                                    None => return Ok(()),
-                                };
-                                
-                                // Check if we have a local version
-                                let local_path = {
-                                    match state_for_closure.try_lock() {
-                                        Ok(mut state_guard) => {
-                                            // LruCache::get needs mutable access to update LRU order
-                                            state_guard.url_to_local.get(&absolute_href).cloned()
-                                        }
-                                        Err(_) => None, // Lock contended, skip this link
-                                    }
-                                };
-                                
-                                if let Some(local_path) = local_path && let Some(current_url) = el.get_attribute("data-crawler-current-url") {
-                                    // Calculate relative path
-                                    match Self::calculate_relative_path_sync(
-                                            &current_url,
-                                            &local_path,
-                                            &output_dir_for_closure,
-                                        ) {
-                                            Ok(relative_path) => {
-                                                el.set_attribute("href", &relative_path)?;
-                                            }
-                                            Err(e) => {
-                                                if let Some(href) = el.get_attribute("data-original-href") {
-                                                    log::warn!("Failed to calculate relative path for {}: {}", href, e);
-                                                }
-                                            }
-                                        }
+        let mut output = Vec::new();
+        
+        // Clone for closure capture
+        let state_for_closure = state.clone();
+        let output_dir_for_closure = output_dir.clone();
+        
+        let mut rewriter = HtmlRewriter::new(
+            Settings {
+                element_content_handlers: vec![
+                    element!("a[data-absolute-href]", move |el| {
+                        let absolute_href = match el.get_attribute("data-absolute-href") {
+                            Some(h) => h,
+                            None => return Ok(()),
+                        };
+                        
+                        // Check if we have a local version
+                        let local_path = {
+                            match state_for_closure.try_lock() {
+                                Ok(mut state_guard) => {
+                                    // LruCache::get needs mutable access to update LRU order
+                                    state_guard.url_to_local.get(&absolute_href).cloned()
                                 }
-                                
-                                // Clean up data attributes
-                                el.remove_attribute("data-crawler-id");
-                                el.remove_attribute("data-original-href");
-                                el.remove_attribute("data-absolute-href");
-                                el.remove_attribute("data-crawler-current-url");
-                                
-                                Ok(())
-                            })
-                        ],
-                        ..Settings::default()
-                    },
-                    |c: &[u8]| output.extend_from_slice(c),
-                );
-                
-                rewriter.write(html.as_bytes())
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
-                rewriter.end()
-                    .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
-                
-                String::from_utf8(output)
-                    .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
-            })();
-            
-            on_result(result);
-        })
+                                Err(_) => None, // Lock contended, skip this link
+                            }
+                        };
+                        
+                        if let Some(local_path) = local_path && let Some(current_url) = el.get_attribute("data-crawler-current-url") {
+                            // Calculate relative path
+                            match Self::calculate_relative_path_sync(
+                                    &current_url,
+                                    &local_path,
+                                    &output_dir_for_closure,
+                                ) {
+                                    Ok(relative_path) => {
+                                        el.set_attribute("href", &relative_path)?;
+                                    }
+                                    Err(e) => {
+                                        if let Some(href) = el.get_attribute("data-original-href") {
+                                            log::warn!("Failed to calculate relative path for {}: {}", href, e);
+                                        }
+                                    }
+                                }
+                        }
+                        
+                        // Clean up data attributes
+                        el.remove_attribute("data-crawler-id");
+                        el.remove_attribute("data-original-href");
+                        el.remove_attribute("data-absolute-href");
+                        el.remove_attribute("data-crawler-current-url");
+                        
+                        Ok(())
+                    })
+                ],
+                ..Settings::default()
+            },
+            |c: &[u8]| output.extend_from_slice(c),
+        );
+        
+        rewriter.write(html.as_bytes())
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter error: {}", e))?;
+        rewriter.end()
+            .map_err(|e| anyhow::anyhow!("HtmlRewriter end error: {}", e))?;
+        
+        String::from_utf8(output)
+            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in rewritten HTML: {}", e))
     }
 
     /// Remove crawler-specific data attributes from final HTML

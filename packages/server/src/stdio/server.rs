@@ -22,27 +22,43 @@ use tokio_util::sync::CancellationToken;
 /// 
 /// Attempts connection up to `max_attempts` times with exponential backoff.
 /// Backoff starts at `initial_backoff` and doubles on each retry, capped at 10 seconds.
+/// Each connection attempt is subject to the specified timeout and can be cancelled via shutdown token.
 /// 
 /// # Arguments
 /// * `url` - SSE server URL to connect to
 /// * `max_attempts` - Maximum number of connection attempts
 /// * `initial_backoff` - Initial backoff duration, doubles on each retry
+/// * `timeout` - Timeout for each individual connection attempt
+/// * `shutdown_token` - Cancellation token for graceful shutdown
 /// 
 /// # Returns
 /// * `Ok((client, connection))` - Successfully connected client and connection tuple
-/// * `Err` - All connection attempts failed
+/// * `Err` - Connection failed (timeout, cancellation, or connection error)
 async fn connect_with_retry(
     url: &str,
     max_attempts: u32,
     initial_backoff: Duration,
+    timeout: Duration,
+    shutdown_token: &CancellationToken,
 ) -> Result<(kodegen_mcp_client::KodegenClient, kodegen_mcp_client::KodegenConnection)> {
     let mut backoff = initial_backoff;
     
     for attempt in 1..=max_attempts {
-        log::debug!("SSE connection attempt {}/{} to {}", attempt, max_attempts, url);
+        log::debug!("SSE connection attempt {}/{} to {} (timeout: {:?})", attempt, max_attempts, url, timeout);
         
-        match kodegen_mcp_client::create_sse_client(url).await {
-            Ok((client, connection)) => {
+        // Race connection against timeout and cancellation
+        let connect_future = kodegen_mcp_client::create_sse_client(url);
+        let result = tokio::select! {
+            res = connect_future => Some(res),
+            _ = tokio::time::sleep(timeout) => None,
+            _ = shutdown_token.cancelled() => {
+                log::info!("Connection attempt cancelled during shutdown");
+                return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
+            }
+        };
+        
+        match result {
+            Some(Ok((client, connection))) => {
                 if attempt > 1 {
                     log::info!("Connected to SSE server on attempt {}/{}", attempt, max_attempts);
                 } else {
@@ -50,7 +66,7 @@ async fn connect_with_retry(
                 }
                 return Ok((client, connection));
             }
-            Err(e) => {
+            Some(Err(e)) => {
                 if attempt == max_attempts {
                     return Err(anyhow::anyhow!(
                         "Failed to connect after {} attempt{}: {}",
@@ -67,13 +83,39 @@ async fn connect_with_retry(
                     e,
                     backoff
                 );
+            }
+            None => {
+                // Timeout
+                if attempt == max_attempts {
+                    return Err(anyhow::anyhow!(
+                        "Connection timeout after {} attempt{} ({}s per attempt)",
+                        max_attempts,
+                        if max_attempts == 1 { "" } else { "s" },
+                        timeout.as_secs()
+                    ));
+                }
                 
-                tokio::time::sleep(backoff).await;
-                
-                // Double backoff for next iteration, capped at 10 seconds
-                backoff = (backoff * 2).min(Duration::from_secs(10));
+                log::debug!(
+                    "Connection attempt {}/{} timed out after {:?}. Retrying in {:?}",
+                    attempt,
+                    max_attempts,
+                    timeout,
+                    backoff
+                );
             }
         }
+        
+        // Sleep before retry, but make it cancellable
+        tokio::select! {
+            _ = tokio::time::sleep(backoff) => {},
+            _ = shutdown_token.cancelled() => {
+                log::info!("Connection retry cancelled during backoff");
+                return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
+            }
+        }
+        
+        // Double backoff for next iteration, capped at 10 seconds
+        backoff = (backoff * 2).min(Duration::from_secs(10));
     }
     
     unreachable!()
@@ -83,7 +125,6 @@ async fn connect_with_retry(
 /// 
 /// When configured with an SSE URL, forwards tool execution to the SSE server.
 /// When no SSE URL provided, executes tools locally (standalone mode).
-#[derive(Clone)]
 pub struct StdioProxyServer {
     /// Optional SSE client for proxying tool calls.
     /// KodegenClient is cheap to clone (Arc pointers internally).
@@ -91,8 +132,9 @@ pub struct StdioProxyServer {
     
     /// Connection lifecycle manager (not Clone, held to keep connection alive).
     /// When this is dropped, the SSE connection will be closed.
-    /// Wrapped in Arc to allow Clone on the struct.
-    sse_connection: Option<std::sync::Arc<kodegen_mcp_client::KodegenConnection>>,
+    /// NOT wrapped in Arc - KodegenConnection should never be cloned.
+    #[allow(dead_code)]
+    sse_connection: Option<kodegen_mcp_client::KodegenConnection>,
     
     /// Tool router for metadata and optional local execution
     tool_router: ToolRouter<Self>,
@@ -112,7 +154,7 @@ impl StdioProxyServer {
     /// * `config_manager` - Configuration manager
     /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_categories` - Tool categories to enable
-    /// * `_connection_timeout` - Reserved for future use (per-attempt timeout)
+    /// * `connection_timeout` - Timeout for each SSE connection attempt
     /// * `max_retries` - Maximum number of connection attempts (1 = no retry)
     /// * `retry_backoff` - Initial backoff duration, doubles on each retry
     /// * `proxy_required` - If true, server will fail if SSE connection fails (explicit proxy request)
@@ -122,7 +164,7 @@ impl StdioProxyServer {
         config_manager: kodegen_config::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_categories: &Option<std::collections::HashSet<String>>,
-        _connection_timeout: Duration,
+        connection_timeout: Duration,
         max_retries: u32,
         retry_backoff: Duration,
         proxy_required: bool,
@@ -149,20 +191,20 @@ impl StdioProxyServer {
                 }
                 
                 // Try to connect with exponential backoff retry
-                // Race connection against shutdown signal
-                let connect_result = tokio::select! {
-                    result = connect_with_retry(url, max_retries, retry_backoff) => Some(result),
-                    _ = shutdown_token.cancelled() => {
-                        log::info!("SSE connection cancelled during initialization");
-                        return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
-                    }
-                };
+                // Connection attempts are cancellable and subject to timeout
+                let connect_result = connect_with_retry(
+                    url,
+                    max_retries,
+                    retry_backoff,
+                    connection_timeout,
+                    &shutdown_token
+                ).await;
                 
                 match connect_result {
-                    Some(Ok((client, connection))) => {
-                        (Some(client), Some(std::sync::Arc::new(connection)))
+                    Ok((client, connection)) => {
+                        (Some(client), Some(connection))
                     }
-                    Some(Err(e)) => {
+                    Err(e) => {
                         if proxy_required {
                             // User explicitly requested proxy - this is FATAL
                             log::error!(
@@ -184,7 +226,6 @@ impl StdioProxyServer {
                             (None, None)
                         }
                     }
-                    None => unreachable!(),
                 }
             }
             None => {

@@ -20,31 +20,19 @@ pub struct CrawlState {
 }
 
 /// Process links from the current page and add them to the crawl queue
-pub fn process_page_links(
+pub async fn process_page_links(
     page: Page,
     current_item: CrawlQueue,
     crawl_state: CrawlState,
     config: &crate::config::CrawlConfig,
-    on_result: impl FnOnce(Result<(VecDeque<CrawlQueue>, Bloom<String>)>) + Send + 'static,
-) -> crate::runtime::AsyncTask<()> {
-    use crate::runtime::spawn_async;
-    
+) -> Result<(VecDeque<CrawlQueue>, Bloom<String>)> {
     let CrawlState { queue, visited_urls, max_depth } = crawl_state;
     let mut crawl_queue = queue;
     let config = config.clone();
     
-    spawn_async(async move {
-        let result = async {
     // Extract links for next depth level if we haven't reached max depth
     if current_item.depth < max_depth {
-        let (links_tx, links_rx) = tokio::sync::oneshot::channel();
-        let _links_task = extract_links(page.clone(), move |result| {
-            match result {
-                Ok(links) => { let _ = links_tx.send(links); }
-                Err(e) => { log::error!("Failed to extract links: {}", e); }
-            }
-        });
-        match links_rx.await.map_err(|_| anyhow::anyhow!("Failed to receive links extraction result")) {
+        match extract_links(page.clone()).await {
             Ok(links) => {
                 let filtered_links =
                     super::crawler::extract_valid_urls(&links, &config);
@@ -85,8 +73,4 @@ pub fn process_page_links(
         }
     }
     Ok((crawl_queue, visited_urls))
-        }.await;
-        
-        on_result(result);
-    })
 }
