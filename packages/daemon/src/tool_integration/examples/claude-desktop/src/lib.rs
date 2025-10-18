@@ -77,7 +77,11 @@ fn detect_version_macos() -> Option<String> {
             if let Some(string_end) = after_key[string_start..].find("</string>") {
                 let version_start = string_start + "<string>".len();
                 let version = &after_key[version_start..string_start + string_end];
-                return Some(version.trim().to_string());
+                let trimmed = version.trim();
+                if trimmed.is_empty() {
+                    return None;
+                }
+                return Some(trimmed.to_string());
             }
         }
     }

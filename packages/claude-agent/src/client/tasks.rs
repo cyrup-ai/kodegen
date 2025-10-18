@@ -156,14 +156,14 @@ impl super::ClaudeSDKClient {
             };
 
             // Validate event_data is an object for tool events
-            if matches!(event, HookEvent::PreToolUse | HookEvent::PostToolUse) {
-                if !event_data.is_object() {
-                    log::warn!(
-                        "Hook {} received non-object event_data for {:?}: {:?}",
-                        hook_id, event, event_data
-                    );
-                    // Continue with data anyway - hooks can handle invalid data
-                }
+            if matches!(event, HookEvent::PreToolUse | HookEvent::PostToolUse)
+                && !event_data.is_object()
+            {
+                log::warn!(
+                    "Hook {} received non-object event_data for {:?}: {:?}",
+                    hook_id, event, event_data
+                );
+                // Continue with data anyway - hooks can handle invalid data
             }
 
             let manager_guard = manager.lock().await;
