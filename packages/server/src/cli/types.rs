@@ -93,8 +93,8 @@ pub enum Commands {
 /// Server mode selection
 #[derive(Debug, Clone)]
 pub enum ServerMode {
-    /// Run as stdio server with optional SSE proxy
-    Stdio { proxy_url: Option<String> },
+    /// Run as stdio server (thin client that proxies to SSE server)
+    Stdio { proxy_url: String },
     /// Run as SSE server on the specified address
     Sse(SocketAddr),
 }
@@ -124,9 +124,11 @@ impl Cli {
         if let Some(addr) = self.sse {
             ServerMode::Sse(addr)
         } else {
-            ServerMode::Stdio { 
-                proxy_url: self.proxy_sse.clone() 
-            }
+            // Stdio mode always proxies to daemon's SSE server
+            // Default port: 30437 (matches daemon config default)
+            let proxy_url = self.proxy_sse.clone()
+                .unwrap_or_else(|| "http://127.0.0.1:30437".to_string());
+            ServerMode::Stdio { proxy_url }
         }
     }
 

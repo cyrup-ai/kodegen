@@ -2,8 +2,6 @@ mod cli;
 mod config;
 mod control;
 mod daemon;
-mod install;
-mod installer;
 mod ipc;
 mod lifecycle;
 mod manager;
@@ -13,6 +11,7 @@ mod state_machine;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use anyhow::Result;
 use clap::Parser;
@@ -58,12 +57,6 @@ async fn real_main() -> Result<()> {
             config,
             system,
         } => run_daemon(foreground, config, system).await,
-        cli::Cmd::Install {
-            dry_run,
-            sign,
-            identity,
-        } => installer::install(dry_run, sign, identity).await,
-        cli::Cmd::Uninstall { dry_run } => installer::uninstall_async(dry_run).await,
         cli::Cmd::Sign {
             binary,
             identity,

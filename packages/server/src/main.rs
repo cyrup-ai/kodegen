@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
     // Launch appropriate server based on mode
     match cli.server_mode() {
         ServerMode::Stdio { proxy_url } => {
-            log::info!("Starting stdio server (proxy: {:?})", proxy_url);
+            log::info!("Starting stdio server (proxy: {})", proxy_url);
             
             // Ensure daemon is running for stdio mode
             if let Err(e) = cli::daemon::ensure_daemon_running().await {
@@ -139,10 +139,9 @@ async fn main() -> Result<()> {
                 connection_timeout: cli.sse_connection_timeout(&config_manager),
                 max_retries: cli.sse_max_retries(),
                 retry_backoff: cli.sse_retry_backoff_duration(),
-                proxy_required: proxy_url.is_some(),  // user specified URL
             };
             let server = stdio::StdioProxyServer::new(
-                proxy_url.as_deref(),
+                &proxy_url,
                 config_manager,
                 usage_tracker,
                 &enabled_categories,

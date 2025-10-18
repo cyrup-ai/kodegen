@@ -24,26 +24,6 @@ pub enum Cmd {
         #[arg(long, conflicts_with = "config")]
         system: bool,
     },
-    /// Copy binary, create users/dirs, register with init, start service
-    Install {
-        /// Don't enable & start the unit—copy files only
-        #[arg(long)]
-        dry_run: bool,
-
-        /// macOS only – sign the binary after install (uses codesign)
-        #[arg(long)]
-        sign: bool,
-
-        /// Override signing identity (default: ad‑hoc)
-        #[arg(long)]
-        identity: Option<String>,
-    },
-    /// Uninstall the daemon service
-    Uninstall {
-        /// Don't actually uninstall, just show what would be done
-        #[arg(long)]
-        dry_run: bool,
-    },
     /// Sign the daemon binary
     Sign {
         /// Path to binary to sign (defaults to current executable)

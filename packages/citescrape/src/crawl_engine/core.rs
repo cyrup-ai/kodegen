@@ -20,6 +20,7 @@ use tokio::sync::Semaphore;
 
 use super::crawl_types::CrawlQueue;
 use super::{CircuitBreaker, DomainLimiter, extract_domain};
+use crate::browser_setup::ensure_chromium;
 use crate::config::CrawlConfig;
 use crate::crawl_events::{
     CrawlEventBus,
@@ -200,8 +201,13 @@ pub async fn crawl_pages<P: ProgressReporter>(
             .context("Failed to publish CrawlStarted event - event bus may be shutdown or full")?;
     }
 
-    // Setup browser
+    // Setup browser - ensure Chromium is downloaded
+    let chromium_path = ensure_chromium()
+        .await
+        .context("Failed to ensure Chromium is available")?;
+
     let mut browser_builder = BrowserConfig::builder()
+        .chrome_executable(chromium_path)
         .window_size(1920, 1080)
         .arg("--disable-blink-features=AutomationControlled")
         .arg("--exclude-switches=enable-automation")

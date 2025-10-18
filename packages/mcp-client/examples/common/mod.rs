@@ -29,16 +29,16 @@ use tokio::time::{timeout, Duration};
 ///
 /// # Returns
 /// - Custom timeout from env var if KODEGEN_SERVER_TIMEOUT is set and parseable
-/// - 45s for debug builds (15s base × 3)
-/// - 15s for release builds (15s base × 1)
+/// - 900s (15 min) for debug builds (180s base × 5)
+/// - 180s (3 min) for release builds (180s base × 1)
 fn server_startup_timeout() -> Duration {
     if let Ok(timeout) = std::env::var("KODEGEN_SERVER_TIMEOUT")
         && let Ok(secs) = timeout.parse::<u64>() {
             return Duration::from_secs(secs);
         }
 
-    let base = Duration::from_secs(15);
-    let multiplier = if cfg!(debug_assertions) { 3 } else { 1 };
+    let base = Duration::from_secs(180);
+    let multiplier = if cfg!(debug_assertions) { 5 } else { 1 };
 
     base * multiplier
 }

@@ -197,6 +197,71 @@ fn staple_ticket(binary_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Extract designated requirement from signed binary
+pub fn extract_requirement(binary_path: &Path) -> Result<String> {
+    let output = Command::new("codesign")
+        .args(["-d", "-r-"])
+        .arg(binary_path)
+        .output()
+        .context("Failed to execute codesign")?;
+
+    if !output.status.success() {
+        bail!("Failed to extract requirement: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    // codesign outputs to stderr in format:
+    // Executable=/path/to/binary
+    // designated => requirement string here
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    
+    for line in stderr.lines() {
+        if let Some(req) = line.strip_prefix("designated => ") {
+            return Ok(req.to_string());
+        }
+    }
+    
+    bail!("No designated requirement found in codesign output");
+}
+
+/// Inject requirement into Info.plist
+pub fn inject_requirement(
+    plist_path: &Path,
+    key: &str,  // "SMPrivilegedExecutables" or "SMAuthorizedClients"
+    bundle_id: &str,
+    requirement: &str,
+) -> Result<()> {
+    use plist::Value;
+    
+    // Read plist
+    let file = std::fs::File::open(plist_path)
+        .with_context(|| format!("Failed to open {}", plist_path.display()))?;
+    let mut plist: Value = plist::from_reader(file)
+        .with_context(|| format!("Failed to parse {}", plist_path.display()))?;
+    
+    // Navigate to the dictionary
+    if let Value::Dictionary(ref mut dict) = plist {
+        // Create or get the target dictionary (SMPrivilegedExecutables or SMAuthorizedClients)
+        if !dict.contains_key(key) {
+            dict.insert(key.to_string(), Value::Dictionary(plist::Dictionary::new()));
+        }
+        
+        if let Some(Value::Dictionary(inner)) = dict.get_mut(key) {
+            inner.insert(
+                bundle_id.to_string(),
+                Value::String(requirement.to_string())
+            );
+        }
+    }
+    
+    // Write back
+    let file = std::fs::File::create(plist_path)
+        .with_context(|| format!("Failed to open {} for writing", plist_path.display()))?;
+    plist::to_writer_xml(file, &plist)
+        .with_context(|| format!("Failed to write {}", plist_path.display()))?;
+    
+    Ok(())
+}
+
 /// Import a certificate from file for signing
 #[allow(dead_code)] // Advanced certificate management API
 pub fn import_certificate(cert_path: &Path, password: Option<&str>) -> Result<String> {

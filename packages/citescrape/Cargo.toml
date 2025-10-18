@@ -32,7 +32,7 @@ uuid = { version = "1.18.1", features = ["v4", "serde"] }
 html-escape = "0.2.13"
 regex = "1.12.2"
 reqwest = { version = "0.12.24", features = ["json", "rustls-tls"] }
-chromiumoxide = { version = "0.7.0", features = ["tokio-runtime", "bytes"], default-features = false }
+chromiumoxide = { version = "0.7.0", features = ["tokio-runtime", "bytes", "_fetcher-native-tokio"], default-features = false }
 chromiumoxide_cdp = "0.7.0"
 chromiumoxide_types = "0.7.0"
 scraper = "0.24.0"

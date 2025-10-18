@@ -1,3 +1,4 @@
+pub mod browser_setup;
 pub mod config;
 pub mod content_saver;
 pub mod crawl_engine;
@@ -11,6 +12,7 @@ pub mod search;
 pub mod utils;
 pub mod web_search;
 
+pub use browser_setup::ensure_chromium;
 pub use config::CrawlConfig;
 pub use content_saver::{CacheMetadata, save_json_data};
 pub use crawl_engine::{

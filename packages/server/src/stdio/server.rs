@@ -28,8 +28,6 @@ pub struct SseConnectionConfig {
     pub max_retries: u32,
     /// Timeout for each connection attempt
     pub connection_timeout: Duration,
-    /// If true, server will fail if SSE connection fails (explicit proxy request)
-    pub proxy_required: bool,
 }
 
 impl Default for SseConnectionConfig {
@@ -38,7 +36,6 @@ impl Default for SseConnectionConfig {
             retry_backoff: Duration::from_millis(100),
             max_retries: 1,
             connection_timeout: Duration::from_secs(30),
-            proxy_required: false,
         }
     }
 }
@@ -151,22 +148,21 @@ async fn connect_with_retry(
     unreachable!()
 }
 
-/// MCP Server that provides stdio transport with optional SSE proxy
+/// MCP Server that provides stdio transport (thin client)
 /// 
-/// When configured with an SSE URL, forwards tool execution to the SSE server.
-/// When no SSE URL provided, executes tools locally (standalone mode).
+/// Forwards all tool execution to the SSE server (daemon).
 pub struct StdioProxyServer {
-    /// Optional SSE client for proxying tool calls.
+    /// SSE client for proxying tool calls to daemon.
     /// KodegenClient is cheap to clone (Arc pointers internally).
-    sse_client: Option<kodegen_mcp_client::KodegenClient>,
+    sse_client: kodegen_mcp_client::KodegenClient,
     
     /// Connection lifecycle manager (not Clone, held to keep connection alive).
     /// When this is dropped, the SSE connection will be closed.
     /// NOT wrapped in Arc - KodegenConnection should never be cloned.
     #[allow(dead_code)]
-    sse_connection: Option<kodegen_mcp_client::KodegenConnection>,
+    sse_connection: kodegen_mcp_client::KodegenConnection,
     
-    /// Tool router for metadata and optional local execution
+    /// Tool router for metadata only
     tool_router: ToolRouter<Self>,
     /// Prompt router for serving prompts locally
     prompt_router: PromptRouter<Self>,
@@ -177,17 +173,17 @@ pub struct StdioProxyServer {
 }
 
 impl StdioProxyServer {
-    /// Create a new stdio server with optional SSE proxy
+    /// Create a new stdio server (thin client)
     /// 
     /// # Arguments
-    /// * `sse_url` - Optional URL of SSE server to proxy tool calls to
+    /// * `sse_url` - URL of SSE server (daemon) to proxy tool calls to
     /// * `config_manager` - Configuration manager
     /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_categories` - Tool categories to enable
     /// * `sse_config` - SSE connection configuration (retry, timeout, etc.)
     /// * `shutdown_token` - Cancellation token for graceful shutdown during initialization
     pub async fn new(
-        sse_url: Option<&str>,
+        sse_url: &str,
         config_manager: kodegen_config::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_categories: &Option<std::collections::HashSet<String>>,
@@ -201,62 +197,26 @@ impl StdioProxyServer {
             enabled_categories,
         ).await?;
         
-        // Create SSE client if URL provided
-        let (sse_client, sse_connection) = match sse_url {
-            Some(url) => {
-                if sse_config.max_retries > 1 {
-                    log::info!(
-                        "Connecting to SSE server at {} (with retry, max {} attempts)",
-                        url,
-                        sse_config.max_retries
-                    );
-                } else {
-                    log::info!("Connecting to SSE server at {} (no retry)", url);
-                }
+        // Connect to SSE server (daemon)
+        if sse_config.max_retries > 1 {
+            log::info!(
+                "Connecting to SSE server at {} (with retry, max {} attempts)",
+                sse_url,
+                sse_config.max_retries
+            );
+        } else {
+            log::info!("Connecting to SSE server at {} (no retry)", sse_url);
+        }
 
-                // Try to connect with exponential backoff retry
-                // Connection attempts are cancellable and subject to timeout
-                let connect_result = connect_with_retry(
-                    url,
-                    sse_config.max_retries,
-                    sse_config.retry_backoff,
-                    sse_config.connection_timeout,
-                    &shutdown_token
-                ).await;
-
-                match connect_result {
-                    Ok((client, connection)) => {
-                        (Some(client), Some(connection))
-                    }
-                    Err(e) => {
-                        if sse_config.proxy_required {
-                            // User explicitly requested proxy - this is FATAL
-                            log::error!(
-                                "Failed to connect to SSE server: {}. \
-                                 Cannot run in standalone mode when proxy explicitly requested.",
-                                e
-                            );
-                            return Err(anyhow::anyhow!(
-                                "SSE connection required but failed: {}",
-                                e
-                            ));
-                        } else {
-                            // Proxy was optional - fallback is acceptable
-                            log::warn!(
-                                "Failed to connect to SSE server after retries: {}. \
-                                 Running in standalone mode.",
-                                e
-                            );
-                            (None, None)
-                        }
-                    }
-                }
-            }
-            None => {
-                log::info!("No SSE URL provided, running in standalone mode");
-                (None, None)
-            }
-        };
+        // Try to connect with exponential backoff retry
+        // Connection attempts are cancellable and subject to timeout
+        let (sse_client, sse_connection) = connect_with_retry(
+            sse_url,
+            sse_config.max_retries,
+            sse_config.retry_backoff,
+            sse_config.connection_timeout,
+            &shutdown_token
+        ).await?;
         
         Ok(Self {
             sse_client,
@@ -270,8 +230,7 @@ impl StdioProxyServer {
     
     /// Serve the stdio server
     pub async fn serve_stdio(self) -> Result<()> {
-        log::info!("Starting stdio server (proxy mode: {})", 
-                  if self.sse_client.is_some() { "enabled" } else { "disabled" });
+        log::info!("Starting stdio server (thin client mode)");
         
         // Use rmcp's stdio transport
         let service = self.serve(stdio()).await.inspect_err(|e| {
@@ -286,7 +245,6 @@ impl StdioProxyServer {
 
 impl ServerHandler for StdioProxyServer {
     fn get_info(&self) -> ServerInfo {
-        let mode = if self.sse_client.is_some() { "proxy" } else { "standalone" };
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder()
@@ -295,7 +253,7 @@ impl ServerHandler for StdioProxyServer {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                format!("KODEGEN Stdio Server ({} mode) - MCP tools via stdio transport", mode)
+                "KODEGEN Stdio Server (thin client) - MCP tools via stdio transport".to_string()
             ),
         }
     }
@@ -303,39 +261,28 @@ impl ServerHandler for StdioProxyServer {
     async fn call_tool(
         &self,
         request: CallToolRequestParam,
-        context: RequestContext<RoleServer>,
+        _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tool_name = request.name.clone();
         
-        // Decide whether to proxy or execute locally
-        let result = match &self.sse_client {
-            Some(client) => {
-                // PROXY MODE: Forward to SSE server
-                log::debug!("Proxying tool call '{}' to SSE server", tool_name);
-                
-                // Convert arguments to JSON value
-                let args = match request.arguments {
-                    Some(map) => serde_json::Value::Object(map),
-                    None => serde_json::Value::Object(serde_json::Map::new()),
-                };
-                
-                // Call tool via SSE client
-                match client.call_tool(&tool_name, args).await {
-                    Ok(result) => Ok(result),
-                    Err(e) => {
-                        log::error!("SSE proxy error for tool '{}': {}", tool_name, e);
-                        Err(McpError::internal_error(
-                            format!("SSE proxy error: {}", e),
-                            None
-                        ))
-                    }
-                }
-            }
-            None => {
-                // STANDALONE MODE: Execute locally
-                log::debug!("Executing tool '{}' locally", tool_name);
-                let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
-                self.tool_router.call(tcc).await
+        // Proxy all tool calls to SSE server (daemon)
+        log::debug!("Proxying tool call '{}' to SSE server", tool_name);
+        
+        // Convert arguments to JSON value
+        let args = match request.arguments {
+            Some(map) => serde_json::Value::Object(map),
+            None => serde_json::Value::Object(serde_json::Map::new()),
+        };
+        
+        // Call tool via SSE client
+        let result = match self.sse_client.call_tool(&tool_name, args).await {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                log::error!("SSE proxy error for tool '{}': {}", tool_name, e);
+                Err(McpError::internal_error(
+                    format!("SSE proxy error: {}", e),
+                    None
+                ))
             }
         };
         

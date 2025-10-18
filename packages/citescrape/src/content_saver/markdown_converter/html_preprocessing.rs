@@ -15,8 +15,14 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-/// Maximum allowed HTML input size (10 MB) to prevent DoS attacks
-const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;
+/// Maximum HTML input size to prevent memory exhaustion attacks (10 MB)
+/// 
+/// This limit protects against DoS attacks while accommodating legitimate use:
+/// - Wikipedia largest articles: ~2-3 MB
+/// - Typical documentation: 1-2 MB  
+/// - Blog posts: 100-500 KB
+/// - 99.9% of real HTML is under 10 MB
+const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;  // 10 MB
 
 // ============================================================================
 // PART 1: Main Content Extraction
@@ -247,13 +253,16 @@ fn serialize_html_excluding(
 /// // Result contains: <main><p>Content</p></main>
 /// ```
 pub fn extract_main_content(html: &str) -> Result<String> {
-    // Validate input size to prevent DoS attacks
+    // Validate input size to prevent memory exhaustion
     if html.len() > MAX_HTML_SIZE {
-        anyhow::bail!(
-            "HTML input too large: {} bytes exceeds maximum of {} bytes",
+        return Err(anyhow::anyhow!(
+            "HTML input too large: {} bytes ({:.2} MB). Maximum allowed: {} bytes ({} MB). \
+             This protects against memory exhaustion attacks.",
             html.len(),
-            MAX_HTML_SIZE
-        );
+            html.len() as f64 / 1_000_000.0,
+            MAX_HTML_SIZE,
+            MAX_HTML_SIZE / (1024 * 1024)
+        ));
     }
 
     let document = Html::parse_document(html);
@@ -417,7 +426,8 @@ static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// * `html` - HTML string to clean
 ///
 /// # Returns
-/// * Cleaned HTML string with unwanted elements removed and entities decoded
+/// * `Ok(String)` - Cleaned HTML string
+/// * `Err(anyhow::Error)` - If input exceeds size limit
 ///
 /// # Example
 /// ```
@@ -426,13 +436,16 @@ static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// // Result: <div><p>Hello & goodbye</p></div>
 /// ```
 pub fn clean_html_content(html: &str) -> Result<String> {
-    // Validate input size to prevent DoS attacks
+    // Validate input size to prevent memory exhaustion
     if html.len() > MAX_HTML_SIZE {
-        anyhow::bail!(
-            "HTML input too large: {} bytes exceeds maximum of {} bytes",
+        return Err(anyhow::anyhow!(
+            "HTML input too large: {} bytes ({:.2} MB). Maximum allowed: {} bytes ({} MB). \
+             This protects against memory exhaustion attacks.",
             html.len(),
-            MAX_HTML_SIZE
-        );
+            html.len() as f64 / 1_000_000.0,
+            MAX_HTML_SIZE,
+            MAX_HTML_SIZE / (1024 * 1024)
+        ));
     }
 
     // Use Cow to avoid unnecessary allocations

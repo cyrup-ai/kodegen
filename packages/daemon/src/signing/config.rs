@@ -35,6 +35,14 @@ pub struct MacOSConfig {
     pub entitlements: Option<PathBuf>,
     /// Certificate file path (for CI/CD)
     pub certificate_path: Option<PathBuf>,
+    
+    // NEW FIELDS for App Store Connect API:
+    /// App Store Connect API Key ID
+    pub api_key_id: Option<String>,
+    /// App Store Connect Issuer ID
+    pub api_issuer_id: Option<String>,
+    /// Path to .p8 private key file
+    pub api_key_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,6 +196,9 @@ pub fn create_sample_config() -> Result<String> {
             team_id: Some("TEAMID".to_string()),
             entitlements: Some(PathBuf::from("entitlements.plist")),
             certificate_path: Some(PathBuf::from("/Users/username/.ssh/development.cer")),
+            api_key_id: Some("ABC123".to_string()),
+            api_issuer_id: Some("uuid-here".to_string()),
+            api_key_path: Some(PathBuf::from("/path/to/key.p8")),
         }),
         windows: Some(WindowsConfig {
             certificate: Some("thumbprint_or_path_to_pfx".to_string()),

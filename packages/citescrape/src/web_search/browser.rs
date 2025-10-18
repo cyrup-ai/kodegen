@@ -13,6 +13,8 @@ use std::time::Duration;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info};
 
+use crate::browser_setup::ensure_chromium;
+
 /// Wrapper for Browser and its event handler task
 ///
 /// Ensures handler is properly cleaned up when browser is dropped.
@@ -58,7 +60,13 @@ static GLOBAL_BROWSER: OnceCell<Arc<BrowserWrapper>> = OnceCell::new();
 /// - packages/citescrape/src/crawl_engine/core.rs:174-191 (browser launch pattern)
 /// - packages/citescrape/src/google_search.rs:88-98 (stealth args)
 pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
+    // Ensure Chromium is downloaded and get executable path
+    let chromium_path = ensure_chromium()
+        .await
+        .context("Failed to ensure Chromium is available")?;
+
     let browser_config = BrowserConfig::builder()
+        .chrome_executable(chromium_path)
         .request_timeout(Duration::from_secs(30))
         .window_size(1920, 1080)
         .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
