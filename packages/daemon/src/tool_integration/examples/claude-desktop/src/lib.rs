@@ -57,6 +57,62 @@ pub fn get_metadata(_: ()) -> FnResult<Json<Metadata>> {
     Ok(Json(metadata))
 }
 
+/// Detect Claude Desktop version on macOS by parsing Info.plist
+#[cfg(target_os = "macos")]
+fn detect_version_macos() -> Option<String> {
+    // Standard Claude Desktop installation path
+    let info_plist_path = "/Applications/Claude.app/Contents/Info.plist";
+    
+    // Attempt to read plist file
+    let content = match std::fs::read_to_string(info_plist_path) {
+        Ok(c) => c,
+        Err(_) => return None, // App not installed or inaccessible
+    };
+    
+    // Parse CFBundleShortVersionString using simple string matching
+    // Format: <key>CFBundleShortVersionString</key>\n<string>VERSION</string>
+    if let Some(key_pos) = content.find("<key>CFBundleShortVersionString</key>") {
+        let after_key = &content[key_pos..];
+        if let Some(string_start) = after_key.find("<string>") {
+            if let Some(string_end) = after_key[string_start..].find("</string>") {
+                let version_start = string_start + "<string>".len();
+                let version = &after_key[version_start..string_start + string_end];
+                return Some(version.trim().to_string());
+            }
+        }
+    }
+    
+    None // Version key not found or malformed plist
+}
+
+/// Detect Claude Desktop version on Windows (stub for future implementation)
+#[cfg(target_os = "windows")]
+fn detect_version_windows() -> Option<String> {
+    // TODO: Windows version detection strategies:
+    // 1. Parse app.asar (requires asar extraction library)
+    // 2. Read file properties from Claude.exe (requires winapi)
+    // 3. Check registry keys (requires winreg crate)
+    //
+    // For now, return None gracefully
+    // Windows users will see version: null in detection response
+    None
+}
+
+/// Detect Claude Desktop version on Linux (stub for future implementation)
+#[cfg(target_os = "linux")]
+fn detect_version_linux() -> Option<String> {
+    // TODO: Linux version detection strategies:
+    // 1. Check dpkg: `dpkg -l claude-desktop`
+    // 2. Check rpm: `rpm -q claude-desktop`
+    // 3. Parse app.asar from /opt/Claude (if standard install)
+    // 4. Query snap: `snap info claude-desktop`
+    // 5. Query flatpak: `flatpak info com.anthropic.Claude`
+    //
+    // For now, return None gracefully
+    // Linux users will see version: null in detection response
+    None
+}
+
 #[plugin_fn]
 pub fn detect(_: ()) -> FnResult<Json<DetectedTool>> {
     let config_path = get_config_path_internal();
@@ -65,9 +121,22 @@ pub fn detect(_: ()) -> FnResult<Json<DetectedTool>> {
     // Check if Claude Desktop is installed by looking for its config directory
     let installed = path.parent().map(|p| p.exists()).unwrap_or(false);
     
+    // Detect version based on platform
+    #[cfg(target_os = "macos")]
+    let version = detect_version_macos();
+    
+    #[cfg(target_os = "windows")]
+    let version = detect_version_windows();
+    
+    #[cfg(target_os = "linux")]
+    let version = detect_version_linux();
+    
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    let version: Option<String> = None;
+    
     let tool = DetectedTool {
         name: "Claude Desktop".to_string(),
-        version: None, // TODO: Detect version if possible
+        version,
         installed,
         config_path: Some(config_path),
     };
