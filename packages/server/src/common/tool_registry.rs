@@ -31,6 +31,22 @@ where
     (tool_router, prompt_router)
 }
 
+/// Register a tool that's already Arc-wrapped (for tools with cleanup tasks)
+/// Avoids creating the tool twice - uses the same Arc for both registration and cleanup
+fn register_tool_arc<S, T>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+    tool: Arc<T>,
+) -> (ToolRouter<S>, PromptRouter<S>)
+where
+    S: Send + Sync + 'static,
+    T: Tool,
+{
+    let tool_router = tool_router.with_route(tool.clone().arc_into_tool_route());
+    let prompt_router = prompt_router.with_route(tool.arc_into_prompt_route());
+    (tool_router, prompt_router)
+}
+
 /// Register all available tools with the routers
 pub async fn register_all_tools<S>(
     mut tool_router: ToolRouter<S>,
@@ -125,58 +141,34 @@ where
     let search_manager = Arc::new(kodegen_filesystem::search::SearchManager::new(config_manager.clone()));
     search_manager.clone().start_cleanup_task();
     
-    let read_file = Arc::new(kodegen_filesystem::ReadFileTool::new(
-        config_manager.get_file_read_line_limit(), 
-        config_manager.clone()
-    ));
-    let read_multiple = Arc::new(kodegen_filesystem::ReadMultipleFilesTool::new(
-        config_manager.get_file_read_line_limit(), 
-        config_manager.clone()
-    ));
-    let write_file = Arc::new(kodegen_filesystem::WriteFileTool::new(config_manager.clone()));
-    let move_file = Arc::new(kodegen_filesystem::MoveFileTool::new(config_manager.clone()));
-    let delete_file = Arc::new(kodegen_filesystem::DeleteFileTool::new(config_manager.clone()));
-    let delete_directory = Arc::new(kodegen_filesystem::DeleteDirectoryTool::new(config_manager.clone()));
-    let list_directory = Arc::new(kodegen_filesystem::ListDirectoryTool::new(config_manager.clone()));
-    let create_directory = Arc::new(kodegen_filesystem::CreateDirectoryTool::new(config_manager.clone()));
-    let get_file_info = Arc::new(kodegen_filesystem::GetFileInfoTool::new(config_manager.clone()));
-    let edit_block = Arc::new(kodegen_filesystem::EditBlockTool::new(config_manager.clone()));
-    let start_search = Arc::new(kodegen_filesystem::search::StartSearchTool::new(search_manager.clone()));
-    let get_more_results = Arc::new(kodegen_filesystem::search::GetMoreSearchResultsTool::new(search_manager.clone()));
-    let stop_search = Arc::new(kodegen_filesystem::search::StopSearchTool::new(search_manager.clone()));
-    let list_searches = Arc::new(kodegen_filesystem::search::ListSearchesTool::new(search_manager));
-    
-    let tool_router = tool_router
-        .with_route(read_file.clone().arc_into_tool_route())
-        .with_route(read_multiple.clone().arc_into_tool_route())
-        .with_route(write_file.clone().arc_into_tool_route())
-        .with_route(move_file.clone().arc_into_tool_route())
-        .with_route(delete_file.clone().arc_into_tool_route())
-        .with_route(delete_directory.clone().arc_into_tool_route())
-        .with_route(list_directory.clone().arc_into_tool_route())
-        .with_route(create_directory.clone().arc_into_tool_route())
-        .with_route(get_file_info.clone().arc_into_tool_route())
-        .with_route(edit_block.clone().arc_into_tool_route())
-        .with_route(start_search.clone().arc_into_tool_route())
-        .with_route(get_more_results.clone().arc_into_tool_route())
-        .with_route(stop_search.clone().arc_into_tool_route())
-        .with_route(list_searches.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(read_file.arc_into_prompt_route())
-        .with_route(read_multiple.arc_into_prompt_route())
-        .with_route(write_file.arc_into_prompt_route())
-        .with_route(move_file.arc_into_prompt_route())
-        .with_route(delete_file.arc_into_prompt_route())
-        .with_route(delete_directory.arc_into_prompt_route())
-        .with_route(list_directory.arc_into_prompt_route())
-        .with_route(create_directory.arc_into_prompt_route())
-        .with_route(get_file_info.arc_into_prompt_route())
-        .with_route(edit_block.arc_into_prompt_route())
-        .with_route(start_search.arc_into_prompt_route())
-        .with_route(get_more_results.arc_into_prompt_route())
-        .with_route(stop_search.arc_into_prompt_route())
-        .with_route(list_searches.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_filesystem::ReadFileTool::new(
+            config_manager.get_file_read_line_limit(),
+            config_manager.clone()
+        )
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_filesystem::ReadMultipleFilesTool::new(
+            config_manager.get_file_read_line_limit(),
+            config_manager.clone()
+        )
+    );
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::WriteFileTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::MoveFileTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::DeleteFileTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::DeleteDirectoryTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::ListDirectoryTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::CreateDirectoryTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::GetFileInfoTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::EditBlockTool::new(config_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::StartSearchTool::new(search_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::GetMoreSearchResultsTool::new(search_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::StopSearchTool::new(search_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::ListSearchesTool::new(search_manager));
     
     Ok((tool_router, prompt_router))
 }
@@ -195,25 +187,11 @@ where
     let terminal_manager = Arc::new(kodegen_terminal::TerminalManager::new());
     let command_manager = kodegen_terminal::CommandManager::new(config_manager.get_blocked_commands());
     
-    let start_cmd = Arc::new(kodegen_terminal::StartTerminalCommandTool::new(terminal_manager.clone(), command_manager));
-    let read_output = Arc::new(kodegen_terminal::ReadTerminalOutputTool::new(terminal_manager.clone()));
-    let send_input = Arc::new(kodegen_terminal::SendTerminalInputTool::new(terminal_manager.clone()));
-    let stop_cmd = Arc::new(kodegen_terminal::StopTerminalCommandTool::new(terminal_manager.clone()));
-    let list_cmds = Arc::new(kodegen_terminal::ListTerminalCommandsTool::new(terminal_manager.clone()));
-    
-    let tool_router = tool_router
-        .with_route(start_cmd.clone().arc_into_tool_route())
-        .with_route(read_output.clone().arc_into_tool_route())
-        .with_route(send_input.clone().arc_into_tool_route())
-        .with_route(stop_cmd.clone().arc_into_tool_route())
-        .with_route(list_cmds.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(start_cmd.arc_into_prompt_route())
-        .with_route(read_output.arc_into_prompt_route())
-        .with_route(send_input.arc_into_prompt_route())
-        .with_route(stop_cmd.arc_into_prompt_route())
-        .with_route(list_cmds.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_terminal::StartTerminalCommandTool::new(terminal_manager.clone(), command_manager));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_terminal::ReadTerminalOutputTool::new(terminal_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_terminal::SendTerminalInputTool::new(terminal_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_terminal::StopTerminalCommandTool::new(terminal_manager.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_terminal::ListTerminalCommandsTool::new(terminal_manager.clone()));
     
     // Start cleanup task after all tools are registered to avoid race conditions
     terminal_manager.start_cleanup_task();
@@ -231,16 +209,8 @@ where
 {
     log::debug!("Initializing process tools");
     
-    let list_proc = Arc::new(kodegen_process::ListProcessesTool::new());
-    let kill_proc = Arc::new(kodegen_process::KillProcessTool::new());
-    
-    let tool_router = tool_router
-        .with_route(list_proc.clone().arc_into_tool_route())
-        .with_route(kill_proc.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(list_proc.arc_into_prompt_route())
-        .with_route(kill_proc.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_process::ListProcessesTool::new());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_process::KillProcessTool::new());
     
     Ok((tool_router, prompt_router))
 }
@@ -256,16 +226,8 @@ where
 {
     log::debug!("Initializing introspection tools");
     
-    let get_stats = Arc::new(kodegen_introspection::GetUsageStatsTool::new(usage_tracker.clone()));
-    let get_recent = Arc::new(kodegen_introspection::GetRecentToolCallsTool::new());
-    
-    let tool_router = tool_router
-        .with_route(get_stats.clone().arc_into_tool_route())
-        .with_route(get_recent.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(get_stats.arc_into_prompt_route())
-        .with_route(get_recent.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_introspection::GetUsageStatsTool::new(usage_tracker.clone()));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_introspection::GetRecentToolCallsTool::new());
     
     Ok((tool_router, prompt_router))
 }
@@ -280,22 +242,10 @@ where
 {
     log::debug!("Initializing prompt tools");
     
-    let add = Arc::new(kodegen_prompt::AddPromptTool::new().await?);
-    let edit = Arc::new(kodegen_prompt::EditPromptTool::new().await?);
-    let delete = Arc::new(kodegen_prompt::DeletePromptTool::new().await?);
-    let get = Arc::new(kodegen_prompt::GetPromptTool::new().await?);
-    
-    let tool_router = tool_router
-        .with_route(add.clone().arc_into_tool_route())
-        .with_route(edit.clone().arc_into_tool_route())
-        .with_route(delete.clone().arc_into_tool_route())
-        .with_route(get.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(add.arc_into_prompt_route())
-        .with_route(edit.arc_into_prompt_route())
-        .with_route(delete.arc_into_prompt_route())
-        .with_route(get.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_prompt::AddPromptTool::new().await?);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_prompt::EditPromptTool::new().await?);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_prompt::DeletePromptTool::new().await?);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_prompt::GetPromptTool::new().await?);
     
     Ok((tool_router, prompt_router))
 }
@@ -312,10 +262,10 @@ where
     
     let thinking_tool = Arc::new(kodegen_sequential_thinking::SequentialThinkingTool::new());
     
-    let (tool_router, prompt_router) = register_tool(
+    let (tool_router, prompt_router) = register_tool_arc(
         tool_router,
         prompt_router,
-        kodegen_sequential_thinking::SequentialThinkingTool::new()
+        thinking_tool.clone()
     );
     
     // Start cleanup task after tool is registered to avoid race conditions
@@ -379,8 +329,8 @@ where
     
     kodegen_citescrape::preinit_lazy_statics();
     
-    let session_manager = kodegen_citescrape::CrawlSessionManager::new();
-    let engine_cache = kodegen_citescrape::SearchEngineCache::new();
+    let session_manager = Arc::new(kodegen_citescrape::CrawlSessionManager::new());
+    let engine_cache = Arc::new(kodegen_citescrape::SearchEngineCache::new());
     
     let (tool_router, prompt_router) = register_tool(
         tool_router,
@@ -404,8 +354,8 @@ where
     );
     
     // Start cleanup tasks after all tools are registered to avoid race conditions
-    Arc::new(session_manager).start_cleanup_task();
-    Arc::new(engine_cache).start_cleanup_task();
+    session_manager.start_cleanup_task();
+    engine_cache.start_cleanup_task();
     
     Ok((tool_router, prompt_router))
 }

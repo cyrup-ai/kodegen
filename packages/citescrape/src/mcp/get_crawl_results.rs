@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::PathBuf;
+use std::sync::Arc;
 use chrono::Utc;
 use tokio::fs;
 
@@ -55,11 +56,11 @@ pub struct GetCrawlResultsPromptArgs {}
 
 #[derive(Clone)]
 pub struct GetCrawlResultsTool {
-    session_manager: CrawlSessionManager,
+    session_manager: Arc<CrawlSessionManager>,
 }
 
 impl GetCrawlResultsTool {
-    pub fn new(session_manager: CrawlSessionManager) -> Self {
+    pub fn new(session_manager: Arc<CrawlSessionManager>) -> Self {
         Self { session_manager }
     }
 

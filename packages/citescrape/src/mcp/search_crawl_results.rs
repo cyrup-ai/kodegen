@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Instant;
 
 use kodegen_tool::Tool;
@@ -75,14 +76,14 @@ pub struct SearchCrawlResultsPromptArgs {}
 
 #[derive(Clone)]
 pub struct SearchCrawlResultsTool {
-    session_manager: CrawlSessionManager,
-    engine_cache: SearchEngineCache,
+    session_manager: Arc<CrawlSessionManager>,
+    engine_cache: Arc<SearchEngineCache>,
 }
 
 impl SearchCrawlResultsTool {
     pub fn new(
-        session_manager: CrawlSessionManager,
-        engine_cache: SearchEngineCache,
+        session_manager: Arc<CrawlSessionManager>,
+        engine_cache: Arc<SearchEngineCache>,
     ) -> Self {
         Self {
             session_manager,
