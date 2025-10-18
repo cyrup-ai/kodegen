@@ -531,8 +531,8 @@ impl IncrementalIndexingService {
         }
 
         // Process deduplicated batch
-        let mut writer = match engine.writer(Some(64 * 1024 * 1024)).await {
-            Ok(w) => w,
+        let writer_opt = match engine.writer_with_retry(Some(64 * 1024 * 1024)).await {
+            Ok(w) => Some(w),
             Err(e) => {
                 // Complete all operations with error
                 for message in &deduplicated_batch {
@@ -556,8 +556,22 @@ impl IncrementalIndexingService {
         let mut successful_operations = 0;
         let mut failed_operations = 0;
 
-        // Process each message with retry logic
-        'batch_processing: for message in deduplicated_batch {
+        // Separate optimize messages from regular operations
+        let (optimize_messages, regular_messages): (Vec<_>, Vec<_>) = deduplicated_batch
+            .into_iter()
+            .partition(|msg| matches!(msg, IndexingMessage::Optimize { .. }));
+
+        // Extract writer from Option for regular operations
+        let mut writer = match writer_opt {
+            Some(w) => w,
+            None => {
+                // Writer creation failed earlier, all operations already completed with error
+                return;
+            }
+        };
+
+        // Process regular messages (Delete, AddOrUpdate) with retry logic
+        for message in regular_messages {
             let completion_id = Self::extract_completion_id(&message);
             let mut retry_count = 0;
             let mut last_error = None;
@@ -575,34 +589,15 @@ impl IncrementalIndexingService {
                             }
                         }
                     }
-                    IndexingMessage::Delete { url, .. } => engine
-                        .delete_document(&mut writer, url.to_string())
-                        .map_err(|e| anyhow::anyhow!("{}", e)),
-                    IndexingMessage::Optimize { .. } => {
-                        // Optimize consumes writer - must always reassign
-                        let commit_result = engine.commit_and_optimize(writer).await;
-                        match commit_result {
-                            Ok(w) => {
-                                writer = w;  // Reassign writer for continued use
-                                *stats.last_optimization.lock().await = Some(Instant::now());
-                                Ok(())
-                            }
-                            Err(e) => {
-                                // Writer consumed - recreate for subsequent messages
-                                match engine.writer(Some(64 * 1024 * 1024)).await {
-                                    Ok(w) => {
-                                        writer = w;
-                                        Err(anyhow::anyhow!("Failed to optimize index: {}", e))
-                                    }
-                                    Err(_writer_err) => {
-                                        // Critical: cannot recreate writer, abort batch processing
-                                        break 'batch_processing;
-                                    }
-                                }
-                            }
-                        }
+                    IndexingMessage::Delete { url, .. } => {
+                        engine
+                            .delete_document(&mut writer, url.to_string())
+                            .map_err(|e| anyhow::anyhow!("{}", e))
                     }
                     IndexingMessage::Shutdown => Ok(()), // No-op, handled by worker loop
+                    IndexingMessage::Optimize { .. } => {
+                        unreachable!("Optimize messages filtered out")
+                    }
                 };
 
                 match result {
@@ -645,15 +640,43 @@ impl IncrementalIndexingService {
             }
         }
 
-        // Commit batch (writer consumed on error, cannot retry)
+        // Commit and optimize once after all operations
         match engine.commit_and_optimize(writer).await {
             Ok(_w) => {
                 // Writer successfully committed and optimized
-                // Not reassigning as it's not used after this point
+                // Update optimization timestamp if there were explicit optimize requests
+                if !optimize_messages.is_empty() {
+                    *stats.last_optimization.lock().await = Some(Instant::now());
+                }
+                
+                // Complete all optimize operation callbacks
+                for msg in optimize_messages {
+                    if let Some(id) = Self::extract_completion_id(&msg) {
+                        Self::complete_operation(
+                            id,
+                            Ok(()),
+                            completion_callbacks,
+                            pending_operations,
+                        )
+                        .await;
+                        successful_operations += 1;
+                    }
+                }
             }
-            Err(_) => {
-                // Commit failed, writer consumed, individual operations were processed
-                // Cannot retry as writer is consumed with uncommitted changes
+            Err(e) => {
+                // Commit failed - complete optimize operations with error
+                for msg in optimize_messages {
+                    if let Some(id) = Self::extract_completion_id(&msg) {
+                        Self::complete_operation(
+                            id,
+                            Err(anyhow::anyhow!("Failed to commit and optimize: {}", e)),
+                            completion_callbacks,
+                            pending_operations,
+                        )
+                        .await;
+                        failed_operations += 1;
+                    }
+                }
             }
         }
 

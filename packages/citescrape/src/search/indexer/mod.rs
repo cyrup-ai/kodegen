@@ -114,8 +114,8 @@ impl MarkdownIndexer {
             let errors = Arc::new(ErrorCollector::new());
 
             // Get a single writer for all batches (Tantivy only allows one writer at a time)
-            // Get writer synchronously to avoid nested spawn + blocking recv anti-pattern
-            let mut writer = match engine.index().writer(128 * 1024 * 1024) {
+            // Get writer with retry logic to handle transient lock failures
+            let mut writer = match engine.writer_with_retry(Some(128 * 1024 * 1024)).await {
                 Ok(w) => w,
                 Err(e) => {
                     let _ = tx.try_send(Err(anyhow::anyhow!(
@@ -255,10 +255,10 @@ impl MarkdownIndexer {
         let url = url.clone();
 
         crate::runtime::spawn_async(async move {
-            // Get writer (synchronous acquisition is fine)
+            // Get writer with retry logic to handle transient lock failures
             let mut writer = engine
-                .index()
-                .writer(64 * 1024 * 1024)
+                .writer_with_retry(Some(64 * 1024 * 1024))
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to acquire index writer: {}", e))?;
 
             // Index the file (synchronous)

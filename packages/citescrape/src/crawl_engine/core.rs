@@ -520,9 +520,8 @@ async fn process_single_page(
 
     // Apply page enhancements
     match super::page_enhancer::enhance_page(page.clone()).await {
-        Ok(Ok(())) => debug!("Page enhancements applied for: {}", item.url),
-        Ok(Err(e)) => warn!("Failed to apply page enhancements for {}: {}", item.url, e),
-        Err(_) => warn!("Page enhancement task cancelled for {}", item.url),
+        Ok(()) => debug!("Page enhancements applied for: {}", item.url),
+        Err(e) => warn!("Failed to apply page enhancements for {}: {}", item.url, e),
     }
 
     // Navigate to page

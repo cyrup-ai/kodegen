@@ -29,17 +29,16 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
     info!("Applying kromekover stealth injection");
 
     // Wait for stealth injection with timeout
-    // Type hierarchy: timeout -> AsyncTask -> Result<()>
-    // = Result<Result<Result<()>, TaskError>, Elapsed>
+    // Type hierarchy: timeout -> Result<()>
+    // = Result<Result<()>, Elapsed>
     match tokio::time::timeout(
         Duration::from_secs(5),
         page_enhancer::enhance_page(page.clone()),
     )
     .await
     {
-        Ok(Ok(Ok(()))) => info!("Stealth injection complete"),
-        Ok(Ok(Err(e))) => warn!("Stealth injection failed: {}", e),
-        Ok(Err(_)) => warn!("Stealth injection task cancelled"),
+        Ok(Ok(())) => info!("Stealth injection complete"),
+        Ok(Err(e)) => warn!("Stealth injection failed: {}", e),
         Err(_) => warn!("Stealth injection timeout"),
     }
 

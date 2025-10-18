@@ -20,7 +20,7 @@ pub enum CleanupResult {
 /// Clean up browser and Chrome data directory
 pub async fn cleanup_browser_and_data(
     mut browser: Browser,
-    chrome_data_dir_path: std::path::PathBuf,
+    chrome_data_dir: std::path::PathBuf,
 ) -> Result<CleanupResult> {
     let mut errors = Vec::new();
 
@@ -33,7 +33,7 @@ pub async fn cleanup_browser_and_data(
     }
 
     debug!(target: "citescrape::cleanup", "Cleaning up Chrome data directory");
-    if let Err(e) = std::fs::remove_dir_all(&chrome_data_dir_path) {
+    if let Err(e) = std::fs::remove_dir_all(&chrome_data_dir) {
         warn!(target: "citescrape::cleanup", "Failed to clean up Chrome data directory: {}", e);
         errors.push(format!("Directory cleanup failed: {}", e));
     } else {
