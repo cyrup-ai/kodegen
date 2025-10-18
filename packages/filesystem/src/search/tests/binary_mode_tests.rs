@@ -121,7 +121,7 @@ fn test_binary_mode_converts_nulls() {
     
     // Binary content: pattern on its own line for easier matching
     // When nulls convert to newlines: "text\nFINDME\ndata"
-    let binary_content = b"text\nFINDME\ndata";  // No nulls for now to test basic matching
+    let binary_content = b"text\x00FINDME\x00data";  // Test null byte conversion
     
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
         .expect("Failed to build matcher");

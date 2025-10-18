@@ -158,10 +158,13 @@ pub(crate) fn process_batch_with_writer(
                         ImString::from(e.to_string()),
                     );
 
-                    // Check error limit
+                    // Check error limit and trigger cancellation
                     if ctx.progress.failed.load(Ordering::Relaxed) >= ctx.config.max_errors {
-                        // Note: Early termination in parallel context is complex
-                        // For now, continue processing batch
+                        // Set cancellation token to stop all workers
+                        if let Some(token) = &ctx.config.cancellation_token {
+                            token.store(true, Ordering::Release);
+                        }
+                        return None;
                     }
                     None
                 }

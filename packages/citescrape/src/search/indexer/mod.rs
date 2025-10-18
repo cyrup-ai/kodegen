@@ -164,6 +164,15 @@ impl MarkdownIndexer {
                             config: &config,
                         };
                         batch::process_batch_with_writer(&ctx, batch, &mut writer);
+
+                        // Check if batch processing triggered cancellation (e.g., max_errors exceeded)
+                        if config.is_cancelled() {
+                            tracing::warn!(
+                                "Stopping batch processing: max_errors ({}) exceeded",
+                                config.max_errors
+                            );
+                            break; // Exit the for loop that processes file_paths
+                        }
                     }
                 }
             }
