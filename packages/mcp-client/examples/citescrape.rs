@@ -7,6 +7,21 @@ use serde_json::json;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tokio::time::{sleep, Duration};
 
+/// Wait for a crawl to complete by polling its status
+///
+/// Polls get_crawl_results periodically with exponential backoff until
+/// the crawl completes, fails, or times out.
+///
+/// # Arguments
+///
+/// * `client` - The kodegen client to use for polling
+/// * `session_id` - The crawl session ID to monitor
+/// * `timeout` - Maximum time to wait before giving up
+///
+/// # Returns
+///
+/// - `Ok(())` if crawl completes successfully
+/// - `Err(_)` if crawl fails, errors, or times out
 async fn wait_for_crawl_completion(
     client: &KodegenClient,
     session_id: &str,
@@ -21,6 +36,7 @@ async fn wait_for_crawl_completion(
             "includeContent": false
         })).await?;
 
+        // Parse status from result
         if let Some(text) = result.content.first().and_then(|c| c.as_text())
             && let Ok(crawl_data) = serde_json::from_str::<serde_json::Value>(&text.text)
             && let Some(status) = crawl_data.get("status").and_then(|s| s.as_str()) {
@@ -29,7 +45,9 @@ async fn wait_for_crawl_completion(
                     "failed" | "error" => {
                         anyhow::bail!("Crawl failed with status: {}", status)
                     }
-                    _ => {}
+                    _ => {
+                        // Still running, continue polling
+                    }
                 }
             }
 
@@ -37,6 +55,7 @@ async fn wait_for_crawl_completion(
             anyhow::bail!("Crawl timed out after {:?}", timeout);
         }
 
+        // Exponential backoff: 100ms -> 200ms -> 400ms -> 500ms (capped)
         sleep(backoff).await;
         backoff = (backoff * 2).min(Duration::from_millis(500));
     }
@@ -44,12 +63,14 @@ async fn wait_for_crawl_completion(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialize logging
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("info".parse()?))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Connect to kodegen server with citescrape tools
     let client = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::Citescrape])
     ).await?;
@@ -66,6 +87,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
     let mut session_ids = Vec::new();
     
     let test_result = async {
+        // Test 1: Start a web crawl
         tracing::info!("\n=== Testing start_crawl ===");
         tracing::info!("Starting crawl of Rust documentation...");
         
@@ -81,9 +103,11 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
         session_ids.push(session_id.clone());
         tracing::info!("✅ Crawl session ID: {}", session_id);
         
+        // Wait for crawl to complete
         tracing::info!("Waiting for crawl to complete...");
-        wait_for_crawl_completion(&client, &session_id, Duration::from_secs(60)).await?;
+        wait_for_crawl_completion(client, &session_id, Duration::from_secs(60)).await?;
         
+        // Test 2: Get crawl results
         tracing::info!("\n=== Testing get_crawl_results ===");
         
         let result = client.call_tool("get_crawl_results", json!({
@@ -113,6 +137,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
             }
         }
         
+        // Test 2b: Error handling
         tracing::info!("\n=== Testing error handling ===");
         let error_result = client.call_tool("start_crawl", json!({
             "url": "https://invalid-domain-that-does-not-exist-12345.com/",
@@ -132,6 +157,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
             }
         }
         
+        // Test 3: Get full content for one page
         tracing::info!("\n=== Getting full page content ===");
         
         let result = client.call_tool("get_crawl_results", json!({
@@ -153,6 +179,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
             }
         }
 
+        // Test 4: Search within crawled content
         tracing::info!("\n=== Testing search_crawl_results ===");
         
         let result = client.call_tool("search_crawl_results", json!({
@@ -183,6 +210,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
             }
         }
 
+        // Test 5: Web search with search engines
         tracing::info!("\n=== Testing web_search ===");
         
         let result = client.call_tool("web_search", json!({
@@ -208,6 +236,7 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
             }
         }
 
+        // Test 6: Start another crawl with different settings
         tracing::info!("\n=== Testing crawl with custom settings ===");
         
         let response_2: StartCrawlResponse = client.call_tool_typed("start_crawl", json!({
@@ -224,7 +253,8 @@ async fn run_citescrape_example(client: &KodegenClient) -> Result<()> {
         tracing::info!("✅ Second crawl started: {}", session_id_2);
         tracing::info!("Crawl respects robots.txt directives");
         
-        wait_for_crawl_completion(&client, &session_id_2, Duration::from_secs(60)).await?;
+        // Wait and get results
+        wait_for_crawl_completion(client, &session_id_2, Duration::from_secs(60)).await?;
         
         let _result = client.call_tool("get_crawl_results", json!({
             "sessionId": session_id_2,

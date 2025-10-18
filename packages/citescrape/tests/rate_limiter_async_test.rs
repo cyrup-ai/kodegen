@@ -6,7 +6,7 @@ async fn test_rate_limiter_in_async_context() {
     // This test verifies that the rate limiter can be used inside tokio runtime
     // without "Cannot block the current thread" panics
     
-    let decision = rate_limiter::check_crawl_rate_limit("https://example.com", 1.0).await;
+    let decision = rate_limiter::check_crawl_rate_limit("https://example.com", 1.0);
     
     // Should return a decision (Allow or Deny)
     match decision {
@@ -18,9 +18,8 @@ async fn test_rate_limiter_in_async_context() {
         }
     }
     
-    // Verify we can get domain count
-    let count = rate_limiter::get_tracked_domain_count().await;
-    assert!(count >= 0);
+    // Verify we can get domain count without panicking
+    let _count = rate_limiter::get_tracked_domain_count();
 }
 
 #[tokio::test]
@@ -35,7 +34,7 @@ async fn test_multiple_concurrent_rate_limit_checks() {
     let mut handles = vec![];
     for url in urls {
         let handle = tokio::spawn(async move {
-            rate_limiter::check_crawl_rate_limit(url, 10.0).await
+            rate_limiter::check_crawl_rate_limit(url, 10.0)
         });
         handles.push(handle);
     }

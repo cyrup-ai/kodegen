@@ -1,10 +1,75 @@
 mod common;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use kodegen_mcp_client::responses::SpawnClaudeAgentResponse;
 use kodegen_mcp_client::tools;
+use rmcp::model::CallToolResult;
 use serde_json::json;
 use tracing::info;
+
+/// Extract text content from CallToolResult
+fn extract_text_content(result: &CallToolResult) -> Result<String> {
+    let content = result.content.first()
+        .context("No content in response")?;
+
+    let text = content.as_text()
+        .context("Response content is not text")?;
+
+    Ok(text.text.clone())
+}
+
+/// Parse JSON from CallToolResult
+fn extract_json(result: &CallToolResult) -> Result<serde_json::Value> {
+    let text = extract_text_content(result)?;
+    serde_json::from_str(&text).context("Invalid JSON in response")
+}
+
+/// Display agent messages from parsed JSON output
+fn display_agent_messages(output: &serde_json::Value) -> Result<()> {
+    let messages = output.get("messages")
+        .and_then(|m| m.as_array())
+        .context("No messages array in output")?;
+
+    for msg in messages {
+        let role = msg.get("role")
+            .and_then(|r| r.as_str())
+            .context("Message missing role field")?;
+
+        let content_arr = msg.get("content")
+            .and_then(|c| c.as_array())
+            .context("Message missing content array")?;
+
+        for content_item in content_arr {
+            if let Some(text_content) = content_item.get("text").and_then(|t| t.as_str()) {
+                tracing::info!("{}: {}", role, text_content);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract and display agent info from agents list
+fn display_agents_list(agents: &serde_json::Value) -> Result<()> {
+    let arr = agents.as_array()
+        .context("Agents data is not an array")?;
+
+    tracing::info!("Total active agents: {}", arr.len());
+    
+    for agent in arr {
+        let id = agent.get("sessionId")
+            .and_then(|s| s.as_str())
+            .context("Agent missing sessionId")?;
+        
+        let model = agent.get("model")
+            .and_then(|m| m.as_str())
+            .context("Agent missing model")?;
+        
+        tracing::info!("  Agent {}: {}", id, model);
+    }
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -68,9 +133,9 @@ async fn main() -> anyhow::Result<()> {
     .await
     .context("Failed to read agent output")?;
     
-    match common::extract_json(&result) {
+    match extract_json(&result) {
         Ok(output) => {
-            if let Err(e) = common::display_agent_messages(&output) {
+            if let Err(e) = display_agent_messages(&output) {
                 tracing::error!("Failed to display agent messages: {}", e);
                 info!("Agent output: {:?}", output);
             }
@@ -105,7 +170,7 @@ async fn main() -> anyhow::Result<()> {
     .await
     .context("Failed to read follow-up output")?;
     
-    match common::extract_json(&result) {
+    match extract_json(&result) {
         Ok(output) => {
             if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
                 info!("Follow-up response received ({} messages)", messages.len());
@@ -123,9 +188,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to list agents")?;
     
-    match common::extract_json(&result) {
+    match extract_json(&result) {
         Ok(agents) => {
-            if let Err(e) = common::display_agents_list(&agents) {
+            if let Err(e) = display_agents_list(&agents) {
                 tracing::error!("Failed to display agents list: {}", e);
             }
         }
@@ -155,9 +220,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to list agents for verification")?;
     
-    match common::extract_json(&result) {
+    match extract_json(&result) {
         Ok(agents) => {
-            if let Err(e) = common::display_agents_list(&agents) {
+            if let Err(e) = display_agents_list(&agents) {
                 tracing::error!("Failed to display agents list for verification: {}", e);
             }
         }
@@ -192,7 +257,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to verify cleanup")?;
     
-    match common::extract_json(&result) {
+    match extract_json(&result) {
         Ok(agents) => {
             if let Some(arr) = agents.as_array() {
                 info!("Active agents after termination: {}", arr.len());

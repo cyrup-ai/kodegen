@@ -7,7 +7,7 @@ license = "Apache-2.0 OR MIT"
 
 [dependencies]
 # MCP SDK with client features
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "transport-child-process", "transport-sse-client", "transport-streamable-http-client"] }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "transport-child-process", "transport-sse-client-reqwest", "transport-streamable-http-client-reqwest"] }
 
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
