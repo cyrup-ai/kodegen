@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sysinfo::System;
 
+use crate::ProcessId;
+
 // ============================================================================
 // SHARED TYPES
 // ============================================================================
@@ -13,7 +15,7 @@ use sysinfo::System;
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ProcessInfo {
     /// Process ID
-    pub pid: u32,
+    pub pid: ProcessId,
 
     /// Process name/command
     pub name: String,

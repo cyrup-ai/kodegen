@@ -68,9 +68,8 @@ async fn main() -> anyhow::Result<()> {
     .await
     .context("Failed to read agent output")?;
     
-    if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text() {
-        if let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text) {
+    match common::extract_json(&result) {
+        Ok(output) => {
             if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
                 for msg in messages {
                     if let Some(role) = msg.get("role").and_then(|r| r.as_str())
@@ -85,8 +84,9 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 info!("Agent output: {:?}", output);
             }
-        } else {
-            info!("Agent output: {:?}", result);
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse agent output: {}", e);
         }
     }
     info!("✅ Read agent output successfully");
@@ -115,11 +115,15 @@ async fn main() -> anyhow::Result<()> {
     .await
     .context("Failed to read follow-up output")?;
     
-    if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text()
-        && let Ok(output) = serde_json::from_str::<serde_json::Value>(&text.text)
-        && let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
-        info!("Follow-up response received ({} messages)", messages.len());
+    match common::extract_json(&result) {
+        Ok(output) => {
+            if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
+                info!("Follow-up response received ({} messages)", messages.len());
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse follow-up output: {}", e);
+        }
     }
     info!("✅ Read follow-up output successfully");
 
@@ -129,9 +133,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to list agents")?;
     
-    if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text() {
-        if let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text) {
+    match common::extract_json(&result) {
+        Ok(agents) => {
             if let Some(arr) = agents.as_array() {
                 info!("Total active agents: {}", arr.len());
                 for agent in arr {
@@ -140,8 +143,9 @@ async fn main() -> anyhow::Result<()> {
                     info!("  Agent {}: {}", id, model);
                 }
             }
-        } else {
-            info!("Active agents: {:?}", result);
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse agents list: {}", e);
         }
     }
     info!("✅ Listed agents successfully");
@@ -166,15 +170,19 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to list agents for verification")?;
     
-    if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text()
-        && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
-        && let Some(arr) = agents.as_array() {
-        info!("Total active agents: {}", arr.len());
-        for agent in arr {
-            let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
-            let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-            info!("  Agent {}: {}", id, model);
+    match common::extract_json(&result) {
+        Ok(agents) => {
+            if let Some(arr) = agents.as_array() {
+                info!("Total active agents: {}", arr.len());
+                for agent in arr {
+                    let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
+                    let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
+                    info!("  Agent {}: {}", id, model);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse agents list for verification: {}", e);
         }
     }
     info!("✅ Listed agents for verification");
@@ -204,11 +212,15 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to verify cleanup")?;
     
-    if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text()
-        && let Ok(agents) = serde_json::from_str::<serde_json::Value>(&text.text)
-        && let Some(arr) = agents.as_array() {
-        info!("Active agents after termination: {}", arr.len());
+    match common::extract_json(&result) {
+        Ok(agents) => {
+            if let Some(arr) = agents.as_array() {
+                info!("Active agents after termination: {}", arr.len());
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse cleanup verification: {}", e);
+        }
     }
     info!("✅ Verified cleanup successfully");
 

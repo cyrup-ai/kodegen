@@ -222,9 +222,13 @@ async fn ensure_daemon_running() -> Result<()> {
         anyhow::bail!("Failed to start kodegend daemon");
     }
 
-    // Wait for daemon to be ready (poll with backoff)
-    for attempt in 1..=10 {
-        sleep(Duration::from_millis(500)).await;
+    // Wait for daemon to be ready (exponential backoff polling)
+    let mut backoff = Duration::from_millis(50);
+    const MAX_BACKOFF: Duration = Duration::from_millis(1600);
+    const MAX_ATTEMPTS: u32 = 8;
+    
+    for attempt in 1..=MAX_ATTEMPTS {
+        sleep(backoff).await;
 
         let check = Command::new("kodegend")
             .arg("status")
@@ -233,12 +237,19 @@ async fn ensure_daemon_running() -> Result<()> {
             .map_err(|e| anyhow::anyhow!("Failed to check daemon status: {}", e))?;
 
         if check.success() {
-            log::info!("kodegend daemon started successfully after {} attempts", attempt);
+            log::info!(
+                "kodegend daemon started successfully after {} attempts (~{}ms)", 
+                attempt,
+                backoff.as_millis() * attempt as u128
+            );
             return Ok(());
         }
 
-        if attempt == 10 {
-            anyhow::bail!("Daemon failed to start after 10 attempts");
+        // Exponential backoff: 50 → 100 → 200 → 400 → 800 → 1600 (cap)
+        backoff = (backoff * 2).min(MAX_BACKOFF);
+
+        if attempt == MAX_ATTEMPTS {
+            anyhow::bail!("Daemon failed to start after {} attempts (~3s)", MAX_ATTEMPTS);
         }
     }
 

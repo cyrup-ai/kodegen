@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 
+use crate::ProcessId;
+
 // Compile-time platform validation for PID conversion safety
 // This ensures u32 → usize conversion cannot truncate
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
@@ -18,7 +20,7 @@ compile_error!("KillProcessTool only supports 32-bit and 64-bit platforms");
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct KillProcessArgs {
     /// Process ID to terminate
-    pub pid: u32,
+    pub pid: ProcessId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

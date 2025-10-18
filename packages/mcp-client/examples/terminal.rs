@@ -86,6 +86,25 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => error!("Failed to list sessions: {}", e),
     }
 
+    // Cleanup: Stop any remaining processes
+    info!("\nCleaning up processes...");
+    for process_pid in [pid, interactive_pid] {
+        match client.call_tool(
+            tools::STOP_TERMINAL_COMMAND,
+            json!({ "pid": process_pid })
+        ).await {
+            Ok(_) => info!("✅ Stopped process with PID: {}", process_pid),
+            Err(e) => {
+                // Process may have already exited, which is fine
+                if e.to_string().contains("not found") || e.to_string().contains("No session") {
+                    info!("Process {} already exited", process_pid);
+                } else {
+                    error!("⚠️  Failed to stop process {}: {}", process_pid, e);
+                }
+            }
+        }
+    }
+
     // Graceful shutdown
     client.close().await?;
     info!("Terminal tools example completed successfully");

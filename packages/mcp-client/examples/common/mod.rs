@@ -8,7 +8,7 @@ use kodegen_mcp_client::KodegenClient;
 use rmcp::{
     ServiceExt, 
     transport::TokioChildProcess,
-    model::{ClientCapabilities, ClientInfo, Implementation},
+    model::{ClientCapabilities, ClientInfo, Implementation, CallToolResult},
 };
 use std::path::PathBuf;
 use std::sync::{OnceLock, Mutex};
@@ -146,15 +146,44 @@ pub fn print_available_categories() {
     }
 }
 
+/// Extract text content from MCP CallToolResult
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Response has no content
+/// - Content is not text format
+pub fn extract_text_content(result: &CallToolResult) -> Result<String> {
+    let content = result.content.first()
+        .context("No content in response")?;
+
+    let text = content.as_text()
+        .context("Response content is not text")?;
+
+    Ok(text.text.clone())
+}
+
+/// Parse JSON from CallToolResult
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Response has no content or content is not text
+/// - Content is not valid JSON
+pub fn extract_json(result: &CallToolResult) -> Result<serde_json::Value> {
+    let text = extract_text_content(result)?;
+    serde_json::from_str(&text).context("Invalid JSON in response")
+}
+
 /// Cached workspace root to avoid repeated cargo metadata executions
 ///
 /// This is populated on first call to find_workspace_root() and reused for all
 /// subsequent calls. Cargo metadata takes 50-100ms per execution, so caching
 /// provides significant performance improvements in test suites.
 ///
-/// Uses Mutex<Option<PathBuf>> instead of OnceLock::get_or_try_init because
-/// the latter requires unstable features. The mutex is only held briefly during
-/// initialization, so contention is negligible.
+/// Uses OnceLock<PathBuf> with a separate Mutex<()> guard instead of 
+/// OnceLock::get_or_try_init because the latter requires unstable features.
+/// The mutex is only held briefly during initialization, so contention is negligible.
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 static WORKSPACE_ROOT_INIT: Mutex<()> = Mutex::new(());
 

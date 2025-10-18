@@ -250,6 +250,18 @@ async fn main() -> Result<()> {
     
     tracing::info!("Second crawl results retrieved");
 
+    // Cleanup crawl sessions
+    tracing::info!("\nCleaning up crawl sessions...");
+    for sid in [&session_id, &session_id_2] {
+        if let Err(e) = client.call_tool("stop_search", json!({
+            "session_id": sid
+        })).await {
+            tracing::error!("⚠️  Failed to stop crawl session {}: {}", sid, e);
+        } else {
+            tracing::info!("✅ Stopped crawl session: {}", sid);
+        }
+    }
+
     // Cleanup
     client.close().await?;
     tracing::info!("\n✅ All citescrape tools tested successfully!");

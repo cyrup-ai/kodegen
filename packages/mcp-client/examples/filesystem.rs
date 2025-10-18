@@ -22,11 +22,25 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Connected to server: {:?}", client.server_info());
 
+    // Run example with cleanup
+    let result = run_filesystem_example(&client).await;
+
+    // Always close client, regardless of example result
+    client.close().await?;
+
+    // Propagate any error from the example
+    result
+}
+
+async fn run_filesystem_example(client: &kodegen_mcp_client::KodegenClient) -> anyhow::Result<()> {
     // Create a temporary test directory
     let test_dir = std::env::temp_dir().join("kodegen_test");
     let test_file = test_dir.join("test.txt");
     
     info!("Using test directory: {}", test_dir.display());
+
+    // Run tests
+    let test_result = async {
 
     // 1. CREATE_DIRECTORY - Create test directory
     info!("1. Testing create_directory");
@@ -194,7 +208,7 @@ async fn main() -> anyhow::Result<()> {
         info!("✅ Deleted file: {}", file.display());
     }
 
-    // 14. DELETE_DIRECTORY - Clean up test directory
+    // 14. DELETE_DIRECTORY - Clean up test directory (as part of test)
     info!("14. Testing delete_directory");
     client.call_tool(
         tools::DELETE_DIRECTORY,
@@ -204,9 +218,37 @@ async fn main() -> anyhow::Result<()> {
     .context("Failed to delete directory")?;
     info!("✅ Deleted directory successfully");
 
-    // Graceful shutdown
-    client.close().await?;
-    info!("Filesystem tools example completed successfully");
+    info!("Filesystem tools example tests completed");
+    Ok::<(), anyhow::Error>(())
+    }.await;
 
-    Ok(())
+    // Always cleanup test directory, regardless of test result
+    cleanup_filesystem_resources(client, &test_dir).await;
+
+    // Propagate test result
+    test_result
+}
+
+async fn cleanup_filesystem_resources(client: &kodegen_mcp_client::KodegenClient, test_dir: &std::path::Path) {
+    use tracing::error;
+    
+    info!("\nCleaning up test directory...");
+    
+    // Try to delete using the filesystem tool first
+    if let Err(e) = client.call_tool(
+        tools::DELETE_DIRECTORY,
+        json!({ "path": test_dir.to_string_lossy() })
+    ).await {
+        error!("⚠️  Failed to delete directory via tool {}: {}", test_dir.display(), e);
+        
+        // Fall back to direct filesystem removal
+        if let Err(e) = std::fs::remove_dir_all(test_dir) {
+            error!("⚠️  Failed to remove directory {}: {}", test_dir.display(), e);
+            error!("   Manual cleanup required: rm -rf {}", test_dir.display());
+        } else {
+            info!("✅ Cleaned up test directory via fallback: {}", test_dir.display());
+        }
+    } else {
+        info!("✅ Cleaned up test directory: {}", test_dir.display());
+    }
 }
