@@ -281,30 +281,25 @@ pub fn extract_main_content(html: &str) -> Result<String> {
         ".modal",
     ];
 
-    // Try to find main content in common containers
+    // Try to find main content in common containers (parsed once, cached forever)
     let content_selectors = [
-        "main",
-        "article",
-        "[role='main']",
-        "#main-content",
-        ".main-content",
-        "#content",
-        ".content",
-        ".post-content",
-        ".entry-content",
-        "[itemprop='articleBody']",
-        ".article-body",
-        ".story-body",
+        &*MAIN_SELECTOR,
+        &*ARTICLE_SELECTOR,
+        &*ROLE_MAIN_SELECTOR,
+        &*MAIN_CONTENT_ID_SELECTOR,
+        &*MAIN_CONTENT_CLASS_SELECTOR,
+        &*CONTENT_ID_SELECTOR,
+        &*CONTENT_CLASS_SELECTOR,
+        &*POST_CONTENT_SELECTOR,
+        &*ENTRY_CONTENT_SELECTOR,
+        &*ARTICLE_BODY_ITEMPROP_SELECTOR,
+        &*ARTICLE_BODY_CLASS_SELECTOR,
+        &*STORY_BODY_SELECTOR,
     ];
 
     // First try to find a specific content container
     for selector in content_selectors {
-        let sel = match Selector::parse(selector) {
-            Ok(s) => s,
-            Err(e) => panic!("Invalid hardcoded selector '{}': {}", selector, e),
-        };
-
-        if let Some(element) = document.select(&sel).next() {
+        if let Some(element) = document.select(selector).next() {
             // Efficiently remove unwanted elements within the content
             // Works directly with element's node tree - no serialize-parse roundtrip
             let cleaned_html = remove_elements_from_html(&element, &remove_selectors);
@@ -314,12 +309,7 @@ pub fn extract_main_content(html: &str) -> Result<String> {
     }
 
     // If no main content container found, try to extract body and remove non-content elements
-    let body_sel = match Selector::parse("body") {
-        Ok(s) => s,
-        Err(e) => panic!("Invalid hardcoded selector 'body': {}", e),
-    };
-
-    if let Some(body) = document.select(&body_sel).next() {
+    if let Some(body) = document.select(&BODY_SELECTOR).next() {
         // Efficiently remove non-content elements from body
         // Works directly with element's node tree - no serialize-parse roundtrip
         let cleaned_html = remove_elements_from_html(&body, &remove_selectors);
@@ -410,7 +400,31 @@ static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?s)<summary[^>]*>(.*?)</summary>").expect("SUMMARY_RE: hardcoded regex is valid")
 });
 
-/// Clean HTML content by removing unwanted elements and scripts
+/// Clean HTML content by removing scripts, styles, ads, tracking, and other non-content elements
+///
+/// This function performs aggressive cleaning including:
+/// - Removing `<script>` and `<style>` tags and their contents
+/// - Removing inline event handlers (onclick, onload, etc.)
+/// - Removing HTML comments  
+/// - Removing `<form>`, `<iframe>` elements
+/// - Removing social media widgets, cookie notices, and ads
+/// - Removing hidden elements (display:none, visibility:hidden)
+/// - Converting `<details>`/`<summary>` to markdown-friendly format
+/// - Removing semantic HTML5 elements without markdown equivalents
+/// - **Decoding HTML entities** (&amp; → &, &lt; → <, etc.)
+///
+/// # Arguments
+/// * `html` - HTML string to clean
+///
+/// # Returns
+/// * Cleaned HTML string with unwanted elements removed and entities decoded
+///
+/// # Example
+/// ```
+/// let html = r#"<div><script>alert('xss')</script><p>Hello &amp; goodbye</p></div>"#;
+/// let clean = clean_html_content(html);
+/// // Result: <div><p>Hello & goodbye</p></div>
+/// ```
 pub fn clean_html_content(html: &str) -> Result<String> {
     // Validate input size to prevent DoS attacks
     if html.len() > MAX_HTML_SIZE {

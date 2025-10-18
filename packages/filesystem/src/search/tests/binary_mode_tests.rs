@@ -37,8 +37,9 @@ impl Sink for MatchCollector {
 
     fn binary_data(&mut self, _searcher: &Searcher, _binary_byte_offset: u64) -> Result<bool, Self::Error> {
         self.is_binary = true;
-        // Return false to stop searching (quit behavior)
-        Ok(false)
+        // Return true to allow searcher to continue (needed for convert mode)
+        // Quit mode will stop regardless of this return value
+        Ok(true)
     }
 }
 
