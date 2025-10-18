@@ -275,19 +275,19 @@ pub async fn extract_page_data(
 
     // Get local path for URL registration BEFORE saving
     // This allows us to register the URL→path mapping after successful save
-    let local_path_str =
-        match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await {
-            Ok(path) => path.to_string_lossy().to_string(),
-            Err(e) => {
-                log::warn!("Failed to get mirror path for URL registration: {}", e);
-                // Fallback path - registration will still work but path may be incorrect
-                config
-                    .output_dir
-                    .join("index.html")
-                    .to_string_lossy()
-                    .to_string()
-            }
-        };
+    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html")
+    {
+        Ok(path) => path.to_string_lossy().to_string(),
+        Err(e) => {
+            log::warn!("Failed to get mirror path for URL registration: {}", e);
+            // Fallback path - registration will still work but path may be incorrect
+            config
+                .output_dir
+                .join("index.html")
+                .to_string_lossy()
+                .to_string()
+        }
+    };
 
     // Register URL → local path mapping BEFORE saving
     // This enables progressive rewriting: pages crawled later can immediately

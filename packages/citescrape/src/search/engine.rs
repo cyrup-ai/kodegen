@@ -244,8 +244,8 @@ impl SearchEngine {
 
     /// Get index statistics
     pub async fn get_stats(&self) -> Result<IndexStats> {
-        let last_commit = self.get_last_commit_time();
-        let index_size_bytes = self.calculate_index_size();
+        let last_commit = self.get_last_commit_time().await;
+        let index_size_bytes = self.calculate_index_size().await;
 
         let searcher = self.reader.searcher();
         let num_docs = searcher.num_docs() as usize;
@@ -277,33 +277,46 @@ impl SearchEngine {
     }
 
     /// Calculate the total size of the index directory
-    fn calculate_index_size(&self) -> Option<u64> {
+    async fn calculate_index_size(&self) -> Option<u64> {
         use jwalk::WalkDir;
 
-        if !self.index_path.exists() {
+        // Async check for directory existence
+        if !tokio::fs::try_exists(&self.index_path)
+            .await
+            .unwrap_or(false)
+        {
             return None;
         }
 
-        let cpu_count = num_cpus::get();
-        let parallelism = match cpu_count {
-            1..=4 => cpu_count,
-            5..=8 => cpu_count - 1,
-            9..=16 => (cpu_count * 3) / 4,
-            _ => 32,
-        };
+        // Clone the path for moving into spawn_blocking closure
+        let index_path = self.index_path.clone();
 
-        let total_size: u64 = WalkDir::new(&self.index_path)
-            .parallelism(jwalk::Parallelism::RayonNewPool(parallelism))
-            .skip_hidden(false)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_type().is_file())
-            .filter_map(|entry| std::fs::metadata(entry.path()).ok())
-            .map(|metadata| metadata.len())
-            .sum();
+        // Spawn blocking for CPU-intensive directory traversal
+        tokio::task::spawn_blocking(move || -> Option<u64> {
+            let cpu_count = num_cpus::get();
+            let parallelism = match cpu_count {
+                1..=4 => cpu_count,
+                5..=8 => cpu_count - 1,
+                9..=16 => (cpu_count * 3) / 4,
+                _ => 32,
+            };
 
-        Some(total_size)
+            let total_size: u64 = WalkDir::new(&index_path)
+                .parallelism(jwalk::Parallelism::RayonNewPool(parallelism))
+                .skip_hidden(false)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+                .filter(|entry| entry.file_type().is_file())
+                .filter_map(|entry| std::fs::metadata(entry.path()).ok())
+                .map(|metadata| metadata.len())
+                .sum();
+
+            Some(total_size)
+        })
+        .await
+        .ok()
+        .flatten()
     }
 }
 

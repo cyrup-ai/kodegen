@@ -471,28 +471,28 @@ pub async fn inline_resources_from_info(
 
     // Collect image and SVG futures
     for image in &resources.images {
-let base = base_url.clone();
-let src = image.url.clone();
-let client_clone = client.clone();
-let config_clone = config.clone();
-let rate_rps_clone = rate_rps;
+        let base = base_url.clone();
+        let src = image.url.clone();
+        let client_clone = client.clone();
+        let config_clone = config.clone();
+        let rate_rps_clone = rate_rps;
 
-// Check if this is an SVG based on the URL
-let is_svg = src.to_lowercase().contains(".svg");
+        // Check if this is an SVG based on the URL
+        let is_svg = src.to_lowercase().contains(".svg");
 
-if is_svg {
-    // Process as SVG
-    let future = Box::pin(async move {
-        let svg_url = match super::utils::resolve_url(&base, &src) {
-            Ok(url) => url,
-            Err(e) => {
-                return Err(InliningError {
-                    url: src,
-                    resource_type: ResourceType::Svg,
-                    error: e.to_string(),
-                });
-            }
-        };
+        if is_svg {
+            // Process as SVG
+            let future = Box::pin(async move {
+                let svg_url = match super::utils::resolve_url(&base, &src) {
+                    Ok(url) => url,
+                    Err(e) => {
+                        return Err(InliningError {
+                            url: src,
+                            resource_type: ResourceType::Svg,
+                            error: e.to_string(),
+                        });
+                    }
+                };
 
         // Apply rate limiting if configured
         if let Some(rate) = rate_rps_clone {
