@@ -13,7 +13,6 @@ use super::errors::{RetryConfig, SearchError, SearchResult};
 use super::runtime_helpers::retry_task;
 use super::schema::SearchSchema;
 use crate::config::CrawlConfig;
-use crate::runtime::spawn_async;
 
 /// Main search engine managing Tantivy index operations
 #[derive(Clone)]

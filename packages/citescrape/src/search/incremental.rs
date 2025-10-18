@@ -19,8 +19,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
-use crate::runtime::spawn_async;
-
 use super::engine::SearchEngine;
 use super::indexer::MarkdownIndexer;
 
@@ -560,13 +558,7 @@ impl IncrementalIndexingService {
                 let result = match &message {
                     IndexingMessage::AddOrUpdate { url, file_path, .. } => {
                         // Use the optimized single file indexing from indexer
-                        match indexer.index_file(file_path, url).await {
-                            Ok(Ok(())) => Ok(()),
-                            Ok(Err(e)) => Err(e),
-                            Err(task_err) => {
-                                Err(anyhow::anyhow!("Task execution failed: {}", task_err))
-                            }
-                        }
+                        indexer.index_file(file_path, url).await
                     }
                     IndexingMessage::Delete { url, .. } => {
                         engine

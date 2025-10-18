@@ -82,38 +82,38 @@ backreferences without explicitly needing to enable them.
 #[cfg(test)]
 #[test]
 fn test_auto_hybrid_regex() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
-    let args = parse_low_raw(["--auto-hybrid-regex"]).unwrap();
+    let args = parse_low_raw(["--auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--no-auto-hybrid-regex"])
-            .unwrap();
+            .expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
     let args =
         parse_low_raw(["--no-auto-hybrid-regex", "--auto-hybrid-regex"])
-            .unwrap();
+            .expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
-    let args = parse_low_raw(["--auto-hybrid-regex", "-P"]).unwrap();
+    let args = parse_low_raw(["--auto-hybrid-regex", "-P"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::PCRE2, args.engine);
 
-    let args = parse_low_raw(["-P", "--auto-hybrid-regex"]).unwrap();
+    let args = parse_low_raw(["-P", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
-        parse_low_raw(["--engine=auto", "--auto-hybrid-regex"]).unwrap();
+        parse_low_raw(["--engine=auto", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
-        parse_low_raw(["--engine=default", "--auto-hybrid-regex"]).unwrap();
+        parse_low_raw(["--engine=default", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
-        parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).unwrap();
+        parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 }
 
@@ -163,13 +163,13 @@ This flag overrides the \flag{ignore-case} and \flag{smart-case} flags.
 #[cfg(test)]
 #[test]
 fn test_case_sensitive() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["--case-sensitive"]).unwrap();
+    let args = parse_low_raw(["--case-sensitive"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["-s"]).unwrap();
+    let args = parse_low_raw(["-s"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 }
 
@@ -226,26 +226,26 @@ This flag overrides \flag{null-data}.
 #[cfg(test)]
 #[test]
 fn test_crlf() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.crlf);
 
-    let args = parse_low_raw(["--crlf"]).unwrap();
+    let args = parse_low_raw(["--crlf"]).expect("Test parsing should succeed");
     assert_eq!(true, args.crlf);
     assert_eq!(false, args.null_data);
 
-    let args = parse_low_raw(["--crlf", "--null-data"]).unwrap();
+    let args = parse_low_raw(["--crlf", "--null-data"]).expect("Test parsing should succeed");
     assert_eq!(false, args.crlf);
     assert_eq!(true, args.null_data);
 
-    let args = parse_low_raw(["--null-data", "--crlf"]).unwrap();
+    let args = parse_low_raw(["--null-data", "--crlf"]).expect("Test parsing should succeed");
     assert_eq!(true, args.crlf);
     assert_eq!(false, args.null_data);
 
-    let args = parse_low_raw(["--null-data", "--no-crlf"]).unwrap();
+    let args = parse_low_raw(["--null-data", "--no-crlf"]).expect("Test parsing should succeed");
     assert_eq!(false, args.crlf);
     assert_eq!(true, args.null_data);
 
-    let args = parse_low_raw(["--null-data", "--crlf", "--no-crlf"]).unwrap();
+    let args = parse_low_raw(["--null-data", "--crlf", "--no-crlf"]).expect("Test parsing should succeed");
     assert_eq!(false, args.crlf);
     assert_eq!(false, args.null_data);
 }
@@ -296,30 +296,30 @@ provided the input is treated as bytes.
 #[cfg(test)]
 #[test]
 fn test_dfa_size_limit() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.dfa_size_limit);
 
     #[cfg(target_pointer_width = "64")]
     {
-        let args = parse_low_raw(["--dfa-size-limit", "9G"]).unwrap();
+        let args = parse_low_raw(["--dfa-size-limit", "9G"]).expect("Test parsing should succeed");
         assert_eq!(Some(9 * (1 << 30)), args.dfa_size_limit);
 
-        let args = parse_low_raw(["--dfa-size-limit=9G"]).unwrap();
+        let args = parse_low_raw(["--dfa-size-limit=9G"]).expect("Test parsing should succeed");
         assert_eq!(Some(9 * (1 << 30)), args.dfa_size_limit);
 
         let args =
             parse_low_raw(["--dfa-size-limit=9G", "--dfa-size-limit=0"])
-                .unwrap();
+                .expect("Test parsing should succeed");
         assert_eq!(Some(0), args.dfa_size_limit);
     }
 
-    let args = parse_low_raw(["--dfa-size-limit=0K"]).unwrap();
+    let args = parse_low_raw(["--dfa-size-limit=0K"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.dfa_size_limit);
 
-    let args = parse_low_raw(["--dfa-size-limit=0M"]).unwrap();
+    let args = parse_low_raw(["--dfa-size-limit=0M"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.dfa_size_limit);
 
-    let args = parse_low_raw(["--dfa-size-limit=0G"]).unwrap();
+    let args = parse_low_raw(["--dfa-size-limit=0G"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.dfa_size_limit);
 
     let result = parse_low_raw(["--dfa-size-limit", "9999999999999999999999"]);
@@ -406,35 +406,35 @@ via the \flag-negate{encoding} flag.
 #[cfg(test)]
 #[test]
 fn test_encoding() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Auto, args.encoding);
 
-    let args = parse_low_raw(["--encoding", "auto"]).unwrap();
+    let args = parse_low_raw(["--encoding", "auto"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Auto, args.encoding);
 
-    let args = parse_low_raw(["--encoding", "none"]).unwrap();
+    let args = parse_low_raw(["--encoding", "none"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Disabled, args.encoding);
 
-    let args = parse_low_raw(["--encoding=none"]).unwrap();
+    let args = parse_low_raw(["--encoding=none"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Disabled, args.encoding);
 
-    let args = parse_low_raw(["-E", "none"]).unwrap();
+    let args = parse_low_raw(["-E", "none"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Disabled, args.encoding);
 
-    let args = parse_low_raw(["-Enone"]).unwrap();
+    let args = parse_low_raw(["-Enone"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Disabled, args.encoding);
 
-    let args = parse_low_raw(["-E", "none", "--no-encoding"]).unwrap();
+    let args = parse_low_raw(["-E", "none", "--no-encoding"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Auto, args.encoding);
 
-    let args = parse_low_raw(["--no-encoding", "-E", "none"]).unwrap();
+    let args = parse_low_raw(["--no-encoding", "-E", "none"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Disabled, args.encoding);
 
-    let args = parse_low_raw(["-E", "utf-16"]).unwrap();
-    let enc = grep::searcher::Encoding::new("utf-16").unwrap();
+    let args = parse_low_raw(["-E", "utf-16"]).expect("Test parsing should succeed");
+    let enc = grep::searcher::Encoding::new("utf-16").expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Some(enc), args.encoding);
 
-    let args = parse_low_raw(["-E", "utf-16", "--no-encoding"]).unwrap();
+    let args = parse_low_raw(["-E", "utf-16", "--no-encoding"]).expect("Test parsing should succeed");
     assert_eq!(EncodingMode::Auto, args.encoding);
 
     let result = parse_low_raw(["-E", "foo"]);
@@ -506,33 +506,33 @@ flags.
 #[cfg(test)]
 #[test]
 fn test_engine() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
-    let args = parse_low_raw(["--engine", "pcre2"]).unwrap();
+    let args = parse_low_raw(["--engine", "pcre2"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::PCRE2, args.engine);
 
-    let args = parse_low_raw(["--engine=pcre2"]).unwrap();
-    assert_eq!(EngineChoice::PCRE2, args.engine);
-
-    let args =
-        parse_low_raw(["--auto-hybrid-regex", "--engine=pcre2"]).unwrap();
+    let args = parse_low_raw(["--engine=pcre2"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::PCRE2, args.engine);
 
     let args =
-        parse_low_raw(["--engine=pcre2", "--auto-hybrid-regex"]).unwrap();
+        parse_low_raw(["--auto-hybrid-regex", "--engine=pcre2"]).expect("Test parsing should succeed");
+    assert_eq!(EngineChoice::PCRE2, args.engine);
+
+    let args =
+        parse_low_raw(["--engine=pcre2", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
-        parse_low_raw(["--auto-hybrid-regex", "--engine=auto"]).unwrap();
+        parse_low_raw(["--auto-hybrid-regex", "--engine=auto"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 
     let args =
-        parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).unwrap();
+        parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
     let args =
-        parse_low_raw(["--engine=pcre2", "--no-auto-hybrid-regex"]).unwrap();
+        parse_low_raw(["--engine=pcre2", "--no-auto-hybrid-regex"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 }
 
@@ -579,19 +579,19 @@ should not need be escaped.
 #[cfg(test)]
 #[test]
 fn test_fixed_strings() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.fixed_strings);
 
-    let args = parse_low_raw(["--fixed-strings"]).unwrap();
+    let args = parse_low_raw(["--fixed-strings"]).expect("Test parsing should succeed");
     assert_eq!(true, args.fixed_strings);
 
-    let args = parse_low_raw(["-F"]).unwrap();
+    let args = parse_low_raw(["-F"]).expect("Test parsing should succeed");
     assert_eq!(true, args.fixed_strings);
 
-    let args = parse_low_raw(["-F", "--no-fixed-strings"]).unwrap();
+    let args = parse_low_raw(["-F", "--no-fixed-strings"]).expect("Test parsing should succeed");
     assert_eq!(false, args.fixed_strings);
 
-    let args = parse_low_raw(["--no-fixed-strings", "-F"]).unwrap();
+    let args = parse_low_raw(["--no-fixed-strings", "-F"]).expect("Test parsing should succeed");
     assert_eq!(true, args.fixed_strings);
 }
 
@@ -643,19 +643,19 @@ This flag overrides \flag{case-sensitive} and \flag{smart-case}.
 #[cfg(test)]
 #[test]
 fn test_ignore_case() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["--ignore-case"]).unwrap();
+    let args = parse_low_raw(["--ignore-case"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Insensitive, args.case);
 
-    let args = parse_low_raw(["-i"]).unwrap();
+    let args = parse_low_raw(["-i"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Insensitive, args.case);
 
-    let args = parse_low_raw(["-i", "-s"]).unwrap();
+    let args = parse_low_raw(["-i", "-s"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["-s", "-i"]).unwrap();
+    let args = parse_low_raw(["-s", "-i"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Insensitive, args.case);
 }
 
@@ -707,16 +707,16 @@ matching lines.
 #[cfg(test)]
 #[test]
 fn test_invert_match() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.invert_match);
 
-    let args = parse_low_raw(["--invert-match"]).unwrap();
+    let args = parse_low_raw(["--invert-match"]).expect("Test parsing should succeed");
     assert_eq!(true, args.invert_match);
 
-    let args = parse_low_raw(["-v"]).unwrap();
+    let args = parse_low_raw(["-v"]).expect("Test parsing should succeed");
     assert_eq!(true, args.invert_match);
 
-    let args = parse_low_raw(["-v", "--no-invert-match"]).unwrap();
+    let args = parse_low_raw(["-v", "--no-invert-match"]).expect("Test parsing should succeed");
     assert_eq!(false, args.invert_match);
 }
 
@@ -764,13 +764,13 @@ This overrides the \flag{word-regexp} flag.
 #[cfg(test)]
 #[test]
 fn test_line_regexp() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.boundary);
 
-    let args = parse_low_raw(["--line-regexp"]).unwrap();
+    let args = parse_low_raw(["--line-regexp"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Line), args.boundary);
 
-    let args = parse_low_raw(["-x"]).unwrap();
+    let args = parse_low_raw(["-x"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Line), args.boundary);
 }
 
@@ -826,18 +826,18 @@ ripgrep won't search anything.
 #[cfg(test)]
 #[test]
 fn test_max_count() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.max_count);
 
-    let args = parse_low_raw(["--max-count", "5"]).unwrap();
+    let args = parse_low_raw(["--max-count", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_count);
 
-    let args = parse_low_raw(["-m", "5"]).unwrap();
+    let args = parse_low_raw(["-m", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_count);
 
-    let args = parse_low_raw(["-m", "5", "--max-count=10"]).unwrap();
+    let args = parse_low_raw(["-m", "5", "--max-count=10"]).expect("Test parsing should succeed");
     assert_eq!(Some(10), args.max_count);
-    let args = parse_low_raw(["-m0"]).unwrap();
+    let args = parse_low_raw(["-m0"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.max_count);
 }
 
@@ -892,19 +892,19 @@ possibility by disabling memory maps.
 #[cfg(test)]
 #[test]
 fn test_mmap() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(MmapMode::Auto, args.mmap);
 
-    let args = parse_low_raw(["--mmap"]).unwrap();
+    let args = parse_low_raw(["--mmap"]).expect("Test parsing should succeed");
     assert_eq!(MmapMode::AlwaysTryMmap, args.mmap);
 
-    let args = parse_low_raw(["--no-mmap"]).unwrap();
+    let args = parse_low_raw(["--no-mmap"]).expect("Test parsing should succeed");
     assert_eq!(MmapMode::Never, args.mmap);
 
-    let args = parse_low_raw(["--mmap", "--no-mmap"]).unwrap();
+    let args = parse_low_raw(["--mmap", "--no-mmap"]).expect("Test parsing should succeed");
     assert_eq!(MmapMode::Never, args.mmap);
 
-    let args = parse_low_raw(["--no-mmap", "--mmap"]).unwrap();
+    let args = parse_low_raw(["--no-mmap", "--mmap"]).expect("Test parsing should succeed");
     assert_eq!(MmapMode::AlwaysTryMmap, args.mmap);
 }
 
@@ -986,16 +986,16 @@ This overrides the \flag{stop-on-nonmatch} flag.
 #[cfg(test)]
 #[test]
 fn test_multiline() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.multiline);
 
-    let args = parse_low_raw(["--multiline"]).unwrap();
+    let args = parse_low_raw(["--multiline"]).expect("Test parsing should succeed");
     assert_eq!(true, args.multiline);
 
-    let args = parse_low_raw(["-U"]).unwrap();
+    let args = parse_low_raw(["-U"]).expect("Test parsing should succeed");
     assert_eq!(true, args.multiline);
 
-    let args = parse_low_raw(["-U", "--no-multiline"]).unwrap();
+    let args = parse_low_raw(["-U", "--no-multiline"]).expect("Test parsing should succeed");
     assert_eq!(false, args.multiline);
 }
 
@@ -1053,14 +1053,14 @@ regardless of whether "dot all" mode is enabled or not.
 #[cfg(test)]
 #[test]
 fn test_multiline_dotall() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.multiline_dotall);
 
-    let args = parse_low_raw(["--multiline-dotall"]).unwrap();
+    let args = parse_low_raw(["--multiline-dotall"]).expect("Test parsing should succeed");
     assert_eq!(true, args.multiline_dotall);
 
     let args = parse_low_raw(["--multiline-dotall", "--no-multiline-dotall"])
-        .unwrap();
+        .expect("Test parsing should succeed");
     assert_eq!(false, args.multiline_dotall);
 }
 
@@ -1104,14 +1104,14 @@ Note that Unicode mode is enabled by default.
 #[cfg(test)]
 #[test]
 fn test_no_pcre2_unicode() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 
-    let args = parse_low_raw(["--no-pcre2-unicode"]).unwrap();
+    let args = parse_low_raw(["--no-pcre2-unicode"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_unicode);
 
     let args =
-        parse_low_raw(["--no-pcre2-unicode", "--pcre2-unicode"]).unwrap();
+        parse_low_raw(["--no-pcre2-unicode", "--pcre2-unicode"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 }
 
@@ -1181,19 +1181,19 @@ interpretation is needed.
 #[cfg(test)]
 #[test]
 fn test_no_unicode() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 
-    let args = parse_low_raw(["--no-unicode"]).unwrap();
+    let args = parse_low_raw(["--no-unicode"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_unicode);
 
-    let args = parse_low_raw(["--no-unicode", "--unicode"]).unwrap();
+    let args = parse_low_raw(["--no-unicode", "--unicode"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 
-    let args = parse_low_raw(["--no-unicode", "--pcre2-unicode"]).unwrap();
+    let args = parse_low_raw(["--no-unicode", "--pcre2-unicode"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 
-    let args = parse_low_raw(["--no-pcre2-unicode", "--unicode"]).unwrap();
+    let args = parse_low_raw(["--no-pcre2-unicode", "--unicode"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_unicode);
 }
 
@@ -1246,21 +1246,21 @@ Using this flag implies \flag{text}. It also overrides \flag{crlf}.
 #[cfg(test)]
 #[test]
 fn test_null_data() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.null_data);
 
-    let args = parse_low_raw(["--null-data"]).unwrap();
+    let args = parse_low_raw(["--null-data"]).expect("Test parsing should succeed");
     assert_eq!(true, args.null_data);
 
-    let args = parse_low_raw(["--null-data", "--crlf"]).unwrap();
+    let args = parse_low_raw(["--null-data", "--crlf"]).expect("Test parsing should succeed");
     assert_eq!(false, args.null_data);
     assert_eq!(true, args.crlf);
 
-    let args = parse_low_raw(["--crlf", "--null-data"]).unwrap();
+    let args = parse_low_raw(["--crlf", "--null-data"]).expect("Test parsing should succeed");
     assert_eq!(true, args.null_data);
     assert_eq!(false, args.crlf);
 
-    let args = parse_low_raw(["--null-data", "--no-crlf"]).unwrap();
+    let args = parse_low_raw(["--null-data", "--no-crlf"]).expect("Test parsing should succeed");
     assert_eq!(true, args.null_data);
     assert_eq!(false, args.crlf);
 }
@@ -1328,22 +1328,22 @@ engine).
 #[cfg(test)]
 #[test]
 fn test_pcre2() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
-    let args = parse_low_raw(["--pcre2"]).unwrap();
+    let args = parse_low_raw(["--pcre2"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::PCRE2, args.engine);
 
-    let args = parse_low_raw(["-P"]).unwrap();
+    let args = parse_low_raw(["-P"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::PCRE2, args.engine);
 
-    let args = parse_low_raw(["-P", "--no-pcre2"]).unwrap();
+    let args = parse_low_raw(["-P", "--no-pcre2"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
-    let args = parse_low_raw(["--engine=auto", "-P", "--no-pcre2"]).unwrap();
+    let args = parse_low_raw(["--engine=auto", "-P", "--no-pcre2"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Default, args.engine);
 
-    let args = parse_low_raw(["-P", "--engine=auto"]).unwrap();
+    let args = parse_low_raw(["-P", "--engine=auto"]).expect("Test parsing should succeed");
     assert_eq!(EngineChoice::Auto, args.engine);
 }
 
@@ -1396,30 +1396,30 @@ provided the input is treated as bytes.
 #[cfg(test)]
 #[test]
 fn test_regex_size_limit() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.regex_size_limit);
 
     #[cfg(target_pointer_width = "64")]
     {
-        let args = parse_low_raw(["--regex-size-limit", "9G"]).unwrap();
+        let args = parse_low_raw(["--regex-size-limit", "9G"]).expect("Test parsing should succeed");
         assert_eq!(Some(9 * (1 << 30)), args.regex_size_limit);
 
-        let args = parse_low_raw(["--regex-size-limit=9G"]).unwrap();
+        let args = parse_low_raw(["--regex-size-limit=9G"]).expect("Test parsing should succeed");
         assert_eq!(Some(9 * (1 << 30)), args.regex_size_limit);
 
         let args =
             parse_low_raw(["--regex-size-limit=9G", "--regex-size-limit=0"])
-                .unwrap();
+                .expect("Test parsing should succeed");
         assert_eq!(Some(0), args.regex_size_limit);
     }
 
-    let args = parse_low_raw(["--regex-size-limit=0K"]).unwrap();
+    let args = parse_low_raw(["--regex-size-limit=0K"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.regex_size_limit);
 
-    let args = parse_low_raw(["--regex-size-limit=0M"]).unwrap();
+    let args = parse_low_raw(["--regex-size-limit=0M"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.regex_size_limit);
 
-    let args = parse_low_raw(["--regex-size-limit=0G"]).unwrap();
+    let args = parse_low_raw(["--regex-size-limit=0G"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.regex_size_limit);
 
     let result =
@@ -1483,25 +1483,25 @@ This overrides the \flag{case-sensitive} and \flag{ignore-case} flags.
 #[cfg(test)]
 #[test]
 fn test_smart_case() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["--smart-case"]).unwrap();
+    let args = parse_low_raw(["--smart-case"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Smart, args.case);
 
-    let args = parse_low_raw(["-S"]).unwrap();
+    let args = parse_low_raw(["-S"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Smart, args.case);
 
-    let args = parse_low_raw(["-S", "-s"]).unwrap();
+    let args = parse_low_raw(["-S", "-s"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Sensitive, args.case);
 
-    let args = parse_low_raw(["-S", "-i"]).unwrap();
+    let args = parse_low_raw(["-S", "-i"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Insensitive, args.case);
 
-    let args = parse_low_raw(["-s", "-S"]).unwrap();
+    let args = parse_low_raw(["-s", "-S"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Smart, args.case);
 
-    let args = parse_low_raw(["-i", "-S"]).unwrap();
+    let args = parse_low_raw(["-i", "-S"]).expect("Test parsing should succeed");
     assert_eq!(CaseMode::Smart, args.case);
 }
 
@@ -1547,22 +1547,22 @@ This overrides the \flag{multiline} flag.
 #[cfg(test)]
 #[test]
 fn test_stop_on_nonmatch() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.stop_on_nonmatch);
 
-    let args = parse_low_raw(["--stop-on-nonmatch"]).unwrap();
+    let args = parse_low_raw(["--stop-on-nonmatch"]).expect("Test parsing should succeed");
     assert_eq!(true, args.stop_on_nonmatch);
 
-    let args = parse_low_raw(["--stop-on-nonmatch", "-U"]).unwrap();
+    let args = parse_low_raw(["--stop-on-nonmatch", "-U"]).expect("Test parsing should succeed");
     assert_eq!(true, args.multiline);
     assert_eq!(false, args.stop_on_nonmatch);
 
-    let args = parse_low_raw(["-U", "--stop-on-nonmatch"]).unwrap();
+    let args = parse_low_raw(["-U", "--stop-on-nonmatch"]).expect("Test parsing should succeed");
     assert_eq!(false, args.multiline);
     assert_eq!(true, args.stop_on_nonmatch);
 
     let args =
-        parse_low_raw(["--stop-on-nonmatch", "--no-multiline"]).unwrap();
+        parse_low_raw(["--stop-on-nonmatch", "--no-multiline"]).expect("Test parsing should succeed");
     assert_eq!(false, args.multiline);
     assert_eq!(true, args.stop_on_nonmatch);
 }
@@ -1625,28 +1625,28 @@ This flag overrides the \flag{binary} flag.
 #[cfg(test)]
 #[test]
 fn test_text() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--text"]).unwrap();
+    let args = parse_low_raw(["--text"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::AsText, args.binary);
 
-    let args = parse_low_raw(["-a"]).unwrap();
+    let args = parse_low_raw(["-a"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::AsText, args.binary);
 
-    let args = parse_low_raw(["-a", "--no-text"]).unwrap();
+    let args = parse_low_raw(["-a", "--no-text"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["-a", "--binary"]).unwrap();
+    let args = parse_low_raw(["-a", "--binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::SearchAndSuppress, args.binary);
 
-    let args = parse_low_raw(["--binary", "-a"]).unwrap();
+    let args = parse_low_raw(["--binary", "-a"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::AsText, args.binary);
 
-    let args = parse_low_raw(["-a", "--no-binary"]).unwrap();
+    let args = parse_low_raw(["-a", "--no-binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--binary", "--no-text"]).unwrap();
+    let args = parse_low_raw(["--binary", "--no-text"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 }
 
@@ -1694,22 +1694,22 @@ heuristics.
 #[cfg(test)]
 #[test]
 fn test_threads() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.threads);
 
-    let args = parse_low_raw(["--threads", "5"]).unwrap();
+    let args = parse_low_raw(["--threads", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.threads);
 
-    let args = parse_low_raw(["-j", "5"]).unwrap();
+    let args = parse_low_raw(["-j", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.threads);
 
-    let args = parse_low_raw(["-j5"]).unwrap();
+    let args = parse_low_raw(["-j5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.threads);
 
-    let args = parse_low_raw(["-j5", "-j10"]).unwrap();
+    let args = parse_low_raw(["-j5", "-j10"]).expect("Test parsing should succeed");
     assert_eq!(Some(10), args.threads);
 
-    let args = parse_low_raw(["-j5", "-j0"]).unwrap();
+    let args = parse_low_raw(["-j5", "-j0"]).expect("Test parsing should succeed");
     assert_eq!(None, args.threads);
 }
 
@@ -1756,18 +1756,18 @@ This overrides the \flag{line-regexp} flag.
 #[cfg(test)]
 #[test]
 fn test_word_regexp() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.boundary);
 
-    let args = parse_low_raw(["--word-regexp"]).unwrap();
+    let args = parse_low_raw(["--word-regexp"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Word), args.boundary);
 
-    let args = parse_low_raw(["-w"]).unwrap();
+    let args = parse_low_raw(["-w"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Word), args.boundary);
 
-    let args = parse_low_raw(["-x", "-w"]).unwrap();
+    let args = parse_low_raw(["-x", "-w"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Word), args.boundary);
 
-    let args = parse_low_raw(["-w", "-x"]).unwrap();
+    let args = parse_low_raw(["-w", "-x"]).expect("Test parsing should succeed");
     assert_eq!(Some(BoundaryMode::Line), args.boundary);
 }

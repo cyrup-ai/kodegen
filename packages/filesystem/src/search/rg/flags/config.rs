@@ -121,10 +121,10 @@ mod tests {
 --foo
 "[..],
         )
-        .unwrap();
+        .expect("Test operation should succeed");
         assert!(errs.is_empty());
         let args: Vec<String> =
-            args.into_iter().map(|s| s.into_string().unwrap()).collect();
+            args.into_iter().map(|s| s.into_string().expect("Test operation should succeed")).collect();
         assert_eq!(args, vec!["--context=0", "--smart-case", "-u", "--foo",]);
     }
 
@@ -141,7 +141,7 @@ foo\xFFbar
 baz
 "[..],
         )
-        .unwrap();
+        .expect("Test operation should succeed");
         assert!(errs.is_empty());
         assert_eq!(
             args,
@@ -164,7 +164,7 @@ foo\xFFbar
 baz
 "[..],
         )
-        .unwrap();
+        .expect("Test operation should succeed");
         assert_eq!(errs.len(), 1);
         assert_eq!(args, vec![OsString::from("quux"), OsString::from("baz"),]);
     }

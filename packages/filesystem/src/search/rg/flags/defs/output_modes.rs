@@ -77,19 +77,19 @@ is combined with \flag{only-matching}, then ripgrep behaves as if
 #[cfg(test)]
 #[test]
 fn test_count() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Standard), args.mode);
 
-    let args = parse_low_raw(["--count"]).unwrap();
+    let args = parse_low_raw(["--count"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Count), args.mode);
 
-    let args = parse_low_raw(["-c"]).unwrap();
+    let args = parse_low_raw(["-c"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Count), args.mode);
 
-    let args = parse_low_raw(["--count-matches", "--count"]).unwrap();
+    let args = parse_low_raw(["--count-matches", "--count"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Count), args.mode);
 
-    let args = parse_low_raw(["--count-matches", "-c"]).unwrap();
+    let args = parse_low_raw(["--count-matches", "-c"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Count), args.mode);
 }
 
@@ -143,16 +143,16 @@ given.
 #[cfg(test)]
 #[test]
 fn test_count_matches() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Standard), args.mode);
 
-    let args = parse_low_raw(["--count-matches"]).unwrap();
+    let args = parse_low_raw(["--count-matches"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::CountMatches), args.mode);
 
-    let args = parse_low_raw(["--count", "--count-matches"]).unwrap();
+    let args = parse_low_raw(["--count", "--count-matches"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::CountMatches), args.mode);
 
-    let args = parse_low_raw(["-c", "--count-matches"]).unwrap();
+    let args = parse_low_raw(["-c", "--count-matches"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::CountMatches), args.mode);
 }
 
@@ -247,15 +247,15 @@ A more complete description of the JSON format used can be found here:
 #[cfg(test)]
 #[test]
 fn test_json() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Standard), args.mode);
 
-    let args = parse_low_raw(["--json"]).unwrap();
+    let args = parse_low_raw(["--json"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Json), args.mode);
 
-    let args = parse_low_raw(["--json", "--no-json"]).unwrap();
+    let args = parse_low_raw(["--json", "--no-json"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Standard), args.mode);
 
-    let args = parse_low_raw(["--json", "--files", "--no-json"]).unwrap();
+    let args = parse_low_raw(["--json", "--files", "--no-json"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Files, args.mode);
 }

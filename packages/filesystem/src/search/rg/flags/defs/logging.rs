@@ -58,13 +58,13 @@ To get even more debug output, use the \flag{trace} flag, which implies
 #[cfg(test)]
 #[test]
 fn test_debug() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.logging);
 
-    let args = parse_low_raw(["--debug"]).unwrap();
+    let args = parse_low_raw(["--debug"]).expect("Test parsing should succeed");
     assert_eq!(Some(LoggingMode::Debug), args.logging);
 
-    let args = parse_low_raw(["--trace", "--debug"]).unwrap();
+    let args = parse_low_raw(["--trace", "--debug"]).expect("Test parsing should succeed");
     assert_eq!(Some(LoggingMode::Debug), args.logging);
 }
 
@@ -109,14 +109,14 @@ noise produced by the messages.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_messages() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_messages);
 
-    let args = parse_low_raw(["--no-ignore-messages"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-messages"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_messages);
 
     let args =
-        parse_low_raw(["--no-ignore-messages", "--ignore-messages"]).unwrap();
+        parse_low_raw(["--no-ignore-messages", "--ignore-messages"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_messages);
 }
 
@@ -160,13 +160,13 @@ of the pattern are still shown.
 #[cfg(test)]
 #[test]
 fn test_no_messages() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_messages);
 
-    let args = parse_low_raw(["--no-messages"]).unwrap();
+    let args = parse_low_raw(["--no-messages"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_messages);
 
-    let args = parse_low_raw(["--no-messages", "--messages"]).unwrap();
+    let args = parse_low_raw(["--no-messages", "--messages"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_messages);
 }
 
@@ -219,13 +219,13 @@ Note that this flag has no effect if \flag{files}, \flag{files-with-matches} or
 #[cfg(test)]
 #[test]
 fn test_stats() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.stats);
 
-    let args = parse_low_raw(["--stats"]).unwrap();
+    let args = parse_low_raw(["--stats"]).expect("Test parsing should succeed");
     assert_eq!(true, args.stats);
 
-    let args = parse_low_raw(["--stats", "--no-stats"]).unwrap();
+    let args = parse_low_raw(["--stats", "--no-stats"]).expect("Test parsing should succeed");
     assert_eq!(false, args.stats);
 }
 
@@ -267,12 +267,12 @@ information you're looking for.
 #[cfg(test)]
 #[test]
 fn test_trace() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.logging);
 
-    let args = parse_low_raw(["--trace"]).unwrap();
+    let args = parse_low_raw(["--trace"]).expect("Test parsing should succeed");
     assert_eq!(Some(LoggingMode::Trace), args.logging);
 
-    let args = parse_low_raw(["--debug", "--trace"]).unwrap();
+    let args = parse_low_raw(["--debug", "--trace"]).expect("Test parsing should succeed");
     assert_eq!(Some(LoggingMode::Trace), args.logging);
 }

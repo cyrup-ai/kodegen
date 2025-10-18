@@ -65,35 +65,35 @@ fn test_after_context() {
         mode
     };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(ContextMode::default(), args.context);
 
-    let args = parse_low_raw(["--after-context", "5"]).unwrap();
+    let args = parse_low_raw(["--after-context", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["--after-context=5"]).unwrap();
+    let args = parse_low_raw(["--after-context=5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-A", "5"]).unwrap();
+    let args = parse_low_raw(["-A", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-A5"]).unwrap();
+    let args = parse_low_raw(["-A5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-A5", "-A10"]).unwrap();
+    let args = parse_low_raw(["-A5", "-A10"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(10), args.context);
 
-    let args = parse_low_raw(["-A5", "-A0"]).unwrap();
+    let args = parse_low_raw(["-A5", "-A0"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(0), args.context);
 
-    let args = parse_low_raw(["-A5", "--passthru"]).unwrap();
+    let args = parse_low_raw(["-A5", "--passthru"]).expect("Test parsing should succeed");
     assert_eq!(ContextMode::Passthru, args.context);
 
-    let args = parse_low_raw(["--passthru", "-A5"]).unwrap();
+    let args = parse_low_raw(["--passthru", "-A5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
     let n = usize::MAX.to_string();
-    let args = parse_low_raw(["--after-context", n.as_str()]).unwrap();
+    let args = parse_low_raw(["--after-context", n.as_str()]).expect("Test parsing should succeed");
     assert_eq!(mkctx(usize::MAX), args.context);
 
     #[cfg(target_pointer_width = "64")]
@@ -154,35 +154,35 @@ fn test_before_context() {
         mode
     };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(ContextMode::default(), args.context);
 
-    let args = parse_low_raw(["--before-context", "5"]).unwrap();
+    let args = parse_low_raw(["--before-context", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["--before-context=5"]).unwrap();
+    let args = parse_low_raw(["--before-context=5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-B", "5"]).unwrap();
+    let args = parse_low_raw(["-B", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-B5"]).unwrap();
+    let args = parse_low_raw(["-B5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-B5", "-B10"]).unwrap();
+    let args = parse_low_raw(["-B5", "-B10"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(10), args.context);
 
-    let args = parse_low_raw(["-B5", "-B0"]).unwrap();
+    let args = parse_low_raw(["-B5", "-B0"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(0), args.context);
 
-    let args = parse_low_raw(["-B5", "--passthru"]).unwrap();
+    let args = parse_low_raw(["-B5", "--passthru"]).expect("Test parsing should succeed");
     assert_eq!(ContextMode::Passthru, args.context);
 
-    let args = parse_low_raw(["--passthru", "-B5"]).unwrap();
+    let args = parse_low_raw(["--passthru", "-B5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
     let n = usize::MAX.to_string();
-    let args = parse_low_raw(["--before-context", n.as_str()]).unwrap();
+    let args = parse_low_raw(["--before-context", n.as_str()]).expect("Test parsing should succeed");
     assert_eq!(mkctx(usize::MAX), args.context);
 
     #[cfg(target_pointer_width = "64")]
@@ -240,19 +240,19 @@ transformations on the data, such as decompression or a \flag{pre} filter.
 #[cfg(test)]
 #[test]
 fn test_byte_offset() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.byte_offset);
 
-    let args = parse_low_raw(["--byte-offset"]).unwrap();
+    let args = parse_low_raw(["--byte-offset"]).expect("Test parsing should succeed");
     assert_eq!(true, args.byte_offset);
 
-    let args = parse_low_raw(["-b"]).unwrap();
+    let args = parse_low_raw(["-b"]).expect("Test parsing should succeed");
     assert_eq!(true, args.byte_offset);
 
-    let args = parse_low_raw(["--byte-offset", "--no-byte-offset"]).unwrap();
+    let args = parse_low_raw(["--byte-offset", "--no-byte-offset"]).expect("Test parsing should succeed");
     assert_eq!(false, args.byte_offset);
 
-    let args = parse_low_raw(["--no-byte-offset", "-b"]).unwrap();
+    let args = parse_low_raw(["--no-byte-offset", "-b"]).expect("Test parsing should succeed");
     assert_eq!(true, args.byte_offset);
 }
 
@@ -347,24 +347,24 @@ the \flag{colors} flag to manually set all color styles to \fBnone\fP:
 #[cfg(test)]
 #[test]
 fn test_color() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Auto, args.color);
 
-    let args = parse_low_raw(["--color", "never"]).unwrap();
+    let args = parse_low_raw(["--color", "never"]).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Never, args.color);
 
-    let args = parse_low_raw(["--color", "auto"]).unwrap();
+    let args = parse_low_raw(["--color", "auto"]).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Auto, args.color);
 
-    let args = parse_low_raw(["--color=never"]).unwrap();
+    let args = parse_low_raw(["--color=never"]).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Never, args.color);
 
     let args =
-        parse_low_raw(["--color", "auto", "--color", "never"]).unwrap();
+        parse_low_raw(["--color", "auto", "--color", "never"]).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Never, args.color);
 
     let args =
-        parse_low_raw(["--color", "never", "--color", "auto"]).unwrap();
+        parse_low_raw(["--color", "never", "--color", "auto"]).expect("Test parsing should succeed");
     assert_eq!(ColorChoice::Auto, args.color);
 
     let result = parse_low_raw(["--color", "foofoo"]);
@@ -471,11 +471,11 @@ used alongside these extended color codes.
 #[cfg(test)]
 #[test]
 fn test_colors() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert!(args.colors.is_empty());
 
-    let args = parse_low_raw(["--colors", "match:fg:magenta"]).unwrap();
-    assert_eq!(args.colors, vec!["match:fg:magenta".parse().unwrap()]);
+    let args = parse_low_raw(["--colors", "match:fg:magenta"]).expect("Test parsing should succeed");
+    assert_eq!(args.colors, vec!["match:fg:magenta".parse().expect("Test parsing should succeed")]);
 
     let args = parse_low_raw([
         "--colors",
@@ -483,17 +483,17 @@ fn test_colors() {
         "--colors",
         "line:bg:yellow",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(
         args.colors,
         vec![
-            "match:fg:magenta".parse().unwrap(),
-            "line:bg:yellow".parse().unwrap()
+            "match:fg:magenta".parse().expect("Test parsing should succeed"),
+            "line:bg:yellow".parse().expect("Test parsing should succeed")
         ]
     );
 
-    let args = parse_low_raw(["--colors", "highlight:bg:240"]).unwrap();
-    assert_eq!(args.colors, vec!["highlight:bg:240".parse().unwrap()]);
+    let args = parse_low_raw(["--colors", "highlight:bg:240"]).expect("Test parsing should succeed");
+    assert_eq!(args.colors, vec!["highlight:bg:240".parse().expect("Test parsing should succeed")]);
 
     let args = parse_low_raw([
         "--colors",
@@ -501,12 +501,12 @@ fn test_colors() {
         "--colors",
         "highlight:bg:blue",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(
         args.colors,
         vec![
-            "match:fg:magenta".parse().unwrap(),
-            "highlight:bg:blue".parse().unwrap()
+            "match:fg:magenta".parse().expect("Test parsing should succeed"),
+            "highlight:bg:blue".parse().expect("Test parsing should succeed")
         ]
     );
 }
@@ -554,16 +554,16 @@ to the start of each match.
 #[cfg(test)]
 #[test]
 fn test_column() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.column);
 
-    let args = parse_low_raw(["--column"]).unwrap();
+    let args = parse_low_raw(["--column"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.column);
 
-    let args = parse_low_raw(["--column", "--no-column"]).unwrap();
+    let args = parse_low_raw(["--column", "--no-column"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.column);
 
-    let args = parse_low_raw(["--no-column", "--column"]).unwrap();
+    let args = parse_low_raw(["--no-column", "--column"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.column);
 }
 
@@ -620,35 +620,35 @@ fn test_context() {
         mode
     };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(ContextMode::default(), args.context);
 
-    let args = parse_low_raw(["--context", "5"]).unwrap();
+    let args = parse_low_raw(["--context", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["--context=5"]).unwrap();
+    let args = parse_low_raw(["--context=5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-C", "5"]).unwrap();
+    let args = parse_low_raw(["-C", "5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-C5"]).unwrap();
+    let args = parse_low_raw(["-C5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
-    let args = parse_low_raw(["-C5", "-C10"]).unwrap();
+    let args = parse_low_raw(["-C5", "-C10"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(10), args.context);
 
-    let args = parse_low_raw(["-C5", "-C0"]).unwrap();
+    let args = parse_low_raw(["-C5", "-C0"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(0), args.context);
 
-    let args = parse_low_raw(["-C5", "--passthru"]).unwrap();
+    let args = parse_low_raw(["-C5", "--passthru"]).expect("Test parsing should succeed");
     assert_eq!(ContextMode::Passthru, args.context);
 
-    let args = parse_low_raw(["--passthru", "-C5"]).unwrap();
+    let args = parse_low_raw(["--passthru", "-C5"]).expect("Test parsing should succeed");
     assert_eq!(mkctx(5), args.context);
 
     let n = usize::MAX.to_string();
-    let args = parse_low_raw(["--context", n.as_str()]).unwrap();
+    let args = parse_low_raw(["--context", n.as_str()]).expect("Test parsing should succeed");
     assert_eq!(mkctx(usize::MAX), args.context);
 
     #[cfg(target_pointer_width = "64")]
@@ -662,21 +662,21 @@ fn test_context() {
     // partially overrides -C, regardless of where they appear relative to
     // each other. This behavior is also how GNU grep works, and it also makes
     // logical sense to me: -A/-B are the more specific flags.
-    let args = parse_low_raw(["-A1", "-C5"]).unwrap();
+    let args = parse_low_raw(["-A1", "-C5"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_after(1);
     mode.set_both(5);
     assert_eq!(mode, args.context);
     assert_eq!((5, 1), args.context.get_limited());
 
-    let args = parse_low_raw(["-B1", "-C5"]).unwrap();
+    let args = parse_low_raw(["-B1", "-C5"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_before(1);
     mode.set_both(5);
     assert_eq!(mode, args.context);
     assert_eq!((1, 5), args.context.get_limited());
 
-    let args = parse_low_raw(["-A1", "-B2", "-C5"]).unwrap();
+    let args = parse_low_raw(["-A1", "-B2", "-C5"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_before(2);
     mode.set_after(1);
@@ -687,21 +687,21 @@ fn test_context() {
     // These next three are like the ones above, but with -C before -A/-B. This
     // tests that -A and -B only partially override -C. That is, -C1 -A2 is
     // equivalent to -B1 -A2.
-    let args = parse_low_raw(["-C5", "-A1"]).unwrap();
+    let args = parse_low_raw(["-C5", "-A1"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_after(1);
     mode.set_both(5);
     assert_eq!(mode, args.context);
     assert_eq!((5, 1), args.context.get_limited());
 
-    let args = parse_low_raw(["-C5", "-B1"]).unwrap();
+    let args = parse_low_raw(["-C5", "-B1"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_before(1);
     mode.set_both(5);
     assert_eq!(mode, args.context);
     assert_eq!((1, 5), args.context.get_limited());
 
-    let args = parse_low_raw(["-C5", "-A1", "-B2"]).unwrap();
+    let args = parse_low_raw(["-C5", "-A1", "-B2"]).expect("Test parsing should succeed");
     let mut mode = ContextMode::default();
     mode.set_before(2);
     mode.set_after(1);
@@ -772,13 +772,13 @@ fn test_context_separator() {
 
     let getbytes = |ctxsep: Separator| ctxsep.into_bytes().map(BString::from);
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("--")), getbytes(args.context_separator));
 
-    let args = parse_low_raw(["--context-separator", "XYZ"]).unwrap();
+    let args = parse_low_raw(["--context-separator", "XYZ"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("XYZ")), getbytes(args.context_separator));
 
-    let args = parse_low_raw(["--no-context-separator"]).unwrap();
+    let args = parse_low_raw(["--no-context-separator"]).expect("Test parsing should succeed");
     assert_eq!(None, getbytes(args.context_separator));
 
     let args = parse_low_raw([
@@ -786,7 +786,7 @@ fn test_context_separator() {
         "XYZ",
         "--no-context-separator",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(None, getbytes(args.context_separator));
 
     let args = parse_low_raw([
@@ -794,14 +794,14 @@ fn test_context_separator() {
         "--context-separator",
         "XYZ",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("XYZ")), getbytes(args.context_separator));
 
     // This checks that invalid UTF-8 can be used. This case isn't too tricky
     // to handle, because it passes the invalid UTF-8 as an escape sequence
     // that is itself valid UTF-8. It doesn't become invalid UTF-8 until after
     // the argument is parsed and then unescaped.
-    let args = parse_low_raw(["--context-separator", r"\xFF"]).unwrap();
+    let args = parse_low_raw(["--context-separator", r"\xFF"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from(b"\xFF")), getbytes(args.context_separator));
 
     // In this case, we specifically try to pass an invalid UTF-8 argument to
@@ -869,16 +869,16 @@ The \fB-\fP character is the default value.
 fn test_field_context_separator() {
     use bstr::BString;
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(BString::from("-"), args.field_context_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-context-separator", "XYZ"]).unwrap();
+    let args = parse_low_raw(["--field-context-separator", "XYZ"]).expect("Test parsing should succeed");
     assert_eq!(
         BString::from("XYZ"),
         args.field_context_separator.into_bytes()
     );
 
-    let args = parse_low_raw(["--field-context-separator=XYZ"]).unwrap();
+    let args = parse_low_raw(["--field-context-separator=XYZ"]).expect("Test parsing should succeed");
     assert_eq!(
         BString::from("XYZ"),
         args.field_context_separator.into_bytes()
@@ -890,16 +890,16 @@ fn test_field_context_separator() {
         "--field-context-separator",
         "ABC",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(
         BString::from("ABC"),
         args.field_context_separator.into_bytes()
     );
 
-    let args = parse_low_raw(["--field-context-separator", r"\t"]).unwrap();
+    let args = parse_low_raw(["--field-context-separator", r"\t"]).expect("Test parsing should succeed");
     assert_eq!(BString::from("\t"), args.field_context_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-context-separator", r"\x00"]).unwrap();
+    let args = parse_low_raw(["--field-context-separator", r"\x00"]).expect("Test parsing should succeed");
     assert_eq!(
         BString::from("\x00"),
         args.field_context_separator.into_bytes()
@@ -909,7 +909,7 @@ fn test_field_context_separator() {
     // to handle, because it passes the invalid UTF-8 as an escape sequence
     // that is itself valid UTF-8. It doesn't become invalid UTF-8 until after
     // the argument is parsed and then unescaped.
-    let args = parse_low_raw(["--field-context-separator", r"\xFF"]).unwrap();
+    let args = parse_low_raw(["--field-context-separator", r"\xFF"]).expect("Test parsing should succeed");
     assert_eq!(
         BString::from(b"\xFF"),
         args.field_context_separator.into_bytes()
@@ -980,13 +980,13 @@ The \fB:\fP character is the default value.
 fn test_field_match_separator() {
     use bstr::BString;
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(BString::from(":"), args.field_match_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-match-separator", "XYZ"]).unwrap();
+    let args = parse_low_raw(["--field-match-separator", "XYZ"]).expect("Test parsing should succeed");
     assert_eq!(BString::from("XYZ"), args.field_match_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-match-separator=XYZ"]).unwrap();
+    let args = parse_low_raw(["--field-match-separator=XYZ"]).expect("Test parsing should succeed");
     assert_eq!(BString::from("XYZ"), args.field_match_separator.into_bytes());
 
     let args = parse_low_raw([
@@ -995,20 +995,20 @@ fn test_field_match_separator() {
         "--field-match-separator",
         "ABC",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(BString::from("ABC"), args.field_match_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-match-separator", r"\t"]).unwrap();
+    let args = parse_low_raw(["--field-match-separator", r"\t"]).expect("Test parsing should succeed");
     assert_eq!(BString::from("\t"), args.field_match_separator.into_bytes());
 
-    let args = parse_low_raw(["--field-match-separator", r"\x00"]).unwrap();
+    let args = parse_low_raw(["--field-match-separator", r"\x00"]).expect("Test parsing should succeed");
     assert_eq!(BString::from("\x00"), args.field_match_separator.into_bytes());
 
     // This checks that invalid UTF-8 can be used. This case isn't too tricky
     // to handle, because it passes the invalid UTF-8 as an escape sequence
     // that is itself valid UTF-8. It doesn't become invalid UTF-8 until after
     // the argument is parsed and then unescaped.
-    let args = parse_low_raw(["--field-match-separator", r"\xFF"]).unwrap();
+    let args = parse_low_raw(["--field-match-separator", r"\xFF"]).expect("Test parsing should succeed");
     assert_eq!(
         BString::from(b"\xFF"),
         args.field_match_separator.into_bytes()
@@ -1078,19 +1078,19 @@ cat\fP.
 #[cfg(test)]
 #[test]
 fn test_heading() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.heading);
 
-    let args = parse_low_raw(["--heading"]).unwrap();
+    let args = parse_low_raw(["--heading"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.heading);
 
-    let args = parse_low_raw(["--no-heading"]).unwrap();
+    let args = parse_low_raw(["--no-heading"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.heading);
 
-    let args = parse_low_raw(["--heading", "--no-heading"]).unwrap();
+    let args = parse_low_raw(["--heading", "--no-heading"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.heading);
 
-    let args = parse_low_raw(["--no-heading", "--heading"]).unwrap();
+    let args = parse_low_raw(["--no-heading", "--heading"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.heading);
 }
 
@@ -1192,13 +1192,13 @@ ripgrep uses your system's hostname for producing hyperlinks.
 #[cfg(test)]
 #[test]
 fn test_hostname_bin() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.hostname_bin);
 
-    let args = parse_low_raw(["--hostname-bin", "foo"]).unwrap();
+    let args = parse_low_raw(["--hostname-bin", "foo"]).expect("Test parsing should succeed");
     assert_eq!(Some(PathBuf::from("foo")), args.hostname_bin);
 
-    let args = parse_low_raw(["--hostname-bin=foo"]).unwrap();
+    let args = parse_low_raw(["--hostname-bin=foo"]).expect("Test parsing should succeed");
     assert_eq!(Some(PathBuf::from("foo")), args.hostname_bin);
 }
 
@@ -1363,19 +1363,19 @@ https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
 #[test]
 fn test_hyperlink_format() {
     let parseformat = |format: &str| {
-        format.parse::<grep::printer::HyperlinkFormat>().unwrap()
+        format.parse::<grep::printer::HyperlinkFormat>().expect("Test parsing should succeed")
     };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(parseformat("none"), args.hyperlink_format);
 
-    let args = parse_low_raw(["--hyperlink-format", "default"]).unwrap();
+    let args = parse_low_raw(["--hyperlink-format", "default"]).expect("Test parsing should succeed");
     #[cfg(windows)]
     assert_eq!(parseformat("file://{path}"), args.hyperlink_format);
     #[cfg(not(windows))]
     assert_eq!(parseformat("file://{host}{path}"), args.hyperlink_format);
 
-    let args = parse_low_raw(["--hyperlink-format", "file"]).unwrap();
+    let args = parse_low_raw(["--hyperlink-format", "file"]).expect("Test parsing should succeed");
     assert_eq!(parseformat("file://{host}{path}"), args.hyperlink_format);
 
     let args = parse_low_raw([
@@ -1383,12 +1383,12 @@ fn test_hyperlink_format() {
         "file",
         "--hyperlink-format=grep+",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(parseformat("grep+://{path}:{line}"), args.hyperlink_format);
 
     let args =
         parse_low_raw(["--hyperlink-format", "file://{host}{path}#{line}"])
-            .unwrap();
+            .expect("Test parsing should succeed");
     assert_eq!(
         parseformat("file://{host}{path}#{line}"),
         args.hyperlink_format
@@ -1439,13 +1439,13 @@ grep.
 #[cfg(test)]
 #[test]
 fn test_include_zero() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.include_zero);
 
-    let args = parse_low_raw(["--include-zero"]).unwrap();
+    let args = parse_low_raw(["--include-zero"]).expect("Test parsing should succeed");
     assert_eq!(true, args.include_zero);
 
-    let args = parse_low_raw(["--include-zero", "--no-include-zero"]).unwrap();
+    let args = parse_low_raw(["--include-zero", "--no-include-zero"]).expect("Test parsing should succeed");
     assert_eq!(false, args.include_zero);
 }
 
@@ -1492,16 +1492,16 @@ This flag can be disabled by \flag{no-line-number}.
 #[cfg(test)]
 #[test]
 fn test_line_number() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.line_number);
 
-    let args = parse_low_raw(["--line-number"]).unwrap();
+    let args = parse_low_raw(["--line-number"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.line_number);
 
-    let args = parse_low_raw(["-n"]).unwrap();
+    let args = parse_low_raw(["-n"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.line_number);
 
-    let args = parse_low_raw(["-n", "--no-line-number"]).unwrap();
+    let args = parse_low_raw(["-n", "--no-line-number"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.line_number);
 }
 
@@ -1551,16 +1551,16 @@ Line numbers can be forcefully turned on by \flag{line-number}.
 #[cfg(test)]
 #[test]
 fn test_no_line_number() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.line_number);
 
-    let args = parse_low_raw(["--no-line-number"]).unwrap();
+    let args = parse_low_raw(["--no-line-number"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.line_number);
 
-    let args = parse_low_raw(["-N"]).unwrap();
+    let args = parse_low_raw(["-N"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.line_number);
 
-    let args = parse_low_raw(["-N", "--line-number"]).unwrap();
+    let args = parse_low_raw(["-N", "--line-number"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.line_number);
 }
 
@@ -1609,19 +1609,19 @@ When this flag is omitted or is set to \fB0\fP, then it has no effect.
 #[cfg(test)]
 #[test]
 fn test_max_columns() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.max_columns);
 
-    let args = parse_low_raw(["--max-columns", "5"]).unwrap();
+    let args = parse_low_raw(["--max-columns", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_columns);
 
-    let args = parse_low_raw(["-M", "5"]).unwrap();
+    let args = parse_low_raw(["-M", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_columns);
 
-    let args = parse_low_raw(["-M5"]).unwrap();
+    let args = parse_low_raw(["-M5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_columns);
 
-    let args = parse_low_raw(["--max-columns", "5", "-M0"]).unwrap();
+    let args = parse_low_raw(["--max-columns", "5", "-M0"]).expect("Test parsing should succeed");
     assert_eq!(None, args.max_columns);
 }
 
@@ -1671,15 +1671,15 @@ If the \flag{max-columns} flag is not set, then this has no effect.
 #[cfg(test)]
 #[test]
 fn test_max_columns_preview() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.max_columns_preview);
 
-    let args = parse_low_raw(["--max-columns-preview"]).unwrap();
+    let args = parse_low_raw(["--max-columns-preview"]).expect("Test parsing should succeed");
     assert_eq!(true, args.max_columns_preview);
 
     let args =
         parse_low_raw(["--max-columns-preview", "--no-max-columns-preview"])
-            .unwrap();
+            .expect("Test parsing should succeed");
     assert_eq!(false, args.max_columns_preview);
 }
 
@@ -1725,13 +1725,13 @@ option is useful for use with \fBxargs\fP.
 #[cfg(test)]
 #[test]
 fn test_null() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.null);
 
-    let args = parse_low_raw(["--null"]).unwrap();
+    let args = parse_low_raw(["--null"]).expect("Test parsing should succeed");
     assert_eq!(true, args.null);
 
-    let args = parse_low_raw(["-0"]).unwrap();
+    let args = parse_low_raw(["-0"]).expect("Test parsing should succeed");
     assert_eq!(true, args.null);
 }
 
@@ -1775,13 +1775,13 @@ part on a separate output line.
 #[cfg(test)]
 #[test]
 fn test_only_matching() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.only_matching);
 
-    let args = parse_low_raw(["--only-matching"]).unwrap();
+    let args = parse_low_raw(["--only-matching"]).expect("Test parsing should succeed");
     assert_eq!(true, args.only_matching);
 
-    let args = parse_low_raw(["-o"]).unwrap();
+    let args = parse_low_raw(["-o"]).expect("Test parsing should succeed");
     assert_eq!(true, args.only_matching);
 }
 
@@ -1844,30 +1844,30 @@ is, the path separator is automatically chosen based on the environment.
 #[cfg(test)]
 #[test]
 fn test_path_separator() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", "/"]).unwrap();
+    let args = parse_low_raw(["--path-separator", "/"]).expect("Test parsing should succeed");
     assert_eq!(Some(b'/'), args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", r"\"]).unwrap();
+    let args = parse_low_raw(["--path-separator", r"\"]).expect("Test parsing should succeed");
     assert_eq!(Some(b'\\'), args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", r"\x00"]).unwrap();
+    let args = parse_low_raw(["--path-separator", r"\x00"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", r"\0"]).unwrap();
+    let args = parse_low_raw(["--path-separator", r"\0"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", "\x00"]).unwrap();
+    let args = parse_low_raw(["--path-separator", "\x00"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.path_separator);
 
-    let args = parse_low_raw(["--path-separator", "\0"]).unwrap();
+    let args = parse_low_raw(["--path-separator", "\0"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.path_separator);
 
     let args =
         parse_low_raw(["--path-separator", r"\x00", "--path-separator=/"])
-            .unwrap();
+            .expect("Test parsing should succeed");
     assert_eq!(Some(b'/'), args.path_separator);
 
     let result = parse_low_raw(["--path-separator", "foo"]);
@@ -1924,23 +1924,23 @@ first file that does not match any ignore rules.
 #[cfg(test)]
 #[test]
 fn test_quiet() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.quiet);
 
-    let args = parse_low_raw(["--quiet"]).unwrap();
+    let args = parse_low_raw(["--quiet"]).expect("Test parsing should succeed");
     assert_eq!(true, args.quiet);
 
-    let args = parse_low_raw(["-q"]).unwrap();
+    let args = parse_low_raw(["-q"]).expect("Test parsing should succeed");
     assert_eq!(true, args.quiet);
 
     // flags like -l and --json cannot override -q, regardless of order
-    let args = parse_low_raw(["-q", "--json"]).unwrap();
+    let args = parse_low_raw(["-q", "--json"]).expect("Test parsing should succeed");
     assert_eq!(true, args.quiet);
 
-    let args = parse_low_raw(["-q", "--count"]).unwrap();
+    let args = parse_low_raw(["-q", "--count"]).expect("Test parsing should succeed");
     assert_eq!(true, args.quiet);
 
-    let args = parse_low_raw(["-q", "--count-matches"]).unwrap();
+    let args = parse_low_raw(["-q", "--count-matches"]).expect("Test parsing should succeed");
     assert_eq!(true, args.quiet);
 }
 
@@ -2017,22 +2017,22 @@ This flag can be used with the \flag{only-matching} flag.
 fn test_replace() {
     use bstr::BString;
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.replace);
 
-    let args = parse_low_raw(["--replace", "foo"]).unwrap();
+    let args = parse_low_raw(["--replace", "foo"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("foo")), args.replace);
 
-    let args = parse_low_raw(["--replace", "-foo"]).unwrap();
+    let args = parse_low_raw(["--replace", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("-foo")), args.replace);
 
-    let args = parse_low_raw(["-r", "foo"]).unwrap();
+    let args = parse_low_raw(["-r", "foo"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("foo")), args.replace);
 
-    let args = parse_low_raw(["-r", "foo", "-rbar"]).unwrap();
+    let args = parse_low_raw(["-r", "foo", "-rbar"]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("bar")), args.replace);
 
-    let args = parse_low_raw(["-r", "foo", "-r", ""]).unwrap();
+    let args = parse_low_raw(["-r", "foo", "-r", ""]).expect("Test parsing should succeed");
     assert_eq!(Some(BString::from("")), args.replace);
 }
 
@@ -2084,46 +2084,46 @@ This flag overrides \flag{sort} and \flag{sortr}.
 #[cfg(test)]
 #[test]
 fn test_sort_files() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sort-files"]).unwrap();
+    let args = parse_low_raw(["--sort-files"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort-files", "--no-sort-files"]).unwrap();
+    let args = parse_low_raw(["--sort-files", "--no-sort-files"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sort", "created", "--sort-files"]).unwrap();
+    let args = parse_low_raw(["--sort", "created", "--sort-files"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort-files", "--sort", "created"]).unwrap();
+    let args = parse_low_raw(["--sort-files", "--sort", "created"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Created }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sortr", "created", "--sort-files"]).unwrap();
+    let args = parse_low_raw(["--sortr", "created", "--sort-files"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort-files", "--sortr", "created"]).unwrap();
+    let args = parse_low_raw(["--sort-files", "--sortr", "created"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: true, kind: SortModeKind::Created }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort=path", "--no-sort-files"]).unwrap();
+    let args = parse_low_raw(["--sort=path", "--no-sort-files"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sortr=path", "--no-sort-files"]).unwrap();
+    let args = parse_low_raw(["--sortr=path", "--no-sort-files"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 }
 
@@ -2209,25 +2209,25 @@ parallelism and run in a single thread.
 #[cfg(test)]
 #[test]
 fn test_sort() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sort", "path"]).unwrap();
+    let args = parse_low_raw(["--sort", "path"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort", "path", "--sort=created"]).unwrap();
+    let args = parse_low_raw(["--sort", "path", "--sort=created"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Created }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sort=none"]).unwrap();
+    let args = parse_low_raw(["--sort=none"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sort", "path", "--sort=none"]).unwrap();
+    let args = parse_low_raw(["--sort", "path", "--sort=none"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 }
 
@@ -2314,34 +2314,34 @@ parallelism and run in a single thread.
 #[cfg(test)]
 #[test]
 fn test_sortr() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sortr", "path"]).unwrap();
+    let args = parse_low_raw(["--sortr", "path"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: true, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sortr", "path", "--sortr=created"]).unwrap();
+    let args = parse_low_raw(["--sortr", "path", "--sortr=created"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: true, kind: SortModeKind::Created }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sortr=none"]).unwrap();
+    let args = parse_low_raw(["--sortr=none"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sortr", "path", "--sortr=none"]).unwrap();
+    let args = parse_low_raw(["--sortr", "path", "--sortr=none"]).expect("Test parsing should succeed");
     assert_eq!(None, args.sort);
 
-    let args = parse_low_raw(["--sort=path", "--sortr=path"]).unwrap();
+    let args = parse_low_raw(["--sort=path", "--sortr=path"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: true, kind: SortModeKind::Path }),
         args.sort
     );
 
-    let args = parse_low_raw(["--sortr=path", "--sort=path"]).unwrap();
+    let args = parse_low_raw(["--sortr=path", "--sort=path"]).expect("Test parsing should succeed");
     assert_eq!(
         Some(SortMode { reverse: false, kind: SortModeKind::Path }),
         args.sort
@@ -2387,13 +2387,13 @@ removed.
 #[cfg(test)]
 #[test]
 fn test_trim() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.trim);
 
-    let args = parse_low_raw(["--trim"]).unwrap();
+    let args = parse_low_raw(["--trim"]).expect("Test parsing should succeed");
     assert_eq!(true, args.trim);
 
-    let args = parse_low_raw(["--trim", "--no-trim"]).unwrap();
+    let args = parse_low_raw(["--trim", "--no-trim"]).expect("Test parsing should succeed");
     assert_eq!(false, args.trim);
 }
 
@@ -2449,10 +2449,10 @@ use.
 #[cfg(test)]
 #[test]
 fn test_vimgrep() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.vimgrep);
 
-    let args = parse_low_raw(["--vimgrep"]).unwrap();
+    let args = parse_low_raw(["--vimgrep"]).expect("Test parsing should succeed");
     assert_eq!(true, args.vimgrep);
 }
 
@@ -2501,13 +2501,13 @@ This flag overrides \flag{no-filename}.
 #[cfg(test)]
 #[test]
 fn test_with_filename() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.with_filename);
 
-    let args = parse_low_raw(["--with-filename"]).unwrap();
+    let args = parse_low_raw(["--with-filename"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.with_filename);
 
-    let args = parse_low_raw(["-H"]).unwrap();
+    let args = parse_low_raw(["-H"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.with_filename);
 }
 
@@ -2557,18 +2557,18 @@ This flag overrides \flag{with-filename}.
 #[cfg(test)]
 #[test]
 fn test_with_filename_no() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.with_filename);
 
-    let args = parse_low_raw(["--no-filename"]).unwrap();
+    let args = parse_low_raw(["--no-filename"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.with_filename);
 
-    let args = parse_low_raw(["-I"]).unwrap();
+    let args = parse_low_raw(["-I"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.with_filename);
 
-    let args = parse_low_raw(["-I", "-H"]).unwrap();
+    let args = parse_low_raw(["-I", "-H"]).expect("Test parsing should succeed");
     assert_eq!(Some(true), args.with_filename);
 
-    let args = parse_low_raw(["-H", "-I"]).unwrap();
+    let args = parse_low_raw(["-H", "-I"]).expect("Test parsing should succeed");
     assert_eq!(Some(false), args.with_filename);
 }

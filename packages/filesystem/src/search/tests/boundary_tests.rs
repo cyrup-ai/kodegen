@@ -17,16 +17,16 @@ fn test_word_boundary_literal_search() {
         .expect("Failed to build matcher");
     
     // Should match: "test()", "test ", "test."
-    assert!(matcher.is_match(b"test()").unwrap(), "Should match 'test()'");
-    assert!(matcher.is_match(b"test ").unwrap(), "Should match 'test '");
-    assert!(matcher.is_match(b"test.").unwrap(), "Should match 'test.'");
-    assert!(matcher.is_match(b"test").unwrap(), "Should match 'test'");
+    assert!(matcher.is_match(b"test()").expect("Test operation should succeed"), "Should match 'test()'");
+    assert!(matcher.is_match(b"test ").expect("Match check failed"), "Should match 'test '");
+    assert!(matcher.is_match(b"test.").expect("Match check failed"), "Should match 'test.'");
+    assert!(matcher.is_match(b"test").expect("Match check failed"), "Should match 'test'");
     
     // Should NOT match: "testing", "attest", "fastest"
-    assert!(!matcher.is_match(b"testing").unwrap(), "Should not match 'testing'");
-    assert!(!matcher.is_match(b"attest").unwrap(), "Should not match 'attest'");
-    assert!(!matcher.is_match(b"fastest").unwrap(), "Should not match 'fastest'");
-    assert!(!matcher.is_match(b"libtest").unwrap(), "Should not match 'libtest'");
+    assert!(!matcher.is_match(b"testing").expect("Match check failed"), "Should not match 'testing'");
+    assert!(!matcher.is_match(b"attest").expect("Match check failed"), "Should not match 'attest'");
+    assert!(!matcher.is_match(b"fastest").expect("Match check failed"), "Should not match 'fastest'");
+    assert!(!matcher.is_match(b"libtest").expect("Match check failed"), "Should not match 'libtest'");
 }
 
 #[test]
@@ -39,13 +39,13 @@ fn test_word_boundary_regex_search() {
         .expect("Failed to build matcher");
     
     // Should match: "test", "testing", "tester"
-    assert!(matcher.is_match(b"test").unwrap(), "Should match 'test'");
-    assert!(matcher.is_match(b"testing word").unwrap(), "Should match 'testing' at word boundary");
-    assert!(matcher.is_match(b"tester ").unwrap(), "Should match 'tester'");
+    assert!(matcher.is_match(b"test").expect("Match check failed"), "Should match 'test'");
+    assert!(matcher.is_match(b"testing word").expect("Match check failed"), "Should match 'testing' at word boundary");
+    assert!(matcher.is_match(b"tester ").expect("Match check failed"), "Should match 'tester'");
     
     // Should NOT match: "attest" (test not at word boundary)
-    assert!(!matcher.is_match(b"attest").unwrap(), "Should not match 'attest'");
-    assert!(!matcher.is_match(b"libtest").unwrap(), "Should not match 'libtest'");
+    assert!(!matcher.is_match(b"attest").expect("Match check failed"), "Should not match 'attest'");
+    assert!(!matcher.is_match(b"libtest").expect("Match check failed"), "Should not match 'libtest'");
 }
 
 #[test]
@@ -58,12 +58,12 @@ fn test_word_boundary_preserves_existing_boundaries() {
         .expect("Failed to build matcher");
     
     // Should match: "test" at word boundaries
-    assert!(matcher.is_match(b"test").unwrap(), "Should match 'test'");
-    assert!(matcher.is_match(b"test ").unwrap(), "Should match 'test '");
+    assert!(matcher.is_match(b"test").expect("Match check failed"), "Should match 'test'");
+    assert!(matcher.is_match(b"test ").expect("Match check failed"), "Should match 'test '");
     
     // Should NOT match: "testing", "attest"
-    assert!(!matcher.is_match(b"testing").unwrap(), "Should not match 'testing'");
-    assert!(!matcher.is_match(b"attest").unwrap(), "Should not match 'attest'");
+    assert!(!matcher.is_match(b"testing").expect("Match check failed"), "Should not match 'testing'");
+    assert!(!matcher.is_match(b"attest").expect("Match check failed"), "Should not match 'attest'");
 }
 
 #[test]
@@ -76,11 +76,11 @@ fn test_substring_mode_default() {
         .expect("Failed to build matcher");
     
     // Should match ALL occurrences including substrings
-    assert!(matcher.is_match(b"test").unwrap(), "Should match 'test'");
-    assert!(matcher.is_match(b"testing").unwrap(), "Should match 'testing'");
-    assert!(matcher.is_match(b"attest").unwrap(), "Should match 'attest'");
-    assert!(matcher.is_match(b"fastest").unwrap(), "Should match 'fastest'");
-    assert!(matcher.is_match(b"libtest").unwrap(), "Should match 'libtest'");
+    assert!(matcher.is_match(b"test").expect("Match check failed"), "Should match 'test'");
+    assert!(matcher.is_match(b"testing").expect("Match check failed"), "Should match 'testing'");
+    assert!(matcher.is_match(b"attest").expect("Match check failed"), "Should match 'attest'");
+    assert!(matcher.is_match(b"fastest").expect("Match check failed"), "Should match 'fastest'");
+    assert!(matcher.is_match(b"libtest").expect("Match check failed"), "Should match 'libtest'");
 }
 
 #[test]
@@ -93,15 +93,15 @@ fn test_word_boundary_with_special_chars() {
         .expect("Failed to build matcher");
     
     // Should match: "test.log" exactly
-    assert!(matcher.is_match(b"test.log").unwrap(), "Should match 'test.log'");
-    assert!(matcher.is_match(b"test.log ").unwrap(), "Should match 'test.log '");
+    assert!(matcher.is_match(b"test.log").expect("Match check failed"), "Should match 'test.log'");
+    assert!(matcher.is_match(b"test.log ").expect("Match check failed"), "Should match 'test.log '");
     
     // Should NOT match: "testXlog" (dot not escaped would match this)
-    assert!(!matcher.is_match(b"testXlog").unwrap(), "Should not match 'testXlog'");
+    assert!(!matcher.is_match(b"testXlog").expect("Match check failed"), "Should not match 'testXlog'");
     
     // Should NOT match when pattern is part of longer word
-    assert!(!matcher.is_match(b"mytest.log").unwrap(), "Should not match 'mytest.log'");
-    assert!(!matcher.is_match(b"test.logger").unwrap(), "Should not match 'test.logger'");
+    assert!(!matcher.is_match(b"mytest.log").expect("Match check failed"), "Should not match 'mytest.log'");
+    assert!(!matcher.is_match(b"test.logger").expect("Match check failed"), "Should not match 'test.logger'");
 }
 
 #[test]
@@ -111,13 +111,13 @@ fn test_word_boundary_case_insensitive() {
         .expect("Failed to build matcher");
     
     // Should match both cases at word boundaries
-    assert!(matcher.is_match(b"test").unwrap(), "Should match lowercase 'test'");
-    assert!(matcher.is_match(b"TEST").unwrap(), "Should match uppercase 'TEST'");
-    assert!(matcher.is_match(b"Test").unwrap(), "Should match mixed 'Test'");
+    assert!(matcher.is_match(b"test").expect("Match check failed"), "Should match lowercase 'test'");
+    assert!(matcher.is_match(b"TEST").expect("Match check failed"), "Should match uppercase 'TEST'");
+    assert!(matcher.is_match(b"Test").expect("Match check failed"), "Should match mixed 'Test'");
     
     // Should NOT match when not at word boundary
-    assert!(!matcher.is_match(b"testing").unwrap(), "Should not match 'testing'");
-    assert!(!matcher.is_match(b"TESTING").unwrap(), "Should not match 'TESTING'");
+    assert!(!matcher.is_match(b"testing").expect("Match check failed"), "Should not match 'testing'");
+    assert!(!matcher.is_match(b"TESTING").expect("Match check failed"), "Should not match 'TESTING'");
 }
 
 #[test]
@@ -128,13 +128,13 @@ fn test_word_boundary_with_numbers() {
         .expect("Failed to build matcher");
     
     // Numbers are word characters - NO boundary between letters and numbers
-    assert!(!matcher.is_match(b"test123").unwrap(), "Should NOT match 'test123' (no boundary)");
-    assert!(!matcher.is_match(b"123test").unwrap(), "Should NOT match '123test' (no boundary)");
+    assert!(!matcher.is_match(b"test123").expect("Match check failed"), "Should NOT match 'test123' (no boundary)");
+    assert!(!matcher.is_match(b"123test").expect("Match check failed"), "Should NOT match '123test' (no boundary)");
     
     // But boundaries exist with non-word characters
-    assert!(matcher.is_match(b"test-123").unwrap(), "Should match 'test-123' (hyphen is boundary)");
-    assert!(matcher.is_match(b"test.123").unwrap(), "Should match 'test.123' (dot is boundary)");
-    assert!(matcher.is_match(b"test 123").unwrap(), "Should match 'test 123' (space is boundary)");
+    assert!(matcher.is_match(b"test-123").expect("Match check failed"), "Should match 'test-123' (hyphen is boundary)");
+    assert!(matcher.is_match(b"test.123").expect("Match check failed"), "Should match 'test.123' (dot is boundary)");
+    assert!(matcher.is_match(b"test 123").expect("Match check failed"), "Should match 'test 123' (space is boundary)");
 }
 
 // Note: PCRE2 support is available via grep-pcre2 but not currently exposed in our API

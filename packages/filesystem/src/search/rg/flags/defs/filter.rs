@@ -87,25 +87,25 @@ This flag overrides the \flag{text} flag.
 #[cfg(test)]
 #[test]
 fn test_binary() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--binary"]).unwrap();
+    let args = parse_low_raw(["--binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::SearchAndSuppress, args.binary);
 
-    let args = parse_low_raw(["--binary", "--no-binary"]).unwrap();
+    let args = parse_low_raw(["--binary", "--no-binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--no-binary", "--binary"]).unwrap();
+    let args = parse_low_raw(["--no-binary", "--binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::SearchAndSuppress, args.binary);
 
-    let args = parse_low_raw(["--binary", "-a"]).unwrap();
+    let args = parse_low_raw(["--binary", "-a"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::AsText, args.binary);
 
-    let args = parse_low_raw(["-a", "--binary"]).unwrap();
+    let args = parse_low_raw(["-a", "--binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::SearchAndSuppress, args.binary);
 
-    let args = parse_low_raw(["-a", "--no-binary"]).unwrap();
+    let args = parse_low_raw(["-a", "--no-binary"]).expect("Test parsing should succeed");
     assert_eq!(BinaryMode::Auto, args.binary);
 }
 
@@ -154,19 +154,19 @@ also report errors for broken links. To suppress error messages, use the
 #[cfg(test)]
 #[test]
 fn test_follow() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.follow);
 
-    let args = parse_low_raw(["--follow"]).unwrap();
+    let args = parse_low_raw(["--follow"]).expect("Test parsing should succeed");
     assert_eq!(true, args.follow);
 
-    let args = parse_low_raw(["-L"]).unwrap();
+    let args = parse_low_raw(["-L"]).expect("Test parsing should succeed");
     assert_eq!(true, args.follow);
 
-    let args = parse_low_raw(["-L", "--no-follow"]).unwrap();
+    let args = parse_low_raw(["-L", "--no-follow"]).expect("Test parsing should succeed");
     assert_eq!(false, args.follow);
 
-    let args = parse_low_raw(["--no-follow", "-L"]).unwrap();
+    let args = parse_low_raw(["--no-follow", "-L"]).expect("Test parsing should succeed");
     assert_eq!(true, args.follow);
 }
 
@@ -235,31 +235,31 @@ the glob \fIfoo\fP. Instead, you should use
 #[cfg(test)]
 #[test]
 fn test_glob() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<String>::new(), args.globs);
 
-    let args = parse_low_raw(["--glob", "foo"]).unwrap();
+    let args = parse_low_raw(["--glob", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["--glob=foo"]).unwrap();
+    let args = parse_low_raw(["--glob=foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["-g", "foo"]).unwrap();
+    let args = parse_low_raw(["-g", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["-gfoo"]).unwrap();
+    let args = parse_low_raw(["-gfoo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["--glob", "-foo"]).unwrap();
+    let args = parse_low_raw(["--glob", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["--glob=-foo"]).unwrap();
+    let args = parse_low_raw(["--glob=-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["-g", "-foo"]).unwrap();
+    let args = parse_low_raw(["-g", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.globs);
 
-    let args = parse_low_raw(["-g-foo"]).unwrap();
+    let args = parse_low_raw(["-g-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.globs);
 }
 
@@ -302,24 +302,24 @@ This effectively treats \flag{glob} as \flag{iglob}.
 #[cfg(test)]
 #[test]
 fn test_glob_case_insensitive() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.glob_case_insensitive);
 
-    let args = parse_low_raw(["--glob-case-insensitive"]).unwrap();
+    let args = parse_low_raw(["--glob-case-insensitive"]).expect("Test parsing should succeed");
     assert_eq!(true, args.glob_case_insensitive);
 
     let args = parse_low_raw([
         "--glob-case-insensitive",
         "--no-glob-case-insensitive",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(false, args.glob_case_insensitive);
 
     let args = parse_low_raw([
         "--no-glob-case-insensitive",
         "--glob-case-insensitive",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(true, args.glob_case_insensitive);
 }
 
@@ -377,19 +377,19 @@ file.
 #[cfg(test)]
 #[test]
 fn test_hidden() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.hidden);
 
-    let args = parse_low_raw(["--hidden"]).unwrap();
+    let args = parse_low_raw(["--hidden"]).expect("Test parsing should succeed");
     assert_eq!(true, args.hidden);
 
-    let args = parse_low_raw(["-."]).unwrap();
+    let args = parse_low_raw(["-."]).expect("Test parsing should succeed");
     assert_eq!(true, args.hidden);
 
-    let args = parse_low_raw(["-.", "--no-hidden"]).unwrap();
+    let args = parse_low_raw(["-.", "--no-hidden"]).expect("Test parsing should succeed");
     assert_eq!(false, args.hidden);
 
-    let args = parse_low_raw(["--no-hidden", "-."]).unwrap();
+    let args = parse_low_raw(["--no-hidden", "-."]).expect("Test parsing should succeed");
     assert_eq!(true, args.hidden);
 }
 
@@ -437,19 +437,19 @@ matched case insensitively.
 #[cfg(test)]
 #[test]
 fn test_iglob() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<String>::new(), args.iglobs);
 
-    let args = parse_low_raw(["--iglob", "foo"]).unwrap();
+    let args = parse_low_raw(["--iglob", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.iglobs);
 
-    let args = parse_low_raw(["--iglob=foo"]).unwrap();
+    let args = parse_low_raw(["--iglob=foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["foo".to_string()], args.iglobs);
 
-    let args = parse_low_raw(["--iglob", "-foo"]).unwrap();
+    let args = parse_low_raw(["--iglob", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.iglobs);
 
-    let args = parse_low_raw(["--iglob=-foo"]).unwrap();
+    let args = parse_low_raw(["--iglob=-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["-foo".to_string()], args.iglobs);
 }
 
@@ -505,14 +505,14 @@ directly on the command line, then use \flag{glob} instead.
 #[cfg(test)]
 #[test]
 fn test_ignore_file() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<PathBuf>::new(), args.ignore_file);
 
-    let args = parse_low_raw(["--ignore-file", "foo"]).unwrap();
+    let args = parse_low_raw(["--ignore-file", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PathBuf::from("foo")], args.ignore_file);
 
     let args = parse_low_raw(["--ignore-file", "foo", "--ignore-file", "bar"])
-        .unwrap();
+        .expect("Test parsing should succeed");
     assert_eq!(
         vec![PathBuf::from("foo"), PathBuf::from("bar")],
         args.ignore_file
@@ -559,24 +559,24 @@ useful on case insensitive file systems (such as Windows).
 #[cfg(test)]
 #[test]
 fn test_ignore_file_case_insensitive() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.ignore_file_case_insensitive);
 
-    let args = parse_low_raw(["--ignore-file-case-insensitive"]).unwrap();
+    let args = parse_low_raw(["--ignore-file-case-insensitive"]).expect("Test parsing should succeed");
     assert_eq!(true, args.ignore_file_case_insensitive);
 
     let args = parse_low_raw([
         "--ignore-file-case-insensitive",
         "--no-ignore-file-case-insensitive",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(false, args.ignore_file_case_insensitive);
 
     let args = parse_low_raw([
         "--no-ignore-file-case-insensitive",
         "--ignore-file-case-insensitive",
     ])
-    .unwrap();
+    .expect("Test parsing should succeed");
     assert_eq!(true, args.ignore_file_case_insensitive);
 }
 
@@ -632,22 +632,22 @@ An alternative spelling for this flag is \fB\-\-maxdepth\fP.
 #[cfg(test)]
 #[test]
 fn test_max_depth() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.max_depth);
 
-    let args = parse_low_raw(["--max-depth", "5"]).unwrap();
+    let args = parse_low_raw(["--max-depth", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_depth);
 
-    let args = parse_low_raw(["-d", "5"]).unwrap();
+    let args = parse_low_raw(["-d", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_depth);
 
-    let args = parse_low_raw(["--max-depth", "5", "--max-depth=10"]).unwrap();
+    let args = parse_low_raw(["--max-depth", "5", "--max-depth=10"]).expect("Test parsing should succeed");
     assert_eq!(Some(10), args.max_depth);
 
-    let args = parse_low_raw(["--max-depth", "0"]).unwrap();
+    let args = parse_low_raw(["--max-depth", "0"]).expect("Test parsing should succeed");
     assert_eq!(Some(0), args.max_depth);
 
-    let args = parse_low_raw(["--maxdepth", "5"]).unwrap();
+    let args = parse_low_raw(["--maxdepth", "5"]).expect("Test parsing should succeed");
     assert_eq!(Some(5), args.max_depth);
 }
 
@@ -696,17 +696,17 @@ Examples: \fB\-\-max-filesize 50K\fP or \fB\-\-max\-filesize 80M\fP.
 #[cfg(test)]
 #[test]
 fn test_max_filesize() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.max_filesize);
 
-    let args = parse_low_raw(["--max-filesize", "1024"]).unwrap();
+    let args = parse_low_raw(["--max-filesize", "1024"]).expect("Test parsing should succeed");
     assert_eq!(Some(1024), args.max_filesize);
 
-    let args = parse_low_raw(["--max-filesize", "1K"]).unwrap();
+    let args = parse_low_raw(["--max-filesize", "1K"]).expect("Test parsing should succeed");
     assert_eq!(Some(1024), args.max_filesize);
 
     let args =
-        parse_low_raw(["--max-filesize", "1K", "--max-filesize=1M"]).unwrap();
+        parse_low_raw(["--max-filesize", "1K", "--max-filesize=1M"]).expect("Test parsing should succeed");
     assert_eq!(Some(1024 * 1024), args.max_filesize);
 }
 
@@ -763,21 +763,21 @@ behavior to this flag and can be considered an alias. However, subsequent
 #[cfg(test)]
 #[test]
 fn test_no_ignore() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_dot);
     assert_eq!(false, args.no_ignore_exclude);
     assert_eq!(false, args.no_ignore_global);
     assert_eq!(false, args.no_ignore_parent);
     assert_eq!(false, args.no_ignore_vcs);
 
-    let args = parse_low_raw(["--no-ignore"]).unwrap();
+    let args = parse_low_raw(["--no-ignore"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_dot);
     assert_eq!(true, args.no_ignore_exclude);
     assert_eq!(true, args.no_ignore_global);
     assert_eq!(true, args.no_ignore_parent);
     assert_eq!(true, args.no_ignore_vcs);
 
-    let args = parse_low_raw(["--no-ignore", "--ignore"]).unwrap();
+    let args = parse_low_raw(["--no-ignore", "--ignore"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_dot);
     assert_eq!(false, args.no_ignore_exclude);
     assert_eq!(false, args.no_ignore_global);
@@ -827,13 +827,13 @@ does not impact whether filter rules from \fB.gitignore\fP files are respected.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_dot() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_dot);
 
-    let args = parse_low_raw(["--no-ignore-dot"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-dot"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_dot);
 
-    let args = parse_low_raw(["--no-ignore-dot", "--ignore-dot"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-dot", "--ignore-dot"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_dot);
 }
 
@@ -876,14 +876,14 @@ For example, this includes \fBgit\fP's \fB.git/info/exclude\fP.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_exclude() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_exclude);
 
-    let args = parse_low_raw(["--no-ignore-exclude"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-exclude"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_exclude);
 
     let args =
-        parse_low_raw(["--no-ignore-exclude", "--ignore-exclude"]).unwrap();
+        parse_low_raw(["--no-ignore-exclude", "--ignore-exclude"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_exclude);
 }
 
@@ -926,13 +926,13 @@ are ignored.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_files() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_files);
 
-    let args = parse_low_raw(["--no-ignore-files"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-files"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_files);
 
-    let args = parse_low_raw(["--no-ignore-files", "--ignore-files"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-files", "--ignore-files"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_files);
 }
 
@@ -976,14 +976,14 @@ defaults to \fB$HOME/.config/git/ignore\fP).
 #[cfg(test)]
 #[test]
 fn test_no_ignore_global() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_global);
 
-    let args = parse_low_raw(["--no-ignore-global"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-global"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_global);
 
     let args =
-        parse_low_raw(["--no-ignore-global", "--ignore-global"]).unwrap();
+        parse_low_raw(["--no-ignore-global", "--ignore-global"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_global);
 }
 
@@ -1028,14 +1028,14 @@ files that should be applied. In some cases this may not be desirable.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_parent() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_parent);
 
-    let args = parse_low_raw(["--no-ignore-parent"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-parent"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_parent);
 
     let args =
-        parse_low_raw(["--no-ignore-parent", "--ignore-parent"]).unwrap();
+        parse_low_raw(["--no-ignore-parent", "--ignore-parent"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_parent);
 }
 
@@ -1088,13 +1088,13 @@ well.
 #[cfg(test)]
 #[test]
 fn test_no_ignore_vcs() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_vcs);
 
-    let args = parse_low_raw(["--no-ignore-vcs"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-vcs"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_vcs);
 
-    let args = parse_low_raw(["--no-ignore-vcs", "--ignore-vcs"]).unwrap();
+    let args = parse_low_raw(["--no-ignore-vcs", "--ignore-vcs"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_vcs);
 }
 
@@ -1145,13 +1145,13 @@ where the repository state is absent.
 #[cfg(test)]
 #[test]
 fn test_no_require_git() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_require_git);
 
-    let args = parse_low_raw(["--no-require-git"]).unwrap();
+    let args = parse_low_raw(["--no-require-git"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_require_git);
 
-    let args = parse_low_raw(["--no-require-git", "--require-git"]).unwrap();
+    let args = parse_low_raw(["--no-require-git", "--require-git"]).expect("Test parsing should succeed");
     assert_eq!(false, args.no_require_git);
 }
 
@@ -1207,14 +1207,14 @@ This is similar to \fBfind\fP's \fB\-xdev\fP or \fB\-mount\fP flag.
 #[cfg(test)]
 #[test]
 fn test_one_file_system() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.one_file_system);
 
-    let args = parse_low_raw(["--one-file-system"]).unwrap();
+    let args = parse_low_raw(["--one-file-system"]).expect("Test parsing should succeed");
     assert_eq!(true, args.one_file_system);
 
     let args =
-        parse_low_raw(["--one-file-system", "--no-one-file-system"]).unwrap();
+        parse_low_raw(["--one-file-system", "--no-one-file-system"]).expect("Test parsing should succeed");
     assert_eq!(false, args.one_file_system);
 }
 
@@ -1278,22 +1278,22 @@ To see the list of available file types, use the \flag{type-list} flag.
 fn test_type() {
     let select = |name: &str| TypeChange::Select { name: name.to_string() };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<TypeChange>::new(), args.type_changes);
 
-    let args = parse_low_raw(["--type", "rust"]).unwrap();
+    let args = parse_low_raw(["--type", "rust"]).expect("Test parsing should succeed");
     assert_eq!(vec![select("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-t", "rust"]).unwrap();
+    let args = parse_low_raw(["-t", "rust"]).expect("Test parsing should succeed");
     assert_eq!(vec![select("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-trust"]).unwrap();
+    let args = parse_low_raw(["-trust"]).expect("Test parsing should succeed");
     assert_eq!(vec![select("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-trust", "-tpython"]).unwrap();
+    let args = parse_low_raw(["-trust", "-tpython"]).expect("Test parsing should succeed");
     assert_eq!(vec![select("rust"), select("python")], args.type_changes);
 
-    let args = parse_low_raw(["-tabcdefxyz"]).unwrap();
+    let args = parse_low_raw(["-tabcdefxyz"]).expect("Test parsing should succeed");
     assert_eq!(vec![select("abcdefxyz")], args.type_changes);
 }
 
@@ -1355,25 +1355,25 @@ fn test_type_not() {
     let select = |name: &str| TypeChange::Select { name: name.to_string() };
     let negate = |name: &str| TypeChange::Negate { name: name.to_string() };
 
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<TypeChange>::new(), args.type_changes);
 
-    let args = parse_low_raw(["--type-not", "rust"]).unwrap();
+    let args = parse_low_raw(["--type-not", "rust"]).expect("Test parsing should succeed");
     assert_eq!(vec![negate("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-T", "rust"]).unwrap();
+    let args = parse_low_raw(["-T", "rust"]).expect("Test parsing should succeed");
     assert_eq!(vec![negate("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-Trust"]).unwrap();
+    let args = parse_low_raw(["-Trust"]).expect("Test parsing should succeed");
     assert_eq!(vec![negate("rust")], args.type_changes);
 
-    let args = parse_low_raw(["-Trust", "-Tpython"]).unwrap();
+    let args = parse_low_raw(["-Trust", "-Tpython"]).expect("Test parsing should succeed");
     assert_eq!(vec![negate("rust"), negate("python")], args.type_changes);
 
-    let args = parse_low_raw(["-Tabcdefxyz"]).unwrap();
+    let args = parse_low_raw(["-Tabcdefxyz"]).expect("Test parsing should succeed");
     assert_eq!(vec![negate("abcdefxyz")], args.type_changes);
 
-    let args = parse_low_raw(["-Trust", "-ttoml", "-Tjson"]).unwrap();
+    let args = parse_low_raw(["-Trust", "-ttoml", "-Tjson"]).expect("Test parsing should succeed");
     assert_eq!(
         vec![negate("rust"), select("toml"), negate("json")],
         args.type_changes
@@ -1443,22 +1443,22 @@ text files via the \flag{text} flag.
 #[cfg(test)]
 #[test]
 fn test_unrestricted() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_ignore_vcs);
     assert_eq!(false, args.hidden);
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--unrestricted"]).unwrap();
+    let args = parse_low_raw(["--unrestricted"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_vcs);
     assert_eq!(false, args.hidden);
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["--unrestricted", "-u"]).unwrap();
+    let args = parse_low_raw(["--unrestricted", "-u"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_vcs);
     assert_eq!(true, args.hidden);
     assert_eq!(BinaryMode::Auto, args.binary);
 
-    let args = parse_low_raw(["-uuu"]).unwrap();
+    let args = parse_low_raw(["-uuu"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_ignore_vcs);
     assert_eq!(true, args.hidden);
     assert_eq!(BinaryMode::SearchAndSuppress, args.binary);

@@ -243,7 +243,7 @@ mod tests {
 
         let health = cb.get_health("example.com");
         assert!(health.is_some());
-        let health = health.unwrap();
+        let health = health.expect("Health should exist for example.com after recording success");
         assert_eq!(health.state, CircuitState::Closed);
         assert_eq!(health.consecutive_failures, 0);
         assert_eq!(health.total_successes, 1);
@@ -267,7 +267,7 @@ mod tests {
 
         let health = cb.get_health("example.com");
         assert!(health.is_some());
-        let health = health.unwrap();
+        let health = health.expect("Health should exist for example.com after recording failures");
         assert_eq!(health.state, CircuitState::Open);
         assert_eq!(health.consecutive_failures, 3);
 
@@ -284,7 +284,9 @@ mod tests {
         cb.record_failure("example.com", "test error");
 
         assert_eq!(
-            cb.get_health("example.com").unwrap().state,
+            cb.get_health("example.com")
+                .expect("Health should exist after recording failures")
+                .state,
             CircuitState::Open
         );
 
@@ -294,7 +296,9 @@ mod tests {
         // Should transition to half-open
         assert!(cb.should_attempt("example.com"));
         assert_eq!(
-            cb.get_health("example.com").unwrap().state,
+            cb.get_health("example.com")
+                .expect("Health should exist after timeout transition")
+                .state,
             CircuitState::HalfOpen
         );
     }
@@ -302,11 +306,13 @@ mod tests {
     #[test]
     fn test_extract_domain() {
         assert_eq!(
-            extract_domain("https://example.com/path").unwrap(),
+            extract_domain("https://example.com/path")
+                .expect("Should extract domain from valid HTTPS URL"),
             "example.com"
         );
         assert_eq!(
-            extract_domain("http://sub.example.com:8080/path?query=1").unwrap(),
+            extract_domain("http://sub.example.com:8080/path?query=1")
+                .expect("Should extract domain from URL with port and path"),
             "sub.example.com"
         );
         assert!(extract_domain("not a url").is_err());

@@ -68,12 +68,6 @@ impl From<anyhow::Error> for SearchError {
     }
 }
 
-impl From<crate::runtime::async_task::TaskError> for SearchError {
-    fn from(error: crate::runtime::async_task::TaskError) -> Self {
-        SearchError::Other(error.to_string())
-    }
-}
-
 impl SearchError {
     /// Check if error is transient and should be retried
     pub fn is_transient(&self) -> bool {
@@ -169,4 +163,4 @@ macro_rules! log_search_operation {
 }
 
 // Note: retry_with_config and with_fallback have been moved to runtime_helpers.rs
-// and converted to work with AsyncTask patterns. Use retry_task and fallback_task instead.
+// as pure async functions. Use retry_task and fallback_task instead.

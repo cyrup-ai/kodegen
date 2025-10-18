@@ -120,22 +120,22 @@ This overrides the \flag{search-zip} flag.
 #[cfg(test)]
 #[test]
 fn test_pre() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
 
-    let args = parse_low_raw(["--pre", "foo/bar"]).unwrap();
+    let args = parse_low_raw(["--pre", "foo/bar"]).expect("Test parsing should succeed");
     assert_eq!(Some(PathBuf::from("foo/bar")), args.pre);
 
-    let args = parse_low_raw(["--pre", ""]).unwrap();
+    let args = parse_low_raw(["--pre", ""]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
 
-    let args = parse_low_raw(["--pre", "foo/bar", "--pre", ""]).unwrap();
+    let args = parse_low_raw(["--pre", "foo/bar", "--pre", ""]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
 
-    let args = parse_low_raw(["--pre", "foo/bar", "--pre="]).unwrap();
+    let args = parse_low_raw(["--pre", "foo/bar", "--pre="]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
 
-    let args = parse_low_raw(["--pre", "foo/bar", "--no-pre"]).unwrap();
+    let args = parse_low_raw(["--pre", "foo/bar", "--no-pre"]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
 }
 
@@ -200,14 +200,14 @@ This flag has no effect if the \flag{pre} flag is not used.
 #[cfg(test)]
 #[test]
 fn test_pre_glob() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<String>::new(), args.pre_glob);
 
-    let args = parse_low_raw(["--pre-glob", "*.pdf"]).unwrap();
+    let args = parse_low_raw(["--pre-glob", "*.pdf"]).expect("Test parsing should succeed");
     assert_eq!(vec!["*.pdf".to_string()], args.pre_glob);
 
     let args =
-        parse_low_raw(["--pre-glob", "*.pdf", "--pre-glob=foo"]).unwrap();
+        parse_low_raw(["--pre-glob", "*.pdf", "--pre-glob=foo"]).expect("Test parsing should succeed");
     assert_eq!(vec!["*.pdf".to_string(), "foo".to_string()], args.pre_glob);
 }
 
@@ -272,34 +272,34 @@ arguments as files or directories to search.
 #[cfg(test)]
 #[test]
 fn test_regexp() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Vec::<PatternSource>::new(), args.patterns);
 
-    let args = parse_low_raw(["--regexp", "foo"]).unwrap();
+    let args = parse_low_raw(["--regexp", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["--regexp=foo"]).unwrap();
+    let args = parse_low_raw(["--regexp=foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["-e", "foo"]).unwrap();
+    let args = parse_low_raw(["-e", "foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["-efoo"]).unwrap();
+    let args = parse_low_raw(["-efoo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["--regexp", "-foo"]).unwrap();
+    let args = parse_low_raw(["--regexp", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("-foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["--regexp=-foo"]).unwrap();
+    let args = parse_low_raw(["--regexp=-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("-foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["-e", "-foo"]).unwrap();
+    let args = parse_low_raw(["-e", "-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("-foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["-e-foo"]).unwrap();
+    let args = parse_low_raw(["-e-foo"]).expect("Test parsing should succeed");
     assert_eq!(vec![PatternSource::Regexp("-foo".to_string())], args.patterns);
 
-    let args = parse_low_raw(["--regexp=foo", "--regexp", "bar"]).unwrap();
+    let args = parse_low_raw(["--regexp=foo", "--regexp", "bar"]).expect("Test parsing should succeed");
     assert_eq!(
         vec![
             PatternSource::Regexp("foo".to_string()),
@@ -380,27 +380,27 @@ This overrides the \flag{pre} flag.
 #[cfg(test)]
 #[test]
 fn test_search_zip() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.search_zip);
 
-    let args = parse_low_raw(["--search-zip"]).unwrap();
+    let args = parse_low_raw(["--search-zip"]).expect("Test parsing should succeed");
     assert_eq!(true, args.search_zip);
 
-    let args = parse_low_raw(["-z"]).unwrap();
+    let args = parse_low_raw(["-z"]).expect("Test parsing should succeed");
     assert_eq!(true, args.search_zip);
 
-    let args = parse_low_raw(["-z", "--no-search-zip"]).unwrap();
+    let args = parse_low_raw(["-z", "--no-search-zip"]).expect("Test parsing should succeed");
     assert_eq!(false, args.search_zip);
 
-    let args = parse_low_raw(["--pre=foo", "--no-search-zip"]).unwrap();
+    let args = parse_low_raw(["--pre=foo", "--no-search-zip"]).expect("Test parsing should succeed");
     assert_eq!(Some(PathBuf::from("foo")), args.pre);
     assert_eq!(false, args.search_zip);
 
-    let args = parse_low_raw(["--pre=foo", "--search-zip"]).unwrap();
+    let args = parse_low_raw(["--pre=foo", "--search-zip"]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
     assert_eq!(true, args.search_zip);
 
-    let args = parse_low_raw(["--pre=foo", "-z", "--no-search-zip"]).unwrap();
+    let args = parse_low_raw(["--pre=foo", "-z", "--no-search-zip"]).expect("Test parsing should succeed");
     assert_eq!(None, args.pre);
     assert_eq!(false, args.search_zip);
 }

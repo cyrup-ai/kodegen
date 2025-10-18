@@ -108,7 +108,7 @@ impl MarkdownIndexer {
         let file_paths = batch::pre_collect_files(&directory, &engine);
 
         // Use runtime for async execution with owned, Send-safe data
-        crate::runtime::spawn_async(async move {
+        tokio::spawn(async move {
             let start_time = Instant::now();
             let progress = Arc::new(AtomicProgress::new());
             let errors = Arc::new(ErrorCollector::new());

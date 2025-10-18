@@ -54,10 +54,10 @@ This overrides \flag{type-list}.
 #[cfg(test)]
 #[test]
 fn test_files() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(Mode::Search(SearchMode::Standard), args.mode);
 
-    let args = parse_low_raw(["--files"]).unwrap();
+    let args = parse_low_raw(["--files"]).expect("Test parsing should succeed");
     assert_eq!(Mode::Files, args.mode);
 }
 
@@ -102,10 +102,10 @@ pre-defined locations, then this flag will also disable that behavior as well.
 #[cfg(test)]
 #[test]
 fn test_no_config() {
-    let args = parse_low_raw(None::<&str>).unwrap();
+    let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
     assert_eq!(false, args.no_config);
 
-    let args = parse_low_raw(["--no-config"]).unwrap();
+    let args = parse_low_raw(["--no-config"]).expect("Test parsing should succeed");
     assert_eq!(true, args.no_config);
 }
 
