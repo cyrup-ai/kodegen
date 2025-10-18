@@ -7,6 +7,7 @@ use super::progress::{AtomicProgress, ErrorCollector};
 use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
 use imstr::ImString;
+use log::debug;
 use rayon::prelude::*;
 use std::fs;
 use std::io::Read;
@@ -158,9 +159,14 @@ pub(crate) fn process_batch_with_writer(
                         ImString::from(e.to_string()),
                     );
 
-                    // Check error limit and trigger cancellation
+                    // Check error limit and trigger early termination
                     if ctx.progress.failed.load(Ordering::Relaxed) >= ctx.config.max_errors {
-                        // Set cancellation token to stop all workers
+                        debug!(
+                            "Error limit reached ({} errors >= {} max), triggering early termination",
+                            ctx.progress.failed.load(Ordering::Relaxed),
+                            ctx.config.max_errors
+                        );
+                        // Set cancellation token to stop all parallel workers
                         if let Some(token) = &ctx.config.cancellation_token {
                             token.store(true, Ordering::Release);
                         }
