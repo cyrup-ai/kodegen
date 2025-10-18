@@ -1,10 +1,10 @@
 [package]
-name = "kodegen_setup"
+name = "kodegen_sign"
 version = "0.1.0"
 edition = "2024"
 
 [[bin]]
-name = "kodegen-setup"
+name = "kodegen_sign"
 path = "src/main.rs"
 
 [dependencies]

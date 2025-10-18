@@ -15,7 +15,7 @@ members = [
     "packages/prompt",
     "packages/sequential-thinking",
     "packages/server",
-    "packages/setup",
+    "packages/sign",
     "packages/terminal",
     "packages/utils",
     "packages/tool"
