@@ -388,7 +388,7 @@ mod tests {
             </html>
         "#;
 
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();
@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn test_empty_html() {
         let html = "";
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
         // Should return empty or minimal markdown, not error
     }
@@ -408,7 +408,7 @@ mod tests {
     #[test]
     fn test_malformed_html_resilience() {
         let html = "<html><body><h1>Unclosed heading<p>Paragraph</body>";
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
         // Should handle gracefully, possibly with warnings
     }
@@ -426,7 +426,7 @@ mod tests {
         };
 
         let html = "<html><body><h1>Test</h1><a href='#'>Link</a></body></html>";
-        let result = convert_html_to_markdown(html, &options);
+        let result = convert_html_to_markdown_sync(html, &options);
         assert!(result.is_ok());
     }
 }

@@ -199,7 +199,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
             config.storage_dir.clone(),
             config.max_depth as u32,
         );
-        bus.publish_async(event).await
+        bus.publish(event).await
             .context("Failed to publish CrawlStarted event - event bus may be shutdown or full")?;
     }
 
@@ -384,7 +384,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
                 total_pages_final,
                 urls_registered,
             );
-            if let Err(e) = bus.publish_async(event).await {
+            if let Err(e) = bus.publish(event).await {
                 warn!("Failed to publish LinkRewriteCompleted event: {}", e);
             }
         }
@@ -398,7 +398,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
             urls_registered,
             start_time.elapsed(),
         );
-        bus.publish_async(event).await
+        bus.publish(event).await
             .context("Failed to publish CrawlCompleted event - event bus may be shutdown or full")?;
 
         // Report final metrics before shutdown
@@ -440,33 +440,22 @@ pub async fn crawl_pages<P: ProgressReporter>(
     };
 
     if let Some(browser_owned) = browser_for_cleanup {
-        let (cleanup_tx, cleanup_rx) = tokio::sync::oneshot::channel();
-        let task = super::cleanup::cleanup_browser_and_data(
+        match super::cleanup::cleanup_browser_and_data(
             browser_owned,
             chrome_data_dir_path,
-            move |result| {
-                let _ = cleanup_tx.send(result);
-            }
-        );
-        let _cleanup_guard = TaskGuard::new(task, "cleanup_browser_and_data");
-        
-        match cleanup_rx.await {
-            Ok(Ok(super::cleanup::CleanupResult::Success)) => {
+        ).await {
+            Ok(super::cleanup::CleanupResult::Success) => {
                 debug!("Browser and data cleanup completed successfully");
             }
-            Ok(Ok(super::cleanup::CleanupResult::PartialFailure(errors))) => {
+            Ok(super::cleanup::CleanupResult::PartialFailure(errors)) => {
                 warn!("Cleanup completed with failures: {:?}", errors);
                 for error in &errors {
                     progress.report_error(&format!("Cleanup error: {}", error));
                 }
             }
-            Ok(Err(e)) => {
+            Err(e) => {
                 warn!("Cleanup failed: {}", e);
                 progress.report_error(&format!("Cleanup failed: {}", e));
-            }
-            Err(_) => {
-                warn!("Cleanup task cancelled");
-                progress.report_error("Cleanup task cancelled");
             }
         }
     }
@@ -530,17 +519,10 @@ async fn process_single_page(
     };
 
     // Apply page enhancements
-    let (enhance_tx, enhance_rx) = tokio::sync::oneshot::channel();
     let page_clone = page.clone();
-    let task = super::page_enhancer::enhance_page(page_clone, move |result| {
-        let _ = enhance_tx.send(result);
-    });
-    let _enhance_guard = TaskGuard::new(task, "page_enhancement");
-
-    match enhance_rx.await {
-        Ok(Ok(())) => debug!("Page enhancements applied for: {}", item.url),
-        Ok(Err(e)) => warn!("Failed to apply page enhancements for {}: {}", item.url, e),
-        Err(_) => warn!("Page enhancement task cancelled for {}", item.url),
+    match super::page_enhancer::enhance_page(page_clone).await {
+        Ok(()) => debug!("Page enhancements applied for: {}", item.url),
+        Err(e) => warn!("Failed to apply page enhancements for {}: {}", item.url, e),
     }
 
     // Navigate to page
@@ -668,20 +650,13 @@ async fn process_single_page(
             max_depth: config.max_depth,
         };
 
-        let (links_tx, links_rx) = tokio::sync::oneshot::channel();
-        let task = process_page_links(
+        match process_page_links(
             page.clone(),
             item.clone(),
             crawl_state,
             &config,
-            move |result| {
-                let _ = links_tx.send(result);
-            },
-        );
-        let _links_guard = TaskGuard::new(task, "process_page_links");
-
-        match links_rx.await {
-            Ok(Ok((new_queue, _))) => {
+        ).await {
+            Ok((new_queue, _)) => {
                 // Add new discovered links to shared queue
                 let mut q = queue.lock().await;
                 let mut added = 0;
@@ -693,12 +668,8 @@ async fn process_single_page(
                 }
                 added
             }
-            Ok(Err(e)) => {
+            Err(e) => {
                 warn!("Failed to process links for {}: {}", item.url, e);
-                0
-            }
-            Err(_) => {
-                warn!("Link processing channel closed for {}", item.url);
                 0
             }
         }
@@ -751,7 +722,7 @@ async fn process_single_page(
             metadata,
         );
 
-        if let Err(e) = bus.publish_async(event).await {
+        if let Err(e) = bus.publish(event).await {
             warn!("Failed to publish PageCrawled event for {}: {}", item.url, e);
         }
     }

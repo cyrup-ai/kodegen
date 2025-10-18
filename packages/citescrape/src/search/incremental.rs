@@ -506,15 +506,7 @@ impl IncrementalIndexingService {
         }
         
         // Process deduplicated batch
-        let (writer_tx, writer_rx) = tokio::sync::oneshot::channel();
-        let _writer_task = engine.writer(Some(64 * 1024 * 1024), move |result| {
-            match result {
-                Ok(writer) => { let _ = writer_tx.send(writer); }
-                Err(e) => { log::error!("Failed to create writer: {}", e); }
-            }
-        });
-        
-        let mut writer = match writer_rx.await.map_err(|_| anyhow::anyhow!("Failed to get writer")) {
+        let mut writer = match engine.writer(Some(64 * 1024 * 1024)).await {
             Ok(w) => w,
             Err(e) => {
                 // Complete all operations with error
@@ -558,17 +550,11 @@ impl IncrementalIndexingService {
                             .map_err(|e| anyhow::anyhow!("{}", e))
                     }
                     IndexingMessage::Optimize { .. } => {
-                        let (commit_tx, commit_rx) = tokio::sync::oneshot::channel();
-                        let _commit_task = engine.commit_and_optimize(&mut writer, move |result| {
-                            let _ = commit_tx.send(result);
-                        });
-                        
-                        match commit_rx.await.map_err(|_| anyhow::anyhow!("Failed to optimize index")) {
-                            Ok(Ok(_)) => {
+                        match engine.commit_and_optimize(&mut writer).await {
+                            Ok(_) => {
                                 *stats.last_optimization.lock().await = Some(Instant::now());
                                 Ok(())
                             }
-                            Ok(Err(e)) => Err(anyhow::anyhow!("{}", e)),
                             Err(e) => Err(anyhow::anyhow!("{}", e))
                         }
                     }
@@ -606,22 +592,16 @@ impl IncrementalIndexingService {
         // Commit batch with retry logic
         let mut commit_retry_count = 0;
         loop {
-            let (commit_tx, commit_rx) = tokio::sync::oneshot::channel();
-            let _commit_task = engine.commit_and_optimize(&mut writer, move |result| {
-                let _ = commit_tx.send(result);
-            });
-            
-            // Complete the receive operation before any await points
-            let commit_result = commit_rx.await.map_err(|_| anyhow::anyhow!("Failed to commit batch"));
+            let commit_result = engine.commit_and_optimize(&mut writer).await;
             
             match commit_result {
-                Ok(Ok(_)) => break,
-                Ok(Err(_e)) if commit_retry_count < MAX_RETRIES => {
+                Ok(_) => break,
+                Err(_e) if commit_retry_count < MAX_RETRIES => {
                     commit_retry_count += 1;
                     let delay_ms = 50 * (1 << commit_retry_count);
                     tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
                 }
-                Ok(Err(_)) | Err(_) => {
+                Err(_) => {
                     // Commit failed after retries, but individual operations were processed
                     break;
                 }

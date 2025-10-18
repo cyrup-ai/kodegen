@@ -52,6 +52,12 @@ pub async fn save_page_data(
     .await
     .map_err(|e| anyhow::anyhow!("PageData serialization task panicked: {}", e))??;
     
+    // Create parent directory
+    tokio::fs::create_dir_all(
+        path.parent()
+            .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
+    ).await?;
+    
     // save_compressed_file is now async
     let _metadata = save_compressed_file(
         json_content.into_bytes(),

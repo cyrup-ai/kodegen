@@ -27,17 +27,12 @@ use crate::crawl_engine::page_enhancer;
 pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
     // Apply kromekover stealth injection BEFORE navigation
     info!("Applying kromekover stealth injection");
-    let (enhance_tx, enhance_rx) = tokio::sync::oneshot::channel();
     let page_clone = page.clone();
-    let _enhance_task = page_enhancer::enhance_page(page_clone, move |result| {
-        let _ = enhance_tx.send(result);
-    });
-
+    
     // Wait for stealth injection with timeout
-    match tokio::time::timeout(Duration::from_secs(5), enhance_rx).await {
-        Ok(Ok(Ok(()))) => info!("Stealth injection complete"),
-        Ok(Ok(Err(e))) => warn!("Stealth injection failed: {}", e),
-        Ok(Err(_)) => warn!("Stealth injection channel closed"),
+    match tokio::time::timeout(Duration::from_secs(5), page_enhancer::enhance_page(page_clone)).await {
+        Ok(Ok(())) => info!("Stealth injection complete"),
+        Ok(Err(e)) => warn!("Stealth injection failed: {}", e),
         Err(_) => warn!("Stealth injection timeout"),
     }
 
