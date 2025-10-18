@@ -15,6 +15,9 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
+/// Maximum allowed HTML input size (10 MB) to prevent DoS attacks
+const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;
+
 // ============================================================================
 // PART 1: Main Content Extraction
 // ============================================================================

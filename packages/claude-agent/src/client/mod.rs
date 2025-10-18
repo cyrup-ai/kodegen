@@ -194,7 +194,7 @@ pub struct ClaudeSDKClient {
     /// Control message sender
     control_tx: mpsc::UnboundedSender<crate::control::ControlRequest>,
     /// Hook event receiver (if not using automatic handler)
-    hook_rx: Option<mpsc::UnboundedReceiver<(String, HookEvent)>>,
+    hook_rx: Option<mpsc::UnboundedReceiver<(String, HookEvent, serde_json::Value)>>,
     /// Permission request receiver (if not using automatic handler)
     permission_rx: Option<mpsc::UnboundedReceiver<(RequestId, PermissionRequest)>>,
     /// Hook manager for automatic hook handling (kept alive for background tasks)

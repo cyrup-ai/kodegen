@@ -184,7 +184,7 @@ impl super::ClaudeSDKClient {
     /// Take the hook event receiver
     ///
     /// This allows the caller to handle hook events independently
-    pub const fn take_hook_receiver(&mut self) -> Option<mpsc::UnboundedReceiver<(String, HookEvent)>> {
+    pub const fn take_hook_receiver(&mut self) -> Option<mpsc::UnboundedReceiver<(String, HookEvent, serde_json::Value)>> {
         self.hook_rx.take()
     }
 

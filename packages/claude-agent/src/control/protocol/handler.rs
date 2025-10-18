@@ -30,7 +30,7 @@ pub struct ProtocolHandler {
     /// Initialized flag
     initialized: Arc<AtomicBool>,
     /// Hook callback channel
-    hook_tx: Option<mpsc::UnboundedSender<(String, HookEvent)>>,
+    hook_tx: Option<mpsc::UnboundedSender<(String, HookEvent, serde_json::Value)>>,
     /// Permission callback channel
     permission_tx: Option<mpsc::UnboundedSender<(RequestId, PermissionRequest)>>,
 }
@@ -49,7 +49,7 @@ impl ProtocolHandler {
     }
 
     /// Set hook callback channel
-    pub fn set_hook_channel(&mut self, tx: mpsc::UnboundedSender<(String, HookEvent)>) {
+    pub fn set_hook_channel(&mut self, tx: mpsc::UnboundedSender<(String, HookEvent, serde_json::Value)>) {
         self.hook_tx = Some(tx);
     }
 
@@ -171,9 +171,11 @@ impl ProtocolHandler {
                 }
                 Ok(())
             }
-            ControlResponse::Hook { id, event } => {
+            ControlResponse::Hook { id, event, event_data } => {
                 if let Some(ref tx) = self.hook_tx {
-                    tx.send((id.clone(), *event))
+                    // Default to empty object if no event data provided
+                    let data = event_data.unwrap_or_else(|| serde_json::json!({}));
+                    tx.send((id.clone(), *event, data))
                         .map_err(|_| ClaudeError::protocol_error("Hook channel closed"))?;
                 }
                 Ok(())

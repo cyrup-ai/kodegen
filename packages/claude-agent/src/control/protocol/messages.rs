@@ -98,6 +98,9 @@ pub enum ControlResponse {
         id: String,
         /// Hook event details
         event: HookEvent,
+        /// Event-specific data payload
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        event_data: Option<serde_json::Value>,
     },
     /// Permission request from CLI
     #[serde(rename = "permission")]

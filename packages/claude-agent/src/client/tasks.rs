@@ -139,17 +139,38 @@ impl super::ClaudeSDKClient {
     pub(super) async fn hook_handler_task(
         manager: Arc<Mutex<HookManager>>,
         protocol: Arc<Mutex<ProtocolHandler>>,
-        mut hook_rx: mpsc::UnboundedReceiver<(String, HookEvent)>,
+        mut hook_rx: mpsc::UnboundedReceiver<(String, HookEvent, serde_json::Value)>,
         control_tx: mpsc::UnboundedSender<ControlRequest>,
     ) {
-        while let Some((hook_id, event)) = hook_rx.recv().await {
-            // TODO: Extract event data from the hook event
-            // For now, invoke with empty data
+        while let Some((hook_id, event, event_data)) = hook_rx.recv().await {
+            // Extract tool name from event data for tool-related events
+            let tool_name = match event {
+                HookEvent::PreToolUse | HookEvent::PostToolUse => {
+                    event_data
+                        .get("toolName")
+                        .or_else(|| event_data.get("tool_name"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                }
+                _ => None,
+            };
+
+            // Validate event_data is an object for tool events
+            if matches!(event, HookEvent::PreToolUse | HookEvent::PostToolUse) {
+                if !event_data.is_object() {
+                    log::warn!(
+                        "Hook {} received non-object event_data for {:?}: {:?}",
+                        hook_id, event, event_data
+                    );
+                    // Continue with data anyway - hooks can handle invalid data
+                }
+            }
+
             let manager_guard = manager.lock().await;
             let context = HookContext {};
 
             match manager_guard
-                .invoke(serde_json::json!({}), None, context)
+                .invoke(event_data.clone(), tool_name, context)
                 .await
             {
                 Ok(output) => {
