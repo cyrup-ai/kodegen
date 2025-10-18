@@ -2,11 +2,11 @@
 
 use anyhow::Result;
 
+use super::execution::execute_search_query;
+use super::results::SearchResults;
 use crate::runtime::AsyncTask;
 use crate::search::engine::SearchEngine;
 use crate::search::types::SearchResultItem;
-use super::results::SearchResults;
-use super::execution::execute_search_query;
 
 /// Search query builder with fluent interface
 pub struct SearchQueryBuilder {
@@ -53,7 +53,8 @@ impl SearchQueryBuilder {
         let highlight = self.highlight;
 
         crate::runtime::spawn_async(async move {
-            let search_results = execute_search_query(&engine, &query, limit, offset, highlight).await??;
+            let search_results =
+                execute_search_query(&engine, &query, limit, offset, highlight).await??;
             Ok(search_results.results)
         })
     }

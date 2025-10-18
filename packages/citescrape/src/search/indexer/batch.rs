@@ -1,28 +1,28 @@
 //! Batch indexing configuration and processing logic
 
-use anyhow::{Result, Context};
-use std::path::{Path, PathBuf};
-use std::fs;
-use std::io::Read;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::time::Instant;
-use flate2::read::GzDecoder;
-use tantivy::DateTime as TantivyDateTime;
-use tantivy::{TantivyDocument, IndexWriter};
-use imstr::ImString;
-use std::sync::atomic::Ordering;
-use super::progress::{AtomicProgress, ErrorCollector};
 use super::super::engine::SearchEngine;
 use super::super::types::IndexingPhase;
 use super::markdown::process_markdown_content_optimized;
+use super::progress::{AtomicProgress, ErrorCollector};
+use anyhow::{Context, Result};
+use flate2::read::GzDecoder;
+use imstr::ImString;
 use rayon::prelude::*;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Instant;
+use tantivy::DateTime as TantivyDateTime;
+use tantivy::{IndexWriter, TantivyDocument};
 
 // Thread-local buffer pool for zero-allocation decompression
 thread_local! {
-    static DECOMPRESSION_BUFFER: std::cell::RefCell<Vec<u8>> = 
+    static DECOMPRESSION_BUFFER: std::cell::RefCell<Vec<u8>> =
         std::cell::RefCell::new(Vec::with_capacity(1024 * 1024));
-    static MARKDOWN_BUFFER: std::cell::RefCell<String> = 
+    static MARKDOWN_BUFFER: std::cell::RefCell<String> =
         std::cell::RefCell::new(String::with_capacity(1024 * 1024));
 }
 
@@ -98,7 +98,10 @@ pub(crate) struct BatchContext<'a> {
     pub engine: &'a SearchEngine,
     pub progress: &'a Arc<AtomicProgress>,
     pub errors: &'a Arc<ErrorCollector>,
-    pub tx: &'a crate::runtime::async_stream::StreamSender<Result<super::super::types::IndexProgress>, 1024>,
+    pub tx: &'a crate::runtime::async_stream::StreamSender<
+        Result<super::super::types::IndexProgress>,
+        1024,
+    >,
     pub start_time: Instant,
     pub config: &'a BatchConfig,
 }
@@ -110,16 +113,14 @@ pub(crate) fn process_batch_with_writer(
     writer: &mut IndexWriter,
 ) {
     // Sort batch by file size for better load balancing
-    let mut batch_with_size: Vec<_> = batch.into_iter()
-        .filter_map(|(path, url)| {
-            std::fs::metadata(&path).ok()
-                .map(|m| (path, url, m.len()))
-        })
+    let mut batch_with_size: Vec<_> = batch
+        .into_iter()
+        .filter_map(|(path, url)| std::fs::metadata(&path).ok().map(|m| (path, url, m.len())))
         .collect();
-    
+
     // Process smallest files first for better progress reporting
     batch_with_size.sort_unstable_by_key(|(_, _, size)| *size);
-    
+
     // PARALLEL PHASE: Prepare documents concurrently
     let documents: Vec<_> = batch_with_size
         .par_iter()
@@ -129,21 +130,21 @@ pub(crate) fn process_batch_with_writer(
             if ctx.config.is_cancelled() {
                 return None;
             }
-            
+
             // Sample progress updates to reduce contention
-            let should_report = !ctx.config.enable_sampling || 
-                                file_idx % ctx.config.sample_rate == 0 ||
-                                file_idx == 0;
-            
+            let should_report = !ctx.config.enable_sampling
+                || file_idx % ctx.config.sample_rate == 0
+                || file_idx == 0;
+
             if should_report {
                 let current_progress = ctx.progress.snapshot(
                     IndexingPhase::Indexing,
                     ImString::from(file_path.to_string_lossy()),
-                    ctx.start_time
+                    ctx.start_time,
                 );
                 let _ = ctx.tx.try_send(Ok(current_progress));
             }
-            
+
             // Prepare document in parallel (CPU-intensive work)
             match prepare_document_from_file(ctx.engine, file_path, url, &ctx.config.limits) {
                 Ok(doc) => {
@@ -154,9 +155,9 @@ pub(crate) fn process_batch_with_writer(
                     ctx.progress.failed.fetch_add(1, Ordering::Relaxed);
                     ctx.errors.push(
                         ImString::from(file_path.to_string_lossy()),
-                        ImString::from(e.to_string())
+                        ImString::from(e.to_string()),
                     );
-                    
+
                     // Check error limit
                     if ctx.progress.failed.load(Ordering::Relaxed) >= ctx.config.max_errors {
                         // Note: Early termination in parallel context is complex
@@ -167,7 +168,7 @@ pub(crate) fn process_batch_with_writer(
             }
         })
         .collect();
-    
+
     // SEQUENTIAL PHASE: Add documents to writer (fast, ~0.5ms per doc)
     for doc in documents {
         let _ = writer.add_document(doc);
@@ -300,7 +301,8 @@ pub(crate) fn index_single_file_sync(
     limits: &IndexingLimits,
 ) -> Result<()> {
     let doc = prepare_document_from_file(engine, file_path, url, limits)?;
-    writer.add_document(doc)
+    writer
+        .add_document(doc)
         .with_context(|| format!("Failed to add document to index: {}", url.as_str()))?;
     Ok(())
 }
@@ -318,19 +320,28 @@ pub(crate) async fn commit_and_reload(
                 Ok(_) => {
                     // Wait for merging threads to complete
                     let _ = writer.wait_merging_threads();
-                    
+
                     // Reload reader to see the committed changes
                     if let Err(e) = engine.reader().reload() {
-                        errors.push(ImString::from("reader_reload_failed"), ImString::from(format!("Failed to reload reader: {}", e)));
+                        errors.push(
+                            ImString::from("reader_reload_failed"),
+                            ImString::from(format!("Failed to reload reader: {}", e)),
+                        );
                     }
                 }
                 Err(e) => {
-                    errors.push(ImString::from("commit_future_failed"), ImString::from(format!("Commit future failed: {}", e)));
+                    errors.push(
+                        ImString::from("commit_future_failed"),
+                        ImString::from(format!("Commit future failed: {}", e)),
+                    );
                 }
             }
         }
         Err(e) => {
-            errors.push(ImString::from("prepare_commit_failed"), ImString::from(format!("Prepare commit failed: {}", e)));
+            errors.push(
+                ImString::from("prepare_commit_failed"),
+                ImString::from(format!("Prepare commit failed: {}", e)),
+            );
         }
     }
 }
@@ -341,7 +352,7 @@ pub(crate) fn pre_collect_files(
     _engine: &SearchEngine,
 ) -> Vec<(PathBuf, ImString)> {
     use super::discovery::discover_markdown_files_stream;
-    
+
     let mut paths = Vec::new();
     for result in discover_markdown_files_stream(directory) {
         match result {

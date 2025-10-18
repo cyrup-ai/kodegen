@@ -4,7 +4,7 @@
 //! stealth features and performance optimizations.
 
 use anyhow::Result;
-use chromiumoxide::{cdp, Page};
+use chromiumoxide::{Page, cdp};
 
 /// Enhance a page with stealth features and optimizations
 #[inline]
@@ -19,10 +19,10 @@ pub async fn enhance_page(page: Page) -> Result<()> {
             // Continue anyway - stealth failure shouldn't block enhancement
         }
     }
-    
+
     // Disable images for faster loading (optional)
     // page.set_extra_http_headers(headers).await?;
-    
+
     // Set viewport to 1920x1080 for consistent desktop rendering
     page.execute(
         cdp::browser_protocol::emulation::SetDeviceMetricsOverrideParams::builder()
@@ -34,6 +34,6 @@ pub async fn enhance_page(page: Page) -> Result<()> {
             .map_err(anyhow::Error::msg)?,
     )
     .await?;
-    
+
     Ok(())
 }

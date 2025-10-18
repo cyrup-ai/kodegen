@@ -27,7 +27,7 @@ impl BrowserWrapper {
     pub(crate) fn new(browser: Browser, handler: JoinHandle<()>) -> Self {
         Self { browser, handler }
     }
-    
+
     /// Get reference to inner browser
     pub(crate) fn browser(&self) -> &Browser {
         &self.browser
@@ -103,7 +103,8 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
 /// # Based on
 /// - packages/citescrape/src/crawl_engine/core.rs:231-237 (about:blank pattern)
 pub async fn create_blank_page(wrapper: &BrowserWrapper) -> Result<Page> {
-    let page = wrapper.browser()
+    let page = wrapper
+        .browser()
         .new_page("about:blank")
         .await
         .context("Failed to create blank page")?;
@@ -130,27 +131,26 @@ pub async fn get_or_launch_browser() -> Result<Arc<BrowserWrapper>> {
     if let Some(browser_wrapper) = GLOBAL_BROWSER.get() {
         return Ok(Arc::clone(browser_wrapper));
     }
-    
+
     // Slow path - use mutex to serialize browser creation
     use tokio::sync::Mutex;
     static INIT_LOCK: Mutex<()> = Mutex::const_new(());
     let _guard = INIT_LOCK.lock().await;
-    
+
     // Double-check after acquiring lock
     if let Some(browser_wrapper) = GLOBAL_BROWSER.get() {
         return Ok(Arc::clone(browser_wrapper));
     }
-    
+
     // Launch browser with proper lifecycle management
     info!("Launching browser for first time (will be reused for all searches)");
     let (browser, handler) = launch_browser().await?;
     let wrapper = Arc::new(BrowserWrapper::new(browser, handler));
-    
+
     // Store in global (this will always succeed due to lock)
-    GLOBAL_BROWSER.set(Arc::clone(&wrapper))
+    GLOBAL_BROWSER
+        .set(Arc::clone(&wrapper))
         .map_err(|_| anyhow::anyhow!("Failed to set GLOBAL_BROWSER"))?;
-    
+
     Ok(wrapper)
 }
-
-

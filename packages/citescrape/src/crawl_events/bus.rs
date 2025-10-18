@@ -4,12 +4,10 @@
 //! metrics, batching, and filtered subscriptions.
 
 use anyhow::Result;
-use std::future::Future;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
-use tokio::sync::{broadcast, Mutex, Notify, oneshot};
-use crate::runtime::{spawn_async, AsyncTask};
+use tokio::sync::{Mutex, Notify, broadcast};
 
 use super::config::EventBusConfig;
 use super::errors::EventBusError;
@@ -36,7 +34,7 @@ pub struct CrawlEventBus {
 
 impl CrawlEventBus {
     /// Create a new event bus with the specified capacity
-    /// 
+    ///
     /// # Arguments
     /// * `capacity` - Maximum number of events that can be buffered
     pub fn new(capacity: usize) -> Self {
@@ -48,7 +46,7 @@ impl CrawlEventBus {
     }
 
     /// Create a new event bus with custom configuration
-    /// 
+    ///
     /// # Arguments
     /// * `config` - Event bus configuration
     pub fn with_config(config: EventBusConfig) -> Self {
@@ -60,7 +58,17 @@ impl CrawlEventBus {
         let send_lock = Arc::new(Mutex::new(()));
         let in_flight = Arc::new(AtomicUsize::new(0));
         let consecutive_timeouts = Arc::new(AtomicUsize::new(0));
-        Self { sender, config: Arc::new(config), metrics, shutdown, shutdown_flag, capacity_notify, send_lock, in_flight, consecutive_timeouts }
+        Self {
+            sender,
+            config: Arc::new(config),
+            metrics,
+            shutdown,
+            shutdown_flag,
+            capacity_notify,
+            send_lock,
+            in_flight,
+            consecutive_timeouts,
+        }
     }
 
     /// Get the current configuration
@@ -69,21 +77,21 @@ impl CrawlEventBus {
     }
 
     /// Get current metrics
-    /// 
+    ///
     /// # Consistency Notes
-    /// 
+    ///
     /// Returns a reference to the metrics object. Individual counter reads
     /// are atomic, but relationships between counters may be temporarily
     /// inconsistent during concurrent operations. For a consistent view
     /// across all metrics, use `metrics().snapshot()`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// // Individual reads (may be inconsistent)
     /// let published = bus.metrics().get_published();
     /// let dropped = bus.metrics().get_dropped();
-    /// 
+    ///
     /// // Consistent snapshot
     /// let snapshot = bus.metrics().snapshot();
     /// assert!(snapshot.events_published >= snapshot.events_dropped);
@@ -93,26 +101,23 @@ impl CrawlEventBus {
     }
 
     /// Publish an event to all subscribers
-    /// 
+    ///
     /// # Arguments
     /// * `event` - The event to publish
-    /// 
+    ///
     /// # Returns
     /// * `Ok(usize)` - Number of active subscribers that received the event
     /// * `Err(EventBusError)` - If publishing failed
-    pub async fn publish(
-        &self,
-        event: CrawlEvent,
-    ) -> Result<usize, EventBusError> {
+    pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
         // Increment counter before processing
         self.in_flight.fetch_add(1, Ordering::SeqCst);
-        
+
         let result = match self.sender.send(event) {
             Ok(subscriber_count) => {
                 if self.config.enable_metrics {
                     self.metrics.increment_published();
                     self.metrics.update_subscriber_count(subscriber_count);
-                    
+
                     if subscriber_count == 0 {
                         self.metrics.increment_dropped();
                         log::debug!("Published event but no active subscribers");
@@ -127,30 +132,30 @@ impl CrawlEventBus {
                 Err(EventBusError::NoSubscribers)
             }
         };
-        
+
         // Decrement counter after processing
         self.in_flight.fetch_sub(1, Ordering::SeqCst);
-        
+
         result
     }
 
     /// Publish an event with backpressure control
-    /// 
+    ///
     /// Unlike `publish()` and `publish_async()`, this method respects the
     /// configured backpressure mode:
-    /// 
+    ///
     /// - **DropOldest**: Same as publish(), never blocks
     /// - **Block**: Waits until space is available (applies backpressure)
     /// - **Error**: Returns ChannelFull error if at capacity
-    /// 
+    ///
     /// # Arguments
     /// * `event` - The event to publish
-    /// 
+    ///
     /// # Returns
     /// * `Ok(usize)` - Number of subscribers that received the event
     /// * `Err(EventBusError::ChannelFull)` - Channel at capacity (Error mode only)
     /// * `Err(EventBusError::NoSubscribers)` - No active subscribers
-    /// 
+    ///
     /// # Example with Error Mode
     /// ```
     /// let config = EventBusConfig {
@@ -158,7 +163,7 @@ impl CrawlEventBus {
     ///     ..Default::default()
     /// };
     /// let bus = CrawlEventBus::with_config(config);
-    /// 
+    ///
     /// match bus.publish_with_backpressure(event).await {
     ///     Ok(count) => log::info!("Published to {} subscribers", count),
     ///     Err(EventBusError::ChannelFull) => {
@@ -167,7 +172,7 @@ impl CrawlEventBus {
     ///     Err(e) => log::error!("Publish failed: {}", e),
     /// }
     /// ```
-    /// 
+    ///
     /// # Example with Block Mode
     /// ```
     /// let config = EventBusConfig {
@@ -175,7 +180,7 @@ impl CrawlEventBus {
     ///     ..Default::default()
     /// };
     /// let bus = CrawlEventBus::with_config(config);
-    /// 
+    ///
     /// // This will wait until space is available
     /// let count = bus.publish_with_backpressure(event).await?;
     /// ```
@@ -184,7 +189,7 @@ impl CrawlEventBus {
         event: CrawlEvent,
     ) -> Result<usize, EventBusError> {
         use super::config::BackpressureMode;
-        
+
         match self.config.backpressure_mode {
             BackpressureMode::DropOldest => {
                 // Same as current behavior - never blocks, drops oldest
@@ -193,7 +198,7 @@ impl CrawlEventBus {
                         if self.config.enable_metrics {
                             self.metrics.increment_published();
                             self.metrics.update_subscriber_count(subscriber_count);
-                            
+
                             if subscriber_count == 0 {
                                 self.metrics.increment_dropped();
                             }
@@ -208,7 +213,7 @@ impl CrawlEventBus {
                     }
                 }
             }
-            
+
             BackpressureMode::Block => {
                 // Circuit breaker: check if we've exceeded timeout threshold
                 let timeout_count = self.consecutive_timeouts.load(Ordering::Acquire);
@@ -218,9 +223,9 @@ impl CrawlEventBus {
                         timeout_count
                     );
                     // Fall back to DropOldest mode to prevent complete system hang
-                    return self.publish_async(event).await;
+                    return self.publish(event).await;
                 }
-                
+
                 // Wrap the blocking wait in a 30-second timeout to prevent deadlocks
                 let publish_future = async {
                     // Wait until space is available using notification + timeout fallback
@@ -229,36 +234,37 @@ impl CrawlEventBus {
                         if self.sender.len() < self.config.capacity {
                             break;
                         }
-                        
+
                         // Check if bus is shutdown
                         if self.is_shutdown() {
                             return Err(EventBusError::Shutdown);
                         }
-                        
+
                         // Wait for capacity notification OR timeout (5ms fallback)
                         // Timeout ensures we recheck even if notification is missed
                         let _ = tokio::time::timeout(
                             tokio::time::Duration::from_millis(5),
-                            self.capacity_notify.notified()
-                        ).await;
+                            self.capacity_notify.notified(),
+                        )
+                        .await;
                     }
-                    
+
                     // Now publish (should succeed since we have space)
                     match self.sender.send(event) {
                         Ok(subscriber_count) => {
                             if self.config.enable_metrics {
                                 self.metrics.increment_published();
                                 self.metrics.update_subscriber_count(subscriber_count);
-                                
+
                                 if subscriber_count == 0 {
                                     self.metrics.increment_dropped();
                                 }
                             }
-                            
+
                             // Wake one waiting publisher (if any) now that we've published
                             // This creates a chain where publishers wake each other
                             self.capacity_notify.notify_one();
-                            
+
                             Ok(subscriber_count)
                         }
                         Err(broadcast::error::SendError(_)) => {
@@ -269,7 +275,7 @@ impl CrawlEventBus {
                         }
                     }
                 };
-                
+
                 // Apply 30-second timeout to prevent indefinite deadlock
                 match tokio::time::timeout(Duration::from_secs(30), publish_future).await {
                     Ok(Ok(count)) => {
@@ -283,42 +289,43 @@ impl CrawlEventBus {
                     }
                     Err(_elapsed) => {
                         // Timeout occurred: increment counter and check circuit breaker
-                        let new_count = self.consecutive_timeouts.fetch_add(1, Ordering::AcqRel) + 1;
-                        
+                        let new_count =
+                            self.consecutive_timeouts.fetch_add(1, Ordering::AcqRel) + 1;
+
                         if new_count > 10 {
                             // Circuit breaker will trigger on next call
                             log::error!(
-                                "Publish timeout #{}: circuit breaker will open on next attempt", 
+                                "Publish timeout #{}: circuit breaker will open on next attempt",
                                 new_count
                             );
                         } else {
                             log::warn!(
-                                "Publish timeout #{} after 30s waiting for channel capacity", 
+                                "Publish timeout #{} after 30s waiting for channel capacity",
                                 new_count
                             );
                         }
-                        
+
                         Err(EventBusError::PublishTimeout)
                     }
                 }
             }
-            
+
             BackpressureMode::Error => {
                 // Acquire lock to serialize check-and-send (eliminates TOCTOU race)
                 let _guard = self.send_lock.lock().await;
-                
+
                 // Check and send are now atomic (serialized by mutex)
                 if self.sender.len() >= self.config.capacity {
                     return Err(EventBusError::ChannelFull);
                 }
-                
+
                 // Send with reserved slot (protected by lock)
                 match self.sender.send(event) {
                     Ok(subscriber_count) => {
                         if self.config.enable_metrics {
                             self.metrics.increment_published();
                             self.metrics.update_subscriber_count(subscriber_count);
-                            
+
                             if subscriber_count == 0 {
                                 self.metrics.increment_dropped();
                             }
@@ -338,7 +345,7 @@ impl CrawlEventBus {
     }
 
     /// Subscribe to events
-    /// 
+    ///
     /// # Returns
     /// A receiver that can be used to listen for events
     pub fn subscribe(&self) -> broadcast::Receiver<CrawlEvent> {
@@ -360,13 +367,13 @@ impl CrawlEventBus {
     }
 
     /// Get current channel pressure (0.0 to 1.0+)
-    /// 
+    ///
     /// Returns the ratio of used capacity to total capacity.
     /// - 0.0 = empty
     /// - 0.5 = half full
     /// - 1.0 = at capacity
     /// - >1.0 = impossible (channel drops oldest events)
-    /// 
+    ///
     /// # Example
     /// ```
     /// let bus = CrawlEventBus::new(1000);
@@ -383,10 +390,10 @@ impl CrawlEventBus {
     }
 
     /// Check if channel is overloaded
-    /// 
+    ///
     /// Returns true if pressure exceeds the configured threshold
     /// (default 0.8 = 80% capacity)
-    /// 
+    ///
     /// # Example
     /// ```
     /// if bus.is_overloaded() {
@@ -409,7 +416,7 @@ impl CrawlEventBus {
     }
 
     /// Create a filtered subscriber that only receives specific event types
-    /// 
+    ///
     /// # Arguments
     /// * `filter` - Function that returns true if event should be passed through
     pub fn subscribe_filtered<F>(&self, filter: F) -> FilteredReceiver<F>
@@ -422,41 +429,41 @@ impl CrawlEventBus {
 
     /// Publish multiple events as a batch
     /// Publish multiple events as a batch with best-effort delivery
-    /// 
+    ///
     /// This method publishes all events in the batch regardless of individual failures.
     /// Unlike a transactional approach, partial success is acceptable and fully reported.
-    /// 
+    ///
     /// # Best-Effort Semantics
-    /// 
+    ///
     /// All events are attempted. Failures (typically due to no active subscribers) don't
-    /// stop processing of remaining events. Returns a `BatchPublishResult` with explicit 
+    /// stop processing of remaining events. Returns a `BatchPublishResult` with explicit
     /// counts showing exactly how many succeeded vs failed.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `events` - Vector of events to publish
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `BatchPublishResult` with detailed success/failure statistics
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// let events = vec![
     ///     CrawlEvent::page_crawled(...),
     ///     CrawlEvent::page_crawled(...),
     ///     CrawlEvent::crawl_completed(...),
     /// ];
-    /// 
+    ///
     /// let result = bus.publish_batch(events).await;
     /// println!("Published {}/{} events to {} subscribers",
     ///          result.published, result.total, result.max_subscribers);
-    /// 
+    ///
     /// if result.has_failures() {
     ///     log::warn!("{} events failed (no subscribers)", result.failed);
     /// }
-    /// 
+    ///
     /// if result.is_complete() {
     ///     log::info!("All events delivered successfully");
     /// }
@@ -472,7 +479,7 @@ impl CrawlEventBus {
                 Ok(count) => {
                     published += 1;
                     max_subscribers = std::cmp::max(max_subscribers, count);
-                    
+
                     if self.config.enable_metrics {
                         self.metrics.increment_published();
                         self.metrics.update_subscriber_count(count);
@@ -499,7 +506,7 @@ impl CrawlEventBus {
     }
 
     /// Get detailed metrics report
-    /// 
+    ///
     /// Uses a snapshot to ensure all metrics are consistent with each other.
     pub fn get_metrics_report(&self) -> String {
         if !self.config.enable_metrics {
@@ -507,7 +514,7 @@ impl CrawlEventBus {
         }
 
         let snapshot = self.metrics.snapshot();
-        
+
         format!(
             "Event Bus Metrics:\n\
              - Events Published: {}\n\
@@ -526,7 +533,7 @@ impl CrawlEventBus {
     }
 
     /// Signal shutdown to all subscribers
-    /// 
+    ///
     /// This method is idempotent - calling it multiple times is safe.
     /// All clones of this bus share the same shutdown signal.
     pub fn shutdown(&self) {
@@ -536,9 +543,9 @@ impl CrawlEventBus {
     }
 
     /// Wait for shutdown signal
-    /// 
+    ///
     /// Subscribers should use this with tokio::select! to exit gracefully:
-    /// 
+    ///
     /// ```rust
     /// tokio::select! {
     ///     Ok(event) = rx.recv() => { /* handle event */ }
@@ -550,84 +557,84 @@ impl CrawlEventBus {
     }
 
     /// Check if shutdown has been signaled
-    /// 
+    ///
     /// Returns true if shutdown() has been called on this bus or any of its clones.
     pub fn is_shutdown(&self) -> bool {
         self.shutdown_flag.load(Ordering::SeqCst)
     }
 
     /// Wait for all in-flight publish operations to complete
-    /// 
+    ///
     /// This method polls the in-flight counter until it reaches zero or the timeout expires.
-    /// 
+    ///
     /// # Arguments
     /// * `timeout` - Maximum time to wait for operations to complete
-    /// 
+    ///
     /// # Returns
     /// * `Ok(())` - All operations completed successfully
     /// * `Err(EventBusError::DrainTimeout)` - Timeout expired with pending operations
     async fn drain_in_flight(&self, timeout: Duration) -> Result<(), EventBusError> {
         let deadline = tokio::time::Instant::now() + timeout;
         let poll_interval = Duration::from_millis(5);
-        
+
         loop {
             let pending = self.in_flight.load(Ordering::SeqCst);
-            
+
             if pending == 0 {
                 log::debug!("All in-flight operations completed");
                 return Ok(());
             }
-            
+
             if tokio::time::Instant::now() >= deadline {
                 log::warn!(
                     "Drain timeout: {} operations still pending after {:?}",
                     pending,
                     timeout
                 );
-                return Err(EventBusError::DrainTimeout { 
-                    pending_operations: pending 
+                return Err(EventBusError::DrainTimeout {
+                    pending_operations: pending,
                 });
             }
-            
+
             log::trace!("Waiting for {} in-flight operations", pending);
             tokio::time::sleep(poll_interval).await;
         }
     }
 
     /// Gracefully shutdown the event bus with proper draining
-    /// 
+    ///
     /// This method ensures no events are lost during shutdown:
-    /// 
+    ///
     /// 1. **Set shutdown flag** - Prevents new operations from starting
     /// 2. **Drain in-flight publishes** - Waits for pending AsyncTask callbacks (100ms timeout)
     /// 3. **Publish shutdown event** - Notifies subscribers via event stream
     /// 4. **Wait for subscriber processing** - Gives time for subscribers to drain (500ms)
     /// 5. **Signal shutdown complete** - Wakes waiting tasks
-    /// 
+    ///
     /// # Timeouts
-    /// 
+    ///
     /// - **In-flight drain**: 100ms (should be fast - just callback execution)
     /// - **Subscriber drain**: 500ms (depends on subscriber processing speed)
     /// - **Total maximum**: 600ms
-    /// 
+    ///
     /// If timeouts are exceeded, a warning is logged but shutdown proceeds to prevent hangs.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// // At end of crawl
     /// bus.shutdown_gracefully(ShutdownReason::CrawlCompleted).await;
-    /// 
+    ///
     /// // On error
     /// bus.shutdown_gracefully(ShutdownReason::Error(e.to_string())).await;
     /// ```
     pub async fn shutdown_gracefully(&self, reason: super::types::ShutdownReason) {
         log::info!("Beginning graceful shutdown of event bus: {:?}", reason);
-        
+
         // Phase 1: Set shutdown flag to prevent new operations
         self.shutdown_flag.store(true, Ordering::SeqCst);
         log::debug!("Shutdown flag set");
-        
+
         // Phase 2: Drain in-flight publish operations
         log::debug!("Draining in-flight publish operations");
         let drain_timeout = Duration::from_millis(100);
@@ -635,21 +642,21 @@ impl CrawlEventBus {
             log::warn!("In-flight drain incomplete: {}", e);
             // Continue anyway - don't block shutdown forever
         }
-        
+
         // Phase 3: Publish shutdown event (tracked via in_flight counter)
         log::debug!("Publishing shutdown event");
         let event = CrawlEvent::shutdown(reason);
-        let _future = self.publish_async(event);
-        
+        let _ = self.publish(event).await;
+
         // Phase 4: Wait for subscribers to process buffered events
         // This is a heuristic - we can't know when subscribers are truly done
         // without explicit acknowledgment, so we use a generous timeout
         log::debug!("Waiting for subscribers to process events");
         tokio::time::sleep(Duration::from_millis(500)).await;
-        
+
         // Phase 5: Signal final shutdown
         self.shutdown.notify_waiters();
-        
+
         log::info!("Event bus graceful shutdown complete");
     }
 

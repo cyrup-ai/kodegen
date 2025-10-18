@@ -3,8 +3,8 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use tokio::sync::mpsc;
 use std::fmt;
+use tokio::sync::mpsc;
 
 /// Error type for AsyncTask execution failures
 #[derive(Debug, Clone)]
@@ -36,10 +36,10 @@ impl<T> Future for AsyncTask<T> {
     type Output = Result<T, TaskError>;
 
     #[inline]
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Get mutable access to rx for tokio mpsc
         let rx = &mut self.get_mut().rx;
-        
+
         // Fast path - non-blocking receive with zero allocations
         match rx.try_recv() {
             Ok(value) => Poll::Ready(Ok(value)),
@@ -67,7 +67,7 @@ impl<T> AsyncTask<T> {
     pub async fn expect_ok(self, msg: &str) -> T {
         self.await.expect(msg)
     }
-    
+
     /// Await the task, converting error to anyhow::Error
     #[inline]
     pub async fn into_anyhow(self) -> anyhow::Result<T> {
@@ -75,9 +75,9 @@ impl<T> AsyncTask<T> {
     }
 }
 
-impl<T, E> AsyncTask<Result<T, E>> 
-where 
-    E: std::error::Error + Send + Sync + 'static 
+impl<T, E> AsyncTask<Result<T, E>>
+where
+    E: std::error::Error + Send + Sync + 'static,
 {
     /// Flatten Result<Result<T, E>, TaskError> into Result<T, anyhow::Error>
     #[inline]
@@ -91,7 +91,7 @@ where
 
 /// Spawns a future onto the global executor and returns an AsyncTask that resolves to its output.
 /// This is a zero-allocation operation after the initial channel creation.
-/// 
+///
 /// The future will be executed on the global work-stealing thread pool for optimal performance.
 #[inline]
 pub fn spawn_async<Fut, T>(fut: Fut) -> AsyncTask<T>
@@ -101,14 +101,14 @@ where
 {
     // Create tokio channel for result
     let (tx, rx) = mpsc::unbounded_channel();
-    
+
     // Spawn future on tokio runtime
     tokio::task::spawn(async move {
         let result = fut.await;
         // Send result through channel (ignore errors if receiver dropped)
         let _ = tx.send(result);
     });
-    
+
     AsyncTask { rx }
 }
 
@@ -143,16 +143,16 @@ where
 }
 
 /// RAII guard that ensures AsyncTask completion or tracking
-/// 
+///
 /// Provides compile-time guarantees that spawned tasks are properly tracked
 /// until their results are consumed. Follows the same pattern as BrowserHandlerGuard.
-/// 
+///
 /// # Purpose
 /// Prevents silent task failures by ensuring that:
 /// 1. Task handles are not silently ignored
 /// 2. Tasks remain in scope until completion
 /// 3. Dropped tasks are logged for debugging
-/// 
+///
 /// # Usage
 /// ```ignore
 /// let (tx, rx) = tokio::sync::oneshot::channel();
@@ -172,14 +172,14 @@ impl<T> TaskGuard<T> {
     /// Create a new task guard with a descriptive name for debugging
     #[inline]
     pub fn new(handle: AsyncTask<T>, name: &'static str) -> Self {
-        Self { 
-            handle: Some(handle), 
-            name 
+        Self {
+            handle: Some(handle),
+            name,
         }
     }
-    
+
     /// Explicitly take ownership of the task handle
-    /// 
+    ///
     /// Returns the AsyncTask if available, otherwise returns a pending task.
     /// This prevents the Drop warning from firing.
     #[inline]
@@ -200,7 +200,10 @@ impl<T> Drop for TaskGuard<T> {
         if self.handle.is_some() {
             // Task dropped before explicit completion - log for debugging
             // In production, this helps identify potential task leaks or timeouts
-            log::warn!("TaskGuard '{}' dropped without explicit completion", self.name);
+            log::warn!(
+                "TaskGuard '{}' dropped without explicit completion",
+                self.name
+            );
         }
     }
 }

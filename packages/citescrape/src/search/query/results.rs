@@ -3,9 +3,9 @@
 use anyhow::Result;
 use tantivy::{TantivyDocument, schema::Value};
 
+use super::snippets::SnippetGenerators;
 use crate::search::engine::SearchEngine;
 use crate::search::types::SearchResultItem;
-use super::snippets::SnippetGenerators;
 
 /// Search results container
 #[derive(Debug, Clone)]
@@ -43,17 +43,20 @@ pub(crate) fn convert_to_search_result(
     let schema = engine.schema();
 
     // Extract fields from document with proper error handling
-    let url = doc.get_first(schema.url)
+    let url = doc
+        .get_first(schema.url)
         .and_then(|v| v.as_str())
         .unwrap_or("Unknown URL")
         .to_string();
 
-    let title = doc.get_first(schema.title)
+    let title = doc
+        .get_first(schema.title)
         .and_then(|v| v.as_str())
         .unwrap_or("Untitled")
         .to_string();
 
-    let path = doc.get_first(schema.path)
+    let path = doc
+        .get_first(schema.path)
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();

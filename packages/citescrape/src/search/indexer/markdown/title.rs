@@ -8,25 +8,25 @@ pub(crate) fn extract_title_from_markdown_optimized(markdown: &str) -> ImString 
     if markdown.is_empty() {
         return ImString::from("Untitled");
     }
-    
+
     let mut lines = markdown.lines().take(20); // Check more lines for edge cases
     let mut in_code_block = false;
     let mut in_html_comment = false;
     let mut _potential_setext = None; // Prefix with underscore to silence warning
-    
+
     while let Some(line) = lines.next() {
         let trimmed = line.trim();
-        
+
         // Handle code blocks
         if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
             in_code_block = !in_code_block;
             continue;
         }
-        
+
         if in_code_block {
             continue;
         }
-        
+
         // Handle HTML comments
         if trimmed.starts_with("<!--") {
             in_html_comment = true;
@@ -37,13 +37,13 @@ pub(crate) fn extract_title_from_markdown_optimized(markdown: &str) -> ImString 
             }
             continue;
         }
-        
+
         // Skip empty lines
         if trimmed.is_empty() {
             _potential_setext = None;
             continue;
         }
-        
+
         // ATX headers with various levels
         for level in 1..=6 {
             let prefix = "#".repeat(level) + " ";
@@ -52,7 +52,7 @@ pub(crate) fn extract_title_from_markdown_optimized(markdown: &str) -> ImString 
                 return clean_header_text(header);
             }
         }
-        
+
         // Check for setext headers (next line)
         if let Some(next_line) = lines.clone().next() {
             let next_trimmed = next_line.trim();
@@ -60,21 +60,25 @@ pub(crate) fn extract_title_from_markdown_optimized(markdown: &str) -> ImString 
                 // H1 setext
                 return clean_header_text(trimmed);
             } else if next_trimmed.chars().all(|c| c == '-') && next_trimmed.len() >= 3 {
-                // H2 setext  
+                // H2 setext
                 return clean_header_text(trimmed);
             }
         }
-        
+
         // Store potential setext header
-        if !trimmed.starts_with(">") && !trimmed.starts_with("*") && 
-           !trimmed.starts_with("-") && !trimmed.starts_with("+") &&
-           !trimmed.starts_with(|c: char| c.is_numeric()) {
+        if !trimmed.starts_with(">")
+            && !trimmed.starts_with("*")
+            && !trimmed.starts_with("-")
+            && !trimmed.starts_with("+")
+            && !trimmed.starts_with(|c: char| c.is_numeric())
+        {
             _potential_setext = Some(trimmed);
         }
     }
-    
+
     // Fallback to first substantial non-empty line
-    markdown.lines()
+    markdown
+        .lines()
         .find(|line| {
             let trimmed = line.trim();
             !trimmed.is_empty() && 
@@ -107,13 +111,13 @@ pub(crate) fn clean_header_text(text: &str) -> ImString {
     let mut in_link = false;
     let mut in_code = false;
     let mut skip_next = false;
-    
+
     while let Some(ch) = chars.next() {
         if skip_next {
             skip_next = false;
             continue;
         }
-        
+
         match ch {
             '\\' => {
                 // Escape character - include next character literally
@@ -141,7 +145,9 @@ pub(crate) fn clean_header_text(text: &str) -> ImString {
                         match chars.next() {
                             Some('(') => depth += 1,
                             Some(')') => depth -= 1,
-                            Some('\\') => { chars.next(); } // Skip escaped char
+                            Some('\\') => {
+                                chars.next();
+                            } // Skip escaped char
                             _ => {}
                         }
                     }
@@ -172,7 +178,7 @@ pub(crate) fn clean_header_text(text: &str) -> ImString {
             }
         }
     }
-    
+
     // Clean up multiple spaces
     ImString::from(result.split_whitespace().collect::<Vec<_>>().join(" "))
 }

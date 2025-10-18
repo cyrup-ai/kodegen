@@ -26,7 +26,7 @@ mod search;
 mod types;
 
 // Re-export public types
-pub use types::{SearchResult, SearchResults, MAX_RESULTS, MAX_RETRIES};
+pub use types::{MAX_RESULTS, MAX_RETRIES, SearchResult, SearchResults};
 
 use anyhow::Result;
 use tracing::info;
@@ -89,12 +89,13 @@ pub async fn search(query: impl Into<String>) -> Result<SearchResults> {
 
     // ✓ DON'T close browser - keep it alive for next search
 
-    info!("Search completed successfully with {} results", results.len());
+    info!(
+        "Search completed successfully with {} results",
+        results.len()
+    );
 
     Ok(SearchResults::new(query, results))
 }
-
-
 
 #[cfg(test)]
 mod tests {

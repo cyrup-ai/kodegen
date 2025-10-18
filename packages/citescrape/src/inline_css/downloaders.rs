@@ -31,8 +31,8 @@
 
 use anyhow::{Context, Result};
 use base64::Engine;
-use reqwest::Client;
 use futures::StreamExt;
+use reqwest::Client;
 
 /// Configuration for download timeouts and size limits
 #[derive(Debug, Clone)]
@@ -43,17 +43,17 @@ pub struct InlineConfig {
     pub image_timeout: std::time::Duration,
     /// Timeout for SVG downloads
     pub svg_timeout: std::time::Duration,
-    
+
     /// Maximum size for CSS downloads (bytes)
     /// Based on 99th percentile of real-world CSS + margin
     /// Typical: 50-200KB, Large frameworks: 500KB-1MB
     pub max_css_size: usize,
-    
+
     /// Maximum size for image downloads (bytes)
     /// Images larger than this should not be inlined as data URLs
     /// Typical inlined images: 10-500KB, Large: 1-3MB
     pub max_image_size: usize,
-    
+
     /// Maximum size for SVG downloads (bytes)
     /// SVGs are text-based and should be small
     /// Typical: 5-50KB, Complex: 100-500KB
@@ -66,11 +66,11 @@ impl Default for InlineConfig {
             css_timeout: std::time::Duration::from_secs(30),
             image_timeout: std::time::Duration::from_secs(60),
             svg_timeout: std::time::Duration::from_secs(30),
-            
+
             // Reasonable defaults based on real-world usage
-            max_css_size: 2 * 1024 * 1024,      // 2MB (down from 10MB)
-            max_image_size: 5 * 1024 * 1024,    // 5MB (down from 50MB)
-            max_svg_size: 1024 * 1024,      // 1MB (down from 5MB)
+            max_css_size: 2 * 1024 * 1024,   // 2MB (down from 10MB)
+            max_image_size: 5 * 1024 * 1024, // 5MB (down from 50MB)
+            max_svg_size: 1024 * 1024,       // 1MB (down from 5MB)
         }
     }
 }
@@ -83,11 +83,7 @@ impl Default for InlineConfig {
 ///
 /// Handles HTTP download with streaming, size limits, and timeout.
 /// Called by the public async API.
-async fn download_css_core(
-    url: String,
-    client: Client,
-    config: &InlineConfig,
-) -> Result<String> {
+async fn download_css_core(url: String, client: Client, config: &InlineConfig) -> Result<String> {
     // Download with timeout
     let response = client
         .get(&url)
@@ -127,7 +123,7 @@ async fn download_css_core(
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.context("Failed to read CSS chunk")?;
-        
+
         // Check BEFORE accumulating
         let new_total = total_size + chunk.len();
         if new_total > config.max_css_size {
@@ -137,14 +133,13 @@ async fn download_css_core(
                 config.max_css_size
             ));
         }
-        
+
         buffer.extend_from_slice(&chunk);
         total_size = new_total;
     }
 
     // Convert buffer to string
-    String::from_utf8(buffer)
-        .context("CSS content is not valid UTF-8")
+    String::from_utf8(buffer).context("CSS content is not valid UTF-8")
 }
 
 /// Core image download and encoding implementation
@@ -205,7 +200,7 @@ async fn download_and_encode_image_core(
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.context("Failed to read image chunk")?;
-        
+
         // Check BEFORE accumulating
         let new_total = total_size + chunk.len();
         if new_total > config.max_image_size {
@@ -215,28 +210,33 @@ async fn download_and_encode_image_core(
                 config.max_image_size
             ));
         }
-        
+
         buffer.extend_from_slice(&chunk);
         total_size = new_total;
     }
 
     // Check if image size exceeds the threshold
     if let Some(max_size) = max_inline_size_bytes
-        && buffer.len() > max_size {
+        && buffer.len() > max_size
+    {
         // Return the original URL instead of encoding
-        log::debug!("Image size ({} bytes) exceeds max_inline_size_bytes ({} bytes), keeping as external URL: {}", 
-            buffer.len(), max_size, url);
+        log::debug!(
+            "Image size ({} bytes) exceeds max_inline_size_bytes ({} bytes), keeping as external URL: {}",
+            buffer.len(),
+            max_size,
+            url
+        );
         return Ok(url);
     }
-    
+
     // Encode to base64 directly from buffer (implements AsRef<[u8]>)
     let encoded_capacity = base64::encoded_len(buffer.len(), false).unwrap_or(0);
     let mut encoded = String::with_capacity(encoded_capacity + 30 + content_type.len());
-    
+
     encoded.push_str("data:");
     encoded.push_str(&content_type);
     encoded.push_str(";base64,");
-    
+
     // Use STANDARD encoding for better compatibility
     base64::engine::general_purpose::STANDARD.encode_string(&buffer, &mut encoded);
 
@@ -248,11 +248,7 @@ async fn download_and_encode_image_core(
 /// Handles HTTP download with streaming, size limits, and timeout.
 /// Cleans up SVG content by removing XML declarations and commenting DOCTYPE.
 /// Called by the public async API.
-async fn download_svg_core(
-    url: String,
-    client: Client,
-    config: &InlineConfig,
-) -> Result<String> {
+async fn download_svg_core(url: String, client: Client, config: &InlineConfig) -> Result<String> {
     // Download with timeout
     let response = client
         .get(&url)
@@ -292,7 +288,7 @@ async fn download_svg_core(
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.context("Failed to read SVG chunk")?;
-        
+
         // Check BEFORE accumulating
         let new_total = total_size + chunk.len();
         if new_total > config.max_svg_size {
@@ -302,36 +298,35 @@ async fn download_svg_core(
                 config.max_svg_size
             ));
         }
-        
+
         buffer.extend_from_slice(&chunk);
         total_size = new_total;
     }
 
     // Convert buffer to string
-    let text = String::from_utf8(buffer)
-        .context("SVG content is not valid UTF-8")?;
-    
+    let text = String::from_utf8(buffer).context("SVG content is not valid UTF-8")?;
+
     // Clean up SVG for inline usage
     let mut cleaned = text;
-    
+
     // Remove XML declaration
     cleaned = cleaned.replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "");
-    
+
     // Comment out DOCTYPE if present
     if let Some(doctype_start) = cleaned.find("<!DOCTYPE svg") {
         // Find the closing '>' of the DOCTYPE specifically
         if let Some(doctype_end_offset) = cleaned[doctype_start..].find('>') {
             let doctype_end = doctype_start + doctype_end_offset + 1;
-            
+
             // Extract the DOCTYPE
             let doctype = &cleaned[doctype_start..doctype_end];
-            
+
             // Replace with commented version
             let commented = format!("<!--{}-->", doctype);
             cleaned.replace_range(doctype_start..doctype_end, &commented);
         }
     }
-    
+
     Ok(cleaned)
 }
 
@@ -341,12 +336,16 @@ async fn download_svg_core(
 
 /// Async version: Download CSS content
 #[inline]
-pub async fn download_css_async(url: String, client: Client, config: &InlineConfig) -> Result<String> {
+pub async fn download_css_async(
+    url: String,
+    client: Client,
+    config: &InlineConfig,
+) -> Result<String> {
     download_css_core(url, client, config).await
 }
 
 /// Async version: Download and encode image as base64 data URL
-/// 
+///
 /// If max_inline_size_bytes is set and the image exceeds this size,
 /// the original URL will be returned instead of a base64-encoded data URL.
 #[inline]
@@ -361,8 +360,10 @@ pub async fn download_and_encode_image_async(
 
 /// Async version: Download SVG content
 #[inline]
-pub async fn download_svg_async(url: String, client: Client, config: &InlineConfig) -> Result<String> {
+pub async fn download_svg_async(
+    url: String,
+    client: Client,
+    config: &InlineConfig,
+) -> Result<String> {
     download_svg_core(url, client, config).await
 }
-
-

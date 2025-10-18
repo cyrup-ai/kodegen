@@ -15,7 +15,7 @@ pub struct ErrorContext {
 
 impl ErrorContext {
     /// Create new error context for an operation
-    /// 
+    ///
     /// # Example
     /// ```
     /// let ctx = ErrorContext::new("Get crawl results");
@@ -29,7 +29,7 @@ impl ErrorContext {
     }
 
     /// Add detail about what was checked or why it failed
-    /// 
+    ///
     /// # Example
     /// ```
     /// ctx.detail("crawl_id: Some(\"abc-123\")")
@@ -41,7 +41,7 @@ impl ErrorContext {
     }
 
     /// Add actionable suggestion for resolution
-    /// 
+    ///
     /// # Example
     /// ```
     /// ctx.suggest("Verify the crawl_id is correct")
@@ -53,36 +53,36 @@ impl ErrorContext {
     }
 
     /// Build formatted error message
-    /// 
+    ///
     /// Format:
     /// ```text
     /// Operation failed: {operation}
-    /// 
+    ///
     /// Details:
     ///   - {detail1}
     ///   - {detail2}
-    /// 
+    ///
     /// Suggestions:
     ///   - {suggestion1}
     ///   - {suggestion2}
     /// ```
     pub fn build(self) -> String {
         let mut msg = format!("Operation failed: {}\n", self.operation);
-        
+
         if !self.details.is_empty() {
             msg.push_str("\nDetails:\n");
             for detail in &self.details {
                 msg.push_str(&format!("  - {}\n", detail));
             }
         }
-        
+
         if !self.suggestions.is_empty() {
             msg.push_str("\nSuggestions:\n");
             for suggestion in &self.suggestions {
                 msg.push_str(&format!("  - {}\n", suggestion));
             }
         }
-        
+
         msg
     }
 }

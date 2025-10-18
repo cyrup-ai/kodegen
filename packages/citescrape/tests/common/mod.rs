@@ -127,8 +127,13 @@ pub fn create_error_mock(server: &mut Server, path: &str, status: usize) -> Mock
 /// Launches a headless Chrome browser for testing
 #[allow(dead_code)]
 pub async fn launch_test_browser() -> Result<(Browser, chromiumoxide::Handler)> {
-    let (browser, handler) =
-        Browser::launch(BrowserConfig::builder().no_sandbox().build().map_err(|e| anyhow::anyhow!(e))?).await?;
+    let (browser, handler) = Browser::launch(
+        BrowserConfig::builder()
+            .no_sandbox()
+            .build()
+            .map_err(|e| anyhow::anyhow!(e))?,
+    )
+    .await?;
 
     // Note: Handler is returned to caller to manage
     Ok((browser, handler))
@@ -136,7 +141,10 @@ pub async fn launch_test_browser() -> Result<(Browser, chromiumoxide::Handler)> 
 
 /// Creates test configuration for crawling
 #[allow(dead_code)]
-pub async fn create_test_config(storage_dir: &Path, start_url: &str) -> kodegen_citescrape::config::CrawlConfig {
+pub async fn create_test_config(
+    storage_dir: &Path,
+    start_url: &str,
+) -> kodegen_citescrape::config::CrawlConfig {
     let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
     let _task = kodegen_citescrape::config::CrawlConfig::builder()
         .storage_dir(storage_dir.to_path_buf())
@@ -145,7 +153,10 @@ pub async fn create_test_config(storage_dir: &Path, start_url: &str) -> kodegen_
         .build(move |result| {
             let _ = tx.send(result);
         });
-    rx.recv().await.unwrap().expect("Failed to create test config")
+    rx.recv()
+        .await
+        .unwrap()
+        .expect("Failed to create test config")
 }
 
 /// Compares two markdown strings, normalizing whitespace

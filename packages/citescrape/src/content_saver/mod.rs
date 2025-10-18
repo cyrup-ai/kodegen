@@ -6,11 +6,13 @@ mod compression;
 mod html_saver;
 mod indexing;
 mod json_saver;
-mod markdown_saver;
 pub mod markdown_converter;
+mod markdown_saver;
 
 // Re-export public API from cache_check module
-pub use cache_check::{read_cached_etag, extract_etag_from_headers, check_etag_from_events, get_mirror_path_sync};
+pub use cache_check::{
+    check_etag_from_events, extract_etag_from_headers, get_mirror_path_sync, read_cached_etag,
+};
 
 // Re-export public API from compression module
 pub use compression::{CacheMetadata, save_compressed_file};

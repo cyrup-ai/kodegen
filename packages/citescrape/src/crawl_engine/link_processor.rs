@@ -8,8 +8,8 @@ use chromiumoxide::Page;
 use log::{debug, warn};
 use std::collections::VecDeque;
 
-use crate::page_extractor::extractors::extract_links;
 use super::crawl_types::CrawlQueue;
+use crate::page_extractor::extractors::extract_links;
 
 /// State for managing the crawl queue and visited URLs
 /// Uses Bloom filter to prevent unbounded memory growth on large crawls
@@ -26,16 +26,19 @@ pub async fn process_page_links(
     crawl_state: CrawlState,
     config: &crate::config::CrawlConfig,
 ) -> Result<(VecDeque<CrawlQueue>, Bloom<String>)> {
-    let CrawlState { queue, visited_urls, max_depth } = crawl_state;
+    let CrawlState {
+        queue,
+        visited_urls,
+        max_depth,
+    } = crawl_state;
     let mut crawl_queue = queue;
     let config = config.clone();
-    
+
     // Extract links for next depth level if we haven't reached max depth
     if current_item.depth < max_depth {
         match extract_links(page.clone()).await {
             Ok(links) => {
-                let filtered_links =
-                    super::crawler::extract_valid_urls(&links, &config);
+                let filtered_links = super::crawler::extract_valid_urls(&links, &config);
                 debug!(
                     target: "citescrape::links",
                     "Found {} links on {}, {} after filtering",

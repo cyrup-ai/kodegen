@@ -8,15 +8,9 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 /// Extract a URI from a path, stripping the prefix and handling parent directory
-pub async fn get_uri_from_path(
-    path: &Path,
-    output_dir: &Path,
-) -> Result<String> {
-    let path = path.to_path_buf();
-    let output_dir = output_dir.to_path_buf();
-    
+pub fn get_uri_from_path(path: &Path, output_dir: &Path) -> Result<String> {
     let result = path
-        .strip_prefix(&output_dir)
+        .strip_prefix(output_dir)
         .map_err(|e| anyhow::anyhow!("Failed to strip prefix: {}", e))?
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?
@@ -28,11 +22,7 @@ pub async fn get_uri_from_path(
 }
 
 /// Get the mirror path for a URL, preserving the domain and path structure
-pub async fn get_mirror_path(
-    url: &str,
-    output_dir: &Path,
-    filename: &str,
-) -> Result<PathBuf> {
+pub fn get_mirror_path(url: &str, output_dir: &Path, filename: &str) -> Result<PathBuf> {
     let url = Url::parse(url).map_err(|e| anyhow::anyhow!("Failed to parse URL: {}", e))?;
     let domain = url
         .host_str()
@@ -53,12 +43,12 @@ pub fn is_valid_url(url: &str) -> bool {
     if url.is_empty() {
         return false;
     }
-    
+
     // Skip data URLs, javascript URLs, and other non-http schemes
     if url.starts_with("data:") || url.starts_with("javascript:") || url.starts_with("mailto:") {
         return false;
     }
-    
+
     match url::Url::parse(url) {
         Ok(parsed) => {
             matches!(parsed.scheme(), "http" | "https")

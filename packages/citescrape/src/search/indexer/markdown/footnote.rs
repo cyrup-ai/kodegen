@@ -12,12 +12,12 @@ thread_local! {
 pub(crate) fn remove_footnote_markers(text: String) -> String {
     FOOTNOTE_REGEX.with(|re_cell| {
         let mut re_ref = re_cell.borrow_mut();
-        
+
         // Initialize regex if not already present
         if re_ref.is_none() {
             *re_ref = Regex::new(r"\[\^[^\]]+\]").ok();
         }
-        
+
         // Use regex if available, otherwise return original text
         match re_ref.as_ref() {
             Some(re) => re.replace_all(&text, "").into_owned(),
@@ -30,17 +30,17 @@ pub(crate) fn remove_footnote_markers(text: String) -> String {
 pub(crate) fn remove_footnote_markers_inplace(text: &mut String) {
     FOOTNOTE_REGEX.with(|re_cell| {
         let mut re_ref = re_cell.borrow_mut();
-        
+
         // Initialize regex if not already present
         if re_ref.is_none() {
             *re_ref = Regex::new(r"\[\^[^\]]+\]").ok();
         }
-        
+
         // Use regex if available to find and remove all matches
         if let Some(re) = re_ref.as_ref() {
             // Find all matches in reverse order to maintain indices
             let matches: Vec<_> = re.find_iter(text).map(|m| (m.start(), m.end())).collect();
-            
+
             // Remove matches in reverse order
             for (start, end) in matches.into_iter().rev() {
                 text.drain(start..end);

@@ -124,33 +124,23 @@
 //!
 //! Handle errors appropriately in your MCP server implementation.
 
-pub mod types;
-pub mod manager;
-pub mod validation;
-pub mod start_crawl;
 pub mod get_crawl_results;
+pub mod manager;
 pub mod search_crawl_results;
+pub mod start_crawl;
+pub mod types;
+pub mod validation;
 pub mod web_search;
 
 // Re-export main types for convenience
-pub use types::{
-    ActiveCrawlSession,
-    ConfigSummary,
-    CrawlManifest,
-    CrawlStatus,
-};
+pub use types::{ActiveCrawlSession, ConfigSummary, CrawlManifest, CrawlStatus};
 
 // Re-export managers and utilities
-pub use manager::{
-    CrawlSessionManager,
-    SearchEngineCache,
-    ManifestManager,
-    url_to_output_dir,
-};
+pub use manager::{CrawlSessionManager, ManifestManager, SearchEngineCache, url_to_output_dir};
 pub use validation::ErrorContext;
 
 // Re-export tools
-pub use start_crawl::StartCrawlTool;
 pub use get_crawl_results::GetCrawlResultsTool;
 pub use search_crawl_results::SearchCrawlResultsTool;
+pub use start_crawl::StartCrawlTool;
 pub use web_search::WebSearchTool;

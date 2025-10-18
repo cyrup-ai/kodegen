@@ -7,14 +7,11 @@ use lazy_static::lazy_static;
 use reqwest::Client;
 use scraper::{Html, Selector};
 
+use super::core::{InliningError, InliningResult, ResourceType};
 use super::downloaders::{
-    download_css_async, 
-    download_and_encode_image_async, 
-    download_svg_async, 
-    InlineConfig
+    InlineConfig, download_and_encode_image_async, download_css_async, download_svg_async,
 };
 use super::utils::resolve_url;
-use super::core::{InliningResult, InliningError, ResourceType};
 
 /// Type alias for extraction results (urls, failures)
 type ExtractionResult = Result<(Vec<(String, String)>, Vec<InliningError>)>;
@@ -26,15 +23,15 @@ lazy_static! {
     // 2. They follow valid CSS selector syntax
     // 3. They will never change at runtime
     // 4. If they were invalid, this would fail immediately at program startup (fail-fast)
-    static ref CSS_LINK_SELECTOR: Selector = 
+    static ref CSS_LINK_SELECTOR: Selector =
         Selector::parse("link[rel=\"stylesheet\"]")
             .expect("Hardcoded CSS selector is syntactically valid");
-    
-    static ref IMG_SELECTOR: Selector = 
+
+    static ref IMG_SELECTOR: Selector =
         Selector::parse("img[src]")
             .expect("Hardcoded image selector is syntactically valid");
-    
-    static ref SVG_SELECTOR: Selector = 
+
+    static ref SVG_SELECTOR: Selector =
         Selector::parse("img[src*=\".svg\"]")
             .expect("Hardcoded SVG selector is syntactically valid");
 }
@@ -133,7 +130,7 @@ pub fn extract_svgs(document: &Html, base_url: &str) -> ExtractionResult {
 }
 
 /// Internal helper: Process CSS links using a pre-parsed HTML document
-/// 
+///
 /// This function accepts a reference to an already-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
 ///
@@ -175,14 +172,18 @@ pub async fn process_css_links_internal(
     let mut css_replacements = Vec::new();
     for (css_url, href) in css_urls {
         let css_url_for_error = css_url.clone();
-        
+
         match download_css_async(css_url, client.clone(), config).await {
             Ok(css_content) => {
                 css_replacements.push((href, css_content));
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!("Failed to download CSS from {}: {}", css_url_for_error, error_msg);
+                log::warn!(
+                    "Failed to download CSS from {}: {}",
+                    css_url_for_error,
+                    error_msg
+                );
                 failures.push(InliningError {
                     url: css_url_for_error,
                     resource_type: ResourceType::Css,
@@ -200,7 +201,7 @@ pub async fn process_css_links_internal(
     } else {
         super::utils::replace_css_links_with_styles(html, css_replacements)?
     };
-    
+
     Ok(InliningResult {
         html: processed_html,
         successes,
@@ -209,10 +210,10 @@ pub async fn process_css_links_internal(
 }
 
 /// Process CSS links in HTML content
-/// 
+///
 /// This is the public API function that accepts a pre-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
-/// 
+///
 /// **Performance Note**: Callers should parse HTML once using `Html::parse_document(&html)`
 /// and pass the same document reference to all processor functions to eliminate redundant
 /// parsing overhead.
@@ -235,7 +236,7 @@ pub async fn process_css_links(
 }
 
 /// Internal helper: Process images using a pre-parsed HTML document
-/// 
+///
 /// This function accepts a reference to an already-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
 ///
@@ -282,14 +283,18 @@ pub async fn process_images_internal(
     let mut image_replacements = Vec::new();
     for (image_url, src) in image_urls {
         let image_url_for_error = image_url.clone();
-        
+
         match download_and_encode_image_async(image_url, client.clone(), config, None).await {
             Ok(data_url) => {
                 image_replacements.push((src, data_url));
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!("Failed to download image from {}: {}", image_url_for_error, error_msg);
+                log::warn!(
+                    "Failed to download image from {}: {}",
+                    image_url_for_error,
+                    error_msg
+                );
                 failures.push(InliningError {
                     url: image_url_for_error,
                     resource_type: ResourceType::Image,
@@ -307,7 +312,7 @@ pub async fn process_images_internal(
     } else {
         super::utils::replace_image_sources(html, image_replacements)?
     };
-    
+
     Ok(InliningResult {
         html: processed_html,
         successes,
@@ -316,10 +321,10 @@ pub async fn process_images_internal(
 }
 
 /// Process images in HTML content
-/// 
+///
 /// This is the public API function that accepts a pre-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
-/// 
+///
 /// **Performance Note**: Callers should parse HTML once using `Html::parse_document(&html)`
 /// and pass the same document reference to all processor functions to eliminate redundant
 /// parsing overhead.
@@ -342,7 +347,7 @@ pub async fn process_images(
 }
 
 /// Internal helper: Process SVG images using a pre-parsed HTML document
-/// 
+///
 /// This function accepts a reference to an already-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
 ///
@@ -389,14 +394,18 @@ pub async fn process_svgs_internal(
     let mut svg_replacements = Vec::new();
     for (svg_url, src) in svg_urls {
         let svg_url_for_error = svg_url.clone();
-        
+
         match download_svg_async(svg_url, client.clone(), config).await {
             Ok(svg_content) => {
                 svg_replacements.push((src, svg_content));
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!("Failed to download SVG from {}: {}", svg_url_for_error, error_msg);
+                log::warn!(
+                    "Failed to download SVG from {}: {}",
+                    svg_url_for_error,
+                    error_msg
+                );
                 failures.push(InliningError {
                     url: svg_url_for_error,
                     resource_type: ResourceType::Svg,
@@ -414,7 +423,7 @@ pub async fn process_svgs_internal(
     } else {
         super::utils::replace_img_tags_with_svg(html, svg_replacements)?
     };
-    
+
     Ok(InliningResult {
         html: processed_html,
         successes,
@@ -423,10 +432,10 @@ pub async fn process_svgs_internal(
 }
 
 /// Process SVG images in HTML content
-/// 
+///
 /// This is the public API function that accepts a pre-parsed HTML document to avoid
 /// redundant parsing when processing multiple resource types on the same HTML.
-/// 
+///
 /// **Performance Note**: Callers should parse HTML once using `Html::parse_document(&html)`
 /// and pass the same document reference to all processor functions to eliminate redundant
 /// parsing overhead.

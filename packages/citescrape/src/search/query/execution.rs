@@ -1,15 +1,15 @@
 //! Search query execution logic
 
 use anyhow::Result;
-use tantivy::collector::{TopDocs, Count};
+use tantivy::collector::{Count, TopDocs};
 
+use super::parsing::parse_query_sync;
+use super::results::{SearchResults, convert_to_search_result};
+use super::snippets::SnippetGenerators;
 use crate::runtime::{AsyncTask, spawn_async};
 use crate::search::engine::SearchEngine;
 use crate::search::errors::{SearchError, SearchResult};
 use crate::search::runtime_helpers::fallback_task;
-use super::results::{SearchResults, convert_to_search_result};
-use super::snippets::SnippetGenerators;
-use super::parsing::parse_query_sync;
 
 /// Execute a search query against the index with fallback behavior
 pub(crate) fn execute_search_query(
@@ -21,13 +21,13 @@ pub(crate) fn execute_search_query(
 ) -> AsyncTask<Result<SearchResults>> {
     let engine = engine.clone();
     let query_str = query_str.to_string();
-    
+
     // Clone values for closures
     let engine_primary = engine.clone();
     let query_primary = query_str.clone();
     let engine_fallback = engine.clone();
     let query_fallback = query_str.clone();
-    
+
     // Use fallback_task for primary and fallback search
     let task = fallback_task(
         move || {
@@ -36,12 +36,13 @@ pub(crate) fn execute_search_query(
         move || {
             tracing::warn!("Attempting fallback search with reduced features");
             execute_search_with_features(engine_fallback, query_fallback, limit, offset, false)
-        }
+        },
     );
-    
+
     // Convert SearchResult<SearchResults> to Result<SearchResults>
     spawn_async(async move {
-        task.into_anyhow().await?
+        task.into_anyhow()
+            .await?
             .map_err(|e| anyhow::anyhow!("{}", e))
     })
 }
@@ -64,33 +65,35 @@ fn execute_search_with_features(
 
         // Create snippet generators if highlighting is enabled
         let generators = if highlight {
-            SnippetGenerators::create(&searcher, &*query, engine.schema())
-                .ok()
+            SnippetGenerators::create(&searcher, &*query, engine.schema()).ok()
         } else {
             None
         };
 
         // Get total count
-        let total_count = searcher.search(&*query, &Count)
-            .map_err(|e| SearchError::SearchExecution(format!("Failed to count search results: {}", e)))?;
+        let total_count = searcher.search(&*query, &Count).map_err(|e| {
+            SearchError::SearchExecution(format!("Failed to count search results: {}", e))
+        })?;
 
         // Execute search with pagination
-        let top_docs = searcher.search(&*query, &TopDocs::with_limit(limit).and_offset(offset))
-            .map_err(|e| SearchError::SearchExecution(format!("Failed to execute search query: {}", e)))?;
+        let top_docs = searcher
+            .search(&*query, &TopDocs::with_limit(limit).and_offset(offset))
+            .map_err(|e| {
+                SearchError::SearchExecution(format!("Failed to execute search query: {}", e))
+            })?;
 
         // Convert results to SearchResult objects
         let mut results = Vec::with_capacity(top_docs.len());
 
         for (score, doc_address) in top_docs {
-            let doc = searcher.doc(doc_address)
-                .map_err(|e| SearchError::DocumentNotFound(format!("Failed to retrieve document: {}", e)))?;
+            let doc = searcher.doc(doc_address).map_err(|e| {
+                SearchError::DocumentNotFound(format!("Failed to retrieve document: {}", e))
+            })?;
 
-            let search_result = convert_to_search_result(
-                &doc,
-                &engine,
-                score,
-                generators.as_ref(),
-            ).map_err(|e| SearchError::Other(format!("Failed to convert search result: {}", e)))?;
+            let search_result = convert_to_search_result(&doc, &engine, score, generators.as_ref())
+                .map_err(|e| {
+                    SearchError::Other(format!("Failed to convert search result: {}", e))
+                })?;
 
             results.push(search_result);
         }

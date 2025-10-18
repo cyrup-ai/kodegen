@@ -36,11 +36,9 @@ fn remove_elements_from_html(element: &ElementRef, remove_selectors: &[&str]) ->
     // Parse all selectors upfront - O(s)
     let parsed_selectors: Vec<Selector> = remove_selectors
         .iter()
-        .map(|&sel_str| {
-            match Selector::parse(sel_str) {
-                Ok(s) => s,
-                Err(e) => panic!("Invalid hardcoded selector '{}': {}", sel_str, e),
-            }
+        .map(|&sel_str| match Selector::parse(sel_str) {
+            Ok(s) => s,
+            Err(e) => panic!("Invalid hardcoded selector '{}': {}", sel_str, e),
         })
         .collect();
 
@@ -125,8 +123,8 @@ fn serialize_html_excluding(
 
                     // Check if this is a void element (self-closing)
                     const VOID_ELEMENTS: &[&str] = &[
-                        "area", "base", "br", "col", "embed", "hr", "img", "input",
-                        "link", "meta", "param", "source", "track", "wbr"
+                        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+                        "param", "source", "track", "wbr",
                     ];
 
                     if VOID_ELEMENTS.contains(&elem_name) {
@@ -240,33 +238,25 @@ pub fn extract_main_content(html: &str) -> Result<String> {
 // Compile regex patterns once at first use
 // These are hardcoded patterns that will never fail to compile
 static SCRIPT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<script[^>]*>.*?</script>")
-        .expect("SCRIPT_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<script[^>]*>.*?</script>").expect("SCRIPT_RE: hardcoded regex is valid")
 });
 
 static STYLE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<style[^>]*>.*?</style>")
-        .expect("STYLE_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<style[^>]*>.*?</style>").expect("STYLE_RE: hardcoded regex is valid")
 });
 
-static EVENT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"on\w+="[^"]*""#)
-        .expect("EVENT_RE: hardcoded regex is valid")
-});
+static EVENT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"on\w+="[^"]*""#).expect("EVENT_RE: hardcoded regex is valid"));
 
-static COMMENT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"<!--.*?-->")
-        .expect("COMMENT_RE: hardcoded regex is valid")
-});
+static COMMENT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<!--.*?-->").expect("COMMENT_RE: hardcoded regex is valid"));
 
 static FORM_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<form[^>]*>.*?</form>")
-        .expect("FORM_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<form[^>]*>.*?</form>").expect("FORM_RE: hardcoded regex is valid")
 });
 
 static IFRAME_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<iframe[^>]*>.*?</iframe>")
-        .expect("IFRAME_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<iframe[^>]*>.*?</iframe>").expect("IFRAME_RE: hardcoded regex is valid")
 });
 
 static SOCIAL_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -275,8 +265,10 @@ static SOCIAL_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static COOKIE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?s)<div[^>]*(?:id|class)="[^"]*(?:cookie|popup|modal|overlay)[^"]*"[^>]*>.*?</div>"#)
-        .expect("COOKIE_RE: hardcoded regex is valid")
+    Regex::new(
+        r#"(?s)<div[^>]*(?:id|class)="[^"]*(?:cookie|popup|modal|overlay)[^"]*"[^>]*>.*?</div>"#,
+    )
+    .expect("COOKIE_RE: hardcoded regex is valid")
 });
 
 static AD_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -290,19 +282,19 @@ static HIDDEN_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static DETAILS_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<details[^>]*>(.*?)</details>")
-        .expect("DETAILS_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<details[^>]*>(.*?)</details>").expect("DETAILS_RE: hardcoded regex is valid")
 });
 
 static SEMANTIC_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"<(/?)(?:article|section|aside|nav|header|footer|figure|figcaption|mark|time)[^>]*>")
-        .expect("SEMANTIC_RE: hardcoded regex is valid")
+    Regex::new(
+        r"<(/?)(?:article|section|aside|nav|header|footer|figure|figcaption|mark|time)[^>]*>",
+    )
+    .expect("SEMANTIC_RE: hardcoded regex is valid")
 });
 
 // Special case: needs to be compiled for closure captures in details processing
 static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<summary[^>]*>(.*?)</summary>")
-        .expect("SUMMARY_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<summary[^>]*>(.*?)</summary>").expect("SUMMARY_RE: hardcoded regex is valid")
 });
 
 /// Clean HTML content by removing unwanted elements and scripts
@@ -343,21 +335,25 @@ pub fn clean_html_content(html: &str) -> String {
 
     // Handle HTML5 details/summary elements by extracting their content
     // These don't convert well to markdown
-    result = Cow::Owned(DETAILS_RE.replace_all(&result, |caps: &regex::Captures| {
-        let content = &caps[1];
-        // Extract summary text if present
-        if let Some(summary_match) = SUMMARY_RE.captures(content) {
-            let summary_text = &summary_match[1];
-            let remaining = SUMMARY_RE.replace(content, "");
-            format!(
-                "\n\n**{}**\n\n{}\n\n",
-                summary_text.trim(),
-                remaining.trim()
-            )
-        } else {
-            format!("\n\n{}\n\n", content.trim())
-        }
-    }).into_owned());
+    result = Cow::Owned(
+        DETAILS_RE
+            .replace_all(&result, |caps: &regex::Captures| {
+                let content = &caps[1];
+                // Extract summary text if present
+                if let Some(summary_match) = SUMMARY_RE.captures(content) {
+                    let summary_text = &summary_match[1];
+                    let remaining = SUMMARY_RE.replace(content, "");
+                    format!(
+                        "\n\n**{}**\n\n{}\n\n",
+                        summary_text.trim(),
+                        remaining.trim()
+                    )
+                } else {
+                    format!("\n\n{}\n\n", content.trim())
+                }
+            })
+            .into_owned(),
+    );
 
     // Remove any remaining HTML5 semantic elements that don't have markdown equivalents
     result = Cow::Owned(SEMANTIC_RE.replace_all(&result, "").into_owned());

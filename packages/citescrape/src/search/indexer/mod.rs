@@ -9,26 +9,26 @@
 //! - Lock-free concurrent operations
 //! - Elegant, ergonomic API
 
-mod progress;
-mod discovery;
 mod batch;
+mod discovery;
 mod markdown;
+mod progress;
 
 pub use batch::{BatchConfig, IndexingLimits};
 
+use super::engine::SearchEngine;
+use super::types::{IndexProgress, IndexingPhase};
+use crate::runtime::{AsyncStream, AsyncTask};
+use ahash::AHashSet;
 use anyhow::Result;
+use batch::BatchContext;
+use imstr::ImString;
+use progress::{AtomicProgress, ErrorCollector};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::time::Instant;
-use ahash::AHashSet;
-use imstr::ImString;
 use std::sync::atomic::Ordering;
-use crate::runtime::{AsyncTask, AsyncStream};
-use super::engine::SearchEngine;
-use super::types::{IndexProgress, IndexingPhase};
-use progress::{AtomicProgress, ErrorCollector};
-use batch::BatchContext;
+use std::time::Instant;
 
 /// Handle for cancelling a long-running batch indexing operation
 #[derive(Clone)]
@@ -41,7 +41,7 @@ impl CancellationHandle {
     pub fn cancel(&self) {
         self.token.store(true, Ordering::Release);
     }
-    
+
     /// Check if the operation has been cancelled
     pub fn is_cancelled(&self) -> bool {
         self.token.load(Ordering::Acquire)
@@ -60,7 +60,7 @@ impl MarkdownIndexer {
     pub fn new(engine: SearchEngine) -> Self {
         Self { engine }
     }
-    
+
     /// Estimate file count for capacity pre-allocation
     #[inline]
     #[allow(dead_code)]
@@ -93,41 +93,44 @@ impl MarkdownIndexer {
     ) -> (AsyncStream<Result<IndexProgress>, 1024>, CancellationHandle) {
         let engine = self.engine.clone();
         let (tx, stream) = AsyncStream::channel();
-        
+
         // Create cancellation token
         let cancel_token = Arc::new(AtomicBool::new(false));
         let cancel_handle = CancellationHandle {
             token: cancel_token.clone(),
         };
-        
+
         // Pass token to config
         let mut config = config;
         config.cancellation_token = Some(cancel_token);
-        
+
         // Pre-collect file paths for Send-safety - this eliminates the iterator lifetime issue
         let file_paths = batch::pre_collect_files(&directory, &engine);
-        
+
         // Use runtime for async execution with owned, Send-safe data
         crate::runtime::spawn_async(async move {
             let start_time = Instant::now();
             let progress = Arc::new(AtomicProgress::new());
             let errors = Arc::new(ErrorCollector::new());
-            
+
             // Get a single writer for all batches (Tantivy only allows one writer at a time)
             // Get writer synchronously to avoid nested spawn + blocking recv anti-pattern
             let mut writer = match engine.index().writer(128 * 1024 * 1024) {
                 Ok(w) => w,
                 Err(e) => {
-                    let _ = tx.try_send(Err(anyhow::anyhow!("Failed to acquire index writer: {}", e)));
+                    let _ = tx.try_send(Err(anyhow::anyhow!(
+                        "Failed to acquire index writer: {}",
+                        e
+                    )));
                     return;
                 }
             };
-            
+
             // Discovery phase with deduplication
             let estimated_files = file_paths.len();
             let mut seen_urls = AHashSet::<ImString>::with_capacity(estimated_files.min(100000));
             let mut file_batch = Vec::<(PathBuf, ImString)>::with_capacity(config.batch_size);
-            
+
             // Process pre-collected files for zero-allocation discovery
             for (path, url) in file_paths {
                 // Check for cancellation
@@ -136,21 +139,21 @@ impl MarkdownIndexer {
                     let cancel_progress = progress.snapshot(
                         IndexingPhase::Cancelled,
                         ImString::from("Operation cancelled by user"),
-                        start_time
+                        start_time,
                     );
                     let _ = tx.try_send(Ok(cancel_progress));
                     return;
                 }
-                
+
                 if seen_urls.insert(url.clone()) {
                     file_batch.push((path, url));
                     progress.discovered.fetch_add(1, Ordering::Relaxed);
-                    
+
                     // Process batch when full
                     if file_batch.len() >= config.batch_size {
                         let batch = std::mem::replace(
                             &mut file_batch,
-                            Vec::with_capacity(config.batch_size)
+                            Vec::with_capacity(config.batch_size),
                         );
                         let ctx = BatchContext {
                             engine: &engine,
@@ -164,32 +167,32 @@ impl MarkdownIndexer {
                     }
                 }
             }
-            
+
             // Send discovery complete progress with actual file count
             let disc_count = progress.discovered.load(Ordering::Relaxed);
             let discovery_progress = progress.snapshot(
                 IndexingPhase::Discovering,
                 ImString::from(format!("Discovered {} files", disc_count)),
-                start_time
+                start_time,
             );
             if tx.try_send(Ok(discovery_progress)).is_err() {
                 return;
             }
-            
+
             // Mark discovery complete
             progress.discovery_complete.store(true, Ordering::Relaxed);
-            
+
             // Check for cancellation before final batch
             if config.is_cancelled() {
                 let cancel_progress = progress.snapshot(
                     IndexingPhase::Cancelled,
                     ImString::from("Operation cancelled by user"),
-                    start_time
+                    start_time,
                 );
                 let _ = tx.try_send(Ok(cancel_progress));
                 return;
             }
-            
+
             // Process final batch
             if !file_batch.is_empty() {
                 let ctx = BatchContext {
@@ -202,7 +205,7 @@ impl MarkdownIndexer {
                 };
                 batch::process_batch_with_writer(&ctx, file_batch, &mut writer);
             }
-            
+
             // Commit and reload only if not cancelled
             if !config.is_cancelled() {
                 batch::commit_and_reload(writer, &engine, &errors).await;
@@ -210,22 +213,22 @@ impl MarkdownIndexer {
                 let cancel_progress = progress.snapshot(
                     IndexingPhase::Cancelled,
                     ImString::from("Operation cancelled by user"),
-                    start_time
+                    start_time,
                 );
                 let _ = tx.try_send(Ok(cancel_progress));
                 return;
             }
-            
+
             // Final optimization phase
             let mut final_progress = progress.snapshot(
                 IndexingPhase::Optimizing,
                 ImString::from("Optimizing index..."),
-                start_time
+                start_time,
             );
             if tx.try_send(Ok(final_progress.clone())).is_err() {
                 return;
             }
-            
+
             // Send completion
             final_progress.phase = IndexingPhase::Complete;
             final_progress.current_file = ImString::from(format!(
@@ -234,10 +237,10 @@ impl MarkdownIndexer {
                 progress.failed.load(Ordering::Relaxed)
             ));
             final_progress.errors = errors.snapshot();
-            
+
             let _ = tx.try_send(Ok(final_progress));
         });
-        
+
         (stream, cancel_handle)
     }
 
@@ -250,35 +253,44 @@ impl MarkdownIndexer {
         let engine = engine.clone();
         let file_path = file_path.to_path_buf();
         let url = url.clone();
-        
+
         crate::runtime::spawn_async(async move {
             // Get writer (synchronous acquisition is fine)
-            let mut writer = engine.index().writer(64 * 1024 * 1024)
+            let mut writer = engine
+                .index()
+                .writer(64 * 1024 * 1024)
                 .map_err(|e| anyhow::anyhow!("Failed to acquire index writer: {}", e))?;
-            
+
             // Index the file (synchronous)
-            batch::index_single_file_sync(&engine, &mut writer, &file_path, &url, &batch::IndexingLimits::default())?;
-            
+            batch::index_single_file_sync(
+                &engine,
+                &mut writer,
+                &file_path,
+                &url,
+                &batch::IndexingLimits::default(),
+            )?;
+
             // Commit using Tantivy's async Future-based API (non-blocking)
-            let prepared = writer.prepare_commit()
+            let prepared = writer
+                .prepare_commit()
                 .map_err(|e| anyhow::anyhow!("Failed to prepare commit: {}", e))?;
-            prepared.commit_future().await
+            prepared
+                .commit_future()
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to commit: {}", e))?;
-            
+
             // Reload reader to see changes
-            engine.reader().reload()
+            engine
+                .reader()
+                .reload()
                 .map_err(|e| anyhow::anyhow!("Failed to reload reader: {}", e))?;
-            
+
             Ok(())
         })
     }
 
     /// Index a single markdown file (legacy API)
-    pub fn index_file(
-        &self,
-        file_path: &Path,
-        url: &ImString,
-    ) -> AsyncTask<Result<()>> {
+    pub fn index_file(&self, file_path: &Path, url: &ImString) -> AsyncTask<Result<()>> {
         let engine = self.engine.clone();
         let file_path = file_path.to_path_buf();
         let url = url.clone();

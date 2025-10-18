@@ -3,15 +3,14 @@ use std::path::{Path, PathBuf};
 use tokio::sync::oneshot;
 use url::Url;
 
+use super::crawl_types::{CrawlError, Crawler};
 use crate::config::CrawlConfig;
 use crate::content_saver::{self};
 use crate::page_extractor::link_rewriter::LinkRewriter;
 use crate::runtime::CrawlRequest;
-use super::crawl_types::{CrawlError, Crawler};
 
 // CacheMetadata is now imported from content_saver module
 pub use content_saver::CacheMetadata;
-
 
 // content_saver::save_compressed_file is now in content_saver module
 // save_html_content is now in content_saver module
@@ -21,7 +20,7 @@ pub use content_saver::CacheMetadata;
 #[allow(dead_code)]
 async fn save_markdown_content(content: &str, url: &str, output_dir: &Path) -> Result<()> {
     use crate::search::MessagePriority;
-    
+
     // Note: This helper function does not have access to an IndexingSender,
     // so markdown will be saved without indexing. For indexed saves, use
     // content_saver::save_markdown_content directly with an IndexingSender.
@@ -31,7 +30,9 @@ async fn save_markdown_content(content: &str, url: &str, output_dir: &Path) -> R
         output_dir.to_path_buf(),
         MessagePriority::Normal,
         None, // No indexing sender available
-    ).await {
+    )
+    .await
+    {
         Ok(()) => {
             eprintln!("Markdown content saved successfully");
             Ok(())
@@ -43,11 +44,7 @@ async fn save_markdown_content(content: &str, url: &str, output_dir: &Path) -> R
     }
 }
 
-
 // save_screenshot is now in PageProcessor module
-
-
-
 
 pub struct ChromiumoxideCrawler {
     config: CrawlConfig,
@@ -71,24 +68,22 @@ impl ChromiumoxideCrawler {
         let link_rewriter = self.link_rewriter.clone();
         let chrome_data_dir = self.chrome_data_dir.clone();
 
-        let _task = super::crawl_impl(
-            config,
-            link_rewriter,
-            chrome_data_dir,
-            move |result| {
-                let _ = tx.send(result);
-            }
-        );
-        
-        match rx.await.map_err(|_| anyhow::anyhow!("Failed to receive crawl result")) {
+        let _task = super::crawl_impl(config, link_rewriter, chrome_data_dir, move |result| {
+            let _ = tx.send(result);
+        });
+
+        match rx
+            .await
+            .map_err(|_| anyhow::anyhow!("Failed to receive crawl result"))
+        {
             Ok(result) => match result {
                 Ok(chrome_data_dir_path) => {
                     self.chrome_data_dir = chrome_data_dir_path;
                     Ok(())
                 }
-                Err(e) => Err(e)
-            }
-            Err(e) => Err(e)
+                Err(e) => Err(e),
+            },
+            Err(e) => Err(e),
         }
     }
 }
@@ -144,11 +139,6 @@ impl Drop for ChromiumoxideCrawler {
 // and has been replaced by a more complete data extraction approach
 
 // save_page_data is now in content_saver module
-
-
-
-
-
 
 /// Extracts URLs from links that pass crawl configuration filters.
 ///
@@ -228,21 +218,22 @@ pub fn should_visit_url(url: &str, config: &CrawlConfig) -> bool {
     let host_allowed = url_host == start_host
         || config.allow_subdomains() && url_host.ends_with(start_host)
         || config.allow_external_domains();
-    
+
     if !host_allowed {
         return false;
     }
 
     // Check allowed_domains list if configured
     if let Some(allowed_domains) = config.allowed_domains()
-        && !allowed_domains.is_empty() {
-            let domain_matches = allowed_domains.iter().any(|domain| {
-                url_host == domain || url_host.ends_with(&format!(".{}", domain))
-            });
-            if !domain_matches {
-                return false;
-            }
+        && !allowed_domains.is_empty()
+    {
+        let domain_matches = allowed_domains
+            .iter()
+            .any(|domain| url_host == domain || url_host.ends_with(&format!(".{}", domain)));
+        if !domain_matches {
+            return false;
         }
+    }
 
     // Check excluded_patterns using pre-compiled regexes
     // Patterns are compiled once at config creation to avoid hot-path compilation
@@ -251,7 +242,7 @@ pub fn should_visit_url(url: &str, config: &CrawlConfig) -> bool {
             return false;
         }
     }
-    
+
     // Also check for simple string matching if original patterns exist
     if let Some(excluded_patterns) = config.excluded_patterns() {
         for pattern in excluded_patterns {
@@ -263,4 +254,3 @@ pub fn should_visit_url(url: &str, config: &CrawlConfig) -> bool {
 
     true
 }
-

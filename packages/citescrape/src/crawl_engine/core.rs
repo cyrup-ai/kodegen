@@ -3,11 +3,10 @@
 //! This module contains the canonical crawling implementation with
 //! trait-based abstraction for progress reporting AND event bus integration.
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use bloomfilter::Bloom;
-use chromiumoxide::{
-    browser::{Browser, BrowserConfig},
-};
+use chromiumoxide::browser::{Browser, BrowserConfig};
+use dashmap::DashSet;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use log::{debug, error, info, warn};
@@ -18,19 +17,20 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
-use dashmap::DashSet;
 
-use crate::config::CrawlConfig;
-use crate::crawl_events::{CrawlEventBus, types::{CrawlEvent, PageCrawlMetadata}};
-use crate::page_extractor::link_rewriter::LinkRewriter;
-use crate::page_extractor;
-use crate::runtime::TaskGuard;
 use super::crawl_types::CrawlQueue;
-use super::{CircuitBreaker, extract_domain, DomainLimiter};
+use super::{CircuitBreaker, DomainLimiter, extract_domain};
+use crate::config::CrawlConfig;
+use crate::crawl_events::{
+    CrawlEventBus,
+    types::{CrawlEvent, PageCrawlMetadata},
+};
+use crate::page_extractor;
+use crate::page_extractor::link_rewriter::LinkRewriter;
 
 use super::link_processor::{CrawlState, process_page_links};
 use crate::content_saver;
-use crate::content_saver::markdown_converter::{convert_html_to_markdown, ConversionOptions};
+use crate::content_saver::markdown_converter::{ConversionOptions, convert_html_to_markdown};
 use html2md;
 
 /// Helper function to wrap async page operations with explicit timeout
@@ -46,11 +46,7 @@ use html2md;
 /// # Returns
 /// * `Ok(T)` - Operation completed successfully
 /// * `Err` - Either the operation failed or the timeout was reached
-async fn with_page_timeout<F, T>(
-    operation: F,
-    timeout_secs: u64,
-    operation_name: &str,
-) -> Result<T>
+async fn with_page_timeout<F, T>(operation: F, timeout_secs: u64, operation_name: &str) -> Result<T>
 where
     F: Future<Output = Result<T>>,
 {
@@ -199,7 +195,8 @@ pub async fn crawl_pages<P: ProgressReporter>(
             config.storage_dir.clone(),
             config.max_depth as u32,
         );
-        bus.publish(event).await
+        bus.publish(event)
+            .await
             .context("Failed to publish CrawlStarted event - event bus may be shutdown or full")?;
     }
 
@@ -211,13 +208,13 @@ pub async fn crawl_pages<P: ProgressReporter>(
         .arg("--disable-infobars")
         .arg("--disable-dev-shm-usage")
         .arg("--disable-gpu");
-    
+
     // Conditionally enable headed mode (visible browser window)
     // By default, runs in headless mode for optimal performance and compatibility
     if !config.headless() {
         browser_builder = browser_builder.with_head();
     }
-    
+
     let browser_config = browser_builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build browser config: {}", e))?;
@@ -272,22 +269,23 @@ pub async fn crawl_pages<P: ProgressReporter>(
                 match q.pop_front() {
                     Some(item) => item,
                     None if active_tasks.is_empty() => break, // All done
-                    None => break, // Wait for tasks to complete
+                    None => break,                            // Wait for tasks to complete
                 }
             };
-            
+
             // Check limit
             if let Some(limit) = config.limit
-                && total_pages.load(Ordering::Relaxed) >= limit {
-                    info!("Reached page limit of {}", limit);
-                    break;
-                }
-            
+                && total_pages.load(Ordering::Relaxed) >= limit
+            {
+                info!("Reached page limit of {}", limit);
+                break;
+            }
+
             // Check if already visited (lock-free check)
             if !visited.insert(item.url.clone()) {
                 continue; // Already visited
             }
-            
+
             // Acquire global semaphore permit (limits total concurrency)
             let permit = match semaphore.clone().acquire_owned().await {
                 Ok(p) => p,
@@ -296,7 +294,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
                     continue;
                 }
             };
-            
+
             // Acquire domain-specific permit (prevents rate limiting)
             let domain = match extract_domain(&item.url) {
                 Ok(d) => d,
@@ -306,7 +304,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
                 }
             };
             let domain_permit = domain_limiter.acquire(domain).await;
-            
+
             // Clone all shared state for the task
             let browser = Arc::clone(&browser);
             let config = config.clone();
@@ -317,12 +315,12 @@ pub async fn crawl_pages<P: ProgressReporter>(
             let queue = Arc::clone(&queue);
             let _visited = Arc::clone(&visited);
             let indexing_sender = indexing_sender.clone();
-            
+
             // Spawn concurrent task
             let task = tokio::spawn(async move {
                 let _permit = permit; // Hold until task completes
                 let _domain_permit = domain_permit; // Hold until task completes
-                
+
                 // Process single page with full error handling
                 match process_single_page(
                     browser,
@@ -334,7 +332,9 @@ pub async fn crawl_pages<P: ProgressReporter>(
                     total_pages,
                     queue,
                     indexing_sender,
-                ).await {
+                )
+                .await
+                {
                     Ok(url) => {
                         debug!("Successfully crawled: {}", url);
                         Ok(url)
@@ -345,28 +345,26 @@ pub async fn crawl_pages<P: ProgressReporter>(
                     }
                 }
             });
-            
+
             active_tasks.push(task);
         }
-        
+
         // Wait for at least one task to complete
         match active_tasks.next().await {
-            Some(Ok(result)) => {
-                match result {
-                    Ok(url) => {
-                        debug!("Completed crawling: {}", url);
-                    }
-                    Err(e) => {
-                        warn!("Crawl task failed: {}", e);
-                    }
+            Some(Ok(result)) => match result {
+                Ok(url) => {
+                    debug!("Completed crawling: {}", url);
                 }
-            }
+                Err(e) => {
+                    warn!("Crawl task failed: {}", e);
+                }
+            },
             Some(Err(e)) => {
                 error!("Task panicked: {}", e);
             }
             None => break, // All tasks completed
         }
-        
+
         // Check if done
         let remaining = queue.lock().await.len();
         if remaining == 0 && active_tasks.is_empty() {
@@ -388,18 +386,19 @@ pub async fn crawl_pages<P: ProgressReporter>(
                 warn!("Failed to publish LinkRewriteCompleted event: {}", e);
             }
         }
-        info!("Link rewriting enabled: {} URLs registered for local navigation", urls_registered);
+        info!(
+            "Link rewriting enabled: {} URLs registered for local navigation",
+            urls_registered
+        );
     }
 
     // Publish CrawlCompleted event (CRITICAL - this is the final summary)
     if let Some(bus) = &event_bus {
-        let event = CrawlEvent::crawl_completed(
-            total_pages_final,
-            urls_registered,
-            start_time.elapsed(),
-        );
-        bus.publish(event).await
-            .context("Failed to publish CrawlCompleted event - event bus may be shutdown or full")?;
+        let event =
+            CrawlEvent::crawl_completed(total_pages_final, urls_registered, start_time.elapsed());
+        bus.publish(event).await.context(
+            "Failed to publish CrawlCompleted event - event bus may be shutdown or full",
+        )?;
 
         // Report final metrics before shutdown
         let metrics = bus.metrics().snapshot();
@@ -414,36 +413,36 @@ pub async fn crawl_pages<P: ProgressReporter>(
         } else {
             debug!(
                 "Event bus metrics - Published: {} events to {} subscribers",
-                metrics.events_published,
-                metrics.active_subscribers
+                metrics.events_published, metrics.active_subscribers
             );
         }
 
         // Graceful shutdown
-        bus.shutdown_gracefully(crate::crawl_events::types::ShutdownReason::CrawlCompleted).await;
+        bus.shutdown_gracefully(crate::crawl_events::types::ShutdownReason::CrawlCompleted)
+            .await;
     }
 
     progress.report_cleanup_started();
 
     // Clean up browser and data
-    let chrome_data_dir_path = chrome_data_dir.clone().ok_or_else(|| {
-        anyhow::anyhow!("Chrome data directory path not available for cleanup")
-    })?;
+    let chrome_data_dir_path = chrome_data_dir
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("Chrome data directory path not available for cleanup"))?;
 
     // Try to unwrap browser from Arc - if there are still references, skip cleanup
     let browser_for_cleanup = match Arc::try_unwrap(browser) {
         Ok(b) => Some(b),
         Err(arc) => {
-            warn!("Browser still has {} strong references, cleanup will happen on drop", Arc::strong_count(&arc));
+            warn!(
+                "Browser still has {} strong references, cleanup will happen on drop",
+                Arc::strong_count(&arc)
+            );
             None
         }
     };
 
     if let Some(browser_owned) = browser_for_cleanup {
-        match super::cleanup::cleanup_browser_and_data(
-            browser_owned,
-            chrome_data_dir_path,
-        ).await {
+        match super::cleanup::cleanup_browser_and_data(browser_owned, chrome_data_dir_path).await {
             Ok(super::cleanup::CleanupResult::Success) => {
                 debug!("Browser and data cleanup completed successfully");
             }
@@ -479,10 +478,10 @@ async fn process_single_page(
     indexing_sender: Option<Arc<crate::search::IndexingSender>>,
 ) -> Result<String> {
     let page_start = Instant::now();
-    
+
     // Apply rate limiting
     if let Some(rate) = config.crawl_rate_rps {
-        use super::rate_limiter::{check_crawl_rate_limit, RateLimitDecision};
+        use super::rate_limiter::{RateLimitDecision, check_crawl_rate_limit};
         match check_crawl_rate_limit(&item.url, rate).await {
             RateLimitDecision::Deny { retry_after } => {
                 debug!("Rate limited, sleeping for {:?}: {}", retry_after, item.url);
@@ -510,10 +509,11 @@ async fn process_single_page(
         Err(e) => {
             warn!("Failed to create page for {}: {}", item.url, e);
             if let Some(ref cb) = circuit_breaker
-                && let Ok(domain) = extract_domain(&item.url) {
-                    let mut cb_guard = cb.lock().await;
-                    cb_guard.record_failure(&domain, &e.to_string());
-                }
+                && let Ok(domain) = extract_domain(&item.url)
+            {
+                let mut cb_guard = cb.lock().await;
+                cb_guard.record_failure(&domain, &e.to_string());
+            }
             return Err(e.into());
         }
     };
@@ -528,32 +528,46 @@ async fn process_single_page(
     // Navigate to page
     let page_load_timeout = config.page_load_timeout_secs();
     if let Err(e) = with_page_timeout(
-        async { page.goto(&item.url).await.map_err(|e| anyhow::anyhow!("{}", e)) },
+        async {
+            page.goto(&item.url)
+                .await
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        },
         page_load_timeout,
-        "Page navigation"
-    ).await {
+        "Page navigation",
+    )
+    .await
+    {
         warn!("Navigation failed for {}: {}", item.url, e);
         if let Some(ref cb) = circuit_breaker
-            && let Ok(domain) = extract_domain(&item.url) {
-                let mut cb_guard = cb.lock().await;
-                cb_guard.record_failure(&domain, &e.to_string());
-            }
+            && let Ok(domain) = extract_domain(&item.url)
+        {
+            let mut cb_guard = cb.lock().await;
+            cb_guard.record_failure(&domain, &e.to_string());
+        }
         return Err(e);
     }
 
     // Wait for page load
     let navigation_timeout = config.navigation_timeout_secs();
     if let Err(e) = with_page_timeout(
-        async { page.wait_for_navigation().await.map_err(|e| anyhow::anyhow!("{}", e)) },
+        async {
+            page.wait_for_navigation()
+                .await
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        },
         navigation_timeout,
-        "Page load"
-    ).await {
+        "Page load",
+    )
+    .await
+    {
         warn!("Page load failed for {}: {}", item.url, e);
         if let Some(ref cb) = circuit_breaker
-            && let Ok(domain) = extract_domain(&item.url) {
-                let mut cb_guard = cb.lock().await;
-                cb_guard.record_failure(&domain, &e.to_string());
-            }
+            && let Ok(domain) = extract_domain(&item.url)
+        {
+            let mut cb_guard = cb.lock().await;
+            cb_guard.record_failure(&domain, &e.to_string());
+        }
         return Err(e);
     }
 
@@ -566,31 +580,28 @@ async fn process_single_page(
         save_html: config.save_raw_html(),
     };
 
-    let page_data = page_extractor::extract_page_data(
-        page.clone(),
-        item.url.clone(),
-        extract_config,
-    ).await.map_err(|e| {
-        warn!("Failed to extract page data for {}: {}", item.url, e);
-        e
-    })?;
+    let page_data =
+        page_extractor::extract_page_data(page.clone(), item.url.clone(), extract_config)
+            .await
+            .map_err(|e| {
+                warn!("Failed to extract page data for {}: {}", item.url, e);
+                e
+            })?;
 
     let html_size = page_data.content.len();
 
     // Save markdown if requested
     if config.save_markdown() {
         let conversion_options = ConversionOptions::default();
-        
-        let processed_markdown = match convert_html_to_markdown(
-            &page_data.content,
-            &conversion_options
-        ).await {
-            Ok(md) => md,
-            Err(e) => {
-                warn!("Markdown conversion failed: {}, using html2md fallback", e);
-                html2md::parse_html(&page_data.content)
-            }
-        };
+
+        let processed_markdown =
+            match convert_html_to_markdown(&page_data.content, &conversion_options).await {
+                Ok(md) => md,
+                Err(e) => {
+                    warn!("Markdown conversion failed: {}, using html2md fallback", e);
+                    html2md::parse_html(&page_data.content)
+                }
+            };
 
         match content_saver::save_markdown_content(
             processed_markdown,
@@ -598,7 +609,9 @@ async fn process_single_page(
             config.storage_dir.clone(),
             crate::search::MessagePriority::Normal,
             indexing_sender.clone(),
-        ).await {
+        )
+        .await
+        {
             Ok(()) => debug!("Markdown saved for {}", item.url),
             Err(e) => warn!("Failed to save markdown for {}: {}", item.url, e),
         }
@@ -610,7 +623,9 @@ async fn process_single_page(
             Arc::new(page_data.clone()),
             item.url.clone(),
             config.storage_dir.clone(),
-        ).await {
+        )
+        .await
+        {
             Ok(()) => debug!("Page data saved for {}", item.url),
             Err(e) => warn!("Failed to save page data for {}: {}", item.url, e),
         }
@@ -619,11 +634,9 @@ async fn process_single_page(
     // Capture screenshot if requested
     let mut screenshot_captured = false;
     if config.save_screenshots() {
-        match page_extractor::capture_screenshot(
-            page.clone(),
-            &item.url,
-            config.storage_dir(),
-        ).await {
+        match page_extractor::capture_screenshot(page.clone(), &item.url, config.storage_dir())
+            .await
+        {
             Ok(()) => {
                 debug!("Screenshot saved for {}", item.url);
                 screenshot_captured = true;
@@ -642,7 +655,7 @@ async fn process_single_page(
                 return Ok(item.url);
             }
         };
-        
+
         let q_snapshot = queue.lock().await.clone();
         let crawl_state = CrawlState {
             queue: q_snapshot,
@@ -650,12 +663,7 @@ async fn process_single_page(
             max_depth: config.max_depth,
         };
 
-        match process_page_links(
-            page.clone(),
-            item.clone(),
-            crawl_state,
-            &config,
-        ).await {
+        match process_page_links(page.clone(), item.clone(), crawl_state, &config).await {
             Ok((new_queue, _)) => {
                 // Add new discovered links to shared queue
                 let mut q = queue.lock().await;
@@ -680,10 +688,11 @@ async fn process_single_page(
 
     // Record circuit breaker success
     if let Some(ref cb) = circuit_breaker
-        && let Ok(domain) = extract_domain(&item.url) {
-            let mut cb_guard = cb.lock().await;
-            cb_guard.record_success(&domain);
-        }
+        && let Ok(domain) = extract_domain(&item.url)
+    {
+        let mut cb_guard = cb.lock().await;
+        cb_guard.record_success(&domain);
+    }
 
     // Publish PageCrawled event
     if let Some(bus) = &event_bus {
@@ -699,7 +708,7 @@ async fn process_single_page(
         let local_path = match crate::content_saver::get_mirror_path_sync(
             &item.url,
             &config.storage_dir,
-            "index.md"
+            "index.md",
         ) {
             Ok(path) => path,
             Err(e) => {
@@ -711,19 +720,21 @@ async fn process_single_page(
                     item.url.hash(&mut hasher);
                     hasher.finish()
                 };
-                config.storage_dir.join("parse-failed").join(format!("{}.md", url_hash))
+                config
+                    .storage_dir
+                    .join("parse-failed")
+                    .join(format!("{}.md", url_hash))
             }
         };
 
-        let event = CrawlEvent::page_crawled(
-            item.url.clone(),
-            local_path,
-            item.depth as u32,
-            metadata,
-        );
+        let event =
+            CrawlEvent::page_crawled(item.url.clone(), local_path, item.depth as u32, metadata);
 
         if let Err(e) = bus.publish(event).await {
-            warn!("Failed to publish PageCrawled event for {}: {}", item.url, e);
+            warn!(
+                "Failed to publish PageCrawled event for {}: {}",
+                item.url, e
+            );
         }
     }
 

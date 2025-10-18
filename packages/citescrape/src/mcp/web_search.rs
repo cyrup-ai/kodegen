@@ -4,11 +4,11 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use kodegen_tool::Tool;
 use kodegen_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 
 use crate::web_search;
 
@@ -81,9 +81,7 @@ impl Tool for WebSearchTool {
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Validate query is not empty
         if args.query.trim().is_empty() {
-            return Err(McpError::invalid_arguments(
-                "Search query cannot be empty"
-            ));
+            return Err(McpError::invalid_arguments("Search query cannot be empty"));
         }
 
         // Perform search
@@ -147,7 +145,7 @@ impl Tool for WebSearchTool {
                      - Research technical topics\\n\
                      - Find documentation and tutorials\\n\
                      - Gather information for code generation\\n\
-                     - Discover relevant libraries and tools"
+                     - Discover relevant libraries and tools",
                 ),
             },
         ])

@@ -3,10 +3,10 @@
 //! This module provides a fluent builder interface with compile-time validation
 //! ensuring that required fields are set before building a CrawlConfig.
 
+use crate::runtime::{AsyncTask, spawn_async};
 use crate::utils::{
     DEFAULT_CRAWL_RATE_RPS, DEFAULT_MAX_DEPTH, SCREENSHOT_QUALITY, SEARCH_BATCH_SIZE,
 };
-use crate::runtime::{spawn_async, AsyncTask};
 use regex::Regex;
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -14,23 +14,22 @@ use std::path::PathBuf;
 use super::types::CrawlConfig;
 
 /// Compile a glob pattern into a regex
-/// 
+///
 /// Converts glob patterns (where * matches any sequence) into proper regex patterns.
 /// This is done once at config creation time to avoid repeated compilation in hot paths.
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the resulting regex pattern is invalid.
 fn compile_glob_pattern(pattern: &str) -> Result<Regex, String> {
     // Convert glob pattern to regex: * becomes .*
     let regex_pattern = pattern.replace("*", ".*");
-    
+
     // Anchor pattern to match full string
     let anchored = format!("^{}$", regex_pattern);
-    
+
     // Compile the regex
-    Regex::new(&anchored)
-        .map_err(|e| format!("Invalid glob pattern '{}': {}", pattern, e))
+    Regex::new(&anchored).map_err(|e| format!("Invalid glob pattern '{}': {}", pattern, e))
 }
 
 // Type states for the builder
@@ -188,14 +187,15 @@ impl CrawlConfigBuilder<()> {
 impl CrawlConfigBuilder<WithStorageDir> {
     pub fn start_url(self, url: impl Into<String>) -> CrawlConfigBuilder<WithStartUrl> {
         let url_string = url.into();
-        
+
         // Normalize URL: add https:// if no scheme is present
-        let normalized_url = if url_string.starts_with("http://") || url_string.starts_with("https://") {
-            url_string
-        } else {
-            format!("https://{}", url_string)
-        };
-        
+        let normalized_url =
+            if url_string.starts_with("http://") || url_string.starts_with("https://") {
+                url_string
+            } else {
+                format!("https://{}", url_string)
+            };
+
         CrawlConfigBuilder {
             storage_dir: self.storage_dir,
             only_html: self.only_html,
@@ -251,7 +251,8 @@ impl CrawlConfigBuilder<WithStartUrl> {
         spawn_async(async move {
             let result = (|| -> Result<CrawlConfig, String> {
                 // Compile excluded patterns once at config creation
-                let excluded_patterns_compiled = if let Some(ref patterns) = self.excluded_patterns {
+                let excluded_patterns_compiled = if let Some(ref patterns) = self.excluded_patterns
+                {
                     patterns
                         .iter()
                         .map(|p| compile_glob_pattern(p))
@@ -259,7 +260,7 @@ impl CrawlConfigBuilder<WithStartUrl> {
                 } else {
                     Vec::new()
                 };
-                
+
                 Ok(CrawlConfig {
                     storage_dir: self.storage_dir.ok_or("storage_dir is required")?,
                     start_url: self.start_url.ok_or("start_url is required")?,
@@ -306,7 +307,7 @@ impl CrawlConfigBuilder<WithStartUrl> {
                     max_concurrent_per_domain: self.max_concurrent_per_domain,
                 })
             })();
-            
+
             on_result(result);
         })
     }

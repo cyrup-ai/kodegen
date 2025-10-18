@@ -93,9 +93,9 @@ impl CrawlConfig {
     }
 
     pub fn search_index_dir(&self) -> PathBuf {
-        self.search_index_dir.clone().unwrap_or_else(|| {
-            self.storage_dir.join("search_index")
-        })
+        self.search_index_dir
+            .clone()
+            .unwrap_or_else(|| self.storage_dir.join("search_index"))
     }
 
     pub fn search_memory_limit(&self) -> usize {
@@ -114,7 +114,7 @@ impl CrawlConfig {
     }
 
     /// Get the crawl rate limit in requests per second
-    /// 
+    ///
     /// Returns the configured rate limit, or None if rate limiting is disabled.
     /// The default rate limit is 2.0 RPS for respectful crawling.
     pub fn crawl_rate_rps(&self) -> Option<f64> {
@@ -122,7 +122,7 @@ impl CrawlConfig {
     }
 
     /// Get the maximum image size for inlining as base64
-    /// 
+    ///
     /// Returns None if all images should be inlined regardless of size,
     /// or Some(bytes) to limit inlining to images smaller than this size.
     pub fn max_inline_image_size_bytes(&self) -> Option<usize> {
@@ -130,11 +130,11 @@ impl CrawlConfig {
     }
 
     /// Get the maximum size of the deferred queue for rate-limited URLs
-    /// 
+    ///
     /// Returns the configured maximum number of URLs that can be held in the
     /// deferred queue waiting for retry. When this limit is reached, additional
     /// rate-limited URLs will be dropped with a warning.
-    /// 
+    ///
     /// Default is 10,000 URLs, which provides reasonable memory bounds while
     /// allowing large crawls to handle temporary rate limiting effectively.
     pub fn max_deferred_queue_size(&self) -> usize {
@@ -145,7 +145,7 @@ impl CrawlConfig {
     pub fn enable_cache_validation(&self) -> bool {
         self.enable_cache_validation
     }
-    
+
     /// Check if cache should be ignored (force re-crawl)
     pub fn ignore_cache(&self) -> bool {
         self.ignore_cache
@@ -244,9 +244,7 @@ fn get_available_memory() -> usize {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        if let Ok(output) = Command::new("sysctl")
-            .args(["hw.memsize"])
-            .output()
+        if let Ok(output) = Command::new("sysctl").args(["hw.memsize"]).output()
             && let Ok(output_str) = String::from_utf8(output.stdout)
             && let Some(mem_str) = output_str.split_whitespace().nth(1)
             && let Ok(total_memory) = mem_str.parse::<usize>()

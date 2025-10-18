@@ -20,10 +20,10 @@ pub mod rate_limiter;
 pub use execution::crawl_impl;
 
 // Re-export core types for advanced usage
-pub use core::{ProgressReporter, NoOpProgress, crawl_pages};
+pub use core::{NoOpProgress, ProgressReporter, crawl_pages};
 
 // Re-export rate limiter types
-pub use rate_limiter::{check_crawl_rate_limit, check_http_rate_limit, RateLimitDecision};
+pub use rate_limiter::{RateLimitDecision, check_crawl_rate_limit, check_http_rate_limit};
 
 // Re-export crawler types and functions
 pub use crawler::{ChromiumoxideCrawler, extract_valid_urls, should_visit_url};
@@ -35,7 +35,7 @@ pub use circuit_breaker::{CircuitBreaker, CircuitState, DomainHealth, extract_do
 pub use domain_limiter::DomainLimiter;
 
 // Re-export crawl types
-pub use crawl_types::{CrawlError, CrawlProgress, CrawlResult, Crawler, CrawlQueue};
+pub use crawl_types::{CrawlError, CrawlProgress, CrawlQueue, CrawlResult, Crawler};
 
 // Re-export page enhancer
 pub use page_enhancer::*;

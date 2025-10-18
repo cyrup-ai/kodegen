@@ -2,25 +2,27 @@
 //!
 //! Initiates background web crawls with automatic search indexing.
 
+use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
-use chrono::Utc;
 
 use kodegen_tool::Tool;
 use kodegen_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 
-use crate::config::CrawlConfig;
-use crate::mcp::manager::{CrawlSessionManager, SearchEngineCache, url_to_output_dir, ManifestManager};
-use crate::mcp::types::{ActiveCrawlSession, CrawlStatus, CrawlManifest};
 use crate::ChromiumoxideCrawler;
-use crate::Crawler;
 use crate::CrawlRequest;
+use crate::Crawler;
+use crate::config::CrawlConfig;
+use crate::mcp::manager::{
+    CrawlSessionManager, ManifestManager, SearchEngineCache, url_to_output_dir,
+};
+use crate::mcp::types::{ActiveCrawlSession, CrawlManifest, CrawlStatus};
 
 // =============================================================================
 // DEFAULT VALUES AND CONSTANTS
@@ -78,9 +80,15 @@ pub struct StartCrawlArgs {
     pub content_types: Option<Vec<String>>,
 }
 
-fn default_max_depth() -> u8 { DEFAULT_MAX_DEPTH }
-fn default_true() -> bool { true }
-fn default_crawl_rate() -> f64 { DEFAULT_CRAWL_RATE_RPS }
+fn default_max_depth() -> u8 {
+    DEFAULT_MAX_DEPTH
+}
+fn default_true() -> bool {
+    true
+}
+fn default_crawl_rate() -> f64 {
+    DEFAULT_CRAWL_RATE_RPS
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StartCrawlPromptArgs {}
@@ -114,23 +122,24 @@ impl StartCrawlTool {
     fn validate_content_types(types: &[String]) -> Result<Vec<String>, McpError> {
         const VALID_TYPES: &[&str] = &["markdown", "html", "json", "png"];
         let mut normalized = Vec::new();
-        
+
         for t in types {
             let lower = t.to_lowercase();
             if !VALID_TYPES.contains(&lower.as_str()) {
-                return Err(McpError::InvalidArguments(
-                    format!("Invalid content_type '{}'. Valid: markdown, html, json, png", t)
-                ));
+                return Err(McpError::InvalidArguments(format!(
+                    "Invalid content_type '{}'. Valid: markdown, html, json, png",
+                    t
+                )));
             }
             normalized.push(lower);
         }
-        
+
         if normalized.is_empty() {
             return Err(McpError::InvalidArguments(
-                "content_types cannot be empty. Valid: markdown, html, json, png".to_string()
+                "content_types cannot be empty. Valid: markdown, html, json, png".to_string(),
             ));
         }
-        
+
         Ok(normalized)
     }
 
@@ -139,7 +148,7 @@ impl StartCrawlTool {
             .map_err(|e| McpError::InvalidUrl(format!("Invalid URL '{}': {}", url, e)))?;
         Ok(())
     }
-    
+
     fn resolve_output_dir(args: &StartCrawlArgs) -> Result<PathBuf, McpError> {
         if let Some(ref dir) = args.output_dir {
             Ok(PathBuf::from(dir))
@@ -147,27 +156,31 @@ impl StartCrawlTool {
             url_to_output_dir(&args.url, None)
         }
     }
-    
-    fn build_config(args: &StartCrawlArgs, output_dir: &Path, content_types: Option<Vec<String>>) -> Result<CrawlConfig, McpError> {
+
+    fn build_config(
+        args: &StartCrawlArgs,
+        output_dir: &Path,
+        content_types: Option<Vec<String>>,
+    ) -> Result<CrawlConfig, McpError> {
         let search_index_dir = if args.enable_search {
             Some(output_dir.join(".search_index"))
         } else {
             None
         };
-        
+
         // Determine save flags based on content_types if provided (now normalized)
         let save_markdown = if let Some(ref types) = content_types {
             types.iter().any(|t| t == "markdown")
         } else {
             args.save_markdown
         };
-        
+
         let save_screenshots = if let Some(ref types) = content_types {
             types.iter().any(|t| t == "png")
         } else {
             args.save_screenshots
         };
-        
+
         let config = CrawlConfig {
             storage_dir: output_dir.to_path_buf(),
             start_url: args.url.clone(),
@@ -232,32 +245,34 @@ impl Tool for StartCrawlTool {
         true
     }
 
-
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // 1. Validate input
         Self::validate_url(&args.url)?;
-        
+
         // 2. Validate and normalize content_types if provided
         let content_types = if let Some(ref types) = args.content_types {
             Some(Self::validate_content_types(types)?)
         } else {
             None
         };
-        
+
         // 3. Resolve output directory
         let output_dir = Self::resolve_output_dir(&args)?;
-        
+
         // 4. Build crawl config
         let mut config = Self::build_config(&args, &output_dir, content_types)?;
-        
+
         // 5. Get or initialize search engine and indexing sender if search is enabled
         if args.enable_search {
-            let entry = self.engine_cache.get_or_init(output_dir.clone(), &config).await?;
+            let entry = self
+                .engine_cache
+                .get_or_init(output_dir.clone(), &config)
+                .await?;
             if let Some(indexing_sender) = entry.indexing_sender {
                 config = config.with_indexing_sender(indexing_sender);
             }
         }
-        
+
         // 6. Generate unique crawl ID
         let crawl_id = Uuid::new_v4().to_string();
 
@@ -278,38 +293,44 @@ impl Tool for StartCrawlTool {
             total_pages: 0,
             current_url: Some(args.url.clone()),
         };
-        
-        self.session_manager.register(crawl_id.clone(), session).await;
-        
+
+        self.session_manager
+            .register(crawl_id.clone(), session)
+            .await;
+
         // 6. Spawn background crawl task
         let session_manager = self.session_manager.clone();
         let crawl_id_clone = crawl_id.clone();
-        
+
         tokio::spawn(async move {
             // Create crawler
             let crawler = ChromiumoxideCrawler::new(config);
-            
+
             // Execute crawl
             let request: CrawlRequest = crawler.crawl();
             let result = request.await;
-            
+
             // Handle result
             match result {
                 Ok(_) => {
                     // Crawl succeeded
-                    let total_pages = if let Some(sess) = session_manager.get_session(&crawl_id_clone).await {
-                        sess.total_pages
-                    } else {
-                        0
-                    };
-                    
-                    session_manager.update_status(&crawl_id_clone, CrawlStatus::Completed).await;
-                    
+                    let total_pages =
+                        if let Some(sess) = session_manager.get_session(&crawl_id_clone).await {
+                            sess.total_pages
+                        } else {
+                            0
+                        };
+
+                    session_manager
+                        .update_status(&crawl_id_clone, CrawlStatus::Completed)
+                        .await;
+
                     // Save manifest
-                    if let Some(final_session) = session_manager.get_session(&crawl_id_clone).await {
+                    if let Some(final_session) = session_manager.get_session(&crawl_id_clone).await
+                    {
                         let mut manifest = CrawlManifest::from_session(&final_session);
                         manifest.complete(total_pages);
-                        
+
                         if let Err(e) = ManifestManager::save(&manifest).await {
                             eprintln!("Failed to save manifest: {}", e);
                         }
@@ -318,15 +339,21 @@ impl Tool for StartCrawlTool {
                 Err(e) => {
                     // Crawl failed
                     let error_msg = format!("Crawl failed: {}", e);
-                    session_manager.update_status(&crawl_id_clone, CrawlStatus::Failed { 
-                        error: error_msg.clone() 
-                    }).await;
-                    
+                    session_manager
+                        .update_status(
+                            &crawl_id_clone,
+                            CrawlStatus::Failed {
+                                error: error_msg.clone(),
+                            },
+                        )
+                        .await;
+
                     // Save failed manifest
-                    if let Some(failed_session) = session_manager.get_session(&crawl_id_clone).await {
+                    if let Some(failed_session) = session_manager.get_session(&crawl_id_clone).await
+                    {
                         let mut manifest = CrawlManifest::from_session(&failed_session);
                         manifest.fail(error_msg);
-                        
+
                         if let Err(e) = ManifestManager::save(&manifest).await {
                             eprintln!("Failed to save manifest: {}", e);
                         }
@@ -334,14 +361,17 @@ impl Tool for StartCrawlTool {
                 }
             }
         });
-        
+
         // 7. Return immediately with crawl info
         let search_index_dir = if args.enable_search {
-            output_dir.join(".search_index").to_string_lossy().to_string()
+            output_dir
+                .join(".search_index")
+                .to_string_lossy()
+                .to_string()
         } else {
             "disabled".to_string()
         };
-        
+
         Ok(json!({
             "crawl_id": crawl_id,
             "status": "running",
@@ -354,7 +384,6 @@ impl Tool for StartCrawlTool {
             )
         }))
     }
-
 
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
@@ -396,7 +425,7 @@ impl Tool for StartCrawlTool {
                      1. start_crawl({\"url\": \"https://example.com\"})\n\
                      2. Returns crawl_id\n\
                      3. Poll with get_crawl_results({\"crawl_id\": \"...\"})\n\
-                     4. Search with search_crawl_results({\"output_dir\": \"docs/example.com\", \"query\": \"...\"})"
+                     4. Search with search_crawl_results({\"output_dir\": \"docs/example.com\", \"query\": \"...\"})",
                 ),
             },
         ])

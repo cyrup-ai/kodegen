@@ -4,30 +4,30 @@
 //! crawled and stored by the citescrape system. It supports dual indexing of both
 //! raw markdown and plain text for comprehensive search functionality.
 
-pub mod schema;
 pub mod engine;
+pub mod errors;
+pub mod incremental;
 pub mod indexer;
 pub mod query;
-pub mod types;
-pub mod incremental;
-pub mod errors;
 pub mod runtime_helpers;
+pub mod schema;
+pub mod types;
 
 pub use engine::SearchEngine;
-pub use indexer::MarkdownIndexer;
-pub use query::{SearchQueryBuilder, SearchResults, SearchQueryType, search, search_with_options};
-pub use schema::{SearchSchema, SearchSchemaBuilder, SchemaError, SchemaPerformanceInfo};
-pub use types::{ProcessedMarkdown, IndexProgress};
+pub use errors::{RetryConfig, SearchError, SearchResult};
 pub use incremental::{IncrementalIndexingService, IndexingSender, MessagePriority};
-pub use errors::{SearchError, SearchResult, RetryConfig};
-pub use runtime_helpers::{retry_task, fallback_task, CancellableTask, RateLimitedTask, BatchedTask};
+pub use indexer::MarkdownIndexer;
+pub use query::{SearchQueryBuilder, SearchQueryType, SearchResults, search, search_with_options};
+pub use runtime_helpers::{
+    BatchedTask, CancellableTask, RateLimitedTask, fallback_task, retry_task,
+};
+pub use schema::{SchemaError, SchemaPerformanceInfo, SearchSchema, SearchSchemaBuilder};
+pub use types::{IndexProgress, ProcessedMarkdown};
 
-use anyhow::Result;
 use crate::runtime::AsyncTask;
+use anyhow::Result;
 
 /// Initialize the search system with the given configuration
 pub fn initialize_search(config: crate::config::CrawlConfig) -> AsyncTask<Result<SearchEngine>> {
-    crate::runtime::spawn_async(async move {
-        SearchEngine::create_async(&config).await
-    })
+    crate::runtime::spawn_async(async move { SearchEngine::create_async(&config).await })
 }

@@ -37,7 +37,7 @@
 //!     code_highlighting: true,
 //!     process_headings: true,
 //! };
-//! let markdown = convert_html_to_markdown(html, &options)?;
+//! let markdown = convert_html_to_markdown_sync(html, &options)?;
 //! ```
 
 use anyhow::Result;
@@ -260,10 +260,7 @@ pub fn convert_html_to_markdown_sync(html: &str, options: &ConversionOptions) ->
 /// let options = ConversionOptions::default();
 /// let markdown = convert_html_to_markdown(html, &options).await?;
 /// ```
-pub async fn convert_html_to_markdown(
-    html: &str,
-    options: &ConversionOptions,
-) -> Result<String> {
+pub async fn convert_html_to_markdown(html: &str, options: &ConversionOptions) -> Result<String> {
     // Direct call to sync version (it's fast enough)
     convert_html_to_markdown_sync(html, options)
 }

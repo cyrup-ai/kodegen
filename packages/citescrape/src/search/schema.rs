@@ -4,11 +4,17 @@
 //! for both raw markdown preservation and natural language search optimization.
 
 use anyhow::Result;
-use tantivy::{
-    schema::{Schema, Field, TextOptions, IndexRecordOption, TextFieldIndexing, DateOptions, NumericOptions},
-    tokenizer::{TokenizerManager, TextAnalyzer, SimpleTokenizer, WhitespaceTokenizer, NgramTokenizer, LowerCaser, AlphaNumOnlyFilter, Stemmer, Language},
-};
 use std::collections::{HashMap, HashSet};
+use tantivy::{
+    schema::{
+        DateOptions, Field, IndexRecordOption, NumericOptions, Schema, TextFieldIndexing,
+        TextOptions,
+    },
+    tokenizer::{
+        AlphaNumOnlyFilter, Language, LowerCaser, NgramTokenizer, SimpleTokenizer, Stemmer,
+        TextAnalyzer, TokenizerManager, WhitespaceTokenizer,
+    },
+};
 
 /// Tokenizer name constants for zero-allocation lookups
 const EXACT_MATCH_TOKENIZER: &str = "exact_match";
@@ -48,19 +54,23 @@ pub struct SearchSchemaBuilder {
 pub enum SchemaError {
     #[error("Field '{field}' configuration error: {details}")]
     FieldConfiguration { field: String, details: String },
-    
+
     #[error("Tokenizer '{name}' registration failed: {reason}")]
     TokenizerRegistration { name: String, reason: String },
-    
+
     #[error("Schema validation failed: {reason}")]
     Validation { reason: String },
-    
+
     #[error("Field '{field}' not found in schema")]
     FieldNotFound { field: String },
-    
+
     #[error("Incompatible field type for '{field}': expected {expected}, found {found}")]
-    IncompatibleFieldType { field: String, expected: String, found: String },
-    
+    IncompatibleFieldType {
+        field: String,
+        expected: String,
+        found: String,
+    },
+
     #[error("{0}")]
     Other(String),
 }
@@ -84,7 +94,6 @@ impl SearchSchema {
         SearchSchemaBuilder::new()
     }
 
-
     /// Comprehensive schema validation with detailed error reporting
     pub fn validate(&self) -> Result<(), SchemaError> {
         self.validate_required_fields()?;
@@ -97,11 +106,19 @@ impl SearchSchema {
     /// Validate all required fields are present with correct names
     fn validate_required_fields(&self) -> Result<(), SchemaError> {
         const REQUIRED_FIELDS: &[&str] = &[
-            "url", "path", "title", "raw_markdown", "plain_content",
-            "snippet", "crawl_date", "file_size", "word_count",
+            "url",
+            "path",
+            "title",
+            "raw_markdown",
+            "plain_content",
+            "snippet",
+            "crawl_date",
+            "file_size",
+            "word_count",
         ];
 
-        let existing_fields: HashSet<&str> = self.schema
+        let existing_fields: HashSet<&str> = self
+            .schema
             .fields()
             .map(|(_, field_entry)| field_entry.name())
             .collect();
@@ -172,12 +189,13 @@ impl SearchSchema {
             if let Ok(field) = self.schema.get_field(field_name) {
                 let field_entry = self.schema.get_field_entry(field);
                 if let FieldType::Str(text_options) = field_entry.field_type()
-                    && !text_options.is_stored() {
-                        return Err(SchemaError::FieldConfiguration {
-                            field: field_name.to_string(),
-                            details: "Text field must be stored for retrieval".to_string(),
-                        });
-                    }
+                    && !text_options.is_stored()
+                {
+                    return Err(SchemaError::FieldConfiguration {
+                        field: field_name.to_string(),
+                        details: "Text field must be stored for retrieval".to_string(),
+                    });
+                }
             }
         }
 
@@ -185,12 +203,13 @@ impl SearchSchema {
         if let Ok(field) = self.schema.get_field("snippet") {
             let field_entry = self.schema.get_field_entry(field);
             if let FieldType::Str(text_options) = field_entry.field_type()
-                && !text_options.is_stored() {
-                    return Err(SchemaError::FieldConfiguration {
-                        field: "snippet".to_string(),
-                        details: "Snippet field must be stored for result display".to_string(),
-                    });
-                }
+                && !text_options.is_stored()
+            {
+                return Err(SchemaError::FieldConfiguration {
+                    field: "snippet".to_string(),
+                    details: "Snippet field must be stored for result display".to_string(),
+                });
+            }
         }
 
         Ok(())
@@ -199,14 +218,15 @@ impl SearchSchema {
     /// Validate cross-field consistency and relationships
     fn validate_field_consistency(&self) -> Result<(), SchemaError> {
         use tantivy::schema::FieldType;
-        
+
         // Ensure we have both raw and processed content fields
         let has_raw = self.schema.get_field("raw_markdown").is_ok();
         let has_plain = self.schema.get_field("plain_content").is_ok();
-        
+
         if !has_raw || !has_plain {
             return Err(SchemaError::Validation {
-                reason: "Schema must include both raw_markdown and plain_content for dual indexing".to_string(),
+                reason: "Schema must include both raw_markdown and plain_content for dual indexing"
+                    .to_string(),
             });
         }
 
@@ -216,12 +236,14 @@ impl SearchSchema {
             if let Ok(field) = self.schema.get_field(field_name) {
                 let field_entry = self.schema.get_field_entry(field);
                 if let FieldType::U64(numeric_options) = field_entry.field_type()
-                    && (!numeric_options.is_stored() || !numeric_options.is_indexed()) {
-                        return Err(SchemaError::FieldConfiguration {
-                            field: field_name.to_string(),
-                            details: "Numeric field must be both stored and indexed for range queries".to_string(),
-                        });
-                    }
+                    && (!numeric_options.is_stored() || !numeric_options.is_indexed())
+                {
+                    return Err(SchemaError::FieldConfiguration {
+                        field: field_name.to_string(),
+                        details: "Numeric field must be both stored and indexed for range queries"
+                            .to_string(),
+                    });
+                }
             }
         }
 
@@ -245,10 +267,14 @@ impl SearchSchema {
     /// Get schema performance characteristics for monitoring
     pub fn performance_info(&self) -> SchemaPerformanceInfo {
         let field_count = self.schema.fields().count();
-        let text_field_count = self.schema.fields()
+        let text_field_count = self
+            .schema
+            .fields()
             .filter(|(_, entry)| matches!(entry.field_type(), tantivy::schema::FieldType::Str(_)))
             .count();
-        let indexed_field_count = self.schema.fields()
+        let indexed_field_count = self
+            .schema
+            .fields()
             .filter(|(_, entry)| entry.is_indexed())
             .count();
 
@@ -263,17 +289,23 @@ impl SearchSchema {
     /// Estimate memory usage per document for capacity planning
     const fn estimate_memory_per_document() -> usize {
         // Conservative estimates based on typical markdown content
-        const URL_BYTES: usize = 128;           // Average URL length
-        const PATH_BYTES: usize = 256;          // Average file path length
-        const TITLE_BYTES: usize = 128;         // Average title length
-        const MARKDOWN_BYTES: usize = 8192;     // Average markdown size
+        const URL_BYTES: usize = 128; // Average URL length
+        const PATH_BYTES: usize = 256; // Average file path length
+        const TITLE_BYTES: usize = 128; // Average title length
+        const MARKDOWN_BYTES: usize = 8192; // Average markdown size
         const PLAIN_CONTENT_BYTES: usize = 6144; // Processed content size
-        const SNIPPET_BYTES: usize = 256;       // Snippet length
-        const METADATA_BYTES: usize = 64;       // Date + numeric fields
-        const INDEX_OVERHEAD: usize = 512;      // Tantivy indexing overhead
+        const SNIPPET_BYTES: usize = 256; // Snippet length
+        const METADATA_BYTES: usize = 64; // Date + numeric fields
+        const INDEX_OVERHEAD: usize = 512; // Tantivy indexing overhead
 
-        URL_BYTES + PATH_BYTES + TITLE_BYTES + MARKDOWN_BYTES + 
-        PLAIN_CONTENT_BYTES + SNIPPET_BYTES + METADATA_BYTES + INDEX_OVERHEAD
+        URL_BYTES
+            + PATH_BYTES
+            + TITLE_BYTES
+            + MARKDOWN_BYTES
+            + PLAIN_CONTENT_BYTES
+            + SNIPPET_BYTES
+            + METADATA_BYTES
+            + INDEX_OVERHEAD
     }
 }
 
@@ -302,20 +334,25 @@ impl SearchSchemaBuilder {
         self.enable_ngram_search = true;
         self
     }
-    
+
     /// Configure N-gram tokenizer parameters for fuzzy search
-    /// 
+    ///
     /// # Arguments
     /// * `min_size` - Minimum n-gram size (default: 2)
     /// * `max_size` - Maximum n-gram size (default: 4)  
     /// * `prefix_only` - Generate only prefix n-grams (default: false)
-    /// 
+    ///
     /// # Recommendations
     /// - Web content: 2-4 grams (handles typos and partial words)
     /// - Code search: 3-5 grams (longer identifiers)
     /// - CJK languages: 1-2 grams (character-based)
     #[inline]
-    pub fn with_ngram_config(mut self, min_size: usize, max_size: usize, prefix_only: bool) -> Self {
+    pub fn with_ngram_config(
+        mut self,
+        min_size: usize,
+        max_size: usize,
+        prefix_only: bool,
+    ) -> Self {
         self.ngram_min_size = min_size;
         self.ngram_max_size = max_size;
         self.ngram_prefix_only = prefix_only;
@@ -349,26 +386,22 @@ impl SearchSchemaBuilder {
     }
 
     /// Register all custom tokenizers with the tokenizer manager
-    pub async fn register_tokenizers(
-        &self,
-        tokenizer_manager: &TokenizerManager,
-    ) -> Result<()> {
+    pub async fn register_tokenizers(&self, tokenizer_manager: &TokenizerManager) -> Result<()> {
         let ngram_min_size = self.ngram_min_size;
         let ngram_max_size = self.ngram_max_size;
         let ngram_prefix_only = self.ngram_prefix_only;
         let manager = tokenizer_manager.clone();
-        
+
         // Exact match tokenizer for URLs and file paths
         let exact_tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
             .filter(LowerCaser)
             .build();
-        
+
         manager.register(EXACT_MATCH_TOKENIZER, exact_tokenizer);
 
         // Raw markdown tokenizer preserving syntax structure
-        let raw_markdown_tokenizer = TextAnalyzer::builder(WhitespaceTokenizer::default())
-            .build();
-        
+        let raw_markdown_tokenizer = TextAnalyzer::builder(WhitespaceTokenizer::default()).build();
+
         manager.register(RAW_MARKDOWN_TOKENIZER, raw_markdown_tokenizer);
 
         // Content search tokenizer with aggressive natural language processing
@@ -377,18 +410,18 @@ impl SearchSchemaBuilder {
             .filter(AlphaNumOnlyFilter)
             .filter(Stemmer::new(Language::English))
             .build();
-        
+
         manager.register(CONTENT_SEARCH_TOKENIZER, content_tokenizer);
 
         // N-gram tokenizer for fuzzy search and partial matching
         // Uses configurable parameters from builder
         let ngram_tokenizer = TextAnalyzer::builder(
             NgramTokenizer::new(ngram_min_size, ngram_max_size, ngram_prefix_only)
-                .map_err(|e| anyhow::anyhow!("Failed to create N-gram tokenizer: {}", e))?
+                .map_err(|e| anyhow::anyhow!("Failed to create N-gram tokenizer: {}", e))?,
         )
-            .filter(LowerCaser)
-            .build();
-        
+        .filter(LowerCaser)
+        .build();
+
         manager.register(NGRAM_TOKENIZER, ngram_tokenizer);
 
         Ok(())
@@ -398,28 +431,28 @@ impl SearchSchemaBuilder {
     pub async fn build(self) -> Result<SearchSchema> {
         let mut schema_builder = Schema::builder();
 
-                // Build URL field with exact matching
-                let url_options = self.field_overrides.get("url").cloned().unwrap_or_else(|| {
-            TextOptions::default()
-                .set_stored()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer(EXACT_MATCH_TOKENIZER)
-                        .set_index_option(IndexRecordOption::Basic),
-                )
+        // Build URL field with exact matching
+        let url_options = self.field_overrides.get("url").cloned().unwrap_or_else(|| {
+            TextOptions::default().set_stored().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(EXACT_MATCH_TOKENIZER)
+                    .set_index_option(IndexRecordOption::Basic),
+            )
         });
         let url = schema_builder.add_text_field("url", url_options);
 
         // Build path field with exact matching
-        let path_options = self.field_overrides.get("path").cloned().unwrap_or_else(|| {
-            TextOptions::default()
-                .set_stored()
-                .set_indexing_options(
+        let path_options = self
+            .field_overrides
+            .get("path")
+            .cloned()
+            .unwrap_or_else(|| {
+                TextOptions::default().set_stored().set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer(EXACT_MATCH_TOKENIZER)
                         .set_index_option(IndexRecordOption::Basic),
                 )
-        });
+            });
         let path = schema_builder.add_text_field("path", path_options);
 
         // Build title field with optimized content search
@@ -428,27 +461,31 @@ impl SearchSchemaBuilder {
         } else {
             CONTENT_SEARCH_TOKENIZER
         };
-        let title_options = self.field_overrides.get("title").cloned().unwrap_or_else(|| {
-            TextOptions::default()
-                .set_stored()
-                .set_indexing_options(
+        let title_options = self
+            .field_overrides
+            .get("title")
+            .cloned()
+            .unwrap_or_else(|| {
+                TextOptions::default().set_stored().set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer(title_tokenizer)
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
                 )
-        });
+            });
         let title = schema_builder.add_text_field("title", title_options);
 
         // Build raw markdown field preserving structure
-        let raw_markdown_options = self.field_overrides.get("raw_markdown").cloned().unwrap_or_else(|| {
-            TextOptions::default()
-                .set_stored()
-                .set_indexing_options(
+        let raw_markdown_options = self
+            .field_overrides
+            .get("raw_markdown")
+            .cloned()
+            .unwrap_or_else(|| {
+                TextOptions::default().set_stored().set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer(RAW_MARKDOWN_TOKENIZER)
                         .set_index_option(IndexRecordOption::Basic),
                 )
-        });
+            });
         let raw_markdown = schema_builder.add_text_field("raw_markdown", raw_markdown_options);
 
         // Build plain content field for natural language search
@@ -457,21 +494,25 @@ impl SearchSchemaBuilder {
         } else {
             CONTENT_SEARCH_TOKENIZER
         };
-        let plain_content_options = self.field_overrides.get("plain_content").cloned().unwrap_or_else(|| {
-            TextOptions::default()
-                .set_stored()
-                .set_indexing_options(
+        let plain_content_options = self
+            .field_overrides
+            .get("plain_content")
+            .cloned()
+            .unwrap_or_else(|| {
+                TextOptions::default().set_stored().set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer(content_tokenizer)
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
                 )
-        });
+            });
         let plain_content = schema_builder.add_text_field("plain_content", plain_content_options);
 
         // Build snippet field for result display (stored only)
-        let snippet_options = self.field_overrides.get("snippet").cloned().unwrap_or_else(|| {
-            TextOptions::default().set_stored()
-        });
+        let snippet_options = self
+            .field_overrides
+            .get("snippet")
+            .cloned()
+            .unwrap_or_else(|| TextOptions::default().set_stored());
         let snippet = schema_builder.add_text_field("snippet", snippet_options);
 
         // Build temporal field for date-based queries
@@ -508,7 +549,8 @@ impl SearchSchemaBuilder {
 
         // Validate if enabled
         if self.validation_enabled {
-            search_schema.validate()
+            search_schema
+                .validate()
                 .map_err(|e| anyhow::anyhow!("Schema validation failed: {}", e))?;
         }
 

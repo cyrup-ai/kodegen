@@ -55,7 +55,7 @@ pub enum CrawlEvent {
         timestamp: chrono::DateTime<chrono::Utc>,
     },
     /// Signals that the event bus is shutting down
-    /// 
+    ///
     /// Subscribers should exit their event loops when receiving this event.
     Shutdown {
         reason: ShutdownReason,
@@ -81,14 +81,14 @@ pub struct PageCrawlMetadata {
 }
 
 /// Result of publishing a batch of events
-/// 
+///
 /// Provides detailed information about batch publication success/failure.
 /// Unlike a Result type, this always represents successful execution of the
 /// batch operation itself - the fields indicate how many individual events
 /// succeeded or failed within the batch.
 ///
 /// # Best-Effort Semantics
-/// 
+///
 /// The event bus uses best-effort delivery. All events in the batch are attempted
 /// regardless of individual failures. This struct transparently reports what happened
 /// so callers can make informed decisions about partial success scenarios.
@@ -96,34 +96,34 @@ pub struct PageCrawlMetadata {
 pub struct BatchPublishResult {
     /// Total number of events in the batch
     pub total: usize,
-    
+
     /// Number of events successfully published
     pub published: usize,
-    
+
     /// Number of events that failed to publish (no active subscribers)
     pub failed: usize,
-    
+
     /// Peak subscriber count observed during batch
     pub max_subscribers: usize,
 }
 
 impl BatchPublishResult {
     /// Check if all events were successfully published
-    /// 
+    ///
     /// Returns true only if published == total and failed == 0
     pub fn is_complete(&self) -> bool {
         self.published == self.total && self.failed == 0
     }
-    
+
     /// Check if any events failed to publish
-    /// 
+    ///
     /// Returns true if failed > 0
     pub fn has_failures(&self) -> bool {
         self.failed > 0
     }
-    
+
     /// Calculate success rate as a percentage
-    /// 
+    ///
     /// Returns 100.0 if total is 0 (empty batch), otherwise (published / total) * 100.0
     pub fn success_rate(&self) -> f64 {
         if self.total == 0 {

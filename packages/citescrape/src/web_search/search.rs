@@ -3,7 +3,7 @@
 //! Handles performing searches, waiting for results, and extracting data
 //! from search result pages.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chromiumoxide::page::Page;
 use rand::Rng;
 use std::time::{Duration, Instant};
@@ -28,9 +28,14 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
     // Apply kromekover stealth injection BEFORE navigation
     info!("Applying kromekover stealth injection");
     let page_clone = page.clone();
-    
+
     // Wait for stealth injection with timeout
-    match tokio::time::timeout(Duration::from_secs(5), page_enhancer::enhance_page(page_clone)).await {
+    match tokio::time::timeout(
+        Duration::from_secs(5),
+        page_enhancer::enhance_page(page_clone),
+    )
+    .await
+    {
         Ok(Ok(())) => info!("Stealth injection complete"),
         Ok(Err(e)) => warn!("Stealth injection failed: {}", e),
         Err(_) => warn!("Stealth injection timeout"),
@@ -52,10 +57,16 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
         .context("Failed to find search box")?;
 
     info!("Found search box, attempting to click");
-    search_box.click().await.context("Failed to click search box")?;
+    search_box
+        .click()
+        .await
+        .context("Failed to click search box")?;
 
     info!("Typing search query: {}", query);
-    search_box.type_str(query).await.context("Failed to type search query")?;
+    search_box
+        .type_str(query)
+        .await
+        .context("Failed to type search query")?;
 
     info!("Attempting to find search button");
     let search_button = page
@@ -64,7 +75,10 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
         .context("Failed to find search button")?;
 
     info!("Clicking search button");
-    search_button.click().await.context("Failed to click search button")?;
+    search_button
+        .click()
+        .await
+        .context("Failed to click search button")?;
 
     info!("Waiting for search results");
     page.wait_for_navigation()
@@ -89,9 +103,9 @@ pub async fn wait_for_results(page: &Page) -> Result<()> {
     let timeout_duration = Duration::from_secs(SEARCH_RESULTS_WAIT_TIMEOUT);
     let start = Instant::now();
     let poll_interval = Duration::from_millis(100);
-    
+
     info!("Waiting for search results to appear in DOM");
-    
+
     loop {
         // Try to find search result elements in DOM
         match page.find_element(SEARCH_RESULT_SELECTOR).await {
@@ -101,7 +115,12 @@ pub async fn wait_for_results(page: &Page) -> Result<()> {
             }
             Err(_) if start.elapsed() >= timeout_duration => {
                 // Timeout - provide diagnostic info
-                let url = page.url().await.ok().flatten().unwrap_or_else(|| "unknown".to_string());
+                let url = page
+                    .url()
+                    .await
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| "unknown".to_string());
                 return Err(anyhow!(
                     "Timeout waiting for search results. Page URL: {}. \
                      Expected selector '{}' not found after {:?}",
@@ -146,7 +165,9 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
 
     // Fail fast if no results (likely CAPTCHA or error page)
     if search_results.is_empty() {
-        return Err(anyhow!("No search results found - possible CAPTCHA or error page"));
+        return Err(anyhow!(
+            "No search results found - possible CAPTCHA or error page"
+        ));
     }
 
     let mut results = Vec::new();
@@ -154,23 +175,29 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
     for (index, result) in search_results.into_iter().enumerate().take(MAX_RESULTS) {
         // Extract title - REQUIRED
         let title = result
-            .find_element(TITLE_SELECTOR).await
+            .find_element(TITLE_SELECTOR)
+            .await
             .with_context(|| format!("Title not found for result {}", index + 1))?
-            .inner_text().await
+            .inner_text()
+            .await
             .with_context(|| format!("Failed to get title text for result {}", index + 1))?
             .unwrap_or_else(|| format!("Untitled Result {}", index + 1));
 
         // Extract URL - CRITICAL, must succeed
         let url = result
-            .find_element(LINK_SELECTOR).await
+            .find_element(LINK_SELECTOR)
+            .await
             .with_context(|| format!("Link not found for result {}", index + 1))?
-            .attribute("href").await
+            .attribute("href")
+            .await
             .with_context(|| format!("Failed to get href attribute for result {}", index + 1))?
             .ok_or_else(|| anyhow!("Link href is empty for result {}", index + 1))?;
 
         // Extract snippet - OPTIONAL, can fallback
         let snippet = match result.find_element(SNIPPET_SELECTOR).await {
-            Ok(el) => el.inner_text().await
+            Ok(el) => el
+                .inner_text()
+                .await
                 .ok()
                 .flatten()
                 .unwrap_or_else(|| "No description available".to_string()),
@@ -191,7 +218,7 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
 /// Classify errors into retryable vs permanent failures
 ///
 /// Based on chromiumoxide error patterns from browser automation.
-/// 
+///
 /// # Permanent Errors (return false)
 /// - Browser/page closed or disconnected
 /// - Session terminated
@@ -219,7 +246,8 @@ fn is_retryable_error(error: &anyhow::Error) -> bool {
         || error_str.contains("channel")  // Channel errors = browser died
         || error_str.contains("frame") && error_str.contains("not found")
         || error_str.contains("captcha")
-        || error_str.contains("websocket")  // WebSocket errors = connection lost
+        || error_str.contains("websocket")
+    // WebSocket errors = connection lost
     {
         return false;
     }
@@ -231,7 +259,8 @@ fn is_retryable_error(error: &anyhow::Error) -> bool {
         || error_str.contains("connection refused")
         || error_str.contains("connection reset")
         || error_str.contains("rate limit")
-        || error_str.contains("429")  // HTTP 429 Too Many Requests
+        || error_str.contains("429")
+    // HTTP 429 Too Many Requests
     {
         return true;
     }
@@ -254,10 +283,7 @@ fn is_retryable_error(error: &anyhow::Error) -> bool {
 ///
 /// # Based on
 /// - packages/citescrape/src/google_search.rs:275-299
-pub async fn retry_with_backoff<F, Fut, T>(
-    f: F,
-    max_retries: u32,
-) -> Result<T>
+pub async fn retry_with_backoff<F, Fut, T>(f: F, max_retries: u32) -> Result<T>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T>>,

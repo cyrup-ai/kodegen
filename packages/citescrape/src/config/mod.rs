@@ -10,5 +10,5 @@ pub mod methods;
 pub mod types;
 
 // Re-exports for public API
-pub use builder::{CrawlConfigBuilder, Complete, WithStartUrl, WithStorageDir};
+pub use builder::{Complete, CrawlConfigBuilder, WithStartUrl, WithStorageDir};
 pub use types::CrawlConfig;

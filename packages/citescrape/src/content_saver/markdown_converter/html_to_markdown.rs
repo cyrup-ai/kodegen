@@ -10,34 +10,29 @@ use std::sync::LazyLock;
 
 // Compile regex patterns once at first use
 // These are syntactically valid and will never fail to compile
-static EMPTY_LINES: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\n{3,}").expect("EMPTY_LINES regex pattern is valid")
-});
+static EMPTY_LINES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\n{3,}").expect("EMPTY_LINES regex pattern is valid"));
 
 static SPACE_AFTER_LIST: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?m)^(\s*[-*+])\s*").expect("SPACE_AFTER_LIST regex pattern is valid")
 });
 
-static HEADING_SPACE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^(#+)([^ ])").expect("HEADING_SPACE regex pattern is valid")
-});
+static HEADING_SPACE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^(#+)([^ ])").expect("HEADING_SPACE regex pattern is valid"));
 
 static TABLE_ALIGN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\|(\s*:?-+:?\s*\|)+").expect("TABLE_ALIGN regex pattern is valid")
 });
 
-static CODE_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"```([a-zA-Z]*)\n").expect("CODE_BLOCK regex pattern is valid")
-});
+static CODE_BLOCK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"```([a-zA-Z]*)\n").expect("CODE_BLOCK regex pattern is valid"));
 
 static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[([^\]]+)\]\([^\)]+\)")
-        .expect("LINK_RE: hardcoded regex is valid")
+    Regex::new(r"\[([^\]]+)\]\([^\)]+\)").expect("LINK_RE: hardcoded regex is valid")
 });
 
 static IMAGE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"!\[[^\]]*\]\([^\)]+\)")
-        .expect("IMAGE_RE: hardcoded regex is valid")
+    Regex::new(r"!\[[^\]]*\]\([^\)]+\)").expect("IMAGE_RE: hardcoded regex is valid")
 });
 
 /// HTML to Markdown converter with configurable options

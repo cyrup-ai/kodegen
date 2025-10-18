@@ -3,8 +3,8 @@ use futures_core::Stream;
 use std::{
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     task::{Context, Poll, Waker},
 };
@@ -42,7 +42,7 @@ pub enum TrySendError<T> {
 impl<T, const CAP: usize> AsyncStream<T, CAP> {
     /// Creates a new bounded stream with const generic capacity.
     /// Returns (sender, stream) pair for producer-consumer communication.
-    /// 
+    ///
     /// This is a zero-allocation operation that pre-allocates all necessary data structures.
     #[inline]
     pub fn channel() -> (StreamSender<T, CAP>, AsyncStream<T, CAP>) {
@@ -51,46 +51,48 @@ impl<T, const CAP: usize> AsyncStream<T, CAP> {
             wakers: ArrayQueue::new(CAP), // At most CAP waiting consumers
             closed: AtomicBool::new(false),
         });
-        
-        let sender = StreamSender { inner: inner.clone() };
+
+        let sender = StreamSender {
+            inner: inner.clone(),
+        };
         let stream = AsyncStream { inner };
-        
+
         (sender, stream)
     }
-    
+
     /// Attempts to receive a value immediately without blocking.
     /// Returns None if no value is available.
-    /// 
+    ///
     /// This is a zero-allocation operation with optimal performance.
     #[inline]
     pub fn try_recv(&self) -> Option<T> {
         self.inner.queue.pop()
     }
-    
+
     /// Checks if the stream is closed and no more values will be produced.
     #[inline]
     pub fn is_terminated(&self) -> bool {
         self.inner.closed.load(Ordering::Acquire) && self.inner.queue.is_empty()
     }
-    
+
     /// Returns the current number of items in the stream.
     #[inline]
     pub fn len(&self) -> usize {
         self.inner.queue.len()
     }
-    
+
     /// Returns true if the stream is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.queue.is_empty()
     }
-    
+
     /// Returns the compile-time capacity of the stream.
     #[inline]
     pub const fn capacity(&self) -> usize {
         CAP
     }
-    
+
     /// Convenience helper – wrap a single item into a ready stream.
     /// Used in API glue; cost = one push into the bounded queue.
     #[inline]
@@ -108,17 +110,16 @@ impl<T, const CAP: usize> AsyncStream<T, CAP> {
         tx.close(); // Close immediately to signal end
         st
     }
-
 }
 
 impl<T, const CAP: usize> StreamSender<T, CAP> {
     /// Attempts to send a value immediately without blocking.
-    /// 
+    ///
     /// Returns:
     /// - Ok(()) if the value was sent successfully
     /// - Err(TrySendError::Full(value)) if the queue is at capacity
     /// - Err(TrySendError::Closed(value)) if the stream is closed
-    /// 
+    ///
     /// This is a zero-allocation operation optimized for maximum throughput.
     #[inline]
     pub fn try_send(&self, value: T) -> Result<(), TrySendError<T>> {
@@ -126,7 +127,7 @@ impl<T, const CAP: usize> StreamSender<T, CAP> {
         if self.inner.closed.load(Ordering::Acquire) {
             return Err(TrySendError::Closed(value));
         }
-        
+
         // Attempt lock-free push to queue
         match self.inner.queue.push(value) {
             Ok(()) => {
@@ -136,54 +137,54 @@ impl<T, const CAP: usize> StreamSender<T, CAP> {
                 }
                 Ok(())
             }
-            Err(value) => Err(TrySendError::Full(value))
+            Err(value) => Err(TrySendError::Full(value)),
         }
     }
-    
+
     /// Closes the stream, preventing further sends.
     /// All pending consumers will be notified immediately.
-    /// 
+    ///
     /// This operation ensures all waiting consumers are awakened efficiently.
     #[inline]
     pub fn close(&self) {
         self.inner.closed.store(true, Ordering::Release);
-        
+
         // Wake all waiting consumers with zero allocations
         while let Some(waker) = self.inner.wakers.pop() {
             waker.wake();
         }
     }
-    
+
     /// Checks if the stream sender is closed.
     #[inline]
     pub fn is_closed(&self) -> bool {
         self.inner.closed.load(Ordering::Acquire)
     }
-    
+
     /// Returns the current number of items in the queue.
     #[inline]
     pub fn len(&self) -> usize {
         self.inner.queue.len()
     }
-    
+
     /// Returns true if the queue is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.queue.is_empty()
     }
-    
+
     /// Returns true if the queue is at capacity.
     #[inline]
     pub fn is_full(&self) -> bool {
         self.inner.queue.len() == CAP
     }
-    
+
     /// Returns the compile-time capacity of the stream.
     #[inline]
     pub const fn capacity(&self) -> usize {
         CAP
     }
-    
+
     /// Returns the number of free slots in the queue.
     #[inline]
     pub fn available_capacity(&self) -> usize {
@@ -202,12 +203,12 @@ impl<T, const CAP: usize> Stream for AsyncStream<T, CAP> {
         if let Some(value) = self.inner.queue.pop() {
             return Poll::Ready(Some(value));
         }
-        
+
         // Check if stream is closed and no more items available
         if self.inner.closed.load(Ordering::Acquire) {
             return Poll::Ready(None);
         }
-        
+
         // Register waker for notification - this is the only potential allocation point
         let waker = cx.waker().clone();
         if self.inner.wakers.push(waker).is_err() {
@@ -215,7 +216,7 @@ impl<T, const CAP: usize> Stream for AsyncStream<T, CAP> {
             cx.waker().wake_by_ref();
             return Poll::Pending;
         }
-        
+
         // Double-check pattern to avoid race conditions
         if let Some(value) = self.inner.queue.pop() {
             // Remove our waker since we got a value
@@ -229,7 +230,7 @@ impl<T, const CAP: usize> Stream for AsyncStream<T, CAP> {
             Poll::Pending
         }
     }
-    
+
     /// Provides size hint for stream optimization.
     /// Returns exact bounds when stream is closed, unbounded otherwise.
     #[inline]
@@ -282,4 +283,3 @@ impl<T, const CAP: usize> std::fmt::Debug for StreamSender<T, CAP> {
             .finish()
     }
 }
-

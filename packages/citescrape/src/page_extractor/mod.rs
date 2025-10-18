@@ -11,5 +11,5 @@ pub mod page_data;
 pub mod schema;
 
 // Re-exports for public API
-pub use page_data::extract_page_data;
 pub use extractors::capture_screenshot;
+pub use page_data::extract_page_data;

@@ -11,25 +11,25 @@ pub mod channel;
 // pub mod zero_alloc;   // TODO: Implement or remove
 
 pub use async_stream::{AsyncStream, StreamSender, TrySendError};
-pub use async_task::{spawn_async, spawn_stream, AsyncTask, TaskGuard, ready, pending, TaskError};
+pub use async_task::{AsyncTask, TaskError, TaskGuard, pending, ready, spawn_async, spawn_stream};
 pub use async_wrappers::{AsyncJsonSave, BrowserAction, CrawlRequest};
 pub use channel::*;
 // pub use thread_pool::ThreadPool;
 // pub use zero_alloc::{spawn_string, spawn_unit, SmallString, unwrap_result};
 
 // DEPRECATED: recv_async! macro - blocks async runtime threads!
-// 
+//
 // This macro uses blocking recv_timeout() which defeats the purpose of async/await.
 // All production code has been migrated to tokio::sync::oneshot with .await patterns.
-// 
+//
 // DO NOT USE THIS MACRO IN NEW CODE!
-// 
+//
 // Migration pattern:
 // ```ignore
 // // OLD - BLOCKING (DO NOT USE)
 // let (tx, rx) = std::sync::mpsc::channel();
 // recv_async!(rx, "error message")?;
-// 
+//
 // // NEW - ASYNC (USE THIS)
 // let (tx, rx) = tokio::sync::oneshot::channel();
 // rx.await.map_err(|_| anyhow::anyhow!("error message"))?;
@@ -64,10 +64,11 @@ macro_rules! recv_async {
 }
 */
 
-
-
 /// Create channel with optimal configuration
 #[inline(always)]
-pub fn create_channel<T>() -> (tokio::sync::mpsc::UnboundedSender<T>, tokio::sync::mpsc::UnboundedReceiver<T>) {
+pub fn create_channel<T>() -> (
+    tokio::sync::mpsc::UnboundedSender<T>,
+    tokio::sync::mpsc::UnboundedReceiver<T>,
+) {
     tokio::sync::mpsc::unbounded_channel()
 }

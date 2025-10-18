@@ -22,7 +22,8 @@ pub struct ExtractPageDataConfig {
 /// Extract event handler attribute names from element attributes
 #[inline]
 fn get_event_handlers(attributes: &std::collections::HashMap<String, String>) -> Vec<String> {
-    attributes.keys()
+    attributes
+        .keys()
         .filter(|k| k.starts_with("on"))
         .cloned()
         .collect()
@@ -38,11 +39,25 @@ fn has_event_handlers(attributes: &std::collections::HashMap<String, String>) ->
 #[inline]
 fn has_interactive_role(attributes: &std::collections::HashMap<String, String>) -> bool {
     if let Some(role) = attributes.get("role") {
-        matches!(role.as_str(),
-            "button" | "checkbox" | "radio" | "switch" | "tab" |
-            "slider" | "spinbutton" | "menuitem" | "menuitemcheckbox" |
-            "menuitemradio" | "option" | "link" | "searchbox" |
-            "textbox" | "combobox" | "gridcell" | "treeitem"
+        matches!(
+            role.as_str(),
+            "button"
+                | "checkbox"
+                | "radio"
+                | "switch"
+                | "tab"
+                | "slider"
+                | "spinbutton"
+                | "menuitem"
+                | "menuitemcheckbox"
+                | "menuitemradio"
+                | "option"
+                | "link"
+                | "searchbox"
+                | "textbox"
+                | "combobox"
+                | "gridcell"
+                | "treeitem"
         )
     } else {
         false
@@ -50,11 +65,13 @@ fn has_interactive_role(attributes: &std::collections::HashMap<String, String>) 
 }
 
 /// Convert raw interactive elements to structured format
-fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>) -> super::schema::InteractiveElements {
+fn convert_interactive_elements(
+    elements: Vec<super::schema::InteractiveElement>,
+) -> super::schema::InteractiveElements {
     use super::schema::*;
-    
+
     let mut result = InteractiveElements::default();
-    
+
     for element in elements {
         match element.element_type.to_lowercase().as_str() {
             "button" => {
@@ -69,7 +86,11 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
                 });
             }
             "a" => {
-                if let Some(href) = element.url.as_ref().or_else(|| element.attributes.get("href")) {
+                if let Some(href) = element
+                    .url
+                    .as_ref()
+                    .or_else(|| element.attributes.get("href"))
+                {
                     result.links.push(LinkElement {
                         href: href.clone(),
                         text: element.text.clone(),
@@ -85,7 +106,11 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
                 result.inputs.push(InputElement {
                     id: element.attributes.get("id").cloned(),
                     name: element.attributes.get("name").cloned(),
-                    input_type: element.attributes.get("type").unwrap_or(&"text".to_string()).clone(),
+                    input_type: element
+                        .attributes
+                        .get("type")
+                        .unwrap_or(&"text".to_string())
+                        .clone(),
                     value: element.attributes.get("value").cloned(),
                     placeholder: element.attributes.get("placeholder").cloned(),
                     required: element.attributes.contains_key("required"),
@@ -109,7 +134,7 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
                     attributes: element.attributes.clone(),
                 });
             }
-            
+
             // Native interactive HTML elements
             "details" | "summary" | "dialog" | "menu" => {
                 result.clickable.push(ClickableElement {
@@ -121,7 +146,7 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
                     attributes: element.attributes.clone(),
                 });
             }
-            
+
             // Label elements (interactive when associated with input)
             "label" => {
                 if element.attributes.contains_key("for") {
@@ -135,12 +160,13 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
                     });
                 }
             }
-            
+
             // Catch-all with logging for unhandled types
             _ => {
                 // Check if element is interactive via ARIA role or event handlers
-                if has_interactive_role(&element.attributes) || 
-                   has_event_handlers(&element.attributes) {
+                if has_interactive_role(&element.attributes)
+                    || has_event_handlers(&element.attributes)
+                {
                     result.clickable.push(ClickableElement {
                         selector: element.selector.clone(),
                         text: element.text.clone(),
@@ -161,18 +187,21 @@ fn convert_interactive_elements(elements: Vec<super::schema::InteractiveElement>
             }
         }
     }
-    
+
     result
 }
 
 /// Extract validation rules from input attributes
-fn extract_validation(attributes: &std::collections::HashMap<String, String>) -> Option<super::schema::InputValidation> {
-    if attributes.contains_key("pattern") || 
-       attributes.contains_key("minlength") || 
-       attributes.contains_key("maxlength") ||
-       attributes.contains_key("min") ||
-       attributes.contains_key("max") ||
-       attributes.contains_key("step") {
+fn extract_validation(
+    attributes: &std::collections::HashMap<String, String>,
+) -> Option<super::schema::InputValidation> {
+    if attributes.contains_key("pattern")
+        || attributes.contains_key("minlength")
+        || attributes.contains_key("maxlength")
+        || attributes.contains_key("min")
+        || attributes.contains_key("max")
+        || attributes.contains_key("step")
+    {
         Some(super::schema::InputValidation {
             pattern: attributes.get("pattern").cloned(),
             min_length: attributes.get("minlength").and_then(|v| v.parse().ok()),
@@ -185,7 +214,6 @@ fn extract_validation(attributes: &std::collections::HashMap<String, String>) ->
         None
     }
 }
-
 
 /// Extract all page data including metadata, resources, timing, and content
 /// This is the production function used by the crawler, with LinkRewriter integration
@@ -216,7 +244,8 @@ pub async fn extract_page_data(
                 } else {
                     Ok(String::new())
                 }
-            }.await;
+            }
+            .await;
             result
         },
         extract_interactive_elements(page.clone()),
@@ -224,16 +253,20 @@ pub async fn extract_page_data(
     )?;
 
     // Get HTML content
-    let content = page.content().await
+    let content = page
+        .content()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to get page content: {}", e))?;
 
     // Phase 1: Mark all links with data attributes for discovery tracking
-    let content_with_data_attrs = config.link_rewriter
+    let content_with_data_attrs = config
+        .link_rewriter
         .mark_links_for_discovery(&content, &url)
         .await?;
 
     // Phase 2: Rewrite links using data attributes and registered URL mappings
-    let content_with_rewritten_links = config.link_rewriter
+    let content_with_rewritten_links = config
+        .link_rewriter
         .rewrite_links_from_data_attrs(content_with_data_attrs)
         .await?;
 
@@ -242,19 +275,27 @@ pub async fn extract_page_data(
 
     // Get local path for URL registration BEFORE saving
     // This allows us to register the URL→path mapping after successful save
-    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await {
-        Ok(path) => path.to_string_lossy().to_string(),
-        Err(e) => {
-            log::warn!("Failed to get mirror path for URL registration: {}", e);
-            // Fallback path - registration will still work but path may be incorrect
-            config.output_dir.join("index.html").to_string_lossy().to_string()
-        }
-    };
+    let local_path_str =
+        match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await {
+            Ok(path) => path.to_string_lossy().to_string(),
+            Err(e) => {
+                log::warn!("Failed to get mirror path for URL registration: {}", e);
+                // Fallback path - registration will still work but path may be incorrect
+                config
+                    .output_dir
+                    .join("index.html")
+                    .to_string_lossy()
+                    .to_string()
+            }
+        };
 
     // Register URL → local path mapping BEFORE saving
     // This enables progressive rewriting: pages crawled later can immediately
     // link to this page using relative paths instead of external URLs
-    config.link_rewriter.register_url(&url, &local_path_str).await;
+    config
+        .link_rewriter
+        .register_url(&url, &local_path_str)
+        .await;
 
     log::debug!(
         "Registered URL mapping: {} → {} (enables progressive link rewriting)",
@@ -271,7 +312,9 @@ pub async fn extract_page_data(
             &resources,
             config.max_inline_image_size_bytes,
             config.crawl_rate_rps,
-        ).await {
+        )
+        .await
+        {
             Ok(()) => {
                 log::info!("HTML content saved successfully for: {}", url);
             }

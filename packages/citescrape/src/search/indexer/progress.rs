@@ -1,12 +1,12 @@
 //! Progress tracking and error collection for indexing operations
 
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
-use std::time::Instant;
+use super::super::types::{IndexProgress, IndexingPhase};
+use chrono::Utc;
 use crossbeam_queue::SegQueue;
 use dashmap::DashMap;
 use imstr::ImString;
-use chrono::Utc;
-use super::super::types::{IndexProgress, IndexingPhase};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::Instant;
 
 /// Atomic progress tracker for lock-free updates
 pub(crate) struct AtomicProgress {
@@ -28,11 +28,16 @@ impl AtomicProgress {
     }
 
     #[inline]
-    pub fn snapshot(&self, phase: IndexingPhase, current_file: ImString, start_time: Instant) -> IndexProgress {
+    pub fn snapshot(
+        &self,
+        phase: IndexingPhase,
+        current_file: ImString,
+        start_time: Instant,
+    ) -> IndexProgress {
         let processed = self.processed.load(Ordering::Relaxed);
         let failed = self.failed.load(Ordering::Relaxed);
         let discovered = self.discovered.load(Ordering::Relaxed);
-        
+
         // Calculate ETA using exponential moving average
         let elapsed = start_time.elapsed();
         let estimated_completion = if processed > 0 && discovered > 0 {
@@ -42,7 +47,7 @@ impl AtomicProgress {
         } else {
             None
         };
-        
+
         IndexProgress {
             processed,
             total: discovered,
@@ -59,7 +64,7 @@ impl AtomicProgress {
 }
 
 /// Error collector with lock-free structures for concurrent access
-/// 
+///
 /// Uses lock-free data structures to avoid mutex poisoning issues:
 /// - SegQueue for error storage (lock-free concurrent push)
 /// - DashMap for error counts (lock-free concurrent HashMap)
@@ -86,13 +91,13 @@ impl ErrorCollector {
     pub fn push(&self, file: ImString, error: ImString) {
         // Extract error category for statistics
         let error_category = Self::categorize_error(&error);
-        
+
         // Lock-free increment of error counts using DashMap
         self.error_counts
             .entry(error_category)
             .or_insert_with(|| AtomicUsize::new(0))
             .fetch_add(1, Ordering::Relaxed);
-        
+
         // Lock-free push with overflow tracking
         // Check current queue size to enforce max_errors limit
         if self.errors.len() >= self.max_errors {
@@ -101,7 +106,7 @@ impl ErrorCollector {
             self.errors.push((file, error));
         }
     }
-    
+
     /// Categorize errors for better reporting
     #[inline]
     fn categorize_error(error: &ImString) -> ImString {
@@ -128,14 +133,16 @@ impl ErrorCollector {
     pub fn snapshot(&self) -> Vec<(ImString, ImString)> {
         // Lock-free snapshot of error counts using DashMap iteration
         let counts_len = self.error_counts.len();
-        
+
         // Estimate capacity for result vector
         let estimated_capacity = self.errors.len() + counts_len + 2;
         let mut result = Vec::with_capacity(estimated_capacity);
-        
+
         // Add summary if there are multiple error types
         if counts_len > 1 {
-            let summary = self.error_counts.iter()
+            let summary = self
+                .error_counts
+                .iter()
                 .map(|entry| {
                     let cat = entry.key();
                     let count = entry.value().load(Ordering::Relaxed);
@@ -145,10 +152,10 @@ impl ErrorCollector {
                 .join(", ");
             result.push((
                 ImString::from("<summary>"),
-                ImString::from(format!("Error counts: {}", summary))
+                ImString::from(format!("Error counts: {}", summary)),
             ));
         }
-        
+
         // Snapshot errors by draining and re-adding to SegQueue
         // Note: This is atomic at the item level but not transaction-level
         // New errors pushed during snapshot may or may not be included
@@ -156,24 +163,24 @@ impl ErrorCollector {
         while let Some(error) = self.errors.pop() {
             errors_snapshot.push(error);
         }
-        
+
         // Re-add all errors back to the queue
         for error in &errors_snapshot {
             self.errors.push(error.clone());
         }
-        
+
         // Add individual errors to result
         result.extend(errors_snapshot);
-        
+
         // Add overflow notice
         let overflow = self.overflow_count.load(Ordering::Relaxed);
         if overflow > 0 {
             result.push((
                 ImString::from("<overflow>"),
-                ImString::from(format!("{} additional errors not shown", overflow))
+                ImString::from(format!("{} additional errors not shown", overflow)),
             ));
         }
-        
+
         result
     }
 }

@@ -4,14 +4,14 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
 use kodegen_tool::Tool;
 use kodegen_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 
 use crate::config::CrawlConfig;
 use crate::mcp::manager::{CrawlSessionManager, SearchEngineCache};
@@ -22,13 +22,13 @@ use crate::search::query::SearchQueryBuilder;
 // =============================================================================
 
 /// Default search results limit: 10
-/// 
+///
 /// Conservative default that works well for interactive use.
 /// Users can increase up to MAX_SEARCH_RESULTS_PER_PAGE if needed.
 const DEFAULT_SEARCH_LIMIT: usize = 10;
 
 /// Maximum search results per page: 1000
-/// 
+///
 /// Prevents users from requesting excessively large result sets that could
 /// cause memory issues or slow responses. Users should paginate through
 /// results using offset/limit parameters.
@@ -46,7 +46,7 @@ pub struct SearchCrawlResultsArgs {
     /// Crawl ID (optional, alternative to output_dir)
     #[serde(default)]
     pub crawl_id: Option<String>,
-    
+
     /// Output directory to search (optional, alternative to crawl_id)
     #[serde(default)]
     pub output_dir: Option<String>,
@@ -64,8 +64,12 @@ pub struct SearchCrawlResultsArgs {
     pub highlight: bool,
 }
 
-fn default_limit() -> usize { DEFAULT_SEARCH_LIMIT }
-fn default_true() -> bool { true }
+fn default_limit() -> usize {
+    DEFAULT_SEARCH_LIMIT
+}
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SearchCrawlResultsPromptArgs {}
@@ -98,71 +102,70 @@ impl SearchCrawlResultsTool {
     fn validate_args(args: &SearchCrawlResultsArgs) -> Result<(), McpError> {
         if args.crawl_id.is_none() && args.output_dir.is_none() {
             return Err(McpError::InvalidArguments(
-                "Either crawl_id or output_dir must be provided".to_string()
+                "Either crawl_id or output_dir must be provided".to_string(),
             ));
         }
-        
+
         if args.query.trim().is_empty() {
-            return Err(McpError::InvalidArguments("Query cannot be empty".to_string()));
-        }
-        
-        if args.limit > MAX_SEARCH_RESULTS_PER_PAGE {
             return Err(McpError::InvalidArguments(
-                format!("Limit {} exceeds maximum of {}", args.limit, MAX_SEARCH_RESULTS_PER_PAGE)
+                "Query cannot be empty".to_string(),
             ));
         }
-        
+
+        if args.limit > MAX_SEARCH_RESULTS_PER_PAGE {
+            return Err(McpError::InvalidArguments(format!(
+                "Limit {} exceeds maximum of {}",
+                args.limit, MAX_SEARCH_RESULTS_PER_PAGE
+            )));
+        }
+
         Ok(())
     }
-    
-    async fn resolve_output_dir(
-        &self,
-        args: &SearchCrawlResultsArgs,
-    ) -> Result<PathBuf, McpError> {
+
+    async fn resolve_output_dir(&self, args: &SearchCrawlResultsArgs) -> Result<PathBuf, McpError> {
         // Try crawl_id first
         if let Some(ref crawl_id) = args.crawl_id {
             if let Some(session) = self.session_manager.get_session(crawl_id).await {
                 return Ok(session.output_dir);
             }
-            
-            return Err(McpError::ResourceNotFound(
-                format!("Crawl with ID '{}' not found", crawl_id)
-            ));
+
+            return Err(McpError::ResourceNotFound(format!(
+                "Crawl with ID '{}' not found",
+                crawl_id
+            )));
         }
-        
+
         // Fall back to output_dir
         if let Some(ref dir) = args.output_dir {
             let path = PathBuf::from(dir);
             if !path.exists() {
-                return Err(McpError::ResourceNotFound(
-                    format!("Output directory '{}' does not exist", dir)
-                ));
+                return Err(McpError::ResourceNotFound(format!(
+                    "Output directory '{}' does not exist",
+                    dir
+                )));
             }
             return Ok(path);
         }
-        
+
         Err(McpError::InvalidArguments(
-            "Neither crawl_id nor output_dir provided".to_string()
+            "Neither crawl_id nor output_dir provided".to_string(),
         ))
     }
-    
+
     fn verify_search_index(output_dir: &Path) -> Result<PathBuf, McpError> {
         let search_index_dir = output_dir.join(".search_index");
         let meta_file = search_index_dir.join("meta.json");
-        
+
         if !meta_file.exists() {
-            return Err(McpError::SearchIndex(
-                format!(
-                    "Search index not found at {:?}. Ensure crawl completed with enable_search=true.",
-                    search_index_dir
-                )
-            ));
+            return Err(McpError::SearchIndex(format!(
+                "Search index not found at {:?}. Ensure crawl completed with enable_search=true.",
+                search_index_dir
+            )));
         }
-        
+
         Ok(search_index_dir)
     }
 }
-
 
 // =============================================================================
 // Tool Trait Implementation
@@ -205,17 +208,16 @@ impl Tool for SearchCrawlResultsTool {
         false
     }
 
-
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // 1. Validate arguments
         Self::validate_args(&args)?;
-        
+
         // 2. Resolve output directory
         let output_dir = self.resolve_output_dir(&args).await?;
-        
+
         // 3. Verify search index exists
         let search_index_dir = Self::verify_search_index(&output_dir)?;
-        
+
         // 4. Create minimal config for search engine initialization
         let config = CrawlConfig {
             storage_dir: output_dir.clone(),
@@ -226,39 +228,47 @@ impl Tool for SearchCrawlResultsTool {
         };
 
         // 5. Get or initialize search engine from cache
-        let entry = self.engine_cache.get_or_init(output_dir.clone(), &config).await?;
-        
+        let entry = self
+            .engine_cache
+            .get_or_init(output_dir.clone(), &config)
+            .await?;
+
         // 6. Start timer for search performance
         let start_time = Instant::now();
-        
+
         // 7. Build and execute search query - CRITICAL: Direct await of AsyncTask
         let task = SearchQueryBuilder::new(&args.query)
             .limit(args.limit)
             .offset(args.offset)
             .highlight(args.highlight)
             .execute_with_metadata((*entry.engine).clone());
-        
+
         // 8. Await the AsyncTask (it's a Future)
-        let search_results = task.into_anyhow().await
-            .map_err(|e| McpError::SearchIndex(format!("Search query execution failed: {}", e)))??;
-        
+        let search_results = task.into_anyhow().await.map_err(|e| {
+            McpError::SearchIndex(format!("Search query execution failed: {}", e))
+        })??;
+
         let search_time_ms = start_time.elapsed().as_millis();
-        
+
         // 9. Format results as JSON
-        let results: Vec<Value> = search_results.results.iter().map(|item| {
-            json!({
-                "url": item.url,
-                "title": item.title,
-                "path": item.path,
-                "excerpt": item.excerpt,
-                "score": item.score,
+        let results: Vec<Value> = search_results
+            .results
+            .iter()
+            .map(|item| {
+                json!({
+                    "url": item.url,
+                    "title": item.title,
+                    "path": item.path,
+                    "excerpt": item.excerpt,
+                    "score": item.score,
+                })
             })
-        }).collect();
-        
+            .collect();
+
         // 10. Build pagination info
         let has_more = search_results.has_more();
         let next_offset = search_results.next_offset();
-        
+
         // 11. Return complete response
         Ok(json!({
             "query": args.query,
@@ -272,13 +282,12 @@ impl Tool for SearchCrawlResultsTool {
             },
             "search_time_ms": search_time_ms,
             "message": format!(
-                "Found {} results in {}ms", 
-                search_results.total_count, 
+                "Found {} results in {}ms",
+                search_results.total_count,
                 search_time_ms
             ),
         }))
     }
-
 
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
@@ -356,7 +365,7 @@ impl Tool for SearchCrawlResultsTool {
                      - Excerpts include <em> tags for highlighted terms\n\
                      - Use boolean operators for precise queries\n\
                      - Fuzzy search helps with typos\n\
-                     - Field search narrows results to specific sections"
+                     - Field search narrows results to specific sections",
                 ),
             },
         ])

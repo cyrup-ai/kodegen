@@ -1,10 +1,10 @@
 use std::time::Duration;
 use tokio::sync::mpsc::{
-    error::{SendError, TryRecvError, TrySendError},
     Receiver, // Bounded channel types
     Sender,
     UnboundedReceiver,
     UnboundedSender,
+    error::{SendError, TryRecvError, TrySendError},
 };
 
 /// Internal enum unifying bounded and unbounded sender types

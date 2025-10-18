@@ -18,50 +18,50 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Set browser headless mode (visible vs invisible browser window)
-    /// 
+    ///
     /// By default, the crawler runs in **headless mode** (headless = true) for optimal
     /// performance and compatibility. This is the recommended setting for production use.
-    /// 
+    ///
     /// Set to `false` to enable headed mode, which shows a visible browser window.
     /// This is useful for debugging and development but has significant drawbacks:
-    /// 
+    ///
     /// # Performance Impact
-    /// 
+    ///
     /// Headed mode requires additional resources:
     /// - 20-50% more CPU usage per browser instance
     /// - 100-200 MB more RAM per browser instance
     /// - GUI rendering and window management overhead
     /// - Display buffer allocation
-    /// 
+    ///
     /// # Deployment Limitations
-    /// 
+    ///
     /// Headed mode requires:
     /// - Display server (X11/Wayland on Linux, display on macOS/Windows)
     /// - Not suitable for containers without additional setup
     /// - Not suitable for cloud VMs without GUI
     /// - Requires Xvfb or similar in CI/CD environments
-    /// 
+    ///
     /// # Security Concerns
-    /// 
+    ///
     /// Visible browsers can:
     /// - Display sensitive data on screen
     /// - Be screen-captured unintentionally
     /// - Leak information via window titles
-    /// 
+    ///
     /// # Recommendation
-    /// 
+    ///
     /// **Always use headless mode (default) in production.** Only enable headed mode
     /// for local debugging when you need to visually observe browser behavior.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
     /// // Recommended: Headless mode (default)
     /// let config = CrawlConfig::builder()
     ///     .storage_dir("./output")
     ///     .start_url("https://example.com")
     ///     .build();
-    /// 
+    ///
     /// // For debugging only: Headed mode
     /// let config = CrawlConfig::builder()
     ///     .storage_dir("./output")
@@ -175,13 +175,13 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Set the crawl rate limit in requests per second
-    /// 
+    ///
     /// This controls how fast the crawler will visit pages to be respectful
     /// to target websites. The default is 2.0 RPS.
-    /// 
+    ///
     /// # Arguments
     /// * `rate_rps` - Rate limit in requests per second (e.g., 1.0 for 1 request per second)
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use citescrape::config::CrawlConfig;
@@ -198,10 +198,10 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Disable crawl rate limiting
-    /// 
+    ///
     /// This allows the crawler to proceed as fast as possible without
     /// any rate limiting. Use with caution as this may overwhelm target websites.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use citescrape::config::CrawlConfig;
@@ -218,13 +218,13 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Set the maximum image size for inlining as base64
-    /// 
+    ///
     /// Images smaller than this size will be inlined as base64 data URIs.
     /// Images larger than this will be kept as external references.
-    /// 
+    ///
     /// # Arguments
     /// * `max_bytes` - Maximum size in bytes (e.g., 100_000 for 100KB)
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use citescrape::config::CrawlConfig;
@@ -241,7 +241,7 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Inline all images regardless of size
-    /// 
+    ///
     /// This is the default behavior - all images will be converted to base64
     /// and inlined in the HTML, regardless of their size.
     pub fn inline_all_images(mut self) -> Self {
@@ -250,10 +250,10 @@ impl<State> CrawlConfigBuilder<State> {
     }
 
     /// Set the maximum size for the deferred queue
-    /// 
+    ///
     /// Controls how many rate-limited URLs can be queued for retry.
     /// Set to None for unlimited (not recommended), or Some(size) to limit.
-    /// 
+    ///
     /// Default: Some(10_000)
     pub fn max_deferred_queue_size(mut self, size: Option<usize>) -> Self {
         self.max_deferred_queue_size = size;
@@ -270,7 +270,7 @@ impl<State> CrawlConfigBuilder<State> {
         self.enable_cache_validation = enable;
         self
     }
-    
+
     /// Force re-crawl ignoring any cached files
     ///
     /// When true, all pages are re-crawled and re-extracted even if valid

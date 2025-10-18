@@ -1,44 +1,64 @@
 use anyhow::Result;
-use kodegen_citescrape::config::CrawlConfig;
-use kodegen_citescrape::search::{engine::SearchEngine, indexer::{MarkdownIndexer, BatchConfig}, types::IndexingPhase};
 use futures::StreamExt;
+use kodegen_citescrape::config::CrawlConfig;
+use kodegen_citescrape::search::{
+    engine::SearchEngine,
+    indexer::{BatchConfig, MarkdownIndexer},
+    types::IndexingPhase,
+};
 use std::fs;
 use tempfile::TempDir;
 
 /// Create a test crawl_output directory structure with sample files
 fn create_test_crawl_output(dir: &TempDir) -> Result<()> {
     let crawl_output = dir.path().join("crawl_output");
-    
+
     // Create various domain/path structures
     let test_files = vec![
-        ("example.com", "", "# Example Homepage\n\nWelcome to example.com"),
-        ("example.com", "docs", "# Documentation\n\nThis is the docs section"),
-        ("example.com", "docs/api", "# API Reference\n\nAPI documentation here"),
+        (
+            "example.com",
+            "",
+            "# Example Homepage\n\nWelcome to example.com",
+        ),
+        (
+            "example.com",
+            "docs",
+            "# Documentation\n\nThis is the docs section",
+        ),
+        (
+            "example.com",
+            "docs/api",
+            "# API Reference\n\nAPI documentation here",
+        ),
         ("blog.example.com", "", "# Blog\n\nLatest blog posts"),
-        ("blog.example.com", "2024/01/post1", "# First Post\n\nContent of first post"),
+        (
+            "blog.example.com",
+            "2024/01/post1",
+            "# First Post\n\nContent of first post",
+        ),
         ("test.com", "page", "# Test Page\n\nTest content"),
     ];
-    
+
     for (domain, path, content) in test_files {
         let file_dir = if path.is_empty() {
             crawl_output.join(domain)
         } else {
             crawl_output.join(domain).join(path)
         };
-        
+
         fs::create_dir_all(&file_dir)?;
-        
+
         // Write compressed markdown file
         let file_path = file_dir.join("index.md.gz");
         let compressed = compress_string(content)?;
         fs::write(file_path, compressed)?;
     }
-    
+
     // Add a corrupted file for error testing
     let corrupted_dir = crawl_output.join("corrupted.com");
     fs::create_dir_all(&corrupted_dir)?;
     fs::write(corrupted_dir.join("index.md.gz"), b"invalid gzip data")?;
-    
+
     Ok(())
 }
 
@@ -47,7 +67,7 @@ fn compress_string(content: &str) -> Result<Vec<u8>> {
     use flate2::Compression;
     use flate2::write::GzEncoder;
     use std::io::Write;
-    
+
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(content.as_bytes())?;
     Ok(encoder.finish()?)
@@ -57,7 +77,7 @@ fn compress_string(content: &str) -> Result<Vec<u8>> {
 async fn test_discover_markdown_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
-    
+
     let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
     let _config_task = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
@@ -65,18 +85,23 @@ async fn test_discover_markdown_files() -> Result<()> {
         .build(move |result| {
             let _ = config_tx.send(result);
         });
-    let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
-    
+    let config = config_rx
+        .recv()
+        .await
+        .unwrap()
+        .map_err(anyhow::Error::msg)?;
+
     let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
-    
+
     let crawl_output = temp_dir.path().join("crawl_output");
-    let discovered: Vec<_> = indexer.discover_markdown_files_stream(&crawl_output)
+    let discovered: Vec<_> = indexer
+        .discover_markdown_files_stream(&crawl_output)
         .collect::<Result<Vec<_>, _>>()?;
-    
+
     // Should find 6 valid files plus 1 corrupted
     assert_eq!(discovered.len(), 7);
-    
+
     // Check URL extraction
     let urls: Vec<String> = discovered.iter().map(|(_, url)| url.to_string()).collect();
     assert!(urls.contains(&"https://example.com/".to_string()));
@@ -86,7 +111,7 @@ async fn test_discover_markdown_files() -> Result<()> {
     assert!(urls.contains(&"https://blog.example.com/2024/01/post1/".to_string()));
     assert!(urls.contains(&"https://test.com/page/".to_string()));
     assert!(urls.contains(&"https://corrupted.com/".to_string()));
-    
+
     Ok(())
 }
 
@@ -94,7 +119,7 @@ async fn test_discover_markdown_files() -> Result<()> {
 async fn test_batch_index_directory() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
-    
+
     let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
     let _config_task = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
@@ -102,28 +127,35 @@ async fn test_batch_index_directory() -> Result<()> {
         .build(move |result| {
             let _ = config_tx.send(result);
         });
-    let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
-    
+    let config = config_rx
+        .recv()
+        .await
+        .unwrap()
+        .map_err(anyhow::Error::msg)?;
+
     let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine.clone());
-    
+
     let crawl_output = temp_dir.path().join("crawl_output");
     let batch_config = BatchConfig {
         batch_size: 3,
         ..Default::default()
     };
     let (mut stream, _cancel_handle) = indexer.batch_index_directory(crawl_output, batch_config);
-    
+
     let mut discovered = false;
     let mut indexing_started = false;
     let mut completed = false;
     let mut total_processed = 0;
     let mut total_failed = 0;
-    
+
     while let Some(result) = stream.next().await {
         match result {
             Ok(progress) => {
-                eprintln!("Progress phase: {:?}, processed: {}, failed: {}", progress.phase, progress.processed, progress.failed);
+                eprintln!(
+                    "Progress phase: {:?}, processed: {}, failed: {}",
+                    progress.phase, progress.processed, progress.failed
+                );
                 match progress.phase {
                     IndexingPhase::Discovering => {
                         discovered = true;
@@ -146,24 +178,27 @@ async fn test_batch_index_directory() -> Result<()> {
             }
         }
     }
-    
+
     assert!(discovered, "Discovery phase should have been reported");
     assert!(indexing_started, "Indexing phase should have been reported");
     assert!(completed, "Completion should have been reported");
-    
+
     // We should have processed 6 valid files
     assert_eq!(total_processed, 6);
     // And failed on 1 corrupted file
     assert_eq!(total_failed, 1);
-    
+
     // Verify index contains the documents
     // Give a small delay to ensure commit is fully processed
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    
+
     let stats = indexer.get_index_stats().await?;
-    eprintln!("Stats: num_documents={}, num_segments={}", stats.num_documents, stats.num_segments);
+    eprintln!(
+        "Stats: num_documents={}, num_segments={}",
+        stats.num_documents, stats.num_segments
+    );
     assert_eq!(stats.num_documents, 6);
-    
+
     Ok(())
 }
 
@@ -172,7 +207,7 @@ async fn test_batch_index_empty_directory() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let empty_dir = temp_dir.path().join("empty");
     fs::create_dir_all(&empty_dir)?;
-    
+
     let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
     let _config_task = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
@@ -180,17 +215,21 @@ async fn test_batch_index_empty_directory() -> Result<()> {
         .build(move |result| {
             let _ = config_tx.send(result);
         });
-    let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
-    
+    let config = config_rx
+        .recv()
+        .await
+        .unwrap()
+        .map_err(anyhow::Error::msg)?;
+
     let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
-    
+
     let batch_config = BatchConfig {
         batch_size: 10,
         ..Default::default()
     };
     let (mut stream, _cancel_handle) = indexer.batch_index_directory(empty_dir, batch_config);
-    
+
     let mut progress_count = 0;
     while let Some(result) = stream.next().await {
         match result {
@@ -207,7 +246,7 @@ async fn test_batch_index_empty_directory() -> Result<()> {
             }
         }
     }
-    
+
     assert!(progress_count > 0, "Should have received progress updates");
     Ok(())
 }
@@ -216,7 +255,7 @@ async fn test_batch_index_empty_directory() -> Result<()> {
 async fn test_batch_size_handling() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
-    
+
     let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
     let _config_task = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
@@ -224,11 +263,15 @@ async fn test_batch_size_handling() -> Result<()> {
         .build(move |result| {
             let _ = config_tx.send(result);
         });
-    let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
-    
+    let config = config_rx
+        .recv()
+        .await
+        .unwrap()
+        .map_err(anyhow::Error::msg)?;
+
     let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
-    
+
     // Use a small batch size to test batching
     let crawl_output = temp_dir.path().join("crawl_output");
     let batch_config = BatchConfig {
@@ -236,7 +279,7 @@ async fn test_batch_size_handling() -> Result<()> {
         ..Default::default()
     };
     let (mut stream, _cancel_handle) = indexer.batch_index_directory(crawl_output, batch_config);
-    
+
     let mut batch_commits = 0;
     while let Some(result) = stream.next().await {
         if let Ok(progress) = result {
@@ -247,10 +290,10 @@ async fn test_batch_size_handling() -> Result<()> {
             }
         }
     }
-    
+
     // Should have multiple batches with batch size 2 and 7 files
     assert!(batch_commits >= 3, "Should have processed multiple batches");
-    
+
     Ok(())
 }
 
@@ -258,20 +301,20 @@ async fn test_batch_size_handling() -> Result<()> {
 async fn test_url_deduplication() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let crawl_output = temp_dir.path().join("crawl_output");
-    
+
     // Create duplicate files with same URL
     let domain = "duplicate.com";
     let path1 = crawl_output.join(domain).join("path1");
     let path2 = crawl_output.join(domain).join("path2");
-    
+
     fs::create_dir_all(&path1)?;
     fs::create_dir_all(&path2)?;
-    
+
     // Both will map to https://duplicate.com/path1/ and https://duplicate.com/path2/
     let content = compress_string("# Duplicate Content")?;
     fs::write(path1.join("index.md.gz"), &content)?;
     fs::write(path2.join("index.md.gz"), &content)?;
-    
+
     let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
     let _config_task = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
@@ -279,20 +322,25 @@ async fn test_url_deduplication() -> Result<()> {
         .build(move |result| {
             let _ = config_tx.send(result);
         });
-    let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
-    
+    let config = config_rx
+        .recv()
+        .await
+        .unwrap()
+        .map_err(anyhow::Error::msg)?;
+
     let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
-    
-    let discovered: Vec<_> = indexer.discover_markdown_files_stream(&crawl_output)
+
+    let discovered: Vec<_> = indexer
+        .discover_markdown_files_stream(&crawl_output)
         .collect::<Result<Vec<_>, _>>()?;
-    
+
     // Should have 2 unique URLs
     assert_eq!(discovered.len(), 2);
-    
+
     let urls: Vec<String> = discovered.iter().map(|(_, url)| url.to_string()).collect();
     assert!(urls.contains(&"https://duplicate.com/path1/".to_string()));
     assert!(urls.contains(&"https://duplicate.com/path2/".to_string()));
-    
+
     Ok(())
 }

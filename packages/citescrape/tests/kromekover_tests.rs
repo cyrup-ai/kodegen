@@ -1,6 +1,6 @@
-use kodegen_citescrape::kromekover::inject;
 use anyhow::Result;
 use chromiumoxide::{Browser, BrowserConfig};
+use kodegen_citescrape::kromekover::inject;
 
 #[tokio::test]
 async fn test_evasions() -> Result<()> {
@@ -8,11 +8,12 @@ async fn test_evasions() -> Result<()> {
         BrowserConfig::builder()
             .no_sandbox()
             .build()
-            .map_err(|e| anyhow::anyhow!(e))?
-    ).await?;
-    
+            .map_err(|e| anyhow::anyhow!(e))?,
+    )
+    .await?;
+
     let page = browser.new_page("about:blank").await?;
-    
+
     // Inject our evasion scripts
     let (tx, rx) = tokio::sync::oneshot::channel();
     let _task = inject(page.clone(), move |result| {
@@ -42,9 +43,7 @@ async fn test_evasions() -> Result<()> {
     let languages_result = page.evaluate("navigator.languages").await?;
     if let Some(languages_value) = languages_result.value() {
         if let Some(languages_array) = languages_value.as_array() {
-            let has_en_us = languages_array.iter().any(|v| {
-                v.as_str() == Some("en-US")
-            });
+            let has_en_us = languages_array.iter().any(|v| v.as_str() == Some("en-US"));
             assert!(has_en_us, "languages should contain 'en-US'");
         } else {
             panic!("languages is not an array");
@@ -52,27 +51,34 @@ async fn test_evasions() -> Result<()> {
     }
 
     // Test WebGL
-    let webgl_result = page.evaluate(r#"
+    let webgl_result = page
+        .evaluate(
+            r#"
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl');
         const vendor = gl.getParameter(37445);
         const renderer = gl.getParameter(37446);
         [vendor, renderer]
-    "#).await?;
+    "#,
+        )
+        .await?;
 
     if let Some(webgl_value) = webgl_result.value()
         && let Some(webgl_array) = webgl_value.as_array()
-        && webgl_array.len() >= 2 {
-            if let Some(vendor) = webgl_array[0].as_str() {
-                assert_eq!(vendor, "Intel Open Source Technology Center");
-            }
-            if let Some(renderer) = webgl_array[1].as_str() {
-                assert!(renderer.contains("Intel"));
-            }
+        && webgl_array.len() >= 2
+    {
+        if let Some(vendor) = webgl_array[0].as_str() {
+            assert_eq!(vendor, "Intel Open Source Technology Center");
         }
+        if let Some(renderer) = webgl_array[1].as_str() {
+            assert!(renderer.contains("Intel"));
+        }
+    }
 
     // Test media codecs
-    let media_result = page.evaluate(r#"
+    let media_result = page
+        .evaluate(
+            r#"
         navigator.mediaCapabilities.decodingInfo({
             type: 'file',
             video: {
@@ -83,37 +89,50 @@ async fn test_evasions() -> Result<()> {
                 framerate: 30
             }
         }).then(result => result.supported)
-    "#).await?;
+    "#,
+        )
+        .await?;
 
     if let Some(media_value) = media_result.value()
-        && let Some(supported) = media_value.as_bool() {
-            assert!(supported);
-        }
+        && let Some(supported) = media_value.as_bool()
+    {
+        assert!(supported);
+    }
 
     // Test Chrome runtime API
-    let chrome_result = page.evaluate(r#"
+    let chrome_result = page
+        .evaluate(
+            r#"
         typeof chrome !== 'undefined' && 
         typeof chrome.runtime !== 'undefined' &&
         typeof chrome.runtime.sendMessage === 'function'
-    "#).await?;
+    "#,
+        )
+        .await?;
 
     if let Some(chrome_value) = chrome_result.value()
-        && let Some(has_chrome) = chrome_value.as_bool() {
-            assert!(has_chrome);
-        }
+        && let Some(has_chrome) = chrome_value.as_bool()
+    {
+        assert!(has_chrome);
+    }
 
     // Test window dimensions
-    let dimensions_result = page.evaluate(r#"
+    let dimensions_result = page
+        .evaluate(
+            r#"
         [window.outerWidth, window.outerHeight]
-    "#).await?;
+    "#,
+        )
+        .await?;
 
     if let Some(dimensions_value) = dimensions_result.value()
         && let Some(dimensions_array) = dimensions_value.as_array()
-        && dimensions_array.len() >= 2 {
-            let width = dimensions_array[0].as_u64().unwrap_or(0) as u32;
-            let height = dimensions_array[1].as_u64().unwrap_or(0) as u32;
-            assert_eq!((width, height), (1920, 1080));
-        }
+        && dimensions_array.len() >= 2
+    {
+        let width = dimensions_array[0].as_u64().unwrap_or(0) as u32;
+        let height = dimensions_array[1].as_u64().unwrap_or(0) as u32;
+        assert_eq!((width, height), (1920, 1080));
+    }
 
     // ============================================================================
     // CRITICAL SECURITY TESTS: navigator.automationTools Protection (October 2025)
@@ -124,9 +143,11 @@ async fn test_evasions() -> Result<()> {
     // Test 1: Verify 'automationTools' property doesn't exist using 'in' operator
     // This is the PRIMARY bot detection method used by modern anti-bot systems
     let automation_in_navigator = page.evaluate("'automationTools' in navigator").await?;
-    if let Some(result_value) = automation_in_navigator.value() && let Some(exists) = result_value.as_bool() {
+    if let Some(result_value) = automation_in_navigator.value()
+        && let Some(exists) = result_value.as_bool()
+    {
         assert!(
-            !exists, 
+            !exists,
             "CRITICAL SECURITY FAILURE: 'automationTools' property exists in navigator. \
              Modern bot detection systems (DataDome, Kasada, PerimeterX) scan for phantom \
              properties using the 'in' operator. The property MUST NOT be defined - it \
@@ -136,13 +157,17 @@ async fn test_evasions() -> Result<()> {
 
     // Test 2: Verify property doesn't appear in enumeration (advanced detection method)
     // Bot detection systems enumerate navigator properties and compare against fingerprint databases
-    let automation_in_keys = page.evaluate(
-        "Object.keys(navigator).includes('automationTools') || \
-         Object.getOwnPropertyNames(navigator).includes('automationTools')"
-    ).await?;
-    if let Some(result_value) = automation_in_keys.value() && let Some(appears) = result_value.as_bool() {
+    let automation_in_keys = page
+        .evaluate(
+            "Object.keys(navigator).includes('automationTools') || \
+         Object.getOwnPropertyNames(navigator).includes('automationTools')",
+        )
+        .await?;
+    if let Some(result_value) = automation_in_keys.value()
+        && let Some(appears) = result_value.as_bool()
+    {
         assert!(
-            !appears, 
+            !appears,
             "CRITICAL SECURITY FAILURE: 'automationTools' appears in navigator property enumeration. \
              Advanced bot detection scans Object.keys() and Object.getOwnPropertyNames() to detect \
              properties that shouldn't exist. This is the same technique used to detect PhantomJS. \
@@ -152,10 +177,12 @@ async fn test_evasions() -> Result<()> {
 
     // Test 3: Verify property descriptor doesn't exist (deepest level verification)
     // This is the most sophisticated detection check - verify no descriptor exists at all
-    let automation_descriptor = page.evaluate(
-        "Object.getOwnPropertyDescriptor(navigator, 'automationTools') === undefined"
-    ).await?;
-    if let Some(result_value) = automation_descriptor.value() && let Some(no_descriptor) = result_value.as_bool() {
+    let automation_descriptor = page
+        .evaluate("Object.getOwnPropertyDescriptor(navigator, 'automationTools') === undefined")
+        .await?;
+    if let Some(result_value) = automation_descriptor.value()
+        && let Some(no_descriptor) = result_value.as_bool()
+    {
         assert!(
             no_descriptor,
             "CRITICAL SECURITY FAILURE: Property descriptor exists for 'automationTools'. \
@@ -170,7 +197,7 @@ async fn test_evasions() -> Result<()> {
     let automation_value = page.evaluate("navigator.automationTools").await?;
     if let Some(result_value) = automation_value.value() {
         assert!(
-            result_value.is_null() || result_value.as_str().is_none(), 
+            result_value.is_null() || result_value.as_str().is_none(),
             "FUNCTIONAL VERIFICATION: navigator.automationTools should return undefined. \
              This confirms the protection is working correctly - the value is undefined as \
              required for stealth. The critical difference: this is NATURAL undefined \

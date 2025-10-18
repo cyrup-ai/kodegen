@@ -146,7 +146,7 @@ impl CircuitBreaker {
 
             if health.state == CircuitState::HalfOpen {
                 health.consecutive_successes_in_halfopen += 1;
-                
+
                 if health.consecutive_successes_in_halfopen >= self.success_threshold {
                     health.state = CircuitState::Closed;
                     info!("Circuit breaker CLOSED for domain: {}", domain);

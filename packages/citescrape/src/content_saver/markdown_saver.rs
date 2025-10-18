@@ -29,47 +29,45 @@ pub async fn save_markdown_content(
 ) -> Result<()> {
     // get_mirror_path is now async
     let path = get_mirror_path(&url, &output_dir, "index.md").await?;
-    
+
     // Ensure parent directory exists
     tokio::fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
-    ).await?;
-    
+    )
+    .await?;
+
     // save_compressed_file is now async
-    let metadata = save_compressed_file(
-        markdown_content.into_bytes(),
-        &path,
-        "text/markdown",
-    ).await?;
-    
+    let metadata =
+        save_compressed_file(markdown_content.into_bytes(), &path, "text/markdown").await?;
+
     // Trigger search indexing if sender provided
     if let Some(sender) = indexing_sender {
         use imstr::ImString;
-        
+
         let url_imstr = ImString::from(url.clone());
         let path_for_indexing = path.clone();
         let url_for_callback = url.clone();
-        
-        let index_result = sender.add_or_update(
-            url_imstr,
-            path_for_indexing,
-            priority,
-            move |result| {
+
+        let index_result =
+            sender.add_or_update(url_imstr, path_for_indexing, priority, move |result| {
                 if let Err(e) = result {
                     log::warn!("Indexing failed for {}: {}", url_for_callback, e);
                 }
-            }
-        );
-        
+            });
+
         if let Err(e) = index_result.await {
             log::warn!("Failed to queue indexing for {}: {}", url, e);
             // Don't fail the save operation if indexing fails
         }
     }
-    
-    log::info!("Saved markdown for {} to {} (etag: {})", 
-        url, path.display(), metadata.etag);
-    
+
+    log::info!(
+        "Saved markdown for {} to {} (etag: {})",
+        url,
+        path.display(),
+        metadata.etag
+    );
+
     Ok(())
 }

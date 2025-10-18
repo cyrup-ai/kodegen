@@ -10,7 +10,9 @@ pub mod processors;
 pub mod utils;
 
 // Re-exports for public API
-pub use core::{inline_all_resources, inline_resources_from_info, InliningResult, InliningError, ResourceType};
+pub use core::{
+    InliningError, InliningResult, ResourceType, inline_all_resources, inline_resources_from_info,
+};
 pub use downloaders::InlineConfig;
 pub use processors::{process_css_links, process_images, process_svgs};
 pub use utils::resolve_url;

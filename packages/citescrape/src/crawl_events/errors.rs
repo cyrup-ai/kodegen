@@ -21,15 +21,15 @@ pub enum EventBusError {
     /// Event bus or receiver was closed
     #[error("Event bus shutdown")]
     Shutdown,
-    
+
     /// Channel is at capacity and backpressure mode is Error
     #[error("Event channel is full (capacity exceeded)")]
     ChannelFull,
-    
+
     /// Drain timeout during shutdown - some operations still pending
     #[error("Drain timeout: {pending_operations} operations still pending")]
     DrainTimeout { pending_operations: usize },
-    
+
     /// Publish operation timed out waiting for channel space
     #[error("Publish timed out waiting for channel capacity")]
     PublishTimeout,

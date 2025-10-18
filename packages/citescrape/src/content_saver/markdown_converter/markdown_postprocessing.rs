@@ -3,20 +3,13 @@
 //! Processes markdown content by normalizing headings and handling various markdown formats.
 
 /// Pre-built heading prefixes to avoid repeated string allocations
-const HEADING_PREFIXES: [&str; 6] = [
-    "# ",
-    "## ",
-    "### ",
-    "#### ",
-    "##### ",
-    "###### ",
-];
+const HEADING_PREFIXES: [&str; 6] = ["# ", "## ", "### ", "#### ", "##### ", "###### "];
 
 /// Code fence state to track fence type and character count
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct CodeFence {
-    char: char,        // '`' or '~'
-    count: usize,      // Number of characters in the fence
+    char: char,         // '`' or '~'
+    count: usize,       // Number of characters in the fence
     line_number: usize, // Line number where the fence opened
 }
 
@@ -48,47 +41,49 @@ fn detect_code_fence(line: &str) -> Option<(char, usize)> {
 /// Used for heuristic recovery of unclosed code fences
 fn looks_like_code(line: &str) -> bool {
     let trimmed = line.trim();
-    
+
     // Existing checks
-    if trimmed.ends_with(';') || 
-       trimmed.ends_with('{') || 
-       trimmed.ends_with('}') ||
-       trimmed.contains("return ") ||
-       trimmed.contains("function ") ||
-       trimmed.contains("def ") ||
-       trimmed.starts_with("import ") ||
-       trimmed.starts_with("from ") {
+    if trimmed.ends_with(';')
+        || trimmed.ends_with('{')
+        || trimmed.ends_with('}')
+        || trimmed.contains("return ")
+        || trimmed.contains("function ")
+        || trimmed.contains("def ")
+        || trimmed.starts_with("import ")
+        || trimmed.starts_with("from ")
+    {
         return true;
     }
-    
+
     // NEW: Detect function/method calls with parentheses
     if trimmed.contains('(') && trimmed.contains(')') {
         return true;
     }
-    
+
     // NEW: Detect variable assignments and operators
-    if trimmed.contains(" = ") || 
-       trimmed.contains("const ") ||
-       trimmed.contains("let ") ||
-       trimmed.contains("var ") {
+    if trimmed.contains(" = ")
+        || trimmed.contains("const ")
+        || trimmed.contains("let ")
+        || trimmed.contains("var ")
+    {
         return true;
     }
-    
+
     // NEW: Detect array/object access
     if trimmed.contains('[') || trimmed.contains(']') {
         return true;
     }
-    
+
     // Detect C-style comments only (avoid confusion with markdown headings)
     if trimmed.starts_with("//") {
         return true;
     }
-    
+
     // NEW: Indented lines are likely code continuation
     if line.starts_with("    ") || line.starts_with('\t') {
         return true;
     }
-    
+
     false
 }
 
@@ -144,7 +139,8 @@ pub fn process_markdown_headings(markdown: &str) -> String {
                         2
                     };
                     let normalized_level = normalize_heading_level(level);
-                    let new_heading = format!("{}{}", HEADING_PREFIXES[normalized_level - 1], line.trim());
+                    let new_heading =
+                        format!("{}{}", HEADING_PREFIXES[normalized_level - 1], line.trim());
                     processed_lines.push(new_heading);
                     i += 2; // Skip both the heading line and the underline
                     continue;
@@ -176,7 +172,7 @@ pub fn process_markdown_headings(markdown: &str) -> String {
             fence.char,
             fence.count
         );
-        
+
         // Strategy: Look backwards from end to find last code-like line
         let mut last_code_idx = processed_lines.len().saturating_sub(1);
         for (idx, line) in processed_lines.iter().enumerate().rev() {
@@ -185,11 +181,11 @@ pub fn process_markdown_headings(markdown: &str) -> String {
                 break;
             }
         }
-        
+
         // Insert closing fence after last code line
         let closing = fence.char.to_string().repeat(fence.count);
         processed_lines.insert(last_code_idx + 1, closing);
-        
+
         tracing::info!(
             "Auto-closed fence at line {} (after last code-like content)",
             last_code_idx + 1
@@ -526,26 +522,32 @@ def example():
 
 Real content.
 "#;
-        
+
         let result = process_markdown_headings(markdown);
-        
+
         // Should auto-close fence (check for closing fence added)
         let fence_count = result.matches("```").count();
-        assert!(fence_count >= 2, "Should have both opening and auto-closed fence");
-        
+        assert!(
+            fence_count >= 2,
+            "Should have both opening and auto-closed fence"
+        );
+
         // NEW: Verify print statement stays inside fence
         let lines: Vec<&str> = result.lines().collect();
         let opening_idx = lines.iter().position(|l| l.contains("```python")).unwrap();
         let closing_idx = lines.iter().rposition(|l| l.trim() == "```").unwrap();
         let print_idx = lines.iter().position(|l| l.contains("print(")).unwrap();
-        
-        assert!(print_idx > opening_idx && print_idx < closing_idx, 
-                "print() line should be between fence markers, but fence closes at line {} and print is at line {}",
-                closing_idx, print_idx);
-        
+
+        assert!(
+            print_idx > opening_idx && print_idx < closing_idx,
+            "print() line should be between fence markers, but fence closes at line {} and print is at line {}",
+            closing_idx,
+            print_idx
+        );
+
         // Should process subsequent headings
         assert!(result.contains("## Section 2"));
-        
+
         // Content should be preserved
         assert!(result.contains("Real content."));
     }
@@ -554,11 +556,14 @@ Real content.
     fn test_unclosed_fence_at_end() {
         let markdown = "# Title\n\n```python\ncode\n";
         let result = process_markdown_headings(markdown);
-        
+
         // Should auto-close fence at end
         let fence_count = result.matches("```").count();
-        assert_eq!(fence_count, 2, "Should have both opening and auto-closed fence");
-        
+        assert_eq!(
+            fence_count, 2,
+            "Should have both opening and auto-closed fence"
+        );
+
         // Title should be preserved
         assert!(result.contains("# Title"));
     }
@@ -573,12 +578,15 @@ Real content.
             ("```\n    indented line\n\n## Heading", "indented code"),
             ("```python\n# code comment\n\n## Heading", "comment"),
         ];
-        
+
         for (markdown, description) in test_cases {
             let result = process_markdown_headings(markdown);
             let fence_count = result.matches("```").count();
-            assert_eq!(fence_count, 2, 
-                       "Should auto-close fence for {} pattern", description);
+            assert_eq!(
+                fence_count, 2,
+                "Should auto-close fence for {} pattern",
+                description
+            );
         }
     }
 
@@ -593,20 +601,29 @@ def foo():
 
 This is prose text.
 "#;
-        
+
         let result = process_markdown_headings(markdown);
-        
+
         // Should auto-close fence
         let fence_count = result.matches("```").count();
-        assert_eq!(fence_count, 2, "Should have both opening and auto-closed fence");
-        
+        assert_eq!(
+            fence_count, 2,
+            "Should have both opening and auto-closed fence"
+        );
+
         // Verify heading is NOT inside the fence
         let lines: Vec<&str> = result.lines().collect();
         let closing_idx = lines.iter().rposition(|l| l.trim() == "```").unwrap();
-        let heading_idx = lines.iter().position(|l| l.contains("# Next Section")).unwrap();
-        
-        assert!(heading_idx > closing_idx,
-                "Heading should be AFTER closing fence (outside fence), but fence closes at line {} and heading is at line {}",
-                closing_idx, heading_idx);
+        let heading_idx = lines
+            .iter()
+            .position(|l| l.contains("# Next Section"))
+            .unwrap();
+
+        assert!(
+            heading_idx > closing_idx,
+            "Heading should be AFTER closing fence (outside fence), but fence closes at line {} and heading is at line {}",
+            closing_idx,
+            heading_idx
+        );
     }
 }

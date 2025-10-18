@@ -7,30 +7,34 @@ use super::compression::save_compressed_file;
 
 /// Save HTML content after inlining all resources
 pub async fn save_html_content(
-    html_content: String, 
-    url: String, 
+    html_content: String,
+    url: String,
     output_dir: std::path::PathBuf,
     max_inline_image_size_bytes: Option<usize>,
     rate_rps: Option<f64>,
 ) -> Result<()> {
     // inline_all_resources and get_mirror_path are now async
     let config = crate::inline_css::InlineConfig::default();
-    
+
     let (inline_future, path_future) = tokio::join!(
         crate::inline_css::inline_all_resources(
-            html_content.clone(), 
-            url.clone(), 
-            &config, 
-            max_inline_image_size_bytes, 
+            html_content.clone(),
+            url.clone(),
+            &config,
+            max_inline_image_size_bytes,
             rate_rps
         ),
         get_mirror_path(&url, &output_dir, "index.html")
     );
-    
+
     let inlined_html = match inline_future {
         Ok(inlined) => {
-            log::info!("Successfully inlined {} resources for: {} ({} failures)", 
-                inlined.successes, url, inlined.failures.len());
+            log::info!(
+                "Successfully inlined {} resources for: {} ({} failures)",
+                inlined.successes,
+                url,
+                inlined.failures.len()
+            );
             inlined.html
         }
         Err(e) => {
@@ -42,21 +46,18 @@ pub async fn save_html_content(
             html_content
         }
     };
-    
+
     let path = path_future?;
-    
+
     tokio::fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
-    ).await?;
-    
+    )
+    .await?;
+
     // save_compressed_file is now async
-    let _metadata = save_compressed_file(
-        inlined_html.into_bytes(),
-        &path,
-        "text/html",
-    ).await?;
-    
+    let _metadata = save_compressed_file(inlined_html.into_bytes(), &path, "text/html").await?;
+
     Ok(())
 }
 
@@ -71,10 +72,10 @@ pub async fn save_html_content_with_resources(
 ) -> Result<()> {
     let html_content = html_content.to_string();
     let resources = resources.clone();
-    
+
     // inline_resources_from_info and get_mirror_path are now async
     let config = crate::inline_css::InlineConfig::default();
-    
+
     let (inline_future, path_future) = tokio::join!(
         crate::inline_css::inline_resources_from_info(
             html_content.clone(),
@@ -86,11 +87,15 @@ pub async fn save_html_content_with_resources(
         ),
         get_mirror_path(&url, &output_dir, "index.html")
     );
-    
+
     let inlined_html = match inline_future {
         Ok(inlined) => {
-            log::info!("Successfully inlined {} resources for: {} ({} failures)", 
-                inlined.successes, url, inlined.failures.len());
+            log::info!(
+                "Successfully inlined {} resources for: {} ({} failures)",
+                inlined.successes,
+                url,
+                inlined.failures.len()
+            );
             inlined.html
         }
         Err(e) => {
@@ -102,20 +107,17 @@ pub async fn save_html_content_with_resources(
             html_content
         }
     };
-    
+
     let path = path_future?;
-    
+
     tokio::fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
-    ).await?;
-    
+    )
+    .await?;
+
     // save_compressed_file is now async
-    let _metadata = save_compressed_file(
-        inlined_html.into_bytes(),
-        &path,
-        "text/html",
-    ).await?;
-    
+    let _metadata = save_compressed_file(inlined_html.into_bytes(), &path, "text/html").await?;
+
     Ok(())
 }

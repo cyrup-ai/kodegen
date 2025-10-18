@@ -32,20 +32,23 @@ mod inline_css_iterator_tests {
                 </head>
             </html>
         "#;
-        
+
         let document = kuchiki::parse_html().one(html);
-        
+
         // WITH .collect() - iterates all nodes correctly
-        let matches: Vec<_> = document.select("link[rel=\"stylesheet\"]").unwrap().collect();
+        let matches: Vec<_> = document
+            .select("link[rel=\"stylesheet\"]")
+            .unwrap()
+            .collect();
         let mut count = 0;
         for node_ref in matches {
             let node = node_ref.as_node();
             node.detach();
             count += 1;
         }
-        
+
         assert_eq!(count, 3, "With collect(), should iterate all 3 nodes");
-        
+
         // Verify all nodes were removed
         let remaining = document.select("link[rel=\"stylesheet\"]").unwrap().count();
         assert_eq!(remaining, 0, "All link elements should be removed");
@@ -63,9 +66,9 @@ mod inline_css_iterator_tests {
                 </body>
             </html>
         "#;
-        
+
         let document = kuchiki::parse_html().one(html);
-        
+
         // Direct iteration WITHOUT .collect() - safe for attribute changes
         let mut modified_count = 0;
         for node_ref in document.select("img[src]").unwrap() {
@@ -74,14 +77,20 @@ mod inline_css_iterator_tests {
             attrs.insert("src", format!("data:image/png;base64,{}", old_src));
             modified_count += 1;
         }
-        
-        assert_eq!(modified_count, 3, "Direct iteration works for attribute modification");
-        
+
+        assert_eq!(
+            modified_count, 3,
+            "Direct iteration works for attribute modification"
+        );
+
         // Verify modifications were applied
         for node_ref in document.select("img[src]").unwrap() {
             let attrs = node_ref.attributes.borrow();
             let src = attrs.get("src").unwrap();
-            assert!(src.starts_with("data:image/png;base64,"), "Src should be data URL");
+            assert!(
+                src.starts_with("data:image/png;base64,"),
+                "Src should be data URL"
+            );
         }
     }
 
@@ -96,36 +105,38 @@ mod inline_css_iterator_tests {
                 </body>
             </html>
         "#;
-        
+
         let document = kuchiki::parse_html().one(html);
-        
+
         // WITH .collect() - iterates all nodes correctly
         let matches: Vec<_> = document.select("img[src]").unwrap().collect();
         let mut replaced_count = 0;
         for node_ref in matches {
             let node = node_ref.as_node();
-            
+
             // Create replacement SVG
             let svg_html = "<svg><circle r='10'/></svg>";
             let svg_fragment = kuchiki::parse_html().one(svg_html);
-            
+
             // Insert SVG before img
             for child in svg_fragment.children() {
                 node.insert_before(child);
             }
-            
+
             // Remove img
             node.detach();
             replaced_count += 1;
         }
-        
-        assert_eq!(replaced_count, 2, "With collect(), should replace both img elements");
-        
+
+        assert_eq!(
+            replaced_count, 2,
+            "With collect(), should replace both img elements"
+        );
+
         // Verify replacements
         let img_count = document.select("img").unwrap().count();
         let svg_count = document.select("svg").unwrap().count();
         assert_eq!(img_count, 0, "No img elements should remain");
         assert_eq!(svg_count, 2, "Should have 2 SVG elements");
     }
-
 }

@@ -1,6 +1,6 @@
-use kodegen_citescrape::search::runtime_helpers::*;
-use kodegen_citescrape::search::errors::{SearchError, RetryConfig};
 use kodegen_citescrape::runtime::spawn_async;
+use kodegen_citescrape::search::errors::{RetryConfig, SearchError};
+use kodegen_citescrape::search::runtime_helpers::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
@@ -9,14 +9,14 @@ use std::time::Duration;
 async fn test_retry_task_success() {
     let counter = Arc::new(AtomicU32::new(0));
     let counter_clone = counter.clone();
-    
+
     let config = RetryConfig {
         max_attempts: 3,
         initial_delay: Duration::from_millis(10),
         backoff_multiplier: 2.0,
         max_delay: Duration::from_millis(100),
     };
-    
+
     let result = retry_task(config, move || {
         let count = counter_clone.fetch_add(1, Ordering::SeqCst);
         spawn_async(async move {
@@ -26,8 +26,9 @@ async fn test_retry_task_success() {
                 Ok(42)
             }
         })
-    }).await;
-    
+    })
+    .await;
+
     assert_eq!(result.unwrap().unwrap(), 42);
     assert_eq!(counter.load(Ordering::SeqCst), 3);
 }
@@ -37,7 +38,8 @@ async fn test_fallback_task() {
     let result = fallback_task(
         || spawn_async(async { Err(SearchError::Other("primary failed".to_string())) }),
         || spawn_async(async { Ok(100) }),
-    ).await;
-    
+    )
+    .await;
+
     assert_eq!(result.unwrap().unwrap(), 100);
 }

@@ -16,50 +16,47 @@ pub enum SearchError {
     /// Index initialization failed
     #[error("Failed to initialize search index: {0}")]
     IndexInitialization(String),
-    
+
     /// Index corruption detected
     #[error("Search index corruption detected: {0}")]
     IndexCorruption(String),
-    
+
     /// Query parsing failed
     #[error("Invalid search query: {0}")]
     QueryParsing(String),
-    
+
     /// Search execution failed
     #[error("Search execution failed: {0}")]
     SearchExecution(String),
-    
+
     /// Indexing operation failed
     #[error("Indexing failed for document {doc_id}: {message}")]
-    IndexingFailed {
-        doc_id: String,
-        message: String,
-    },
-    
+    IndexingFailed { doc_id: String, message: String },
+
     /// Index writer acquisition failed (transient)
     #[error("Failed to acquire index writer (retry recommended): {0}")]
     WriterAcquisition(String),
-    
+
     /// Index commit failed
     #[error("Failed to commit index changes: {0}")]
     CommitFailed(String),
-    
+
     /// Field not found in schema
     #[error("Field '{0}' not found in index schema")]
     FieldNotFound(String),
-    
+
     /// Document not found
     #[error("Document not found: {0}")]
     DocumentNotFound(String),
-    
+
     /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     /// Tantivy error wrapper
     #[error("Tantivy error: {0}")]
     Tantivy(#[from] TantivyError),
-    
+
     /// Other errors
     #[error("{0}")]
     Other(String),
@@ -82,12 +79,10 @@ impl SearchError {
     pub fn is_transient(&self) -> bool {
         matches!(
             self,
-            SearchError::WriterAcquisition(_) 
-            | SearchError::Io(_)
-            | SearchError::CommitFailed(_)
+            SearchError::WriterAcquisition(_) | SearchError::Io(_) | SearchError::CommitFailed(_)
         )
     }
-    
+
     /// Get suggested retry delay for transient errors
     pub fn retry_delay(&self) -> Option<Duration> {
         if self.is_transient() {
@@ -96,7 +91,7 @@ impl SearchError {
             None
         }
     }
-    
+
     /// Check if index rebuild is recommended
     pub fn needs_index_rebuild(&self) -> bool {
         matches!(self, SearchError::IndexCorruption(_))
@@ -133,7 +128,7 @@ impl RetryConfig {
         let multiplier = self.backoff_multiplier.powi(attempt as i32);
         let delay_ms = (self.initial_delay.as_millis() as f64 * multiplier) as u64;
         let delay = Duration::from_millis(delay_ms);
-        
+
         // Cap at max_delay
         if delay > self.max_delay {
             self.max_delay
@@ -150,7 +145,7 @@ macro_rules! log_search_operation {
         let start = std::time::Instant::now();
         let result = $op;
         let duration = start.elapsed();
-        
+
         match &result {
             Ok(_) => {
                 tracing::debug!(
@@ -168,11 +163,10 @@ macro_rules! log_search_operation {
                 );
             }
         }
-        
+
         result
     }};
 }
 
 // Note: retry_with_config and with_fallback have been moved to runtime_helpers.rs
 // and converted to work with AsyncTask patterns. Use retry_task and fallback_task instead.
-

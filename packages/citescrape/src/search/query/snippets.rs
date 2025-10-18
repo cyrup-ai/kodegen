@@ -1,8 +1,8 @@
 //! Enhanced snippet generation with multi-field support
 
 use anyhow::Result;
-use tantivy::{TantivyDocument, schema::Value};
 use tantivy::snippet::SnippetGenerator;
+use tantivy::{TantivyDocument, schema::Value};
 
 use crate::search::engine::SearchEngine;
 
@@ -25,7 +25,7 @@ impl SnippetGenerators {
                 generator
             })
             .ok();
-        
+
         // Create content snippet generator
         let content_generator = SnippetGenerator::create(searcher, query, schema.plain_content)
             .map(|mut generator| {
@@ -33,16 +33,16 @@ impl SnippetGenerators {
                 generator
             })
             .ok();
-        
+
         Ok(SnippetGenerators {
             title_generator,
             content_generator,
         })
     }
-    
+
     pub(crate) fn generate_snippet(&self, doc: &TantivyDocument, engine: &SearchEngine) -> String {
         let schema = engine.schema();
-        
+
         // Try to generate snippet from content first
         if let Some(ref generator) = self.content_generator {
             let snippet = generator.snippet_from_doc(doc);
@@ -51,7 +51,7 @@ impl SnippetGenerators {
                 return html;
             }
         }
-        
+
         // Try to generate snippet from title
         if let Some(ref generator) = self.title_generator {
             let snippet = generator.snippet_from_doc(doc);
@@ -60,7 +60,7 @@ impl SnippetGenerators {
                 return format!("<strong>{}</strong>", html);
             }
         }
-        
+
         // Fallback to stored snippet
         doc.get_first(schema.snippet)
             .and_then(|v| v.as_str())
