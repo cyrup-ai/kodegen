@@ -33,7 +33,11 @@ task/*
 # ==============================
 target/       # Only ignore the target directory at the crate root
 **/target/    # Ignore target directories in any subdirectory
-*.rs.bk      # Backup files for Rust sources at the crate root
+# Backup files for Rust sources at the crate root
+*.rs.bk
+*.rs.bak
+*_backup.rs
+*_original*.rs
 db.surreal
 **/db.surreal/
 
