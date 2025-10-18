@@ -22,6 +22,74 @@ const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;
 // PART 1: Main Content Extraction
 // ============================================================================
 
+// CSS Selectors for main content extraction
+// These are parsed once at first access and cached forever.
+// Hardcoded selectors should NEVER fail to parse - if they do, it's a compile-time bug.
+static MAIN_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("main")
+        .expect("BUG: hardcoded CSS selector 'main' is invalid")
+});
+
+static ARTICLE_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("article")
+        .expect("BUG: hardcoded CSS selector 'article' is invalid")
+});
+
+static ROLE_MAIN_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("[role='main']")
+        .expect("BUG: hardcoded CSS selector \"[role='main']\" is invalid")
+});
+
+static MAIN_CONTENT_ID_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("#main-content")
+        .expect("BUG: hardcoded CSS selector '#main-content' is invalid")
+});
+
+static MAIN_CONTENT_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".main-content")
+        .expect("BUG: hardcoded CSS selector '.main-content' is invalid")
+});
+
+static CONTENT_ID_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("#content")
+        .expect("BUG: hardcoded CSS selector '#content' is invalid")
+});
+
+static CONTENT_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".content")
+        .expect("BUG: hardcoded CSS selector '.content' is invalid")
+});
+
+static POST_CONTENT_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".post-content")
+        .expect("BUG: hardcoded CSS selector '.post-content' is invalid")
+});
+
+static ENTRY_CONTENT_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".entry-content")
+        .expect("BUG: hardcoded CSS selector '.entry-content' is invalid")
+});
+
+static ARTICLE_BODY_ITEMPROP_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("[itemprop='articleBody']")
+        .expect("BUG: hardcoded CSS selector \"[itemprop='articleBody']\" is invalid")
+});
+
+static ARTICLE_BODY_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".article-body")
+        .expect("BUG: hardcoded CSS selector '.article-body' is invalid")
+});
+
+static STORY_BODY_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse(".story-body")
+        .expect("BUG: hardcoded CSS selector '.story-body' is invalid")
+});
+
+static BODY_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("body")
+        .expect("BUG: hardcoded CSS selector 'body' is invalid")
+});
+
 /// Efficiently remove elements matching selectors from an element's subtree.
 ///
 /// This function:
@@ -157,8 +225,37 @@ fn serialize_html_excluding(
     }
 }
 
-/// Extract main content from HTML by removing common non-content elements
+/// Extract main content from HTML by identifying semantic containers
+///
+/// This function intelligently extracts the primary content from an HTML page by:
+/// 1. Looking for semantic containers in priority order: `<main>`, `<article>`, content-specific divs
+/// 2. Removing navigation, headers, footers, sidebars, and other non-content elements
+/// 3. Falling back to `<body>` tag if no semantic containers are found
+/// 4. Preserving HTML structure, attributes, and element nesting via scraper serialization
+///
+/// # Arguments
+/// * `html` - Raw HTML string to process
+///
+/// # Returns
+/// * `Ok(String)` - Extracted HTML with main content preserved and non-content elements removed
+/// * `Err` - If HTML parsing fails
+///
+/// # Example
+/// ```
+/// let html = r#"<html><body><nav>Menu</nav><main><p>Content</p></main></body></html>"#;
+/// let content = extract_main_content(html)?;
+/// // Result contains: <main><p>Content</p></main>
+/// ```
 pub fn extract_main_content(html: &str) -> Result<String> {
+    // Validate input size to prevent DoS attacks
+    if html.len() > MAX_HTML_SIZE {
+        anyhow::bail!(
+            "HTML input too large: {} bytes exceeds maximum of {} bytes",
+            html.len(),
+            MAX_HTML_SIZE
+        );
+    }
+
     let document = Html::parse_document(html);
 
     // First, remove common non-content elements
@@ -279,9 +376,22 @@ static AD_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("AD_RE: hardcoded regex is valid")
 });
 
-static HIDDEN_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?s)<[^>]+style="[^"]*display:\s*none[^"]*"[^>]*>.*?</[^>]+>"#)
-        .expect("HIDDEN_RE: hardcoded regex is valid")
+// Matches elements with display:none in style attribute (supports single/double quotes)
+static HIDDEN_DISPLAY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?s)<[^>]+style\s*=\s*["'][^"']*display\s*:\s*none[^"']*["'][^>]*>.*?</[^>]+>"#)
+        .expect("HIDDEN_DISPLAY: hardcoded regex is valid")
+});
+
+// Matches elements with boolean hidden attribute
+static HIDDEN_ATTR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?s)<[^>]+\bhidden(?:\s|>|/|=)[^>]*>.*?</[^>]+>"#)
+        .expect("HIDDEN_ATTR: hardcoded regex is valid")
+});
+
+// Matches elements with visibility:hidden in style attribute
+static HIDDEN_VISIBILITY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?s)<[^>]+style\s*=\s*["'][^"']*visibility\s*:\s*hidden[^"']*["'][^>]*>.*?</[^>]+>"#)
+        .expect("HIDDEN_VISIBILITY: hardcoded regex is valid")
 });
 
 static DETAILS_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -301,7 +411,16 @@ static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Clean HTML content by removing unwanted elements and scripts
-pub fn clean_html_content(html: &str) -> String {
+pub fn clean_html_content(html: &str) -> Result<String> {
+    // Validate input size to prevent DoS attacks
+    if html.len() > MAX_HTML_SIZE {
+        anyhow::bail!(
+            "HTML input too large: {} bytes exceeds maximum of {} bytes",
+            html.len(),
+            MAX_HTML_SIZE
+        );
+    }
+
     // Use Cow to avoid unnecessary allocations
     // Start with borrowed reference, only allocate when modifications occur
     let result = Cow::Borrowed(html);
@@ -333,8 +452,10 @@ pub fn clean_html_content(html: &str) -> String {
     // Remove ads
     let result = AD_RE.replace_all(&result, "");
 
-    // Remove hidden elements
-    let result = HIDDEN_RE.replace_all(&result, "");
+    // Remove hidden elements (multiple patterns for comprehensive matching)
+    let result = HIDDEN_DISPLAY.replace_all(&result, "");
+    let result = HIDDEN_ATTR.replace_all(&result, "");
+    let result = HIDDEN_VISIBILITY.replace_all(&result, "");
 
     // Handle HTML5 details/summary elements by extracting their content
     // These don't convert well to markdown
@@ -365,7 +486,7 @@ pub fn clean_html_content(html: &str) -> String {
     let result = decode_html_entities(&result);
 
     // Convert final Cow to owned String for return
-    result.into_owned()
+    Ok(result.into_owned())
 }
 
 // ============================================================================

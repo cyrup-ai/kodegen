@@ -520,3 +520,79 @@ fn test_literal_vs_regex_with_binary_modes() {
     assert!(!sink_regex.matches.is_empty(), 
             "Regex pattern should work (found {} matches)", sink_regex.matches.len());
 }
+
+#[cfg(test)]
+mod experimental {
+    use super::*;
+    
+    struct ContinueSink {
+        matches: Vec<String>,
+        binary_detected: bool,
+    }
+    
+    impl ContinueSink {
+        fn new() -> Self {
+            Self {
+                matches: Vec::new(),
+                binary_detected: false,
+            }
+        }
+    }
+    
+    impl Sink for ContinueSink {
+        type Error = std::io::Error;
+        
+        fn matched(&mut self, _: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
+            if let Ok(line) = std::str::from_utf8(mat.bytes()) {
+                self.matches.push(line.to_string());
+            }
+            Ok(true)
+        }
+        
+        fn binary_data(&mut self, _: &Searcher, _: u64) -> Result<bool, Self::Error> {
+            self.binary_detected = true;
+            Ok(true)  // CONTINUE searching!
+        }
+    }
+    
+    #[test]
+    fn test_convert_with_continue_sink() {
+        let binary_content = b"text\x00FINDME\x00data";
+        let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false).unwrap();
+        
+        let mut searcher = SearcherBuilder::new()
+            .binary_detection(BinaryDetection::convert(b'\x00'))
+            .build();
+        
+        let mut sink = ContinueSink::new();
+        searcher.search_slice(&matcher, binary_content, &mut sink).unwrap();
+        
+        eprintln!("Binary detected: {}", sink.binary_detected);
+        eprintln!("Matches found: {}", sink.matches.len());
+        for m in &sink.matches {
+            eprintln!("  Match: {:?}", m);
+        }
+        
+        assert!(sink.binary_detected, "Should detect binary");
+        assert!(!sink.matches.is_empty(), "Should find matches when continuing after binary detection");
+    }
+}
+
+    #[test]
+    fn test_auto_mode_with_continue_sink() {
+        let binary_content = b"text\x00FINDME\x00data";
+        let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false).unwrap();
+        
+        let mut searcher = SearcherBuilder::new()
+            .binary_detection(BinaryDetection::quit(b'\x00'))
+            .build();
+        
+        let mut sink = ContinueSink::new();
+        searcher.search_slice(&matcher, binary_content, &mut sink).unwrap();
+        
+        eprintln!("Auto mode - Binary detected: {}", sink.binary_detected);
+        eprintln!("Auto mode - Matches found: {}", sink.matches.len());
+        
+        assert!(sink.binary_detected, "Auto mode should detect binary");
+        // With continue sink, does quit mode still quit?
+    }

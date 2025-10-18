@@ -49,8 +49,8 @@
 //! // When a hook event arrives, it will be sent to hook_rx
 //! // You can then process it and send a response
 //! tokio::spawn(async move {
-//!     while let Some((hook_id, event)) = hook_rx.recv().await {
-//!         log::info!("Received hook: {} {:?}", hook_id, event);
+//!     while let Some((hook_id, event, event_data)) = hook_rx.recv().await {
+//!         log::info!("Received hook: {} {:?} with data: {:?}", hook_id, event, event_data);
 //!         // Process hook and create response...
 //!     }
 //! });

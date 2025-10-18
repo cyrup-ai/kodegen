@@ -125,8 +125,8 @@
 //!
 //! // Handle hook events
 //! tokio::spawn(async move {
-//!     while let Some((hook_id, event)) = hook_rx.recv().await {
-//!         log::info!("Hook: {} {:?}", hook_id, event);
+//!     while let Some((hook_id, event, event_data)) = hook_rx.recv().await {
+//!         log::info!("Hook: {} {:?} with data: {:?}", hook_id, event, event_data);
 //!         // Respond to hook...
 //!     }
 //! });

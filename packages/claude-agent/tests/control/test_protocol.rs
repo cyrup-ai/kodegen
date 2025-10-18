@@ -88,6 +88,10 @@ async fn test_hook_response_without_channel() {
     let response = ControlResponse::Hook {
         id: "hook-1".to_string(),
         event: HookEvent::PreToolUse,
+        event_data: Some(serde_json::json!({
+            "toolName": "Read",
+            "toolInput": { "file_path": "test.txt" }
+        })),
     };
 
     // Should not error, just no-op
@@ -198,6 +202,10 @@ fn test_serialize_all_response_types() {
     let resp = ControlResponse::Hook {
         id: "hook-1".to_string(),
         event: HookEvent::PreToolUse,
+        event_data: Some(serde_json::json!({
+            "toolName": "Read",
+            "toolInput": { "file_path": "test.txt" }
+        })),
     };
     let msg = ControlMessage::Response(resp);
     assert!(handler.serialize_message(&msg).is_ok());

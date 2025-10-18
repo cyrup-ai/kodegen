@@ -174,7 +174,7 @@ impl ProtocolHandler {
             ControlResponse::Hook { id, event, event_data } => {
                 if let Some(ref tx) = self.hook_tx {
                     // Default to empty object if no event data provided
-                    let data = event_data.unwrap_or_else(|| serde_json::json!({}));
+                    let data = event_data.clone().unwrap_or_else(|| serde_json::json!({}));
                     tx.send((id.clone(), *event, data))
                         .map_err(|_| ClaudeError::protocol_error("Hook channel closed"))?;
                 }

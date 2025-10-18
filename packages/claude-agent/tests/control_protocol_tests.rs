@@ -177,14 +177,19 @@ async fn test_hook_channel_integration() {
     let hook_response = ControlResponse::Hook {
         id: "hook-123".to_string(),
         event: HookEvent::PreToolUse,
+        event_data: Some(serde_json::json!({
+            "toolName": "Read",
+            "toolInput": { "file_path": "test.txt" }
+        })),
     };
 
     handler.handle_response(hook_response).await.unwrap();
 
     // Verify hook was received
-    let (hook_id, event) = hook_rx.recv().await.unwrap();
+    let (hook_id, event, event_data) = hook_rx.recv().await.unwrap();
     assert_eq!(hook_id, "hook-123");
     assert_eq!(event, HookEvent::PreToolUse);
+    assert!(event_data.is_object());
 }
 
 #[tokio::test]
@@ -289,15 +294,20 @@ async fn test_multiple_hook_events() {
         let response = ControlResponse::Hook {
             id: format!("hook-{i}"),
             event: *event,
+            event_data: Some(serde_json::json!({
+                "toolName": "TestTool",
+                "toolInput": { "index": i }
+            })),
         };
         handler.handle_response(response).await.unwrap();
     }
 
     // Verify all hooks received
     for (i, expected_event) in events.iter().enumerate() {
-        let (hook_id, event) = hook_rx.recv().await.unwrap();
+        let (hook_id, event, event_data) = hook_rx.recv().await.unwrap();
         assert_eq!(hook_id, format!("hook-{i}"));
         assert_eq!(event, *expected_event);
+        assert!(event_data.is_object());
     }
 }
 
