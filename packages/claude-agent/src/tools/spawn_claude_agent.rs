@@ -14,7 +14,7 @@ use tokio::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SpawnClaudeAgentArgs {
-    /// Initial prompt/task for the agent(s) - can be plain string or template
+    /// Instructions and context for the spawned Claude agent. Describes the task to be performed autonomously. Can be a plain string or template with parameters.
     pub prompt: PromptInput,
     
     /// Number of identical agents to spawn (default: 1)

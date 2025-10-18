@@ -314,34 +314,34 @@ pub fn clean_html_content(html: &str) -> String {
     let mut result = Cow::Borrowed(html);
 
     // Remove script tags and their contents
-    result = SCRIPT_RE.replace_all(&result, "");
+    result = Cow::Owned(SCRIPT_RE.replace_all(&result, "").into_owned());
 
     // Remove style tags and their contents
-    result = STYLE_RE.replace_all(&result, "");
+    result = Cow::Owned(STYLE_RE.replace_all(&result, "").into_owned());
 
     // Remove inline event handlers
-    result = EVENT_RE.replace_all(&result, "");
+    result = Cow::Owned(EVENT_RE.replace_all(&result, "").into_owned());
 
     // Remove comments
-    result = COMMENT_RE.replace_all(&result, "");
+    result = Cow::Owned(COMMENT_RE.replace_all(&result, "").into_owned());
 
     // Remove forms
-    result = FORM_RE.replace_all(&result, "");
+    result = Cow::Owned(FORM_RE.replace_all(&result, "").into_owned());
 
     // Remove iframes
-    result = IFRAME_RE.replace_all(&result, "");
+    result = Cow::Owned(IFRAME_RE.replace_all(&result, "").into_owned());
 
     // Remove social media widgets and buttons
-    result = SOCIAL_RE.replace_all(&result, "");
+    result = Cow::Owned(SOCIAL_RE.replace_all(&result, "").into_owned());
 
     // Remove cookie notices and popups
-    result = COOKIE_RE.replace_all(&result, "");
+    result = Cow::Owned(COOKIE_RE.replace_all(&result, "").into_owned());
 
     // Remove ads
-    result = AD_RE.replace_all(&result, "");
+    result = Cow::Owned(AD_RE.replace_all(&result, "").into_owned());
 
     // Remove hidden elements
-    result = HIDDEN_RE.replace_all(&result, "");
+    result = Cow::Owned(HIDDEN_RE.replace_all(&result, "").into_owned());
 
     // Handle HTML5 details/summary elements by extracting their content
     // These don't convert well to markdown
@@ -366,7 +366,7 @@ pub fn clean_html_content(html: &str) -> String {
     );
 
     // Remove any remaining HTML5 semantic elements that don't have markdown equivalents
-    result = SEMANTIC_RE.replace_all(&result, "");
+    result = Cow::Owned(SEMANTIC_RE.replace_all(&result, "").into_owned());
 
     // Decode HTML entities
     let decoded = decode_html_entities(&result);
