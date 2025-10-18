@@ -51,6 +51,11 @@ pub struct Cli {
     /// List available tool categories and exit
     #[arg(long)]
     pub list_categories: bool,
+
+    /// Graceful shutdown timeout in seconds for SSE server (default: 30)
+    /// Can also be set via KODEGEN_SHUTDOWN_TIMEOUT_SECS environment variable
+    #[arg(long, value_name = "SECONDS", env = "KODEGEN_SHUTDOWN_TIMEOUT_SECS", default_value = "30")]
+    pub shutdown_timeout: u64,
 }
 
 #[derive(Subcommand, Debug)]
@@ -97,6 +102,11 @@ impl Cli {
                 proxy_url: self.proxy_sse.clone() 
             }
         }
+    }
+
+    /// Get the shutdown timeout as a Duration
+    pub fn shutdown_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.shutdown_timeout)
     }
 }
 

@@ -4,9 +4,11 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use log::info;
+#[cfg(all(feature = "systemd-notify", target_os = "linux"))]
+use log::warn;
 use nix::sys::stat::{umask, Mode};
 use nix::unistd::{chdir, close, dup2, fork, setsid, ForkResult};
-#[cfg(feature = "systemd-notify")]
+#[cfg(all(feature = "systemd-notify", target_os = "linux"))]
 use systemd::daemon;
 
 /// Detect whether we are launched *by* systemd.  If so, we should **not**
@@ -17,7 +19,7 @@ fn running_under_systemd() -> bool {
 
 /// Tell systemd the daemon is ready (no‑op when feature is off).
 pub fn systemd_ready() {
-    #[cfg(feature = "systemd-notify")]
+    #[cfg(all(feature = "systemd-notify", target_os = "linux"))]
     {
         if let Err(e) = daemon::notify(false, &[daemon::NotifyState::Ready]) {
             warn!("sd_notify failed: {e}");

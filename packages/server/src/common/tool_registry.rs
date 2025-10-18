@@ -14,6 +14,23 @@ fn is_category_enabled(category: &str, enabled_categories: &Option<HashSet<Strin
     }
 }
 
+/// Register a single tool with both routers
+/// Takes ownership of the tool, wraps it in Arc once, clones that Arc for both routes
+fn register_tool<S, T>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+    tool: T,
+) -> (ToolRouter<S>, PromptRouter<S>)
+where
+    S: Send + Sync + 'static,
+    T: Tool,
+{
+    let tool = Arc::new(tool);
+    let tool_router = tool_router.with_route(tool.clone().arc_into_tool_route());
+    let prompt_router = prompt_router.with_route(tool.arc_into_prompt_route());
+    (tool_router, prompt_router)
+}
+
 /// Register all available tools with the routers
 pub async fn register_all_tools<S>(
     mut tool_router: ToolRouter<S>,
@@ -175,16 +192,14 @@ where
 {
     log::debug!("Initializing terminal tools");
     
-    let terminal_manager = kodegen_terminal::TerminalManager::new();
+    let terminal_manager = Arc::new(kodegen_terminal::TerminalManager::new());
     let command_manager = kodegen_terminal::CommandManager::new(config_manager.get_blocked_commands());
-    let terminal_manager_arc = Arc::new(terminal_manager.clone());
-    terminal_manager_arc.start_cleanup_task();
     
     let start_cmd = Arc::new(kodegen_terminal::StartTerminalCommandTool::new(terminal_manager.clone(), command_manager));
     let read_output = Arc::new(kodegen_terminal::ReadTerminalOutputTool::new(terminal_manager.clone()));
     let send_input = Arc::new(kodegen_terminal::SendTerminalInputTool::new(terminal_manager.clone()));
     let stop_cmd = Arc::new(kodegen_terminal::StopTerminalCommandTool::new(terminal_manager.clone()));
-    let list_cmds = Arc::new(kodegen_terminal::ListTerminalCommandsTool::new(terminal_manager));
+    let list_cmds = Arc::new(kodegen_terminal::ListTerminalCommandsTool::new(terminal_manager.clone()));
     
     let tool_router = tool_router
         .with_route(start_cmd.clone().arc_into_tool_route())
@@ -199,6 +214,9 @@ where
         .with_route(send_input.arc_into_prompt_route())
         .with_route(stop_cmd.arc_into_prompt_route())
         .with_route(list_cmds.arc_into_prompt_route());
+    
+    // Start cleanup task after all tools are registered to avoid race conditions
+    terminal_manager.start_cleanup_task();
     
     Ok((tool_router, prompt_router))
 }
@@ -292,11 +310,16 @@ where
 {
     log::debug!("Initializing sequential thinking tool");
     
-    let tool = Arc::new(kodegen_sequential_thinking::SequentialThinkingTool::new());
-    tool.clone().start_cleanup_task();
+    let thinking_tool = Arc::new(kodegen_sequential_thinking::SequentialThinkingTool::new());
     
-    let tool_router = tool_router.with_route(tool.clone().arc_into_tool_route());
-    let prompt_router = prompt_router.with_route(tool.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_sequential_thinking::SequentialThinkingTool::new()
+    );
+    
+    // Start cleanup task after tool is registered to avoid race conditions
+    thinking_tool.start_cleanup_task();
     
     Ok((tool_router, prompt_router))
 }
@@ -315,25 +338,31 @@ where
     let prompt_manager = Arc::new(kodegen_prompt::PromptManager::new());
     prompt_manager.init().await.map_err(|e| anyhow::anyhow!("Failed to init prompt manager: {}", e))?;
     
-    let spawn = Arc::new(kodegen_claude_agent::SpawnClaudeAgentTool::new(agent_manager.clone(), prompt_manager.clone()));
-    let read = Arc::new(kodegen_claude_agent::ReadClaudeAgentOutputTool::new(agent_manager.clone()));
-    let send = Arc::new(kodegen_claude_agent::SendClaudeAgentPromptTool::new(agent_manager.clone(), prompt_manager.clone()));
-    let terminate = Arc::new(kodegen_claude_agent::TerminateClaudeAgentSessionTool::new(agent_manager.clone()));
-    let list = Arc::new(kodegen_claude_agent::ListClaudeAgentsTool::new(agent_manager));
-    
-    let tool_router = tool_router
-        .with_route(spawn.clone().arc_into_tool_route())
-        .with_route(read.clone().arc_into_tool_route())
-        .with_route(send.clone().arc_into_tool_route())
-        .with_route(terminate.clone().arc_into_tool_route())
-        .with_route(list.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(spawn.arc_into_prompt_route())
-        .with_route(read.arc_into_prompt_route())
-        .with_route(send.arc_into_prompt_route())
-        .with_route(terminate.arc_into_prompt_route())
-        .with_route(list.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_claude_agent::SpawnClaudeAgentTool::new(agent_manager.clone(), prompt_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_claude_agent::ReadClaudeAgentOutputTool::new(agent_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_claude_agent::SendClaudeAgentPromptTool::new(agent_manager.clone(), prompt_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_claude_agent::TerminateClaudeAgentSessionTool::new(agent_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_claude_agent::ListClaudeAgentsTool::new(agent_manager)
+    );
     
     Ok((tool_router, prompt_router))
 }
@@ -352,27 +381,31 @@ where
     
     let session_manager = kodegen_citescrape::CrawlSessionManager::new();
     let engine_cache = kodegen_citescrape::SearchEngineCache::new();
-    let session_arc = Arc::new(session_manager.clone());
-    let engine_arc = Arc::new(engine_cache.clone());
-    session_arc.start_cleanup_task();
-    engine_arc.start_cleanup_task();
     
-    let start = Arc::new(kodegen_citescrape::StartCrawlTool::new(session_manager.clone(), engine_cache.clone()));
-    let get = Arc::new(kodegen_citescrape::GetCrawlResultsTool::new(session_manager.clone()));
-    let search = Arc::new(kodegen_citescrape::SearchCrawlResultsTool::new(session_manager, engine_cache));
-    let web = Arc::new(kodegen_citescrape::WebSearchTool::new());
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_citescrape::StartCrawlTool::new(session_manager.clone(), engine_cache.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_citescrape::GetCrawlResultsTool::new(session_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_citescrape::SearchCrawlResultsTool::new(session_manager.clone(), engine_cache.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_citescrape::WebSearchTool::new()
+    );
     
-    let tool_router = tool_router
-        .with_route(start.clone().arc_into_tool_route())
-        .with_route(get.clone().arc_into_tool_route())
-        .with_route(search.clone().arc_into_tool_route())
-        .with_route(web.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(start.arc_into_prompt_route())
-        .with_route(get.arc_into_prompt_route())
-        .with_route(search.arc_into_prompt_route())
-        .with_route(web.arc_into_prompt_route());
+    // Start cleanup tasks after all tools are registered to avoid race conditions
+    Arc::new(session_manager).start_cleanup_task();
+    Arc::new(engine_cache).start_cleanup_task();
     
     Ok((tool_router, prompt_router))
 }
@@ -387,70 +420,26 @@ where
 {
     log::debug!("Initializing git tools");
     
-    let git_init = Arc::new(kodgen_git::GitInitTool);
-    let git_open = Arc::new(kodgen_git::GitOpenTool);
-    let git_clone = Arc::new(kodgen_git::GitCloneTool);
-    let git_discover = Arc::new(kodgen_git::GitDiscoverTool);
-    let git_branch_create = Arc::new(kodgen_git::GitBranchCreateTool);
-    let git_branch_delete = Arc::new(kodgen_git::GitBranchDeleteTool);
-    let git_branch_list = Arc::new(kodgen_git::GitBranchListTool);
-    let git_branch_rename = Arc::new(kodgen_git::GitBranchRenameTool);
-    let git_commit = Arc::new(kodgen_git::GitCommitTool);
-    let git_log = Arc::new(kodgen_git::GitLogTool);
-    let git_add = Arc::new(kodgen_git::GitAddTool);
-    let git_checkout = Arc::new(kodgen_git::GitCheckoutTool);
-    let git_fetch = Arc::new(kodgen_git::GitFetchTool);
-    let git_merge = Arc::new(kodgen_git::GitMergeTool);
-    let git_worktree_add = Arc::new(kodgen_git::GitWorktreeAddTool);
-    let git_worktree_remove = Arc::new(kodgen_git::GitWorktreeRemoveTool);
-    let git_worktree_list = Arc::new(kodgen_git::GitWorktreeListTool);
-    let git_worktree_lock = Arc::new(kodgen_git::GitWorktreeLockTool);
-    let git_worktree_unlock = Arc::new(kodgen_git::GitWorktreeUnlockTool);
-    let git_worktree_prune = Arc::new(kodgen_git::GitWorktreePruneTool);
-    
-    let tool_router = tool_router
-        .with_route(git_init.clone().arc_into_tool_route())
-        .with_route(git_open.clone().arc_into_tool_route())
-        .with_route(git_clone.clone().arc_into_tool_route())
-        .with_route(git_discover.clone().arc_into_tool_route())
-        .with_route(git_branch_create.clone().arc_into_tool_route())
-        .with_route(git_branch_delete.clone().arc_into_tool_route())
-        .with_route(git_branch_list.clone().arc_into_tool_route())
-        .with_route(git_branch_rename.clone().arc_into_tool_route())
-        .with_route(git_commit.clone().arc_into_tool_route())
-        .with_route(git_log.clone().arc_into_tool_route())
-        .with_route(git_add.clone().arc_into_tool_route())
-        .with_route(git_checkout.clone().arc_into_tool_route())
-        .with_route(git_fetch.clone().arc_into_tool_route())
-        .with_route(git_merge.clone().arc_into_tool_route())
-        .with_route(git_worktree_add.clone().arc_into_tool_route())
-        .with_route(git_worktree_remove.clone().arc_into_tool_route())
-        .with_route(git_worktree_list.clone().arc_into_tool_route())
-        .with_route(git_worktree_lock.clone().arc_into_tool_route())
-        .with_route(git_worktree_unlock.clone().arc_into_tool_route())
-        .with_route(git_worktree_prune.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(git_init.arc_into_prompt_route())
-        .with_route(git_open.arc_into_prompt_route())
-        .with_route(git_clone.arc_into_prompt_route())
-        .with_route(git_discover.arc_into_prompt_route())
-        .with_route(git_branch_create.arc_into_prompt_route())
-        .with_route(git_branch_delete.arc_into_prompt_route())
-        .with_route(git_branch_list.arc_into_prompt_route())
-        .with_route(git_branch_rename.arc_into_prompt_route())
-        .with_route(git_commit.arc_into_prompt_route())
-        .with_route(git_log.arc_into_prompt_route())
-        .with_route(git_add.arc_into_prompt_route())
-        .with_route(git_checkout.arc_into_prompt_route())
-        .with_route(git_fetch.arc_into_prompt_route())
-        .with_route(git_merge.arc_into_prompt_route())
-        .with_route(git_worktree_add.arc_into_prompt_route())
-        .with_route(git_worktree_remove.arc_into_prompt_route())
-        .with_route(git_worktree_list.arc_into_prompt_route())
-        .with_route(git_worktree_lock.arc_into_prompt_route())
-        .with_route(git_worktree_unlock.arc_into_prompt_route())
-        .with_route(git_worktree_prune.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitInitTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitOpenTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitCloneTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitDiscoverTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitBranchCreateTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitBranchDeleteTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitBranchListTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitBranchRenameTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitCommitTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitLogTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitAddTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitCheckoutTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitFetchTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitMergeTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreeAddTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreeRemoveTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreeListTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreeLockTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreeUnlockTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_git::GitWorktreePruneTool);
     
     Ok((tool_router, prompt_router))
 }
@@ -465,58 +454,22 @@ where
 {
     log::debug!("Initializing github tools");
     
-    let create_issue = Arc::new(kodgen_github::CreateIssueTool);
-    let get_issue = Arc::new(kodgen_github::GetIssueTool);
-    let list_issues = Arc::new(kodgen_github::ListIssuesTool);
-    let update_issue = Arc::new(kodgen_github::UpdateIssueTool);
-    let search_issues = Arc::new(kodgen_github::SearchIssuesTool);
-    let add_issue_comment = Arc::new(kodgen_github::AddIssueCommentTool);
-    let get_issue_comments = Arc::new(kodgen_github::GetIssueCommentsTool);
-    let create_pr = Arc::new(kodgen_github::CreatePullRequestTool);
-    let update_pr = Arc::new(kodgen_github::UpdatePullRequestTool);
-    let merge_pr = Arc::new(kodgen_github::MergePullRequestTool);
-    let get_pr_status = Arc::new(kodgen_github::GetPullRequestStatusTool);
-    let get_pr_files = Arc::new(kodgen_github::GetPullRequestFilesTool);
-    let get_pr_reviews = Arc::new(kodgen_github::GetPullRequestReviewsTool);
-    let create_pr_review = Arc::new(kodgen_github::CreatePullRequestReviewTool);
-    let add_pr_review_comment = Arc::new(kodgen_github::AddPullRequestReviewCommentTool);
-    let request_copilot = Arc::new(kodgen_github::RequestCopilotReviewTool);
-    
-    let tool_router = tool_router
-        .with_route(create_issue.clone().arc_into_tool_route())
-        .with_route(get_issue.clone().arc_into_tool_route())
-        .with_route(list_issues.clone().arc_into_tool_route())
-        .with_route(update_issue.clone().arc_into_tool_route())
-        .with_route(search_issues.clone().arc_into_tool_route())
-        .with_route(add_issue_comment.clone().arc_into_tool_route())
-        .with_route(get_issue_comments.clone().arc_into_tool_route())
-        .with_route(create_pr.clone().arc_into_tool_route())
-        .with_route(update_pr.clone().arc_into_tool_route())
-        .with_route(merge_pr.clone().arc_into_tool_route())
-        .with_route(get_pr_status.clone().arc_into_tool_route())
-        .with_route(get_pr_files.clone().arc_into_tool_route())
-        .with_route(get_pr_reviews.clone().arc_into_tool_route())
-        .with_route(create_pr_review.clone().arc_into_tool_route())
-        .with_route(add_pr_review_comment.clone().arc_into_tool_route())
-        .with_route(request_copilot.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(create_issue.arc_into_prompt_route())
-        .with_route(get_issue.arc_into_prompt_route())
-        .with_route(list_issues.arc_into_prompt_route())
-        .with_route(update_issue.arc_into_prompt_route())
-        .with_route(search_issues.arc_into_prompt_route())
-        .with_route(add_issue_comment.arc_into_prompt_route())
-        .with_route(get_issue_comments.arc_into_prompt_route())
-        .with_route(create_pr.arc_into_prompt_route())
-        .with_route(update_pr.arc_into_prompt_route())
-        .with_route(merge_pr.arc_into_prompt_route())
-        .with_route(get_pr_status.arc_into_prompt_route())
-        .with_route(get_pr_files.arc_into_prompt_route())
-        .with_route(get_pr_reviews.arc_into_prompt_route())
-        .with_route(create_pr_review.arc_into_prompt_route())
-        .with_route(add_pr_review_comment.arc_into_prompt_route())
-        .with_route(request_copilot.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::CreateIssueTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::GetIssueTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::ListIssuesTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::UpdateIssueTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::SearchIssuesTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::AddIssueCommentTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::GetIssueCommentsTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::CreatePullRequestTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::UpdatePullRequestTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::MergePullRequestTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::GetPullRequestStatusTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::GetPullRequestFilesTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::GetPullRequestReviewsTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::CreatePullRequestReviewTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::AddPullRequestReviewCommentTool);
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodgen_github::RequestCopilotReviewTool);
     
     Ok((tool_router, prompt_router))
 }
@@ -532,16 +485,16 @@ where
 {
     log::debug!("Initializing config tools");
     
-    let get = Arc::new(kodegen_config::GetConfigTool::new(config_manager.clone()));
-    let set = Arc::new(kodegen_config::SetConfigValueTool::new(config_manager.clone()));
-    
-    let tool_router = tool_router
-        .with_route(get.clone().arc_into_tool_route())
-        .with_route(set.clone().arc_into_tool_route());
-    
-    let prompt_router = prompt_router
-        .with_route(get.arc_into_prompt_route())
-        .with_route(set.arc_into_prompt_route());
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_config::GetConfigTool::new(config_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_config::SetConfigValueTool::new(config_manager.clone())
+    );
     
     Ok((tool_router, prompt_router))
 }

@@ -39,7 +39,7 @@ async fn async_main() -> Result<()> {
     
     // Handle install command
     if let Some(Commands::Install) = cli.command {
-        return run_install();
+        return cli::install::run_install();
     }
     
     // Get enabled categories
@@ -56,7 +56,7 @@ async fn async_main() -> Result<()> {
             log::info!("Starting stdio server (proxy: {:?})", proxy_url);
             
             // Ensure daemon is running for stdio mode
-            ensure_daemon_running().await?;
+            cli::daemon::ensure_daemon_running().await?;
             
             let server = stdio::StdioProxyServer::new(
                 proxy_url.as_deref(),
@@ -88,170 +88,16 @@ async fn async_main() -> Result<()> {
             log::info!("SSE server running, press Ctrl+C to stop");
             tokio::signal::ctrl_c().await?;
             
-            log::info!("Shutting down SSE server...");
+            let timeout = cli.shutdown_timeout();
+            log::info!("Shutting down SSE server gracefully (timeout: {:?})...", timeout);
+            
+            // Cancel the server and wait for graceful shutdown
             ct.cancel();
+            
+            // Give in-flight requests time to complete
+            tokio::time::sleep(timeout).await;
         }
     }
     
-    Ok(())
-}
-
-/// Run the install command
-fn run_install() -> Result<()> {
-    use kodegen_client_autoconfig::install_all_clients;
-    use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    use std::io::Write;
-
-    let results = install_all_clients()?;
-
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
-
-    // Header
-    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
-    writeln!(&mut stdout, "\n┌─────────────────────────────────────────────┐")?;
-    writeln!(&mut stdout, "│   🔍 MCP Editor Configuration Results       │")?;
-    writeln!(&mut stdout, "└─────────────────────────────────────────────┘\n")?;
-    stdout.reset()?;
-
-    let mut configured = 0;
-    let mut skipped = 0;
-    let mut failed = 0;
-
-    for result in &results {
-        if result.success {
-            // Success - green checkmark
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
-            write!(&mut stdout, "  ✓ ")?;
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-            writeln!(&mut stdout, "{}", result.client_name)?;
-        } else {
-            // Failed - red X or dim skip
-            if result.message == "Not installed" {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-                write!(&mut stdout, "  ○ ")?;
-                writeln!(&mut stdout, "{}", result.client_name)?;
-            } else {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-                write!(&mut stdout, "  ✗ ")?;
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
-                writeln!(&mut stdout, "{}", result.client_name)?;
-            }
-        }
-
-        // Config path
-        if let Some(ref path) = result.config_path {
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-            writeln!(&mut stdout, "     {}", path.display())?;
-        }
-
-        // Status message
-        if result.success {
-            if result.message.contains("Already") {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
-                writeln!(&mut stdout, "     {}\n", result.message)?;
-                skipped += 1;
-            } else {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-                writeln!(&mut stdout, "     {}\n", result.message)?;
-                configured += 1;
-            }
-        } else {
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-            writeln!(&mut stdout, "     {}\n", result.message)?;
-            failed += 1;
-        }
-        stdout.reset()?;
-    }
-
-    // Summary
-    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
-    writeln!(&mut stdout, "─────────────────────────────────────────────")?;
-    stdout.reset()?;
-
-    write!(&mut stdout, "  ")?;
-    if configured > 0 {
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
-        write!(&mut stdout, "{} configured", configured)?;
-        stdout.reset()?;
-    }
-    if skipped > 0 {
-        if configured > 0 { write!(&mut stdout, " • ")?; }
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
-        write!(&mut stdout, "{} already configured", skipped)?;
-        stdout.reset()?;
-    }
-    if failed > 0 {
-        if configured > 0 || skipped > 0 { write!(&mut stdout, " • ")?; }
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-        write!(&mut stdout, "{} not installed", failed)?;
-        stdout.reset()?;
-    }
-    writeln!(&mut stdout, "\n")?;
-
-    Ok(())
-}
-
-/// Ensure the kodegend daemon is running before starting stdio mode
-///
-/// Checks daemon status and starts it if not running, then waits for ready
-async fn ensure_daemon_running() -> Result<()> {
-    use tokio::process::Command;
-    use tokio::time::{sleep, Duration};
-
-    // Check if daemon is already running
-    let status = Command::new("kodegend")
-        .arg("status")
-        .status()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to check daemon status: {}", e))?;
-
-    if status.success() {
-        log::info!("kodegend daemon is already running");
-        return Ok(());
-    }
-
-    // Daemon not running, attempt to start it
-    log::info!("kodegend daemon not running, starting...");
-    let start = Command::new("kodegend")
-        .arg("start")
-        .status()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to start daemon: {}", e))?;
-
-    if !start.success() {
-        anyhow::bail!("Failed to start kodegend daemon");
-    }
-
-    // Wait for daemon to be ready (exponential backoff polling)
-    let mut backoff = Duration::from_millis(50);
-    const MAX_BACKOFF: Duration = Duration::from_millis(1600);
-    const MAX_ATTEMPTS: u32 = 8;
-    
-    for attempt in 1..=MAX_ATTEMPTS {
-        sleep(backoff).await;
-
-        let check = Command::new("kodegend")
-            .arg("status")
-            .status()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to check daemon status: {}", e))?;
-
-        if check.success() {
-            log::info!(
-                "kodegend daemon started successfully after {} attempts (~{}ms)", 
-                attempt,
-                backoff.as_millis() * attempt as u128
-            );
-            return Ok(());
-        }
-
-        // Exponential backoff: 50 → 100 → 200 → 400 → 800 → 1600 (cap)
-        backoff = (backoff * 2).min(MAX_BACKOFF);
-
-        if attempt == MAX_ATTEMPTS {
-            anyhow::bail!("Daemon failed to start after {} attempts (~3s)", MAX_ATTEMPTS);
-        }
-    }
-
     Ok(())
 }

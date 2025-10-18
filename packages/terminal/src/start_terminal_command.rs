@@ -5,6 +5,7 @@ use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessag
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -38,13 +39,13 @@ pub struct StartTerminalCommandPromptArgs {}
 
 #[derive(Clone)]
 pub struct StartTerminalCommandTool {
-    terminal_manager: TerminalManager,
+    terminal_manager: Arc<TerminalManager>,
     command_manager: CommandManager,
 }
 
 impl StartTerminalCommandTool {
     #[must_use]
-    pub fn new(terminal_manager: TerminalManager, command_manager: CommandManager) -> Self {
+    pub fn new(terminal_manager: Arc<TerminalManager>, command_manager: CommandManager) -> Self {
         Self {
             terminal_manager,
             command_manager,

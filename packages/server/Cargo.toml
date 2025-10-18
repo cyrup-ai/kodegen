@@ -45,9 +45,6 @@ clap = { version = "4.5", features = ["derive", "env"] }
 # MCP SDK
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
 
-# HTTP server for SSE transport
-axum = { version = "0.7", optional = true, default-features = false, features = ["http1", "tokio"] }
-
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
 tokio-util = "0.7"
