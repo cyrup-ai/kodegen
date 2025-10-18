@@ -96,16 +96,3 @@ pub async fn search(query: impl Into<String>) -> Result<SearchResults> {
 
     Ok(SearchResults::new(query, results))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    #[ignore] // Requires browser installation
-    async fn test_search_basic() {
-        let results = search("rust programming").await.unwrap();
-        assert!(!results.results.is_empty());
-        assert_eq!(results.query, "rust programming");
-    }
-}

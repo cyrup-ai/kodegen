@@ -5,7 +5,8 @@ use once_cell::sync::Lazy;
 
 // Compile regex once at startup (not on every command validation)
 static ENV_VAR_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\w+=\S+\s*").expect("Invalid regex pattern for environment variables")
+    Regex::new(r"\w+=\S+\s*")
+        .expect("Hardcoded regex pattern r\"\\w+=\\S+\\s*\" is invalid - this is a compile-time bug")
 });
 
 /// Command manager for validating and parsing commands

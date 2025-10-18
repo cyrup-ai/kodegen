@@ -4,14 +4,12 @@
 //! maximum performance with elegant ergonomic APIs.
 
 pub mod async_stream;
-pub mod async_task;
 pub mod async_wrappers;
 pub mod channel;
 // pub mod thread_pool;  // TODO: Implement or remove
 // pub mod zero_alloc;   // TODO: Implement or remove
 
 pub use async_stream::{AsyncStream, StreamSender, TrySendError};
-pub use async_task::{AsyncTask, TaskError, TaskGuard, pending, ready, spawn_async, spawn_stream};
 pub use async_wrappers::{AsyncJsonSave, BrowserAction, CrawlRequest};
 pub use channel::*;
 // pub use thread_pool::ThreadPool;

@@ -37,7 +37,8 @@ fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+    let rt = tokio::runtime::Runtime::new()
+        .expect("FATAL: Failed to create Tokio runtime - daemon cannot start without async runtime");
     if let Err(e) = rt.block_on(real_main()) {
         error!("{e:#}");
         std::process::exit(1);

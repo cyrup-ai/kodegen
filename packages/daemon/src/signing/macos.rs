@@ -65,13 +65,17 @@ pub fn sign(config: &SigningConfig) -> Result<()> {
 
 /// Verify a signed binary on macOS
 pub fn verify(binary_path: &Path) -> Result<bool> {
+    let binary_path_str = binary_path
+        .to_str()
+        .context("Binary path contains invalid UTF-8")?;
+
     let output = Command::new("codesign")
         .args([
             "--verify",
             "--deep",
             "--strict",
             "--verbose=2",
-            binary_path.to_str().unwrap(),
+            binary_path_str,
         ])
         .output()
         .context("Failed to execute codesign verify")?;
@@ -108,14 +112,16 @@ fn notarize(config: &SigningConfig) -> Result<()> {
     // Create a ZIP file for notarization
     let zip_path = config.binary_path.with_extension("zip");
 
+    let binary_path_str = config
+        .binary_path
+        .to_str()
+        .context("Binary path contains invalid UTF-8")?;
+    let zip_path_str = zip_path
+        .to_str()
+        .context("ZIP path contains invalid UTF-8")?;
+
     let output = Command::new("ditto")
-        .args([
-            "-c",
-            "-k",
-            "--keepParent",
-            config.binary_path.to_str().unwrap(),
-            zip_path.to_str().unwrap(),
-        ])
+        .args(["-c", "-k", "--keepParent", binary_path_str, zip_path_str])
         .output()
         .context("Failed to create ZIP for notarization")?;
 
@@ -173,8 +179,12 @@ fn notarize(config: &SigningConfig) -> Result<()> {
 
 /// Staple the notarization ticket to the binary
 fn staple_ticket(binary_path: &Path) -> Result<()> {
+    let binary_path_str = binary_path
+        .to_str()
+        .context("Binary path contains invalid UTF-8")?;
+
     let output = Command::new("xcrun")
-        .args(["stapler", "staple", binary_path.to_str().unwrap()])
+        .args(["stapler", "staple", binary_path_str])
         .output()
         .context("Failed to staple notarization ticket")?;
 
@@ -214,9 +224,13 @@ pub fn import_certificate(cert_path: &Path, password: Option<&str>) -> Result<St
         .context("Failed to set keychain settings")?;
 
     // Import certificate
+    let cert_path_str = cert_path
+        .to_str()
+        .context("Certificate path contains invalid UTF-8")?;
+
     let mut import_args = vec![
         "import",
-        cert_path.to_str().unwrap(),
+        cert_path_str,
         "-k",
         &keychain_name,
         "-T",

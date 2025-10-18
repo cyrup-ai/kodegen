@@ -25,9 +25,6 @@ pub struct CrawlEventBus {
     shutdown_flag: Arc<AtomicBool>,
     capacity_notify: Arc<Notify>,
     send_lock: Arc<Mutex<()>>,
-    /// Tracks number of in-flight publish operations
-    /// Incremented when publish starts, decremented when callback executes
-    in_flight: Arc<AtomicUsize>,
     /// Tracks consecutive publish timeout failures for circuit breaker
     consecutive_timeouts: Arc<AtomicUsize>,
 }
@@ -56,7 +53,6 @@ impl CrawlEventBus {
         let shutdown_flag = Arc::new(AtomicBool::new(false));
         let capacity_notify = Arc::new(Notify::new());
         let send_lock = Arc::new(Mutex::new(()));
-        let in_flight = Arc::new(AtomicUsize::new(0));
         let consecutive_timeouts = Arc::new(AtomicUsize::new(0));
         Self {
             sender,
@@ -66,7 +62,6 @@ impl CrawlEventBus {
             shutdown_flag,
             capacity_notify,
             send_lock,
-            in_flight,
             consecutive_timeouts,
         }
     }
@@ -109,9 +104,6 @@ impl CrawlEventBus {
     /// * `Ok(usize)` - Number of active subscribers that received the event
     /// * `Err(EventBusError)` - If publishing failed
     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
-        // Increment counter before processing
-        self.in_flight.fetch_add(1, Ordering::SeqCst);
-
         let result = match self.sender.send(event) {
             Ok(subscriber_count) => {
                 if self.config.enable_metrics {
@@ -133,15 +125,12 @@ impl CrawlEventBus {
             }
         };
 
-        // Decrement counter after processing
-        self.in_flight.fetch_sub(1, Ordering::SeqCst);
-
         result
     }
 
     /// Publish an event with backpressure control
     ///
-    /// Unlike `publish()` and `publish_async()`, this method respects the
+    /// Unlike the basic `publish()` method, this method respects the
     /// configured backpressure mode:
     ///
     /// - **DropOldest**: Same as publish(), never blocks
@@ -192,26 +181,8 @@ impl CrawlEventBus {
 
         match self.config.backpressure_mode {
             BackpressureMode::DropOldest => {
-                // Same as current behavior - never blocks, drops oldest
-                match self.sender.send(event) {
-                    Ok(subscriber_count) => {
-                        if self.config.enable_metrics {
-                            self.metrics.increment_published();
-                            self.metrics.update_subscriber_count(subscriber_count);
-
-                            if subscriber_count == 0 {
-                                self.metrics.increment_dropped();
-                            }
-                        }
-                        Ok(subscriber_count)
-                    }
-                    Err(broadcast::error::SendError(_)) => {
-                        if self.config.enable_metrics {
-                            self.metrics.increment_failed();
-                        }
-                        Err(EventBusError::NoSubscribers)
-                    }
-                }
+                // Delegate to publish() - same behavior, no duplication
+                self.publish(event).await
             }
 
             BackpressureMode::Block => {
@@ -563,59 +534,19 @@ impl CrawlEventBus {
         self.shutdown_flag.load(Ordering::SeqCst)
     }
 
-    /// Wait for all in-flight publish operations to complete
-    ///
-    /// This method polls the in-flight counter until it reaches zero or the timeout expires.
-    ///
-    /// # Arguments
-    /// * `timeout` - Maximum time to wait for operations to complete
-    ///
-    /// # Returns
-    /// * `Ok(())` - All operations completed successfully
-    /// * `Err(EventBusError::DrainTimeout)` - Timeout expired with pending operations
-    async fn drain_in_flight(&self, timeout: Duration) -> Result<(), EventBusError> {
-        let deadline = tokio::time::Instant::now() + timeout;
-        let poll_interval = Duration::from_millis(5);
-
-        loop {
-            let pending = self.in_flight.load(Ordering::SeqCst);
-
-            if pending == 0 {
-                log::debug!("All in-flight operations completed");
-                return Ok(());
-            }
-
-            if tokio::time::Instant::now() >= deadline {
-                log::warn!(
-                    "Drain timeout: {} operations still pending after {:?}",
-                    pending,
-                    timeout
-                );
-                return Err(EventBusError::DrainTimeout {
-                    pending_operations: pending,
-                });
-            }
-
-            log::trace!("Waiting for {} in-flight operations", pending);
-            tokio::time::sleep(poll_interval).await;
-        }
-    }
-
     /// Gracefully shutdown the event bus with proper draining
     ///
     /// This method ensures no events are lost during shutdown:
     ///
     /// 1. **Set shutdown flag** - Prevents new operations from starting
-    /// 2. **Drain in-flight publishes** - Waits for pending AsyncTask callbacks (100ms timeout)
-    /// 3. **Publish shutdown event** - Notifies subscribers via event stream
-    /// 4. **Wait for subscriber processing** - Gives time for subscribers to drain (500ms)
-    /// 5. **Signal shutdown complete** - Wakes waiting tasks
+    /// 2. **Publish shutdown event** - Notifies subscribers via event stream
+    /// 3. **Wait for subscriber processing** - Gives time for subscribers to drain (500ms)
+    /// 4. **Signal shutdown complete** - Wakes waiting tasks
     ///
     /// # Timeouts
     ///
-    /// - **In-flight drain**: 100ms (should be fast - just callback execution)
     /// - **Subscriber drain**: 500ms (depends on subscriber processing speed)
-    /// - **Total maximum**: 600ms
+    /// - **Total maximum**: 500ms
     ///
     /// If timeouts are exceeded, a warning is logged but shutdown proceeds to prevent hangs.
     ///
@@ -635,26 +566,18 @@ impl CrawlEventBus {
         self.shutdown_flag.store(true, Ordering::SeqCst);
         log::debug!("Shutdown flag set");
 
-        // Phase 2: Drain in-flight publish operations
-        log::debug!("Draining in-flight publish operations");
-        let drain_timeout = Duration::from_millis(100);
-        if let Err(e) = self.drain_in_flight(drain_timeout).await {
-            log::warn!("In-flight drain incomplete: {}", e);
-            // Continue anyway - don't block shutdown forever
-        }
-
-        // Phase 3: Publish shutdown event (tracked via in_flight counter)
+        // Phase 2: Publish shutdown event
         log::debug!("Publishing shutdown event");
         let event = CrawlEvent::shutdown(reason);
         let _ = self.publish(event).await;
 
-        // Phase 4: Wait for subscribers to process buffered events
+        // Phase 3: Wait for subscribers to process buffered events
         // This is a heuristic - we can't know when subscribers are truly done
         // without explicit acknowledgment, so we use a generous timeout
         log::debug!("Waiting for subscribers to process events");
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        // Phase 5: Signal final shutdown
+        // Phase 4: Signal final shutdown
         self.shutdown.notify_waiters();
 
         log::info!("Event bus graceful shutdown complete");

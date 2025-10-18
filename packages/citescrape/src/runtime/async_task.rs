@@ -28,6 +28,7 @@ impl std::error::Error for TaskError {}
 
 /// A zero-allocation, single-shot future that resolves to a value of type T.
 /// Optimized for blazing-fast performance with lock-free operations.
+#[deprecated(since = "0.1.0", note = "Use native async/await instead of AsyncTask wrapper")]
 pub struct AsyncTask<T> {
     rx: mpsc::UnboundedReceiver<T>,
 }
@@ -93,6 +94,7 @@ where
 /// This is a zero-allocation operation after the initial channel creation.
 ///
 /// The future will be executed on the global work-stealing thread pool for optimal performance.
+#[deprecated(since = "0.1.0", note = "Use tokio::spawn or native async/await instead")]
 #[inline]
 pub fn spawn_async<Fut, T>(fut: Fut) -> AsyncTask<T>
 where
@@ -114,6 +116,7 @@ where
 
 /// Creates a ready AsyncTask that immediately resolves to the given value.
 /// This is a zero-allocation optimization for values that are already available.
+#[deprecated(since = "0.1.0", note = "Use async { value } or std::future::ready instead")]
 #[inline]
 pub fn ready<T>(value: T) -> AsyncTask<T> {
     let (tx, rx) = mpsc::unbounded_channel();
@@ -123,6 +126,7 @@ pub fn ready<T>(value: T) -> AsyncTask<T> {
 
 /// Creates a never-resolving AsyncTask for testing or special use cases.
 /// The task will remain pending indefinitely.
+#[deprecated(since = "0.1.0", note = "Use std::future::pending instead")]
 #[inline]
 pub fn pending<T>() -> AsyncTask<T> {
     let (_tx, rx) = mpsc::unbounded_channel();
@@ -163,6 +167,7 @@ where
 /// // Task is tracked until guard is dropped (after rx.await completes)
 /// let result = rx.await?;
 /// ```
+#[deprecated(since = "0.1.0", note = "Use tokio::task::JoinHandle instead")]
 pub struct TaskGuard<T> {
     handle: Option<AsyncTask<T>>,
     name: &'static str,

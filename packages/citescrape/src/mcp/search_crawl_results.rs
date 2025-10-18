@@ -236,17 +236,16 @@ impl Tool for SearchCrawlResultsTool {
         // 6. Start timer for search performance
         let start_time = Instant::now();
 
-        // 7. Build and execute search query - CRITICAL: Direct await of AsyncTask
-        let task = SearchQueryBuilder::new(&args.query)
+        // 7. Build and execute search query - Direct await of Future
+        let search_results = SearchQueryBuilder::new(&args.query)
             .limit(args.limit)
             .offset(args.offset)
             .highlight(args.highlight)
-            .execute_with_metadata((*entry.engine).clone());
-
-        // 8. Await the AsyncTask (it's a Future)
-        let search_results = task.into_anyhow().await.map_err(|e| {
-            McpError::SearchIndex(format!("Search query execution failed: {}", e))
-        })??;
+            .execute_with_metadata((*entry.engine).clone())
+            .await
+            .map_err(|e| {
+                McpError::SearchIndex(format!("Search query execution failed: {}", e))
+            })?;
 
         let search_time_ms = start_time.elapsed().as_millis();
 

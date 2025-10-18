@@ -9,30 +9,40 @@ use regex::Regex;
 use std::sync::LazyLock;
 
 // Compile regex patterns once at first use
-// These are syntactically valid and will never fail to compile
-static EMPTY_LINES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\n{3,}").expect("EMPTY_LINES regex pattern is valid"));
+// These are syntactically valid hardcoded patterns - if they fail, it's a compile-time bug
+static EMPTY_LINES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\n{3,}")
+        .expect("BUG: hardcoded regex r\"\\n{3,}\" is invalid - this is a compile-time bug")
+});
 
 static SPACE_AFTER_LIST: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^(\s*[-*+])\s*").expect("SPACE_AFTER_LIST regex pattern is valid")
+    Regex::new(r"(?m)^(\s*[-*+])\s*")
+        .expect("BUG: hardcoded regex r\"(?m)^(\\s*[-*+])\\s*\" is invalid - this is a compile-time bug")
 });
 
-static HEADING_SPACE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?m)^(#+)([^ ])").expect("HEADING_SPACE regex pattern is valid"));
+static HEADING_SPACE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?m)^(#+)([^ ])")
+        .expect("BUG: hardcoded regex r\"(?m)^(#+)([^ ])\" is invalid - this is a compile-time bug")
+});
 
 static TABLE_ALIGN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\|(\s*:?-+:?\s*\|)+").expect("TABLE_ALIGN regex pattern is valid")
+    Regex::new(r"\|(\s*:?-+:?\s*\|)+")
+        .expect("BUG: hardcoded regex r\"\\|(\\s*:?-+:?\\s*\\|)+\" is invalid - this is a compile-time bug")
 });
 
-static CODE_BLOCK: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"```([a-zA-Z]*)\n").expect("CODE_BLOCK regex pattern is valid"));
+static CODE_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"```([a-zA-Z]*)\n")
+        .expect("BUG: hardcoded regex r\"```([a-zA-Z]*)\\n\" is invalid - this is a compile-time bug")
+});
 
 static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[([^\]]+)\]\([^\)]+\)").expect("LINK_RE: hardcoded regex is valid")
+    Regex::new(r"\[([^\]]+)\]\([^\)]+\)")
+        .expect("BUG: hardcoded regex r\"\\[([^\\]]+)\\]\\([^\\)]+\\)\" is invalid - this is a compile-time bug")
 });
 
 static IMAGE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"!\[[^\]]*\]\([^\)]+\)").expect("IMAGE_RE: hardcoded regex is valid")
+    Regex::new(r"!\[[^\]]*\]\([^\)]+\)")
+        .expect("BUG: hardcoded regex r\"!\\[[^\\]]*\\]\\([^\\)]+\\)\" is invalid - this is a compile-time bug")
 });
 
 /// HTML to Markdown converter with configurable options

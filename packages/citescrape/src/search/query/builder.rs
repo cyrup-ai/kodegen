@@ -4,7 +4,6 @@ use anyhow::Result;
 
 use super::execution::execute_search_query;
 use super::results::SearchResults;
-use crate::runtime::AsyncTask;
 use crate::search::engine::SearchEngine;
 use crate::search::types::SearchResultItem;
 
@@ -46,28 +45,23 @@ impl SearchQueryBuilder {
     }
 
     /// Execute the search query and return results
-    pub fn execute(self, engine: SearchEngine) -> AsyncTask<Result<Vec<SearchResultItem>>> {
+    pub async fn execute(self, engine: SearchEngine) -> Result<Vec<SearchResultItem>> {
         let query = self.query.clone();
         let limit = self.limit;
         let offset = self.offset;
         let highlight = self.highlight;
 
-        crate::runtime::spawn_async(async move {
-            let search_results =
-                execute_search_query(&engine, &query, limit, offset, highlight).await??;
-            Ok(search_results.results)
-        })
+        let search_results = execute_search_query(&engine, &query, limit, offset, highlight).await?;
+        Ok(search_results.results)
     }
 
     /// Execute the search query and return full results with metadata
-    pub fn execute_with_metadata(self, engine: SearchEngine) -> AsyncTask<Result<SearchResults>> {
+    pub async fn execute_with_metadata(self, engine: SearchEngine) -> Result<SearchResults> {
         let query = self.query.clone();
         let limit = self.limit;
         let offset = self.offset;
         let highlight = self.highlight;
 
-        crate::runtime::spawn_async(async move {
-            execute_search_query(&engine, &query, limit, offset, highlight).await?
-        })
+        execute_search_query(&engine, &query, limit, offset, highlight).await
     }
 }

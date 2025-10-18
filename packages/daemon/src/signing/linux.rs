@@ -80,12 +80,15 @@ pub fn verify(binary_path: &Path) -> Result<bool> {
     let sig_path = binary_path.with_extension("sig");
     if sig_path.exists() {
         // Verify detached signature
+        let sig_path_str = sig_path
+            .to_str()
+            .context("Signature path contains invalid UTF-8")?;
+        let binary_path_str = binary_path
+            .to_str()
+            .context("Binary path contains invalid UTF-8")?;
+
         let output = Command::new(&gpg)
-            .args(&[
-                "--verify",
-                sig_path.to_str().unwrap(),
-                binary_path.to_str().unwrap(),
-            ])
+            .args(&["--verify", sig_path_str, binary_path_str])
             .output()
             .context("Failed to execute GPG verify")?;
 
@@ -95,8 +98,12 @@ pub fn verify(binary_path: &Path) -> Result<bool> {
     // Check for inline signed file
     let gpg_path = binary_path.with_extension("gpg");
     if gpg_path.exists() {
+        let gpg_path_str = gpg_path
+            .to_str()
+            .context("GPG path contains invalid UTF-8")?;
+
         let output = Command::new(&gpg)
-            .args(&["--verify", gpg_path.to_str().unwrap()])
+            .args(&["--verify", gpg_path_str])
             .output()
             .context("Failed to execute GPG verify")?;
 
@@ -211,13 +218,17 @@ Expire-Date: 2y
 pub fn export_public_key(key_id: &str, output_path: &Path) -> Result<()> {
     let gpg = find_gpg()?;
 
+    let output_path_str = output_path
+        .to_str()
+        .context("Output path contains invalid UTF-8")?;
+
     let output = Command::new(&gpg)
         .args(&[
             "--armor",
             "--export",
             key_id,
             "--output",
-            output_path.to_str().unwrap(),
+            output_path_str,
         ])
         .output()
         .context("Failed to export GPG public key")?;

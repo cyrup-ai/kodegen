@@ -18,16 +18,13 @@ pub use errors::{RetryConfig, SearchError, SearchResult};
 pub use incremental::{IncrementalIndexingService, IndexingSender, MessagePriority};
 pub use indexer::MarkdownIndexer;
 pub use query::{SearchQueryBuilder, SearchQueryType, SearchResults, search, search_with_options};
-pub use runtime_helpers::{
-    BatchedTask, CancellableTask, RateLimitedTask, fallback_task, retry_task,
-};
+pub use runtime_helpers::{fallback_task, retry_task};
 pub use schema::{SchemaError, SchemaPerformanceInfo, SearchSchema, SearchSchemaBuilder};
 pub use types::{IndexProgress, ProcessedMarkdown};
 
-use crate::runtime::AsyncTask;
 use anyhow::Result;
 
 /// Initialize the search system with the given configuration
-pub fn initialize_search(config: crate::config::CrawlConfig) -> AsyncTask<Result<SearchEngine>> {
-    crate::runtime::spawn_async(async move { SearchEngine::create(&config).await })
+pub async fn initialize_search(config: crate::config::CrawlConfig) -> Result<SearchEngine> {
+    SearchEngine::create(&config).await
 }

@@ -89,12 +89,16 @@ pub fn verify(binary_path: &Path) -> Result<bool> {
         Err(_) => return Ok(false), // Can't verify without signtool
     };
 
+    let binary_path_str = binary_path
+        .to_str()
+        .context("Binary path contains invalid UTF-8")?;
+
     let output = Command::new(&signtool)
         .args(&[
             "verify",
             "/pa", // Default Authenticode verification
             "/v",  // Verbose
-            binary_path.to_str().unwrap(),
+            binary_path_str,
         ])
         .output()
         .context("Failed to execute signtool verify")?;
@@ -165,6 +169,11 @@ pub fn sign_with_azure(
 
     let description = format!("Kodegen Daemon v{}", env!("CARGO_PKG_VERSION"));
 
+    let binary_path_str = config
+        .binary_path
+        .to_str()
+        .context("Binary path contains invalid UTF-8")?;
+
     let output = Command::new(tsc)
         .args(&[
             "-e",
@@ -175,7 +184,7 @@ pub fn sign_with_azure(
             profile,
             "-d",
             &description,
-            config.binary_path.to_str().unwrap(),
+            binary_path_str,
         ])
         .output()
         .context("Failed to execute trusted-signing-cli")?;
@@ -208,15 +217,13 @@ pub fn import_certificate_from_base64(base64_cert: &str, password: &str) -> Resu
     file.write_all(&cert_data)
         .context("Failed to write certificate data")?;
 
+    let cert_path_str = cert_path
+        .to_str()
+        .context("Certificate path contains invalid UTF-8")?;
+
     // Import to certificate store
     let output = Command::new("certutil")
-        .args(&[
-            "-f",
-            "-p",
-            password,
-            "-importpfx",
-            cert_path.to_str().unwrap(),
-        ])
+        .args(&["-f", "-p", password, "-importpfx", cert_path_str])
         .output()
         .context("Failed to import certificate")?;
 

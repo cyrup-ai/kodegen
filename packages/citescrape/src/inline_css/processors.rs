@@ -18,22 +18,18 @@ type ExtractionResult = Result<(Vec<(String, String)>, Vec<InliningError>)>;
 
 lazy_static! {
     // These selectors are hardcoded and syntactically valid CSS selectors.
-    // The expect() calls are safe because:
-    // 1. The selector strings are compile-time constants
-    // 2. They follow valid CSS selector syntax
-    // 3. They will never change at runtime
-    // 4. If they were invalid, this would fail immediately at program startup (fail-fast)
+    // If they fail to parse, it indicates a compile-time bug in the selector strings.
     static ref CSS_LINK_SELECTOR: Selector =
         Selector::parse("link[rel=\"stylesheet\"]")
-            .expect("Hardcoded CSS selector is syntactically valid");
+            .expect("BUG: hardcoded CSS selector 'link[rel=\"stylesheet\"]' is invalid - this is a compile-time bug");
 
     static ref IMG_SELECTOR: Selector =
         Selector::parse("img[src]")
-            .expect("Hardcoded image selector is syntactically valid");
+            .expect("BUG: hardcoded CSS selector 'img[src]' is invalid - this is a compile-time bug");
 
     static ref SVG_SELECTOR: Selector =
         Selector::parse("img[src*=\".svg\"]")
-            .expect("Hardcoded SVG selector is syntactically valid");
+            .expect("BUG: hardcoded CSS selector 'img[src*=\".svg\"]' is invalid - this is a compile-time bug");
 }
 
 /// Extract CSS link information from parsed HTML (synchronous, no async)

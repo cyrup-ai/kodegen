@@ -52,17 +52,10 @@ async fn test_compressed_file_size_limit() -> Result<()> {
     let large_content = "a".repeat(25_000_000); // 25MB of 'a' characters
     create_test_file(&temp_dir, "large.com", &large_content)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -98,17 +91,10 @@ async fn test_decompressed_content_size_limit() -> Result<()> {
     let large_content = pattern.repeat(repetitions);
     create_test_file(&temp_dir, "huge.com", &large_content)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -149,17 +135,10 @@ async fn test_compression_ratio_limit() -> Result<()> {
     let bomb_content = "\0".repeat(1_000_000); // 1MB of zeros -> extremely high compression
     create_test_file(&temp_dir, "bomb.com", &bomb_content)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -199,17 +178,10 @@ async fn test_custom_limits_allow_larger_files() -> Result<()> {
     let content = "# Test Document\n\n".repeat(500_000); // ~10MB
     create_test_file(&temp_dir, "medium.com", &content)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -253,17 +225,10 @@ async fn test_normal_markdown_files_within_limits() -> Result<()> {
     create_test_file(&temp_dir, "doc2.com", "# Document 2\n\nMore normal content")?;
     create_test_file(&temp_dir, "doc3.com", "# Document 3\n\nEven more content")?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;

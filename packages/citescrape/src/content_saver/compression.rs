@@ -98,7 +98,7 @@ pub async fn save_compressed_file(
 }
 
 #[cfg(test)]
-mod benchmarks {
+mod tests {
     use super::*;
     use std::io::Cursor;
     use std::time::Instant;

@@ -378,7 +378,7 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .unwrap();
+        .expect("Failed to register SIGINT handler - signal handling is required for daemon operation");
         signal::sigaction(
             Signal::SIGTERM,
             &signal::SigAction::new(
@@ -387,7 +387,7 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .unwrap();
+        .expect("Failed to register SIGTERM handler - signal handling is required for daemon operation");
     }
 }
 
@@ -400,6 +400,10 @@ fn check_signals() -> Option<nix::sys::signal::Signal> {
     if val == 0 {
         None
     } else {
-        Some(Signal::try_from(val as i32).unwrap())
+        // SAFETY: Signal value was stored by our own signal handler, so it must be valid
+        Some(
+            Signal::try_from(val as i32)
+                .expect("Invalid signal number from signal handler - this should never happen"),
+        )
     }
 }

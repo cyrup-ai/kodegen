@@ -128,9 +128,9 @@ impl SearchEngine {
         let retry_config = RetryConfig::default();
         let engine = self.clone();
 
-        let task = retry_task(retry_config, move || {
+        retry_task(retry_config, move || {
             let eng = engine.clone();
-            spawn_async(async move {
+            async move {
                 eng.index.writer(limit).map_err(|e| {
                     SearchError::WriterAcquisition(format!(
                         "Failed to acquire index writer with {}MB limit: {}",
@@ -138,10 +138,8 @@ impl SearchEngine {
                         e
                     ))
                 })
-            })
-        });
-
-        task.await.map_err(SearchError::from)?
+            }
+        }).await
     }
 
     /// Create an index writer with configured memory limit

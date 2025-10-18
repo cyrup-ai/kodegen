@@ -176,8 +176,7 @@ impl CrawlSessionManager {
     /// session_manager.clone().start_cleanup_task();
     /// ```
     pub fn start_cleanup_task(self: Arc<Self>) {
-        use crate::runtime::spawn_async;
-        spawn_async(async move {
+        tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             loop {
                 interval.tick().await;
@@ -278,22 +277,15 @@ impl SearchEngineCache {
 
         // Start incremental indexing service with engine clone
         let engine_for_indexing = engine.clone();
-        let (indexing_tx, indexing_rx) = tokio::sync::oneshot::channel();
-        let _indexing_task =
-            crate::search::IncrementalIndexingService::start(engine_for_indexing, move |result| {
-                let _ = indexing_tx.send(result);
-            });
-
-        // Store indexing sender for later use with CrawlConfig
-        let indexing_sender = match indexing_rx.await {
-            Ok(Ok(sender)) => {
+        let indexing_sender = match crate::search::IncrementalIndexingService::start(engine_for_indexing).await {
+            Ok(sender) => {
                 log::info!(
                     "Incremental indexing service started for output_dir: {:?}",
                     output_dir
                 );
                 Some(Arc::new(sender))
             }
-            Ok(Err(e)) => {
+            Err(e) => {
                 log::error!("Failed to start incremental indexing service: {}", e);
                 None
             }
@@ -485,8 +477,7 @@ impl SearchEngineCache {
     /// engine_cache.clone().start_cleanup_task();
     /// ```
     pub fn start_cleanup_task(self: Arc<Self>) {
-        use crate::runtime::spawn_async;
-        spawn_async(async move {
+        tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             loop {
                 interval.tick().await;

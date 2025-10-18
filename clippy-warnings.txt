@@ -14,3 +14,5 @@
     Checking kodegen_claude_agent v0.1.0 (/Volumes/samsung_t9/kodegen/packages/claude-agent)
     Checking kodegen_daemon v0.1.0 (/Volumes/samsung_t9/kodegen/packages/daemon)
     Checking kodegen_filesystem v0.1.0 (/Volumes/samsung_t9/kodegen/packages/filesystem)
+    Checking kodegen v0.1.0 (/Volumes/samsung_t9/kodegen/packages/server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.14s

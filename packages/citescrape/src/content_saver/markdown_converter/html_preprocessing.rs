@@ -236,65 +236,75 @@ pub fn extract_main_content(html: &str) -> Result<String> {
 // ============================================================================
 
 // Compile regex patterns once at first use
-// These are hardcoded patterns that will never fail to compile
+// These are hardcoded patterns - if they fail to compile, it's a compile-time bug
 static SCRIPT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<script[^>]*>.*?</script>").expect("SCRIPT_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<script[^>]*>.*?</script>")
+        .expect("BUG: hardcoded SCRIPT_RE regex is invalid - this is a compile-time bug")
 });
 
 static STYLE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<style[^>]*>.*?</style>").expect("STYLE_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<style[^>]*>.*?</style>")
+        .expect("BUG: hardcoded STYLE_RE regex is invalid - this is a compile-time bug")
 });
 
-static EVENT_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"on\w+="[^"]*""#).expect("EVENT_RE: hardcoded regex is valid"));
+static EVENT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"on\w+="[^"]*""#)
+        .expect("BUG: hardcoded EVENT_RE regex is invalid - this is a compile-time bug")
+});
 
-static COMMENT_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"<!--.*?-->").expect("COMMENT_RE: hardcoded regex is valid"));
+static COMMENT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"<!--.*?-->")
+        .expect("BUG: hardcoded COMMENT_RE regex is invalid - this is a compile-time bug")
+});
 
 static FORM_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<form[^>]*>.*?</form>").expect("FORM_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<form[^>]*>.*?</form>")
+        .expect("BUG: hardcoded FORM_RE regex is invalid - this is a compile-time bug")
 });
 
 static IFRAME_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<iframe[^>]*>.*?</iframe>").expect("IFRAME_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<iframe[^>]*>.*?</iframe>")
+        .expect("BUG: hardcoded IFRAME_RE regex is invalid - this is a compile-time bug")
 });
 
 static SOCIAL_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?s)<div[^>]*class="[^"]*(?:social|share|follow)[^"]*"[^>]*>.*?</div>"#)
-        .expect("SOCIAL_RE: hardcoded regex is valid")
+        .expect("BUG: hardcoded SOCIAL_RE regex is invalid - this is a compile-time bug")
 });
 
 static COOKIE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?s)<div[^>]*(?:id|class)="[^"]*(?:cookie|popup|modal|overlay)[^"]*"[^>]*>.*?</div>"#,
     )
-    .expect("COOKIE_RE: hardcoded regex is valid")
+    .expect("BUG: hardcoded COOKIE_RE regex is invalid - this is a compile-time bug")
 });
 
 static AD_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?s)<div[^>]*(?:id|class)="[^"]*(?:ad-|ads-|advertisement)[^"]*"[^>]*>.*?</div>"#)
-        .expect("AD_RE: hardcoded regex is valid")
+        .expect("BUG: hardcoded AD_RE regex is invalid - this is a compile-time bug")
 });
 
 static HIDDEN_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?s)<[^>]+style="[^"]*display:\s*none[^"]*"[^>]*>.*?</[^>]+>"#)
-        .expect("HIDDEN_RE: hardcoded regex is valid")
+        .expect("BUG: hardcoded HIDDEN_RE regex is invalid - this is a compile-time bug")
 });
 
 static DETAILS_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<details[^>]*>(.*?)</details>").expect("DETAILS_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<details[^>]*>(.*?)</details>")
+        .expect("BUG: hardcoded DETAILS_RE regex is invalid - this is a compile-time bug")
 });
 
 static SEMANTIC_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"<(/?)(?:article|section|aside|nav|header|footer|figure|figcaption|mark|time)[^>]*>",
     )
-    .expect("SEMANTIC_RE: hardcoded regex is valid")
+    .expect("BUG: hardcoded SEMANTIC_RE regex is invalid - this is a compile-time bug")
 });
 
 // Special case: needs to be compiled for closure captures in details processing
 static SUMMARY_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?s)<summary[^>]*>(.*?)</summary>").expect("SUMMARY_RE: hardcoded regex is valid")
+    Regex::new(r"(?s)<summary[^>]*>(.*?)</summary>")
+        .expect("BUG: hardcoded SUMMARY_RE regex is invalid - this is a compile-time bug")
 });
 
 /// Clean HTML content by removing unwanted elements and scripts

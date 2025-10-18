@@ -18,7 +18,7 @@ pub use crawl_engine::{
 };
 pub use page_extractor::schema::*;
 pub use runtime::{
-    AsyncJsonSave, AsyncStream, AsyncTask, BrowserAction, CrawlRequest, spawn_async,
+    AsyncJsonSave, AsyncStream, BrowserAction, CrawlRequest,
 };
 pub use utils::{get_mirror_path, get_uri_from_path};
 

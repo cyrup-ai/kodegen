@@ -23,14 +23,11 @@ async fn test_builder_requires_storage_dir_and_start_url() {
 
     // This SHOULD compile - both required fields provided
     let temp_dir = TempDir::new().unwrap();
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(config.storage_dir(), temp_dir.path());
     assert_eq!(config.start_url(), "https://example.com");
@@ -39,14 +36,11 @@ async fn test_builder_requires_storage_dir_and_start_url() {
 #[tokio::test]
 async fn test_builder_optional_fields_have_defaults() {
     let temp_dir = TempDir::new().unwrap();
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     // Check defaults
     assert_eq!(config.limit(), None);
@@ -66,8 +60,7 @@ async fn test_builder_with_all_optional_fields() {
     let allowed_domains = vec!["example.com".to_string(), "test.com".to_string()];
     let excluded_patterns = vec![r"\.pdf$".to_string(), r"\.zip$".to_string()];
 
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .limit(Some(100))
@@ -81,10 +74,8 @@ async fn test_builder_with_all_optional_fields() {
         .max_depth(5)
         .screenshot_quality(95)
         .stealth_mode(true)
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(config.limit(), Some(100));
     assert_eq!(config.allowed_domains(), Some(&allowed_domains));
@@ -104,18 +95,15 @@ async fn test_builder_field_override() {
     let temp_dir = TempDir::new().unwrap();
 
     // Test that we can override fields multiple times
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .limit(Some(50))
         .limit(Some(100)) // Override previous value
         .headless(true)
         .headless(false) // Override previous value
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(config.limit(), Some(100));
     assert!(!config.headless());
@@ -135,14 +123,11 @@ async fn test_url_normalization_in_builder() {
     ];
 
     for (input, expected) in test_cases {
-        let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-        let _task = CrawlConfig::builder()
+        let config = CrawlConfig::builder()
             .storage_dir(temp_dir.path().to_path_buf())
             .start_url(input)
-            .build(move |result| {
-                let _ = tx.send(result);
-            });
-        let config = rx.recv().await.unwrap().unwrap();
+            .build()
+            .unwrap();
 
         assert_eq!(config.start_url(), expected);
     }
@@ -152,26 +137,20 @@ async fn test_url_normalization_in_builder() {
 async fn test_storage_dir_path_handling() {
     // Test with absolute path
     let abs_path = PathBuf::from("/tmp/test");
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(abs_path.clone())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.storage_dir(), &abs_path);
 
     // Test with relative path
     let rel_path = PathBuf::from("./output");
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(rel_path.clone())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.storage_dir(), &rel_path);
 }
 
@@ -180,42 +159,33 @@ async fn test_config_validation_logic() {
     let temp_dir = TempDir::new().unwrap();
 
     // Test empty allowed_domains
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .allowed_domains(Some(vec![]))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.allowed_domains(), Some(&vec![]));
 
     // Test empty excluded_patterns
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .excluded_patterns(Some(vec![]))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.excluded_patterns(), Some(&vec![]));
 }
 
 #[tokio::test]
 async fn test_config_serialization() {
     let temp_dir = TempDir::new().unwrap();
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .limit(Some(50))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     // Test that we can serialize to JSON (config has Serialize trait)
     let json = serde_json::to_string(&config).unwrap();
@@ -228,14 +198,11 @@ async fn test_config_serialization() {
 #[tokio::test]
 async fn test_config_debug_trait() {
     let temp_dir = TempDir::new().unwrap();
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     // Test that Debug trait is implemented
     let debug_str = format!("{:?}", config);
@@ -256,13 +223,10 @@ async fn test_builder_state_transitions() {
     let builder_with_storage = builder.storage_dir(temp_dir.path().to_path_buf());
 
     // After setting start_url, we should be in Complete state and can build
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = builder_with_storage
+    let _config = builder_with_storage
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let _config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
 
     // The above should compile and work correctly
 }
@@ -276,26 +240,20 @@ fn test_concurrent_request_limits() {
     let temp_dir = TempDir::new().unwrap();
 
     // Test edge cases for concurrent requests
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .max_concurrent_requests(Some(1))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.max_concurrent_requests, 1);
 
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .max_concurrent_requests(Some(1000))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.max_concurrent_requests, 1000);
 }
 
@@ -304,26 +262,20 @@ fn test_timeout_duration_handling() {
     let temp_dir = TempDir::new().unwrap();
 
     // Test various timeout durations
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .request_timeout(Some(std::time::Duration::from_millis(1)))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.request_timeout, std::time::Duration::from_millis(1));
 
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
         .request_timeout(Some(std::time::Duration::from_secs(3600)))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    let config = rx.recv().await.unwrap().unwrap();
+        .build()
+        .unwrap();
     assert_eq!(config.request_timeout, std::time::Duration::from_secs(3600));
 }
 */

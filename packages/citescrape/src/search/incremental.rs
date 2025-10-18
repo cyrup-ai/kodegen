@@ -200,90 +200,78 @@ impl IndexingSender {
         }
     }
 
-    /// Send a delete operation with completion callback
+    /// Send a delete operation and await completion
     #[inline]
-    pub fn delete(
-        &self,
-        url: ImString,
-        on_result: impl FnOnce(Result<()>) + Send + 'static,
-    ) -> crate::runtime::AsyncTask<()> {
-        let sender = self.sender.clone();
-        let pending_operations = self.pending_operations.clone();
-        let next_completion_id = self.next_completion_id.clone();
-        let completion_callbacks = self.completion_callbacks.clone();
-        let stats = self.stats.clone();
+    pub async fn delete(&self, url: ImString) -> Result<()> {
+        let pending = self.pending_operations.load(Ordering::Relaxed);
+        if pending >= MAX_PENDING_MESSAGES {
+            return Err(anyhow::anyhow!(
+                "Indexing service backpressure: {} pending operations",
+                pending
+            ));
+        }
 
-        spawn_async(async move {
-            let pending = pending_operations.load(Ordering::Relaxed);
-            if pending >= MAX_PENDING_MESSAGES {
-                on_result(Err(anyhow::anyhow!(
-                    "Indexing service backpressure: {} pending operations",
-                    pending
-                )));
-                return;
+        let completion_id = self.next_completion_id.fetch_add(1, Ordering::Relaxed) as u64;
+
+        // Create a oneshot channel for the result
+        let (tx, rx) = tokio::sync::oneshot::channel();
+
+        {
+            let mut callbacks = self.completion_callbacks.lock().await;
+            callbacks.insert(completion_id, Box::new(move |result| {
+                let _ = tx.send(result);
+            }));
+        }
+
+        let message = IndexingMessage::Delete { url, completion_id };
+
+        match self.sender.send(message) {
+            Ok(()) => {
+                self.pending_operations.fetch_add(1, Ordering::Relaxed);
+                self.stats.pending_count.fetch_add(1, Ordering::Relaxed);
+                // Wait for background worker to complete the operation
+                rx.await.map_err(|_| anyhow::anyhow!("Indexing service disconnected"))?
             }
-
-            let completion_id = next_completion_id.fetch_add(1, Ordering::Relaxed) as u64;
-
-            {
-                let mut callbacks = completion_callbacks.lock().await;
-                callbacks.insert(completion_id, Box::new(on_result));
+            Err(_) => {
+                let _ = self.completion_callbacks.lock().await.remove(&completion_id);
+                Err(anyhow::anyhow!("Indexing service disconnected"))
             }
-
-            let message = IndexingMessage::Delete { url, completion_id };
-
-            match sender.send(message) {
-                Ok(()) => {
-                    pending_operations.fetch_add(1, Ordering::Relaxed);
-                    stats.pending_count.fetch_add(1, Ordering::Relaxed);
-                    // Success - callback will be called by background worker
-                }
-                Err(_) => {
-                    let callback = completion_callbacks.lock().await.remove(&completion_id);
-                    if let Some(callback) = callback {
-                        callback(Err(anyhow::anyhow!("Indexing service disconnected")));
-                    }
-                }
-            }
-        })
+        }
     }
 
     /// Trigger index optimization
     #[inline]
-    pub fn optimize(
-        &self,
-        force: bool,
-        on_result: impl FnOnce(Result<()>) + Send + 'static,
-    ) -> crate::runtime::AsyncTask<()> {
-        let sender = self.sender.clone();
-        let next_completion_id = self.next_completion_id.clone();
-        let completion_callbacks = self.completion_callbacks.clone();
+    pub async fn optimize(&self, force: bool) -> Result<()> {
+        let completion_id = self.next_completion_id.fetch_add(1, Ordering::Relaxed) as u64;
+        
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        
+        {
+            let mut callbacks = self.completion_callbacks.lock().await;
+            callbacks.insert(completion_id, Box::new(move |result| {
+                let _ = tx.send(result);
+            }));
+        }
 
-        spawn_async(async move {
-            let completion_id = next_completion_id.fetch_add(1, Ordering::Relaxed) as u64;
+        let message = IndexingMessage::Optimize {
+            force,
+            completion_id,
+        };
 
-            {
-                let mut callbacks = completion_callbacks.lock().await;
-                callbacks.insert(completion_id, Box::new(on_result));
-            }
-
-            let message = IndexingMessage::Optimize {
-                force,
-                completion_id,
-            };
-
-            match sender.send(message) {
-                Ok(()) => {
-                    // Success - callback will be called by background worker
-                }
-                Err(_) => {
-                    let callback = completion_callbacks.lock().await.remove(&completion_id);
-                    if let Some(callback) = callback {
-                        callback(Err(anyhow::anyhow!("Indexing service disconnected")));
-                    }
+        match self.sender.send(message) {
+            Ok(()) => {
+                // Wait for background worker to complete and invoke callback
+                match rx.await {
+                    Ok(result) => result,
+                    Err(_) => Err(anyhow::anyhow!("Optimization callback was dropped")),
                 }
             }
-        })
+            Err(_) => {
+                // Clean up callback and return error
+                self.completion_callbacks.lock().await.remove(&completion_id);
+                Err(anyhow::anyhow!("Indexing service disconnected"))
+            }
+        }
     }
 
     /// Get current indexing statistics
@@ -303,57 +291,48 @@ impl IndexingSender {
 
 impl IncrementalIndexingService {
     /// Create and start the incremental indexing service
-    pub fn start(
-        engine: SearchEngine,
-        on_result: impl FnOnce(Result<IndexingSender>) + Send + 'static,
-    ) -> crate::runtime::AsyncTask<()> {
-        spawn_async(async move {
-            let result = {
-                let (sender, receiver) = mpsc::unbounded_channel();
-                let completion_callbacks =
-                    Arc::new(Mutex::new(ahash::AHashMap::with_capacity(1024)));
-                let next_completion_id = Arc::new(AtomicUsize::new(1));
-                let pending_operations = Arc::new(AtomicUsize::new(0));
-                let is_running = Arc::new(AtomicBool::new(true));
-                let stats = Arc::new(IndexingStats::new());
+    pub async fn start(engine: SearchEngine) -> Result<IndexingSender> {
+        let (sender, receiver) = mpsc::unbounded_channel();
+        let completion_callbacks =
+            Arc::new(Mutex::new(ahash::AHashMap::with_capacity(1024)));
+        let next_completion_id = Arc::new(AtomicUsize::new(1));
+        let pending_operations = Arc::new(AtomicUsize::new(0));
+        let is_running = Arc::new(AtomicBool::new(true));
+        let stats = Arc::new(IndexingStats::new());
 
-                // Start background worker task
-                let worker_callbacks = completion_callbacks.clone();
-                let worker_pending = pending_operations.clone();
-                let worker_running = is_running.clone();
-                let worker_stats = stats.clone();
+        // Start background worker task
+        let worker_callbacks = completion_callbacks.clone();
+        let worker_pending = pending_operations.clone();
+        let worker_running = is_running.clone();
+        let worker_stats = stats.clone();
 
-                spawn_async(async move {
-                    Self::worker_loop(
-                        engine,
-                        receiver,
-                        worker_callbacks,
-                        worker_pending,
-                        worker_running,
-                        worker_stats,
-                    )
-                    .await;
-                });
+        tokio::spawn(async move {
+            Self::worker_loop(
+                engine,
+                receiver,
+                worker_callbacks,
+                worker_pending,
+                worker_running,
+                worker_stats,
+            )
+            .await;
+        });
 
-                let _service = IncrementalIndexingService {
-                    sender: sender.clone(),
-                    completion_callbacks: completion_callbacks.clone(),
-                    next_completion_id: next_completion_id.clone(),
-                    pending_operations: pending_operations.clone(),
-                    is_running,
-                    stats: stats.clone(),
-                };
+        let _service = IncrementalIndexingService {
+            sender: sender.clone(),
+            completion_callbacks: completion_callbacks.clone(),
+            next_completion_id: next_completion_id.clone(),
+            pending_operations: pending_operations.clone(),
+            is_running,
+            stats: stats.clone(),
+        };
 
-                Ok(IndexingSender {
-                    sender,
-                    completion_callbacks,
-                    next_completion_id,
-                    pending_operations,
-                    stats,
-                })
-            };
-
-            on_result(result);
+        Ok(IndexingSender {
+            sender,
+            completion_callbacks,
+            next_completion_id,
+            pending_operations,
+            stats,
         })
     }
 

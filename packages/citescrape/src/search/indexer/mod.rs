@@ -18,7 +18,7 @@ pub use batch::{BatchConfig, IndexingLimits};
 
 use super::engine::SearchEngine;
 use super::types::{IndexProgress, IndexingPhase};
-use crate::runtime::{AsyncStream, AsyncTask};
+use crate::runtime::AsyncStream;
 use ahash::AHashSet;
 use anyhow::Result;
 use batch::BatchContext;
@@ -245,57 +245,55 @@ impl MarkdownIndexer {
     }
 
     /// Index a single file with zero-allocation optimizations (legacy async API)
-    fn index_single_file_optimized(
+    async fn index_single_file_optimized(
         engine: &SearchEngine,
         file_path: &Path,
         url: &ImString,
-    ) -> AsyncTask<Result<()>> {
+    ) -> Result<()> {
         let engine = engine.clone();
         let file_path = file_path.to_path_buf();
         let url = url.clone();
 
-        crate::runtime::spawn_async(async move {
-            // Get writer with retry logic to handle transient lock failures
-            let mut writer = engine
-                .writer_with_retry(Some(64 * 1024 * 1024))
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to acquire index writer: {}", e))?;
+        // Get writer with retry logic to handle transient lock failures
+        let mut writer = engine
+            .writer_with_retry(Some(64 * 1024 * 1024))
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to acquire index writer: {}", e))?;
 
-            // Index the file (synchronous)
-            batch::index_single_file_sync(
-                &engine,
-                &mut writer,
-                &file_path,
-                &url,
-                &batch::IndexingLimits::default(),
-            )?;
+        // Index the file (synchronous)
+        batch::index_single_file_sync(
+            &engine,
+            &mut writer,
+            &file_path,
+            &url,
+            &batch::IndexingLimits::default(),
+        )?;
 
-            // Commit using Tantivy's async Future-based API (non-blocking)
-            let prepared = writer
-                .prepare_commit()
-                .map_err(|e| anyhow::anyhow!("Failed to prepare commit: {}", e))?;
-            prepared
-                .commit_future()
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to commit: {}", e))?;
+        // Commit using Tantivy's async Future-based API (non-blocking)
+        let prepared = writer
+            .prepare_commit()
+            .map_err(|e| anyhow::anyhow!("Failed to prepare commit: {}", e))?;
+        prepared
+            .commit_future()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to commit: {}", e))?;
 
-            // Reload reader to see changes
-            engine
-                .reader()
-                .reload()
-                .map_err(|e| anyhow::anyhow!("Failed to reload reader: {}", e))?;
+        // Reload reader to see changes
+        engine
+            .reader()
+            .reload()
+            .map_err(|e| anyhow::anyhow!("Failed to reload reader: {}", e))?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    /// Index a single markdown file (legacy API)
-    pub fn index_file(&self, file_path: &Path, url: &ImString) -> AsyncTask<Result<()>> {
+    /// Index a single markdown file
+    pub async fn index_file(&self, file_path: &Path, url: &ImString) -> Result<()> {
         let engine = self.engine.clone();
         let file_path = file_path.to_path_buf();
         let url = url.clone();
 
-        Self::index_single_file_optimized(&engine, &file_path, &url)
+        Self::index_single_file_optimized(&engine, &file_path, &url).await
     }
 
     /// Get index statistics

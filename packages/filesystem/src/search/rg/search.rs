@@ -260,13 +260,18 @@ impl<W: io::Write> SearchWorker<W> {
 
     /// Search the given file path by first asking the preprocessor for the
     /// data to search instead of opening the path directly.
+    ///
+    /// PRECONDITION: This function must only be called when preprocessor is Some,
+    /// as guaranteed by should_preprocess() check.
     fn search_preprocessor(
         &mut self,
         path: &Path,
     ) -> io::Result<()> {
         use std::{fs::File, process::Stdio};
 
-        let bin = self.config.preprocessor.as_ref().unwrap();
+        // SAFETY: should_preprocess() ensures preprocessor is Some before calling this
+        let bin = self.config.preprocessor.as_ref()
+            .expect("BUG: search_preprocessor called with None preprocessor - should_preprocess() contract violated");
         let mut cmd = std::process::Command::new(bin);
         cmd.arg(path).stdin(Stdio::from(File::open(path)?));
 
