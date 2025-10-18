@@ -107,6 +107,7 @@ impl Default for ServerConfig {
             file_read_line_limit: 1000,
             file_write_line_limit: 50,
             fuzzy_search_threshold: 0.7,
+            sse_connection_timeout_secs: 5,
             current_client: None,
             client_history: Vec::new(),
             system_info: get_system_info(),
@@ -310,6 +311,11 @@ impl ConfigManager {
     }
 
     #[must_use]
+    pub fn get_sse_connection_timeout_secs(&self) -> u64 {
+        self.config.read().sse_connection_timeout_secs
+    }
+
+    #[must_use]
     pub fn get_value(&self, key: &str) -> Option<ConfigValue> {
         let config = self.config.read();
         match key {
@@ -321,6 +327,9 @@ impl ConfigManager {
             "file_write_line_limit" => Some(ConfigValue::Number(i64::try_from(config.file_write_line_limit).unwrap_or(i64::MAX))),
             "fuzzy_search_threshold" => Some(ConfigValue::Number(
                 (config.fuzzy_search_threshold * 100.0) as i64
+            )),
+            "sse_connection_timeout_secs" => Some(ConfigValue::Number(
+                i64::try_from(config.sse_connection_timeout_secs).unwrap_or(i64::MAX)
             )),
             _ => None,
         }
@@ -378,6 +387,18 @@ impl ConfigManager {
                         ));
                     }
                     config.fuzzy_search_threshold = (num as f64) / 100.0;
+                }
+                "sse_connection_timeout_secs" => {
+                    let num = value.into_number()?;
+                    if num <= 0 {
+                        return Err(McpError::InvalidArguments(
+                            "sse_connection_timeout_secs must be positive".to_string()
+                        ));
+                    }
+                    config.sse_connection_timeout_secs = u64::try_from(num)
+                        .map_err(|_| McpError::InvalidArguments(
+                            "sse_connection_timeout_secs value out of range".to_string()
+                        ))?;
                 }
                 _ => {
                     return Err(McpError::InvalidArguments(

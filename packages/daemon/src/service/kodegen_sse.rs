@@ -66,7 +66,7 @@ impl KodegenSseService {
         Ok(())
     }
     
-    pub fn stop(&mut self) -> Result<()> {
+    pub async fn stop(&mut self) -> Result<()> {
         if let Some(mut child) = self.child_process.take() {
             let pid = child.id();
             log::info!("Stopping kodegen SSE server (PID: {:?})", pid);
@@ -79,36 +79,55 @@ impl KodegenSseService {
                 if let Some(pid_u32) = pid {
                     let nix_pid = Pid::from_raw(pid_u32 as i32);
                     
-                    // Send SIGTERM for graceful shutdown
+                    // Phase 1: Send SIGTERM for graceful shutdown
                     match signal::kill(nix_pid, Signal::SIGTERM) {
                         Ok(()) => log::info!("Sent SIGTERM to kodegen process"),
                         Err(e) => log::warn!("Failed to send SIGTERM: {}", e),
                     }
                     
-                    // Wait for graceful exit with 30 second timeout
-                    let timeout = std::time::Duration::from_secs(30);
-                    let start = std::time::Instant::now();
+                    // Phase 2: Wait up to 30 seconds for graceful exit
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(30),
+                        child.wait()
+                    ).await {
+                        Ok(Ok(status)) => {
+                            log::info!("Kodegen SSE server exited gracefully: {}", status);
+                            return Ok(());
+                        }
+                        Ok(Err(e)) => {
+                            log::error!("Error waiting for kodegen process: {}", e);
+                            return Err(e.into());
+                        }
+                        Err(_) => {
+                            log::warn!("Graceful shutdown timeout (30s), escalating to SIGKILL");
+                        }
+                    }
                     
-                    loop {
-                        match child.try_wait() {
-                            Ok(Some(status)) => {
-                                log::info!("Kodegen SSE server exited with status: {}", status);
-                                return Ok(());
-                            }
-                            Ok(None) => {
-                                // Process still running
-                                if start.elapsed() > timeout {
-                                    log::warn!("Graceful shutdown timeout, sending SIGKILL");
-                                    child.start_kill()?;
-                                    std::thread::sleep(std::time::Duration::from_millis(100));
-                                    continue;  // Loop again to confirm SIGKILL worked
-                                }
-                                std::thread::sleep(std::time::Duration::from_millis(100));
-                            }
-                            Err(e) => {
-                                log::error!("Error waiting for kodegen process: {}", e);
-                                return Err(e.into());
-                            }
+                    // Phase 3: Graceful shutdown failed, send SIGKILL
+                    child.start_kill()?;
+                    log::warn!("Sent SIGKILL to kodegen process");
+                    
+                    // Phase 4: Wait up to 5 seconds for SIGKILL (should be instant)
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(5),
+                        child.wait()
+                    ).await {
+                        Ok(Ok(status)) => {
+                            log::info!("Process terminated by SIGKILL: {}", status);
+                            return Ok(());
+                        }
+                        Ok(Err(e)) => {
+                            log::error!("Error after SIGKILL: {}", e);
+                            return Err(e.into());
+                        }
+                        Err(_) => {
+                            // SIGKILL failed after 5 seconds - this is a kernel-level problem
+                            return Err(anyhow::anyhow!(
+                                "Process did not respond to SIGKILL after 5 seconds. \
+                                 This indicates a kernel-level issue (process in uninterruptible sleep, \
+                                 zombie process, or kernel bug). PID: {:?}",
+                                pid_u32
+                            ));
                         }
                     }
                 }
@@ -116,19 +135,32 @@ impl KodegenSseService {
             
             #[cfg(windows)]
             {
-                // Windows doesn't have SIGTERM, use forceful termination
-                log::info!("Terminating kodegen process (Windows)");
+                // Windows doesn't have SIGTERM - start_kill() sends SIGKILL equivalent
+                log::info!("Terminating kodegen process (Windows - forceful kill)");
                 child.start_kill()?;
                 
-                // Poll for process exit (max 3 seconds)
-                for _ in 0..30 {
-                    if let Ok(Some(status)) = child.try_wait() {
-                        log::info!("Kodegen SSE server exited with status: {}", status);
+                // Wait up to 5 seconds for process to exit
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    child.wait()
+                ).await {
+                    Ok(Ok(status)) => {
+                        log::info!("Kodegen SSE server terminated: {}", status);
                         return Ok(());
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    Ok(Err(e)) => {
+                        log::error!("Error terminating kodegen process: {}", e);
+                        return Err(e.into());
+                    }
+                    Err(_) => {
+                        // Process didn't die after 5 seconds of forceful termination
+                        return Err(anyhow::anyhow!(
+                            "Process did not terminate after 5 seconds on Windows. \
+                             PID: {:?}. This may indicate a hung process or system issue.",
+                            child.id()
+                        ));
+                    }
                 }
-                log::warn!("Kodegen process may not have exited cleanly");
             }
         }
         

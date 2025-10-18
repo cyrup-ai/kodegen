@@ -139,7 +139,6 @@ where
     log::debug!("Initializing filesystem tools");
     
     let search_manager = Arc::new(kodegen_filesystem::search::SearchManager::new(config_manager.clone()));
-    search_manager.clone().start_cleanup_task();
     
     let (tool_router, prompt_router) = register_tool(
         tool_router,
@@ -168,7 +167,10 @@ where
     let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::StartSearchTool::new(search_manager.clone()));
     let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::GetMoreSearchResultsTool::new(search_manager.clone()));
     let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::StopSearchTool::new(search_manager.clone()));
-    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::ListSearchesTool::new(search_manager));
+    let (tool_router, prompt_router) = register_tool(tool_router, prompt_router, kodegen_filesystem::search::ListSearchesTool::new(search_manager.clone()));
+    
+    // Start cleanup task after all tools are registered to avoid race conditions
+    search_manager.start_cleanup_task();
     
     Ok((tool_router, prompt_router))
 }

@@ -15,6 +15,8 @@ use rmcp::{
 };
 use serde_json::json;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 use kodegen_utils::usage_tracker::UsageTracker;
 
 /// MCP Server that provides stdio transport with optional SSE proxy
@@ -43,11 +45,13 @@ impl StdioProxyServer {
     /// * `config_manager` - Configuration manager
     /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_categories` - Tool categories to enable
+    /// * `connection_timeout` - Timeout for SSE connection attempt
     pub async fn new(
         sse_url: Option<&str>,
         config_manager: kodegen_config::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_categories: &Option<std::collections::HashSet<String>>,
+        connection_timeout: Duration,
     ) -> Result<Self> {
         // Build routers for metadata (schemas and prompts)
         let routers = crate::common::build_routers::<Self>(
@@ -59,14 +63,22 @@ impl StdioProxyServer {
         // Create SSE client if URL provided
         let sse_client = match sse_url {
             Some(url) => {
-                log::info!("Connecting to SSE server at {}", url);
-                match kodegen_mcp_client::create_sse_client(url).await {
-                    Ok(client) => {
+                log::info!("Connecting to SSE server at {} (timeout: {}s)", url, connection_timeout.as_secs());
+                
+                let connect_future = kodegen_mcp_client::create_sse_client(url);
+                let result = timeout(connection_timeout, connect_future).await;
+                
+                match result {
+                    Ok(Ok(client)) => {
                         log::info!("Successfully connected to SSE server");
                         Some(Arc::new(client))
                     }
-                    Err(e) => {
+                    Ok(Err(e)) => {
                         log::warn!("Failed to connect to SSE server: {}. Running in standalone mode.", e);
+                        None
+                    }
+                    Err(_) => {
+                        log::warn!("SSE connection timeout after {}s. Running in standalone mode.", connection_timeout.as_secs());
                         None
                     }
                 }

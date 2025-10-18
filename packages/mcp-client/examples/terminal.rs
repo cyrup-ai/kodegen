@@ -21,74 +21,104 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Connected to server: {:?}", client.server_info());
 
-    // 1. START_TERMINAL_COMMAND - Start an echo command
-    info!("1. Testing start_terminal_command");
-    let response: StartTerminalCommandResponse = client.call_tool_typed(
-        tools::START_TERMINAL_COMMAND,
-        json!({
-            "command": "echo 'Hello from terminal'",
-            "timeout_ms": 5000
-        })
-    ).await?;
-    
-    let pid = response.pid;
-    info!("Started command with PID: {}", pid);
-    
-    // 2. READ_TERMINAL_OUTPUT - Read command output
-    info!("2. Testing read_terminal_output");
-    match client.call_tool(
-        tools::READ_TERMINAL_OUTPUT,
-        json!({ "pid": pid, "timeout_ms": 1000 })
-    ).await {
-        Ok(result) => info!("Read output: {:?}", result),
-        Err(e) => error!("Failed to read output: {}", e),
-    }
+    // Run example with guaranteed cleanup
+    let result = run_terminal_example(&client).await;
 
-    // 3. SEND_TERMINAL_INPUT - Send input to an interactive command
-    info!("3. Testing send_terminal_input");
-    // Start an interactive command first
-    let interactive_response: StartTerminalCommandResponse = client.call_tool_typed(
-        tools::START_TERMINAL_COMMAND,
-        json!({
-            "command": "cat",  // cat waits for input
-            "timeout_ms": 1000
-        })
-    ).await?;
+    // Always close client, regardless of example result
+    client.close().await?;
+
+    // Propagate any error from the example AFTER cleanup
+    result
+}
+
+async fn run_terminal_example(client: &kodegen_mcp_client::KodegenClient) -> anyhow::Result<()> {
+    // Track PIDs for cleanup
+    let mut pids = Vec::new();
     
-    let interactive_pid = interactive_response.pid;
-    info!("Started interactive command with PID: {}", interactive_pid);
-    
-    match client.call_tool(
-        tools::SEND_TERMINAL_INPUT,
-        json!({
-            "pid": interactive_pid,
-            "input": "test input\n"
-        })
-    ).await {
-        Ok(result) => info!("Sent input: {:?}", result),
-        Err(e) => error!("Failed to send input: {}", e),
-    }
+    // Run all tests, capturing result
+    let test_result = async {
+        // 1. START_TERMINAL_COMMAND - Start an echo command
+        info!("1. Testing start_terminal_command");
+        let response: StartTerminalCommandResponse = client.call_tool_typed(
+            tools::START_TERMINAL_COMMAND,
+            json!({
+                "command": "echo 'Hello from terminal'",
+                "timeout_ms": 5000
+            })
+        ).await?;
+        
+        let pid = response.pid;
+        pids.push(pid);
+        info!("Started command with PID: {}", pid);
+        
+        // 2. READ_TERMINAL_OUTPUT - Read command output
+        info!("2. Testing read_terminal_output");
+        match client.call_tool(
+            tools::READ_TERMINAL_OUTPUT,
+            json!({ "pid": pid, "timeout_ms": 1000 })
+        ).await {
+            Ok(result) => info!("Read output: {:?}", result),
+            Err(e) => error!("Failed to read output: {}", e),
+        }
 
-    // 4. STOP_TERMINAL_COMMAND - Stop the interactive command
-    info!("4. Testing stop_terminal_command");
-    match client.call_tool(
-        tools::STOP_TERMINAL_COMMAND,
-        json!({ "pid": interactive_pid })
-    ).await {
-        Ok(result) => info!("Stopped command: {:?}", result),
-        Err(e) => error!("Failed to stop command: {}", e),
-    }
+        // 3. SEND_TERMINAL_INPUT - Send input to an interactive command
+        info!("3. Testing send_terminal_input");
+        // Start an interactive command first
+        let interactive_response: StartTerminalCommandResponse = client.call_tool_typed(
+            tools::START_TERMINAL_COMMAND,
+            json!({
+                "command": "cat",  // cat waits for input
+                "timeout_ms": 1000
+            })
+        ).await?;
+        
+        let interactive_pid = interactive_response.pid;
+        pids.push(interactive_pid);
+        info!("Started interactive command with PID: {}", interactive_pid);
+        
+        match client.call_tool(
+            tools::SEND_TERMINAL_INPUT,
+            json!({
+                "pid": interactive_pid,
+                "input": "test input\n"
+            })
+        ).await {
+            Ok(result) => info!("Sent input: {:?}", result),
+            Err(e) => error!("Failed to send input: {}", e),
+        }
 
-    // 5. LIST_TERMINAL_COMMANDS - List all active sessions
-    info!("5. Testing list_terminal_commands");
-    match client.call_tool(tools::LIST_TERMINAL_COMMANDS, json!({})).await {
-        Ok(result) => info!("Active sessions: {:?}", result),
-        Err(e) => error!("Failed to list sessions: {}", e),
-    }
+        // 4. STOP_TERMINAL_COMMAND - Stop the interactive command
+        info!("4. Testing stop_terminal_command");
+        match client.call_tool(
+            tools::STOP_TERMINAL_COMMAND,
+            json!({ "pid": interactive_pid })
+        ).await {
+            Ok(result) => info!("Stopped command: {:?}", result),
+            Err(e) => error!("Failed to stop command: {}", e),
+        }
 
-    // Cleanup: Stop any remaining processes
+        // 5. LIST_TERMINAL_COMMANDS - List all active sessions
+        info!("5. Testing list_terminal_commands");
+        match client.call_tool(tools::LIST_TERMINAL_COMMANDS, json!({})).await {
+            Ok(result) => info!("Active sessions: {:?}", result),
+            Err(e) => error!("Failed to list sessions: {}", e),
+        }
+
+        info!("Terminal tools example tests completed");
+        Ok::<(), anyhow::Error>(())
+    }.await;
+
+    // Always cleanup terminal processes, regardless of test result
+    cleanup_terminal_processes(client, &pids).await;
+
+    // Propagate test result AFTER cleanup
+    test_result
+}
+
+async fn cleanup_terminal_processes(client: &kodegen_mcp_client::KodegenClient, pids: &[i64]) {
     info!("\nCleaning up processes...");
-    for process_pid in [pid, interactive_pid] {
+    
+    for process_pid in pids {
         match client.call_tool(
             tools::STOP_TERMINAL_COMMAND,
             json!({ "pid": process_pid })
@@ -104,10 +134,4 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
-
-    // Graceful shutdown
-    client.close().await?;
-    info!("Terminal tools example completed successfully");
-
-    Ok(())
 }

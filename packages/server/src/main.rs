@@ -58,11 +58,13 @@ async fn async_main() -> Result<()> {
             // Ensure daemon is running for stdio mode
             cli::daemon::ensure_daemon_running().await?;
             
+            let timeout = cli.sse_connection_timeout(&config_manager);
             let server = stdio::StdioProxyServer::new(
                 proxy_url.as_deref(),
                 config_manager,
                 usage_tracker,
                 &enabled_categories,
+                timeout,
             ).await?;
             
             server.serve_stdio().await?;
@@ -83,19 +85,37 @@ async fn async_main() -> Result<()> {
                 config_manager,
             );
             
-            let ct = server.serve(addr).await?;
+            let server_handle = server.serve(addr).await?;
             
-            log::info!("SSE server running, press Ctrl+C to stop");
+            log::info!("SSE server running on http://{}", addr);
+            log::info!("Press Ctrl+C to initiate graceful shutdown");
+            
             tokio::signal::ctrl_c().await?;
             
             let timeout = cli.shutdown_timeout();
-            log::info!("Shutting down SSE server gracefully (timeout: {:?})...", timeout);
+            log::info!(
+                "Shutdown signal received, initiating graceful shutdown (maximum timeout: {:?})",
+                timeout
+            );
             
-            // Cancel the server and wait for graceful shutdown
-            ct.cancel();
+            // Signal server to begin shutdown
+            server_handle.cancel();
             
-            // Give in-flight requests time to complete
-            tokio::time::sleep(timeout).await;
+            // Wait for server to complete shutdown, with timeout as safety maximum
+            match server_handle.wait_for_completion(timeout).await {
+                Ok(()) => {
+                    log::info!("Server shutdown completed successfully");
+                }
+                Err(_elapsed) => {
+                    log::warn!(
+                        "Graceful shutdown timeout ({:?}) elapsed before completion. \
+                         Forcing exit. Some in-flight requests may have been interrupted.",
+                        timeout
+                    );
+                }
+            }
+            
+            log::info!("SSE server stopped");
         }
     }
     

@@ -8,7 +8,6 @@ use rmcp::{
 };
 use std::net::SocketAddr;
 use kodegen_utils::usage_tracker::UsageTracker;
-use tokio_util::sync::CancellationToken;
 
 /// MCP Server that serves tools via SSE transport
 #[derive(Clone)]
@@ -36,19 +35,39 @@ impl SseServer {
     }
     
     /// Create and serve SSE server on the given address
-    pub async fn serve(self, addr: SocketAddr) -> Result<CancellationToken> {
+    pub async fn serve(self, addr: SocketAddr) -> Result<crate::sse::ServerHandle> {
         use rmcp::transport::sse_server::SseServer as RmcpSseServer;
+        use tokio::sync::oneshot;
         
         log::info!("Starting SSE server on http://{}", addr);
         log::info!("SSE endpoint: http://{}/sse", addr);
         log::info!("Message endpoint: http://{}/message", addr);
         
-        // Use the simplified pattern from counter_sse_directly.rs
+        // Create completion channel for graceful shutdown signaling
+        let (completion_tx, completion_rx) = oneshot::channel();
+        
+        // Start rmcp SSE server
         let ct = RmcpSseServer::serve(addr)
             .await?
             .with_service_directly(move || self.clone());
         
-        Ok(ct)
+        // Spawn monitor task to detect shutdown initiation
+        // Note: rmcp doesn't expose task completion, so we signal when
+        // cancellation is triggered. This allows early exit from timeout
+        // while the configured timeout acts as a safety maximum.
+        let monitor_ct = ct.clone();
+        tokio::spawn(async move {
+            // Wait for cancellation signal
+            monitor_ct.cancelled().await;
+            
+            log::debug!("Server cancellation detected, signaling shutdown readiness");
+            
+            // Signal that cancellation has been processed
+            // Ignore error if receiver already dropped (shutdown already handled)
+            let _ = completion_tx.send(());
+        });
+        
+        Ok(crate::sse::ServerHandle::new(ct, completion_rx))
     }
 }
 

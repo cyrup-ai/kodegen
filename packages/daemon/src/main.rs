@@ -123,7 +123,7 @@ async fn run_daemon(
 
     daemon::systemd_ready(); // tell systemd we are ready
     info!("kodegen daemon started (pid {})", std::process::id());
-    mgr.run()?;
+    mgr.run().await?;
     info!("kodegen daemon exiting");
     Ok(())
 }

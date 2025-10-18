@@ -149,7 +149,7 @@ impl ServiceManager {
     }
 
     /// Central event‑loop.  Runs until SIGINT / SIGTERM.
-    pub fn run(mut self) -> Result<()> {
+    pub async fn run(mut self) -> Result<()> {
         // Process lifecycle start event
         let action = self.lifecycle.step(Event::CmdStart);
         if action == Action::SpawnProcess {
@@ -202,7 +202,7 @@ impl ServiceManager {
 
                         // Shutdown kodegen SSE server if running
                         if let Some(mut service) = self.kodegen_sse_service.take()
-                            && let Err(e) = service.stop() {
+                            && let Err(e) = service.stop().await {
                                 error!("Error stopping kodegen SSE server: {}", e);
                             }
 

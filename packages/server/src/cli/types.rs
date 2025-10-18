@@ -56,6 +56,11 @@ pub struct Cli {
     /// Can also be set via KODEGEN_SHUTDOWN_TIMEOUT_SECS environment variable
     #[arg(long, value_name = "SECONDS", env = "KODEGEN_SHUTDOWN_TIMEOUT_SECS", default_value = "30")]
     pub shutdown_timeout: u64,
+
+    /// SSE connection timeout in seconds (default: 5)
+    /// Can also be set via KODEGEN_SSE_TIMEOUT_SECS environment variable
+    #[arg(long, value_name = "SECONDS", env = "KODEGEN_SSE_TIMEOUT_SECS")]
+    pub sse_timeout: Option<u64>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -107,6 +112,12 @@ impl Cli {
     /// Get the shutdown timeout as a Duration
     pub fn shutdown_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.shutdown_timeout)
+    }
+
+    /// Get the SSE connection timeout with fallback to config
+    pub fn sse_connection_timeout(&self, config_manager: &kodegen_config::ConfigManager) -> std::time::Duration {
+        let seconds = self.sse_timeout.unwrap_or_else(|| config_manager.get_sse_connection_timeout_secs());
+        std::time::Duration::from_secs(seconds)
     }
 }
 
