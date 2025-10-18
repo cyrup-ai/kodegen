@@ -108,7 +108,8 @@ async fn connect_with_retry(
         
         // Sleep before retry, but make it cancellable
         // Add jitter (0-25% of backoff) to prevent thundering herd
-        let jitter = rand::thread_rng().gen_range(0..backoff.as_millis() / 4);
+        let jitter_max = (backoff.as_millis() / 4).max(1);
+        let jitter = rand::thread_rng().gen_range(0..jitter_max);
         let sleep_duration = backoff + Duration::from_millis(jitter as u64);
         
         tokio::select! {

@@ -71,20 +71,19 @@ pub async fn save_html_content_with_resources(
     let html_content = html_content.to_string();
     let resources = resources.clone();
 
-    // inline_resources_from_info and get_mirror_path are now async
+    // Get mirror path first (synchronous - pure computation)
+    let path = get_mirror_path(&url, &output_dir, "index.html")?;
+    
+    // Then inline resources (async)
     let config = crate::inline_css::InlineConfig::default();
-
-    let (inline_future, path_future) = tokio::join!(
-        crate::inline_css::inline_resources_from_info(
-            html_content.clone(),
-            url.clone(),
-            &config,
-            resources,
-            max_inline_image_size_bytes,
-            rate_rps
-        ),
-        get_mirror_path(&url, &output_dir, "index.html")
-    );
+    let inline_future = crate::inline_css::inline_resources_from_info(
+        html_content.clone(),
+        url.clone(),
+        &config,
+        resources,
+        max_inline_image_size_bytes,
+        rate_rps
+    ).await;
 
     let inlined_html = match inline_future {
         Ok(inlined) => {
@@ -105,8 +104,6 @@ pub async fn save_html_content_with_resources(
             html_content
         }
     };
-
-    let path = path_future?;
 
     tokio::fs::create_dir_all(
         path.parent()

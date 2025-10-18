@@ -426,47 +426,47 @@ pub async fn inline_resources_from_info(
                     }
                 };
 
-        // Apply rate limiting if configured
-        if let Some(rate) = rate_rps_clone {
-            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate)
+                // Apply rate limiting if configured
+                if let Some(rate) = rate_rps_clone {
+                    match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate)
+                        .await
+                    {
+                        crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
+                            let error_msg = format!("Rate limited: {}", css_url);
+                            log::debug!("{}", error_msg);
+                            return Err(InliningError {
+                                url: css_url,
+                                resource_type: ResourceType::Css,
+                                error: error_msg,
+                            });
+                        }
+                        crate::crawl_engine::rate_limiter::RateLimitDecision::Allow => {}
+                    }
+                }
+
+                log::debug!("Processing CSS: {} -> {}", href_clone, css_url);
+                match super::downloaders::download_css_async(
+                    css_url.clone(),
+                    client_clone,
+                    &config_clone,
+                )
                 .await
-            {
-                crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
-                    let error_msg = format!("Rate limited: {}", css_url);
-                    log::debug!("{}", error_msg);
-                    return Err(InliningError {
+                {
+                    Ok(content) => {
+                        log::debug!("Downloaded CSS content length: {} chars", content.len());
+                        log::info!("Successfully downloaded CSS from: {}", css_url);
+                        Ok((href_clone, content, ResourceType::Css))
+                    }
+                    Err(e) => Err(InliningError {
                         url: css_url,
                         resource_type: ResourceType::Css,
-                        error: error_msg,
-                    });
+                        error: e.to_string(),
+                    }),
                 }
-                crate::crawl_engine::rate_limiter::RateLimitDecision::Allow => {}
-            }
-        }
+            });
 
-        log::debug!("Processing CSS: {} -> {}", href_clone, css_url);
-        match super::downloaders::download_css_async(
-            css_url.clone(),
-            client_clone,
-            &config_clone,
-        )
-        .await
-        {
-            Ok(content) => {
-                log::debug!("Downloaded CSS content length: {} chars", content.len());
-                log::info!("Successfully downloaded CSS from: {}", css_url);
-                Ok((href_clone, content, ResourceType::Css))
-            }
-            Err(e) => Err(InliningError {
-                url: css_url,
-                resource_type: ResourceType::Css,
-                error: e.to_string(),
-            }),
+            futures.push(future);
         }
-    });
-
-    futures.push(future);
-}
     }
 
     // Collect image and SVG futures
@@ -494,70 +494,70 @@ pub async fn inline_resources_from_info(
                     }
                 };
 
-        // Apply rate limiting if configured
-        if let Some(rate) = rate_rps_clone {
-            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate)
+                // Apply rate limiting if configured
+                if let Some(rate) = rate_rps_clone {
+                    match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate)
+                        .await
+                    {
+                        crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
+                            let error_msg = format!("Rate limited: {}", svg_url);
+                            log::debug!("{}", error_msg);
+                            return Err(InliningError {
+                                url: svg_url,
+                                resource_type: ResourceType::Svg,
+                                error: error_msg,
+                            });
+                        }
+                        crate::crawl_engine::rate_limiter::RateLimitDecision::Allow => {}
+                    }
+                }
+
+                log::debug!("Processing SVG: {} -> {}", src, svg_url);
+                match super::downloaders::download_svg_async(
+                    svg_url.clone(),
+                    client_clone,
+                    &config_clone,
+                )
                 .await
-            {
-                crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
-                    let error_msg = format!("Rate limited: {}", svg_url);
-                    log::debug!("{}", error_msg);
-                    return Err(InliningError {
+                {
+                    Ok(svg_content) => {
+                        log::debug!("Successfully downloaded SVG: {}", svg_url);
+                        Ok((src, svg_content, ResourceType::Svg))
+                    }
+                    Err(e) => Err(InliningError {
                         url: svg_url,
                         resource_type: ResourceType::Svg,
-                        error: error_msg,
-                    });
+                        error: e.to_string(),
+                    }),
                 }
-                crate::crawl_engine::rate_limiter::RateLimitDecision::Allow => {}
-            }
-        }
+            });
 
-        log::debug!("Processing SVG: {} -> {}", src, svg_url);
-        match super::downloaders::download_svg_async(
-            svg_url.clone(),
-            client_clone,
-            &config_clone,
-        )
-        .await
-        {
-            Ok(svg_content) => {
-                log::debug!("Successfully downloaded SVG: {}", svg_url);
-                Ok((src, svg_content, ResourceType::Svg))
-            }
-            Err(e) => Err(InliningError {
-                url: svg_url,
-                resource_type: ResourceType::Svg,
-                error: e.to_string(),
-            }),
-        }
-    });
-
-    futures.push(future);
+            futures.push(future);
         } else {
             // Process as regular image
-    let future = Box::pin(async move {
-        let image_url = match super::utils::resolve_url(&base, &src) {
-            Ok(url) => url,
-            Err(e) => {
-                return Err(InliningError {
-                    url: src,
-                    resource_type: ResourceType::Image,
-                    error: e.to_string(),
-                });
-            }
-        };
+            let future = Box::pin(async move {
+                let image_url = match super::utils::resolve_url(&base, &src) {
+                    Ok(url) => url,
+                    Err(e) => {
+                        return Err(InliningError {
+                            url: src,
+                            resource_type: ResourceType::Image,
+                            error: e.to_string(),
+                        });
+                    }
+                };
 
-        // Apply rate limiting if configured
-        if let Some(rate) = rate_rps_clone {
-            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate)
-                .await
-            {
-                crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
-                    let error_msg = format!("Rate limited: {}", image_url);
-                    log::debug!("{}", error_msg);
-                    return Err(InliningError {
-                        url: image_url,
-                        resource_type: ResourceType::Image,
+                // Apply rate limiting if configured
+                if let Some(rate) = rate_rps_clone {
+                    match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate)
+                        .await
+                    {
+                        crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
+                            let error_msg = format!("Rate limited: {}", image_url);
+                            log::debug!("{}", error_msg);
+                            return Err(InliningError {
+                                url: image_url,
+                                resource_type: ResourceType::Image,
                                 error: error_msg,
                             });
                         }
