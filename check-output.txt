@@ -1,0 +1,107 @@
+    Blocking waiting for file lock on build directory
+    Checking memchr v2.7.6
+    Checking subtle v2.6.1
+   Compiling rustix v1.1.2
+   Compiling libm v0.2.15
+    Checking slab v0.4.11
+   Compiling quote v1.0.41
+   Compiling zerocopy v0.8.27
+    Checking futures-io v0.3.31
+   Compiling autocfg v1.5.0
+    Checking ryu v1.0.20
+   Compiling generic-array v0.14.9
+   Compiling serde_json v1.0.145
+   Compiling serde_core v1.0.228
+    Checking pin-utils v0.1.0
+    Checking tracing-core v0.1.34
+    Checking futures-task v0.3.31
+    Checking core-foundation-sys v0.8.7
+   Compiling anyhow v1.0.100
+    Checking errno v0.3.14
+   Compiling jobserver v0.1.34
+    Checking getrandom v0.3.4
+    Checking signal-hook-registry v1.4.6
+    Checking indexmap v2.11.4
+   Compiling typenum v1.19.0
+    Checking futures-channel v0.3.31
+    Checking socket2 v0.6.1
+    Checking mio v1.1.0
+    Checking getrandom v0.2.16
+    Checking percent-encoding v2.3.2
+   Compiling syn v2.0.106
+    Checking encoding_rs v0.8.35
+    Checking base64 v0.22.1
+    Checking litemap v0.8.0
+   Compiling cc v1.2.41
+    Checking writeable v0.6.1
+   Compiling httparse v1.10.1
+   Compiling icu_normalizer_data v2.0.0
+    Checking aho-corasick v1.1.3
+   Compiling icu_properties_data v2.0.1
+    Checking ipnet v2.11.0
+   Compiling num-traits v0.2.19
+   Compiling crc32fast v1.5.0
+    Checking utf8_iter v1.0.4
+   Compiling fnv v1.0.7
+   Compiling ident_case v1.0.1
+    Checking form_urlencoded v1.2.2
+    Checking untrusted v0.9.0
+   Compiling strsim v0.11.1
+    Checking core-foundation v0.9.4
+   Compiling itoa v1.0.15
+    Checking regex-automata v0.4.13
+    Checking ppv-lite86 v0.2.21
+   Compiling system-configuration-sys v0.6.0
+    Checking tower-service v0.3.3
+   Compiling ring v0.17.14
+    Checking try-lock v0.2.5
+   Compiling synstructure v0.13.2
+   Compiling rustls v0.23.33
+    Checking tempfile v3.23.0
+   Compiling paste v1.0.15
+   Compiling serde_derive v1.0.228
+   Compiling thiserror-impl v2.0.17
+   Compiling tokio-macros v2.6.0
+   Compiling futures-macro v0.3.31
+   Compiling displaydoc v0.2.5
+   Compiling tracing-attributes v0.1.30
+   Compiling zerovec-derive v0.11.1
+   Compiling zeroize_derive v1.4.2
+    Checking atomic-waker v1.1.2
+   Compiling cfg_aliases v0.2.1
+    Checking security-framework-sys v2.15.0
+    Checking httpdate v1.0.3
+    Checking crypto-common v0.1.6
+    Checking block-buffer v0.10.4
+    Checking want v0.3.1
+    Checking bstr v1.12.0
+    Checking unicode-normalization v0.1.24
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.0
+    Checking futures-util v0.3.31
+    Checking iana-time-zone v0.1.64
+    Checking cpufeatures v0.2.17
+   Compiling nix v0.30.1
+    Checking sync_wrapper v1.0.2
+    Checking tower-layer v0.3.3
+    Checking thiserror v2.0.17
+    Checking core-foundation v0.10.1
+    Checking zeroize v1.8.2
+   Compiling native-tls v0.2.14
+    Checking digest v0.10.7
+    Checking system-configuration v0.6.1
+    Checking mime v0.3.17
+    Checking security-framework v2.11.1
+   Compiling darling_core v0.21.3
+    Checking tracing v0.1.41
+    Checking rand_core v0.9.3
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-Wl,-exported_symbols_list" "-Wl,/var/folders/d9/6l395nfj7cz0mgc37c_1dxjr0000gn/T/rustcvvubpj/list" "/var/folders/d9/6l395nfj7cz0mgc37c_1dxjr0000gn/T/rustcvvubpj/symbols.o" "<16 object files omitted>" "/var/folders/d9/6l395nfj7cz0mgc37c_1dxjr0000gn/T/rustcvvubpj/rmeta.o" "<1 object files omitted>" "/Volumes/samsung_t9/kodegen/target/debug/deps/{libsyn-687f2e313d974e2c,libquote-636f575f0a773ba9,libproc_macro2-8d43bdb632b5f05f,libunicode_ident-41a0dbf24a7d77f8}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libproc_macro-*,librustc_literal_escaper-*,librustc_std_workspace_std-*,libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-o" "/Volumes/samsung_t9/kodegen/target/debug/deps/libserde_derive-7f3a1a46722b14ee.dylib" "-Wl,-dead_strip" "-dynamiclib" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: ld: file is empty in '/Volumes/samsung_t9/kodegen/target/debug/deps/serde_derive-7f3a1a46722b14ee.serde_derive.3acc6073dc7a2651-cgu.14.rcgu.o'
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+error: could not compile `serde_derive` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

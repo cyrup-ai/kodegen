@@ -9,7 +9,6 @@ use std::path::PathBuf;
 
 use crate::config::CrawlConfig;
 use crate::page_extractor::link_rewriter::LinkRewriter;
-use crate::runtime::{AsyncTask, spawn_async};
 
 use super::core::{NoOpProgress, crawl_pages};
 
@@ -33,20 +32,14 @@ use super::core::{NoOpProgress, crawl_pages};
 ///
 /// # Returns
 /// AsyncTask handle for the spawned crawl operation
-pub fn crawl_impl(
+pub async fn crawl_impl(
     config: CrawlConfig,
     link_rewriter: LinkRewriter,
     chrome_data_dir: Option<PathBuf>,
-    on_result: impl FnOnce(Result<Option<PathBuf>>) + Send + 'static,
-) -> AsyncTask<()> {
-    spawn_async(async move {
-        // Use NoOpProgress - event publishing handled directly by crawl_pages
-        let progress = NoOpProgress;
-        let event_bus = config.event_bus().cloned();
-
-        let result = crawl_pages(config, link_rewriter, chrome_data_dir, progress, event_bus).await;
-
-        // Invoke callback with result
-        on_result(result);
-    })
+) -> Result<Option<PathBuf>> {
+    // Use NoOpProgress - event publishing handled directly by crawl_pages
+    let progress = NoOpProgress;
+    let event_bus = config.event_bus().cloned();
+    
+    crawl_pages(config, link_rewriter, chrome_data_dir, progress, event_bus).await
 }

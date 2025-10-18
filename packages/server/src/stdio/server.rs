@@ -19,6 +19,30 @@ use std::time::Duration;
 use kodegen_utils::usage_tracker::UsageTracker;
 use tokio_util::sync::CancellationToken;
 
+/// Configuration for SSE connection retry logic
+#[derive(Debug, Clone)]
+pub struct SseConnectionConfig {
+    /// Initial backoff duration, doubles on each retry
+    pub retry_backoff: Duration,
+    /// Maximum number of connection attempts
+    pub max_retries: u32,
+    /// Timeout for each connection attempt
+    pub connection_timeout: Duration,
+    /// If true, server will fail if SSE connection fails (explicit proxy request)
+    pub proxy_required: bool,
+}
+
+impl Default for SseConnectionConfig {
+    fn default() -> Self {
+        Self {
+            retry_backoff: Duration::from_millis(100),
+            max_retries: 1,
+            connection_timeout: Duration::from_secs(30),
+            proxy_required: false,
+        }
+    }
+}
+
 /// Connect to SSE server with exponential backoff retry
 /// 
 /// Attempts connection up to `max_attempts` times with exponential backoff.
@@ -160,20 +184,14 @@ impl StdioProxyServer {
     /// * `config_manager` - Configuration manager
     /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_categories` - Tool categories to enable
-    /// * `connection_timeout` - Timeout for each SSE connection attempt
-    /// * `max_retries` - Maximum number of connection attempts (1 = no retry)
-    /// * `retry_backoff` - Initial backoff duration, doubles on each retry
-    /// * `proxy_required` - If true, server will fail if SSE connection fails (explicit proxy request)
+    /// * `sse_config` - SSE connection configuration (retry, timeout, etc.)
     /// * `shutdown_token` - Cancellation token for graceful shutdown during initialization
     pub async fn new(
         sse_url: Option<&str>,
         config_manager: kodegen_config::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_categories: &Option<std::collections::HashSet<String>>,
-        connection_timeout: Duration,
-        max_retries: u32,
-        retry_backoff: Duration,
-        proxy_required: bool,
+        sse_config: SseConnectionConfig,
         shutdown_token: CancellationToken,
     ) -> Result<Self> {
         // Build routers for metadata (schemas and prompts)
@@ -186,32 +204,32 @@ impl StdioProxyServer {
         // Create SSE client if URL provided
         let (sse_client, sse_connection) = match sse_url {
             Some(url) => {
-                if max_retries > 1 {
+                if sse_config.max_retries > 1 {
                     log::info!(
                         "Connecting to SSE server at {} (with retry, max {} attempts)",
                         url,
-                        max_retries
+                        sse_config.max_retries
                     );
                 } else {
                     log::info!("Connecting to SSE server at {} (no retry)", url);
                 }
-                
+
                 // Try to connect with exponential backoff retry
                 // Connection attempts are cancellable and subject to timeout
                 let connect_result = connect_with_retry(
                     url,
-                    max_retries,
-                    retry_backoff,
-                    connection_timeout,
+                    sse_config.max_retries,
+                    sse_config.retry_backoff,
+                    sse_config.connection_timeout,
                     &shutdown_token
                 ).await;
-                
+
                 match connect_result {
                     Ok((client, connection)) => {
                         (Some(client), Some(connection))
                     }
                     Err(e) => {
-                        if proxy_required {
+                        if sse_config.proxy_required {
                             // User explicitly requested proxy - this is FATAL
                             log::error!(
                                 "Failed to connect to SSE server: {}. \

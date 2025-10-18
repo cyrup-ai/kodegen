@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 /// Extract a URI from a path, stripping the prefix and handling parent directory
-pub fn get_uri_from_path(path: &Path, output_dir: &Path) -> Result<String> {
+pub async fn get_uri_from_path(path: &Path, output_dir: &Path) -> Result<String> {
     let result = path
         .strip_prefix(output_dir)
         .map_err(|e| anyhow::anyhow!("Failed to strip prefix: {}", e))?
@@ -22,7 +22,7 @@ pub fn get_uri_from_path(path: &Path, output_dir: &Path) -> Result<String> {
 }
 
 /// Get the mirror path for a URL, preserving the domain and path structure
-pub fn get_mirror_path(url: &str, output_dir: &Path, filename: &str) -> Result<PathBuf> {
+pub async fn get_mirror_path(url: &str, output_dir: &Path, filename: &str) -> Result<PathBuf> {
     let url = Url::parse(url).map_err(|e| anyhow::anyhow!("Failed to parse URL: {}", e))?;
     let domain = url
         .host_str()

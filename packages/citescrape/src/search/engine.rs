@@ -105,6 +105,21 @@ impl SearchEngine {
     }
 
     /// Create an index writer with configured memory limit and retry logic
+    ///
+    /// Attempts to acquire an index writer with exponential backoff retry on transient failures.
+    /// Uses default retry config: 3 attempts, 100ms initial delay, 2x backoff, 5s max delay.
+    ///
+    /// # Arguments
+    /// * `memory_limit` - Optional memory limit in bytes (defaults to 50MB)
+    ///
+    /// # Returns
+    /// * `Ok(IndexWriter)` - Successfully acquired writer
+    /// * `Err(SearchError)` - Failed after all retry attempts or non-transient error
+    ///
+    /// # Example
+    /// ```ignore
+    /// let writer = engine.writer_with_retry(Some(100_000_000)).await?;
+    /// ```
     pub async fn writer_with_retry(
         &self,
         memory_limit: Option<usize>,
@@ -126,8 +141,7 @@ impl SearchEngine {
             })
         });
 
-        task.await
-            .map_err(|e| SearchError::Other(format!("Task execution failed: {}", e)))?
+        task.await.map_err(SearchError::from)?
     }
 
     /// Create an index writer with configured memory limit
@@ -156,33 +170,44 @@ impl SearchEngine {
     }
 
     /// Commit changes and optimize index with logging
-    pub async fn commit_and_optimize(&self, writer: &mut IndexWriter) -> SearchResult<()> {
+    pub async fn commit_and_optimize(
+        &self,
+        mut writer: IndexWriter,
+    ) -> SearchResult<IndexWriter> {
         let start = std::time::Instant::now();
-
-        // Synchronous commit (uses &mut reference)
-        writer
-            .commit()
-            .map_err(|e| SearchError::CommitFailed(format!("Index commit failed: {}", e)))?;
-
-        let commit_duration = start.elapsed();
-        tracing::info!(
-            duration_ms = commit_duration.as_millis(),
-            "Index commit completed"
-        );
-
-        // Reload reader to see changes
-        self.reader
-            .reload()
-            .map_err(|e| SearchError::Other(format!("Failed to reload reader: {}", e)))?;
-
-        let total_duration = start.elapsed();
-        tracing::debug!(
-            total_duration_ms = total_duration.as_millis(),
-            commit_duration_ms = commit_duration.as_millis(),
-            "Index commit and reload completed"
-        );
-
-        Ok(())
+        
+        // Clone engine for move into spawn_blocking (cheap - SearchEngine is Clone via Arc)
+        let engine = self.clone();
+        
+        // Move blocking operations to dedicated blocking thread pool
+        let writer = tokio::task::spawn_blocking(move || -> SearchResult<IndexWriter> {
+            // Blocking I/O: Commit index changes to disk
+            writer.commit()
+                .map_err(|e| SearchError::CommitFailed(format!("Index commit failed: {}", e)))?;
+            
+            let commit_duration = start.elapsed();
+            tracing::info!(
+                duration_ms = commit_duration.as_millis(),
+                "Index commit completed"
+            );
+            
+            // Blocking I/O: Reload reader to see committed changes
+            engine.reader.reload()
+                .map_err(|e| SearchError::Other(format!("Failed to reload reader: {}", e)))?;
+            
+            let total_duration = start.elapsed();
+            tracing::debug!(
+                total_duration_ms = total_duration.as_millis(),
+                commit_duration_ms = commit_duration.as_millis(),
+                "Index commit and reload completed"
+            );
+            
+            Ok(writer)
+        })
+        .await
+        .map_err(|e| SearchError::Other(format!("Commit task panicked: {}", e)))??;
+        
+        Ok(writer)
     }
 
     /// Check if index exists and is valid with corruption detection

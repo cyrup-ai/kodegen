@@ -135,18 +135,18 @@ async fn main() -> Result<()> {
                 }
             });
             
-            let timeout = cli.sse_connection_timeout(&config_manager);
-            let max_retries = cli.sse_max_retries();
-            let retry_backoff = cli.sse_retry_backoff_duration();
+            let sse_config = stdio::SseConnectionConfig {
+                connection_timeout: cli.sse_connection_timeout(&config_manager),
+                max_retries: cli.sse_max_retries(),
+                retry_backoff: cli.sse_retry_backoff_duration(),
+                proxy_required: proxy_url.is_some(),  // user specified URL
+            };
             let server = stdio::StdioProxyServer::new(
                 proxy_url.as_deref(),
                 config_manager,
                 usage_tracker,
                 &enabled_categories,
-                timeout,
-                max_retries,
-                retry_backoff,
-                proxy_url.is_some(),  // proxy_required = user specified URL
+                sse_config,
                 shutdown_token,
             ).await?;
             

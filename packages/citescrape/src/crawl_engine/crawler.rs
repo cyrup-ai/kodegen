@@ -63,28 +63,18 @@ impl ChromiumoxideCrawler {
     }
 
     async fn crawl_impl(&mut self) -> Result<()> {
-        let (tx, rx) = tokio::sync::oneshot::channel();
         let config = self.config.clone();
         let link_rewriter = self.link_rewriter.clone();
         let chrome_data_dir = self.chrome_data_dir.clone();
 
-        let _task = super::crawl_impl(config, link_rewriter, chrome_data_dir, move |result| {
-            let _ = tx.send(result);
-        });
-
-        match rx
-            .await
-            .map_err(|_| anyhow::anyhow!("Failed to receive crawl result"))
-        {
-            Ok(result) => match result {
-                Ok(chrome_data_dir_path) => {
-                    self.chrome_data_dir = chrome_data_dir_path;
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            },
-            Err(e) => Err(e),
-        }
+        let chrome_data_dir_path = super::crawl_impl(
+            config,
+            link_rewriter,
+            chrome_data_dir,
+        ).await?;
+        
+        self.chrome_data_dir = chrome_data_dir_path;
+        Ok(())
     }
 }
 

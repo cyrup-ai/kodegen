@@ -18,16 +18,7 @@ async fn test_link_rewriter() {
     let html = r#"<a href="/about">About</a>"#.to_string();
     let current_url = "https://example.com/".to_string();
 
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let _task = rewriter.rewrite_links(html, current_url, move |result| {
-        let _ = tx.send(result);
-    });
-
-    let result = rx.await.unwrap();
-    let rewritten = match result {
-        Ok(content) => content,
-        Err(e) => panic!("Failed to rewrite links: {}", e),
-    };
+    let rewritten = rewriter.rewrite_links(html, current_url).await.expect("Failed to rewrite links");
 
     assert!(rewritten.contains(r#"href="about/index.html""#));
 }

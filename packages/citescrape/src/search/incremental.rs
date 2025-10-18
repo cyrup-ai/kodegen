@@ -579,12 +579,13 @@ impl IncrementalIndexingService {
                         .delete_document(&mut writer, url.to_string())
                         .map_err(|e| anyhow::anyhow!("{}", e)),
                     IndexingMessage::Optimize { .. } => {
-                        match engine.commit_and_optimize(&mut writer).await {
-                            Ok(_) => {
+                        match engine.commit_and_optimize(writer).await {
+                            Ok(w) => {
+                                writer = w;  // Reassign writer for continued use
                                 *stats.last_optimization.lock().await = Some(Instant::now());
                                 Ok(())
                             }
-                            Err(e) => Err(anyhow::anyhow!("{}", e)),
+                            Err(e) => Err(anyhow::anyhow!("Failed to optimize index: {}", e))
                         }
                     }
                     IndexingMessage::Shutdown => Ok(()), // No-op, handled by worker loop
@@ -630,22 +631,14 @@ impl IncrementalIndexingService {
             }
         }
 
-        // Commit batch with retry logic
-        let mut commit_retry_count = 0;
-        loop {
-            let commit_result = engine.commit_and_optimize(&mut writer).await;
-
-            match commit_result {
-                Ok(_) => break,
-                Err(_e) if commit_retry_count < MAX_RETRIES => {
-                    commit_retry_count += 1;
-                    let delay_ms = 50 * (1 << commit_retry_count);
-                    tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
-                }
-                Err(_) => {
-                    // Commit failed after retries, but individual operations were processed
-                    break;
-                }
+        // Commit batch (writer consumed on error, cannot retry)
+        match engine.commit_and_optimize(writer).await {
+            Ok(w) => {
+                writer = w;
+            }
+            Err(_) => {
+                // Commit failed, writer consumed, individual operations were processed
+                // Cannot retry as writer is consumed with uncommitted changes
             }
         }
 

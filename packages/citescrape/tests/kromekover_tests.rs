@@ -16,7 +16,7 @@ async fn test_evasions() -> Result<()> {
 
     // Inject our evasion scripts
     let task = inject(page.clone());
-    task.await?;
+    task.await??;
 
     // Test navigator properties
     let vendor_result = page.evaluate("navigator.vendor").await?;
