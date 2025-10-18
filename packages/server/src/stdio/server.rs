@@ -16,8 +16,69 @@ use rmcp::{
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::timeout;
 use kodegen_utils::usage_tracker::UsageTracker;
+use tokio_util::sync::CancellationToken;
+
+/// Connect to SSE server with exponential backoff retry
+/// 
+/// Attempts connection up to `max_attempts` times with exponential backoff.
+/// Backoff starts at `initial_backoff` and doubles on each retry, capped at 10 seconds.
+/// 
+/// # Arguments
+/// * `url` - SSE server URL to connect to
+/// * `max_attempts` - Maximum number of connection attempts
+/// * `initial_backoff` - Initial backoff duration, doubles on each retry
+/// 
+/// # Returns
+/// * `Ok(client)` - Successfully connected client
+/// * `Err` - All connection attempts failed
+async fn connect_with_retry(
+    url: &str,
+    max_attempts: u32,
+    initial_backoff: Duration,
+) -> Result<kodegen_mcp_client::KodegenClient> {
+    let mut backoff = initial_backoff;
+    
+    for attempt in 1..=max_attempts {
+        log::debug!("SSE connection attempt {}/{} to {}", attempt, max_attempts, url);
+        
+        match kodegen_mcp_client::create_sse_client(url).await {
+            Ok(client) => {
+                if attempt > 1 {
+                    log::info!("Connected to SSE server on attempt {}/{}", attempt, max_attempts);
+                } else {
+                    log::info!("Connected to SSE server");
+                }
+                return Ok(client);
+            }
+            Err(e) => {
+                if attempt == max_attempts {
+                    return Err(anyhow::anyhow!(
+                        "Failed to connect after {} attempt{}: {}",
+                        max_attempts,
+                        if max_attempts == 1 { "" } else { "s" },
+                        e
+                    ));
+                }
+                
+                log::debug!(
+                    "Connection attempt {}/{} failed: {}. Retrying in {:?}",
+                    attempt,
+                    max_attempts,
+                    e,
+                    backoff
+                );
+                
+                tokio::time::sleep(backoff).await;
+                
+                // Double backoff for next iteration, capped at 10 seconds
+                backoff = (backoff * 2).min(Duration::from_secs(10));
+            }
+        }
+    }
+    
+    unreachable!()
+}
 
 /// MCP Server that provides stdio transport with optional SSE proxy
 /// 
@@ -25,7 +86,13 @@ use kodegen_utils::usage_tracker::UsageTracker;
 /// When no SSE URL provided, executes tools locally (standalone mode).
 #[derive(Clone)]
 pub struct StdioProxyServer {
-    /// Optional SSE client for proxying tool calls (Arc for Clone support)
+    /// Optional SSE client for proxying tool calls.
+    /// 
+    /// Wrapped in Arc because:
+    /// - KodegenClient contains RunningService with non-Clone JoinHandle
+    /// - StdioProxyServer must be Clone for rmcp ServerHandler
+    /// - Multiple request handlers share the same client instance
+    /// - Arc enables shared ownership with proper cleanup semantics
     sse_client: Option<Arc<kodegen_mcp_client::KodegenClient>>,
     /// Tool router for metadata and optional local execution
     tool_router: ToolRouter<Self>,
@@ -45,13 +112,21 @@ impl StdioProxyServer {
     /// * `config_manager` - Configuration manager
     /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_categories` - Tool categories to enable
-    /// * `connection_timeout` - Timeout for SSE connection attempt
+    /// * `_connection_timeout` - Reserved for future use (per-attempt timeout)
+    /// * `max_retries` - Maximum number of connection attempts (1 = no retry)
+    /// * `retry_backoff` - Initial backoff duration, doubles on each retry
+    /// * `proxy_required` - If true, server will fail if SSE connection fails (explicit proxy request)
+    /// * `shutdown_token` - Cancellation token for graceful shutdown during initialization
     pub async fn new(
         sse_url: Option<&str>,
         config_manager: kodegen_config::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_categories: &Option<std::collections::HashSet<String>>,
-        connection_timeout: Duration,
+        _connection_timeout: Duration,
+        max_retries: u32,
+        retry_backoff: Duration,
+        proxy_required: bool,
+        shutdown_token: CancellationToken,
     ) -> Result<Self> {
         // Build routers for metadata (schemas and prompts)
         let routers = crate::common::build_routers::<Self>(
@@ -63,24 +138,54 @@ impl StdioProxyServer {
         // Create SSE client if URL provided
         let sse_client = match sse_url {
             Some(url) => {
-                log::info!("Connecting to SSE server at {} (timeout: {}s)", url, connection_timeout.as_secs());
+                if max_retries > 1 {
+                    log::info!(
+                        "Connecting to SSE server at {} (with retry, max {} attempts)",
+                        url,
+                        max_retries
+                    );
+                } else {
+                    log::info!("Connecting to SSE server at {} (no retry)", url);
+                }
                 
-                let connect_future = kodegen_mcp_client::create_sse_client(url);
-                let result = timeout(connection_timeout, connect_future).await;
+                // Try to connect with exponential backoff retry
+                // Race connection against shutdown signal
+                let connect_result = tokio::select! {
+                    result = connect_with_retry(url, max_retries, retry_backoff) => Some(result),
+                    _ = shutdown_token.cancelled() => {
+                        log::info!("SSE connection cancelled during initialization");
+                        return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
+                    }
+                };
                 
-                match result {
-                    Ok(Ok(client)) => {
-                        log::info!("Successfully connected to SSE server");
+                match connect_result {
+                    Some(Ok(client)) => {
+                        // Arc is necessary - KodegenClient is not Clone due to JoinHandle in RunningService
                         Some(Arc::new(client))
                     }
-                    Ok(Err(e)) => {
-                        log::warn!("Failed to connect to SSE server: {}. Running in standalone mode.", e);
-                        None
+                    Some(Err(e)) => {
+                        if proxy_required {
+                            // User explicitly requested proxy - this is FATAL
+                            log::error!(
+                                "Failed to connect to SSE server: {}. \
+                                 Cannot run in standalone mode when proxy explicitly requested.",
+                                e
+                            );
+                            return Err(anyhow::anyhow!(
+                                "SSE connection required but failed: {}",
+                                e
+                            ));
+                        } else {
+                            // Proxy was optional - fallback is acceptable
+                            log::warn!(
+                                "Failed to connect to SSE server after retries: {}. \
+                                 Running in standalone mode.",
+                                e
+                            );
+                            None
+                        }
                     }
-                    Err(_) => {
-                        log::warn!("SSE connection timeout after {}s. Running in standalone mode.", connection_timeout.as_secs());
-                        None
-                    }
+                    None => unreachable!(),
                 }
             }
             None => {

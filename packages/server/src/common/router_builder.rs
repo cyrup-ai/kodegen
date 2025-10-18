@@ -31,16 +31,7 @@ where
         }
         Some(set) => {
             log::info!("Runtime filter: ONLY these categories enabled: {:?}", set);
-            
-            // Warn about requested categories that aren't compiled
-            for requested in set {
-                if !crate::cli::available_categories().contains(&requested.as_str()) {
-                    log::warn!(
-                        "Requested tool category '{}' is not compiled in (missing feature flag)",
-                        requested
-                    );
-                }
-            }
+            // No validation needed - already validated at startup
         }
     }
     

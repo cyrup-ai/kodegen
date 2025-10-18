@@ -161,18 +161,25 @@ impl ServerHandle {
         self,
         timeout: std::time::Duration,
     ) -> Result<(), tokio::time::error::Elapsed> {
-        // Race timeout against completion signal
-        // If completion happens first: returns Ok(Ok(()))
-        // If timeout happens first: returns Err(Elapsed)
-        // If channel closed without signal: returns Ok(Err(RecvError))
-        tokio::time::timeout(timeout, self.completion_rx)
-            .await?
-            // Map channel errors to success (server already stopped)
-            .map_err(|_recv_error| {
-                // Channel closed without sending - server stopped already
-                // This is success case, not error
-            })
-            .or(Ok(()))
+        // Race timeout against completion signal with explicit error handling
+        match tokio::time::timeout(timeout, self.completion_rx).await {
+            Ok(Ok(())) => {
+                log::debug!("Shutdown completed via signal");
+                Ok(())
+            }
+            Ok(Err(_recv_error)) => {
+                log::warn!(
+                    "Shutdown completion channel closed without signal. \
+                     This usually means shutdown completed very quickly, \
+                     but could indicate a panic in the monitor task."
+                );
+                Ok(())
+            }
+            Err(elapsed) => {
+                log::warn!("Shutdown timeout after {:?}", timeout);
+                Err(elapsed)
+            }
+        }
     }
 }
 
@@ -236,5 +243,33 @@ mod tests {
         // Should treat as successful completion
         let result = handle.wait_for_completion(Duration::from_secs(10)).await;
         assert!(result.is_ok(), "closed channel should be treated as success");
+    }
+
+    #[tokio::test]
+    async fn test_completion_signal_race() {
+        let cancel_token = CancellationToken::new();
+        let (completion_tx, completion_rx) = oneshot::channel();
+        
+        let monitor_ct = cancel_token.clone();
+        tokio::spawn(async move {
+            monitor_ct.cancelled().await;
+            // Simulate slow monitor task
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let _ = completion_tx.send(());
+        });
+        
+        let handle = ServerHandle::new(cancel_token, completion_rx);
+        handle.cancel();
+        
+        // Timeout before monitor can send
+        let result = handle.wait_for_completion(Duration::from_millis(10)).await;
+        
+        // Should timeout, but send failure should be logged
+        assert!(result.is_err(), "should timeout before monitor can signal");
+        
+        // Give monitor task time to attempt send
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        
+        // If we reach here without panic, the race condition was handled gracefully
     }
 }

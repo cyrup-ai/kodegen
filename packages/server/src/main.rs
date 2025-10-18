@@ -45,6 +45,30 @@ async fn async_main() -> Result<()> {
     // Get enabled categories
     let enabled_categories = cli.enabled_categories();
     
+    // VALIDATE IMMEDIATELY - before any initialization
+    if let Some(ref categories) = enabled_categories {
+        let available = cli::available_categories();
+        let invalid: Vec<_> = categories
+            .iter()
+            .filter(|cat| !available.contains(&cat.as_str()))
+            .collect();
+        
+        if !invalid.is_empty() {
+            eprintln!("Error: Invalid tool categories specified:");
+            for cat in &invalid {
+                eprintln!("  - {}", cat);
+            }
+            eprintln!();
+            eprintln!("Available categories (based on compiled features):");
+            for cat in available {
+                eprintln!("  - {}", cat);
+            }
+            eprintln!();
+            eprintln!("Tip: Use --list-categories to see all available categories");
+            std::process::exit(1);
+        }
+    }
+    
     // Initialize shared components
     let config_manager = kodegen_config::ConfigManager::new();
     config_manager.init().await?;
@@ -56,15 +80,85 @@ async fn async_main() -> Result<()> {
             log::info!("Starting stdio server (proxy: {:?})", proxy_url);
             
             // Ensure daemon is running for stdio mode
-            cli::daemon::ensure_daemon_running().await?;
+            if let Err(e) = cli::daemon::ensure_daemon_running().await {
+                eprintln!("\n❌ Failed to start stdio server\n");
+                eprintln!("Error: {}\n", e);
+                eprintln!("Stdio mode requires the kodegend daemon to be running.");
+                eprintln!("\nTroubleshooting steps:");
+                eprintln!("  1. Check if kodegend is installed:");
+                eprintln!("     $ which kodegend");
+                eprintln!("\n  2. If not installed:");
+                eprintln!("     $ cargo install kodegend");
+                eprintln!("\n  3. Check daemon status:");
+                eprintln!("     $ kodegend status");
+                eprintln!("\n  4. View daemon logs:");
+                eprintln!("     $ kodegend logs");
+                eprintln!("\n  5. Try running daemon in foreground to see errors:");
+                eprintln!("     $ kodegend run --foreground");
+                eprintln!("\nAlternative: Use SSE mode (no daemon required):");
+                eprintln!("  $ kodegen --sse 127.0.0.1:8080");
+                eprintln!();
+                
+                std::process::exit(1);
+            }
+            
+            // Create cancellation token for graceful shutdown during initialization
+            let shutdown_token = tokio_util::sync::CancellationToken::new();
+            
+            // Spawn signal handler for SIGINT and SIGTERM
+            let signal_token = shutdown_token.clone();
+            tokio::spawn(async move {
+                let ctrl_c = tokio::signal::ctrl_c();
+                
+                #[cfg(unix)]
+                {
+                    use tokio::signal::unix::{signal, SignalKind};
+                    let mut sigterm = match signal(SignalKind::terminate()) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            log::warn!("Failed to register SIGTERM handler: {}", e);
+                            // Fall back to just SIGINT
+                            if ctrl_c.await.is_ok() {
+                                signal_token.cancel();
+                            }
+                            return;
+                        }
+                    };
+                    
+                    tokio::select! {
+                        _ = ctrl_c => {
+                            log::debug!("Received SIGINT, cancelling initialization");
+                            signal_token.cancel();
+                        }
+                        _ = sigterm.recv() => {
+                            log::debug!("Received SIGTERM, cancelling initialization");
+                            signal_token.cancel();
+                        }
+                    }
+                }
+                
+                #[cfg(not(unix))]
+                {
+                    if ctrl_c.await.is_ok() {
+                        log::debug!("Received Ctrl+C, cancelling initialization");
+                        signal_token.cancel();
+                    }
+                }
+            });
             
             let timeout = cli.sse_connection_timeout(&config_manager);
+            let max_retries = cli.sse_max_retries();
+            let retry_backoff = cli.sse_retry_backoff_duration();
             let server = stdio::StdioProxyServer::new(
                 proxy_url.as_deref(),
                 config_manager,
                 usage_tracker,
                 &enabled_categories,
                 timeout,
+                max_retries,
+                retry_backoff,
+                proxy_url.is_some(),  // proxy_required = user specified URL
+                shutdown_token,
             ).await?;
             
             server.serve_stdio().await?;

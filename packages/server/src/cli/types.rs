@@ -44,6 +44,12 @@ pub struct Cli {
     pub sse: Option<SocketAddr>,
 
     /// SSE server URL for proxy mode (stdio server only)
+    /// 
+    /// When specified, the server will proxy all tool calls to the SSE server.
+    /// If the connection fails, the server will exit with an error rather than
+    /// falling back to standalone mode. This ensures that when proxy mode is
+    /// explicitly requested, it is always honored.
+    /// 
     /// Example: --proxy-sse http://localhost:8080/sse
     #[arg(long, value_name = "URL", conflicts_with = "sse")]
     pub proxy_sse: Option<String>,
@@ -61,6 +67,21 @@ pub struct Cli {
     /// Can also be set via KODEGEN_SSE_TIMEOUT_SECS environment variable
     #[arg(long, value_name = "SECONDS", env = "KODEGEN_SSE_TIMEOUT_SECS")]
     pub sse_timeout: Option<u64>,
+
+    /// Maximum SSE connection retry attempts (default: 3)
+    /// Set to 1 to disable retries (fail fast)
+    #[arg(long, value_name = "COUNT", default_value = "3")]
+    pub sse_retries: u32,
+
+    /// Initial SSE retry backoff in seconds (default: 1)
+    /// Backoff doubles on each retry up to 10 seconds maximum
+    #[arg(long, value_name = "SECONDS", default_value = "1")]
+    pub sse_retry_backoff: u64,
+
+    /// Disable SSE connection retries (fail fast on first failure)
+    /// Useful for development to avoid waiting on retry delays
+    #[arg(long)]
+    pub sse_no_retry: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -118,6 +139,21 @@ impl Cli {
     pub fn sse_connection_timeout(&self, config_manager: &kodegen_config::ConfigManager) -> std::time::Duration {
         let seconds = self.sse_timeout.unwrap_or_else(|| config_manager.get_sse_connection_timeout_secs());
         std::time::Duration::from_secs(seconds)
+    }
+
+    /// Get the maximum number of SSE connection retry attempts
+    /// Returns 1 if --sse-no-retry is set (no retries, fail fast)
+    pub fn sse_max_retries(&self) -> u32 {
+        if self.sse_no_retry {
+            1
+        } else {
+            self.sse_retries
+        }
+    }
+
+    /// Get the initial SSE retry backoff duration
+    pub fn sse_retry_backoff_duration(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.sse_retry_backoff)
     }
 }
 

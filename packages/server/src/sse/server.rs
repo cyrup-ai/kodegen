@@ -56,15 +56,30 @@ impl SseServer {
         // cancellation is triggered. This allows early exit from timeout
         // while the configured timeout acts as a safety maximum.
         let monitor_ct = ct.clone();
+        let cancellation_time = std::time::Instant::now();
         tokio::spawn(async move {
             // Wait for cancellation signal
             monitor_ct.cancelled().await;
+            let signal_latency = cancellation_time.elapsed();
             
-            log::debug!("Server cancellation detected, signaling shutdown readiness");
+            log::debug!(
+                "Server cancellation detected after {:?}, signaling shutdown readiness",
+                signal_latency
+            );
             
             // Signal that cancellation has been processed
-            // Ignore error if receiver already dropped (shutdown already handled)
-            let _ = completion_tx.send(());
+            match completion_tx.send(()) {
+                Ok(()) => {
+                    log::debug!("Completion signal sent successfully after {:?}", signal_latency);
+                }
+                Err(_) => {
+                    log::debug!(
+                        "Completion signal not sent - receiver already dropped after {:?}. \
+                         Shutdown completed before monitor could signal, or timeout expired.",
+                        signal_latency
+                    );
+                }
+            }
         });
         
         Ok(crate::sse::ServerHandle::new(ct, completion_rx))
