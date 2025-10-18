@@ -15,17 +15,18 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting terminal tools example");
 
     // Connect to kodegen server with terminal category
-    let client = common::connect_to_server_with_categories(
+    let conn = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::Terminal])
     ).await?;
+    let client = conn.client();
 
     info!("Connected to server: {:?}", client.server_info());
 
     // Run example with guaranteed cleanup
     let result = run_terminal_example(&client).await;
 
-    // Always close client, regardless of example result
-    client.close().await?;
+    // Always close connection, regardless of example result
+    conn.close().await?;
 
     // Propagate any error from the example AFTER cleanup
     result

@@ -71,14 +71,16 @@ async fn main() -> Result<()> {
         .init();
 
     // Connect to kodegen server with citescrape tools
-    let client = common::connect_to_server_with_categories(
+    let conn = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::Citescrape])
     ).await?;
+    let client = conn.client();
+    
     tracing::info!("Connected to server: {:?}", client.server_info());
 
     let result = run_citescrape_example(&client).await;
 
-    client.close().await?;
+    conn.close().await?;
 
     result
 }

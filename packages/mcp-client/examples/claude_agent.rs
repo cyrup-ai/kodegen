@@ -89,9 +89,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Connect to kodegen server with claude_agent category
-    let client = common::connect_to_server_with_categories(
+    let conn = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::ClaudeAgent])
     ).await?;
+    let client = conn.client();
 
     info!("Connected to server: {:?}", client.server_info());
 
@@ -270,7 +271,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✅ Verified cleanup successfully");
 
     // Graceful shutdown
-    client.close().await?;
+    conn.close().await?;
     info!("\n✅ Claude agent tools example completed successfully");
     
     info!("\n📚 Features Demonstrated:");

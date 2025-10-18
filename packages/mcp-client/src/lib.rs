@@ -151,8 +151,12 @@ pub struct KodegenConnection {
 }
 
 impl KodegenConnection {
-    /// Create connection from running service (internal use)
-    pub(crate) fn from_service(service: RunningService<RoleClient, ClientInfo>) -> Self {
+    /// Create connection from running service
+    ///
+    /// This is a low-level constructor for creating a connection from an already-initialized
+    /// MCP service. Most users should use the transport functions like `create_sse_client()`
+    /// which handle both service creation and connection setup.
+    pub fn from_service(service: RunningService<RoleClient, ClientInfo>) -> Self {
         Self { service }
     }
     

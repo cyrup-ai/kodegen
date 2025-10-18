@@ -299,7 +299,7 @@ mod tests {
         
         // Build the binary first
         let build_status = Command::new("cargo")
-            .args(&["build", "--bin", "kodegen"])
+            .args(["build", "--bin", "kodegen"])
             .status()
             .expect("Failed to build kodegen");
         

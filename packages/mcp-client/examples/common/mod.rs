@@ -4,9 +4,9 @@
 //! the kodegen server during development/testing.
 
 use anyhow::{Result, Context};
-use kodegen_mcp_client::KodegenClient;
+use kodegen_mcp_client::KodegenConnection;
 use rmcp::{
-    ServiceExt, 
+    ServiceExt,
     transport::TokioChildProcess,
     model::{ClientCapabilities, ClientInfo, Implementation},
 };
@@ -237,7 +237,7 @@ fn find_workspace_root() -> Result<&'static PathBuf> {
 /// # Errors
 ///
 /// Returns error if the server cannot be started or connection fails.
-pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCategory>>) -> Result<KodegenClient> {
+pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCategory>>) -> Result<KodegenConnection> {
     // Find workspace root using cargo metadata
     let workspace_root = find_workspace_root()
         .context("Failed to find workspace root")?;
@@ -291,7 +291,7 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
         Ok(Ok(service)) => {
             // Success! Transport ownership transferred to service
             eprintln!("✅ Server connected in {:?}", start.elapsed());
-            Ok(KodegenClient::from_service(service))
+            Ok(KodegenConnection::from_service(service))
         }
         Ok(Err(e)) => {
             // Connection failed - transport dropped, child killed automatically

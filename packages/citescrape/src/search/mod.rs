@@ -29,5 +29,5 @@ use anyhow::Result;
 
 /// Initialize the search system with the given configuration
 pub fn initialize_search(config: crate::config::CrawlConfig) -> AsyncTask<Result<SearchEngine>> {
-    crate::runtime::spawn_async(async move { SearchEngine::create_async(&config).await })
+    crate::runtime::spawn_async(async move { SearchEngine::create(&config).await })
 }

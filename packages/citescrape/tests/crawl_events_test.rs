@@ -20,12 +20,7 @@ async fn test_publish_with_no_subscribers() {
     );
 
     // Test the core functionality - publishing to empty bus should return Err(NoSubscribers)
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish(event, move |result| {
-        let _ = tx.send(result);
-    });
-
-    let result = rx.await.unwrap();
+    let result = bus.publish(event).await;
     // With the current interface, publishing to empty bus returns Err(NoSubscribers)
     assert!(
         result.is_err(),
@@ -53,12 +48,7 @@ async fn test_subscribe_and_publish() {
         2,
     );
 
-    let (pub_tx, pub_rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish(event.clone(), move |result| {
-        let _ = pub_tx.send(result);
-    });
-
-    let result = pub_rx.await.unwrap();
+    let result = bus.publish(event.clone()).await;
     assert!(result.is_ok());
     if let Ok(count) = result {
         assert_eq!(count, 1);
@@ -108,12 +98,7 @@ async fn test_multiple_subscribers() {
         },
     );
 
-    let (pub_tx, pub_rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish(event, move |result| {
-        let _ = pub_tx.send(result);
-    });
-
-    let result = pub_rx.await.unwrap();
+    let result = bus.publish(event).await;
     assert!(result.is_ok());
     if let Ok(count) = result {
         assert_eq!(count, 2);
@@ -139,7 +124,7 @@ async fn test_async_publish() {
     let event = CrawlEvent::link_rewrite_completed("https://example.com/target".to_string(), 5, 20);
 
     // Should not panic even with no subscribers
-    let result = bus.publish_async(event).await;
+    let result = bus.publish(event).await;
     // Result should be Err(NoSubscribers) since we have no subscribers
     assert!(result.is_err());
 }
@@ -204,11 +189,7 @@ async fn test_filtered_receiver() {
     // Publish a CrawlStarted event (should be filtered out)
     let start_event =
         CrawlEvent::crawl_started("https://test.com".to_string(), PathBuf::from("/test"), 2);
-    let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish(start_event, move |result| {
-        let _ = start_tx.send(result);
-    });
-    let _ = start_rx.await.unwrap();
+    let _ = bus.publish(start_event).await;
 
     // Publish a PageCrawled event (should pass filter)
     let metadata = PageCrawlMetadata {
@@ -225,11 +206,7 @@ async fn test_filtered_receiver() {
         1,
         metadata,
     );
-    let (page_tx, page_rx) = tokio::sync::oneshot::channel();
-    let _task = bus.publish(page_event.clone(), move |result| {
-        let _ = page_tx.send(result);
-    });
-    let _ = page_rx.await.unwrap();
+    let _ = bus.publish(page_event.clone()).await;
 
     // Should receive only the PageCrawled event
     let received = match timeout(Duration::from_millis(100), filtered_receiver.recv()).await {

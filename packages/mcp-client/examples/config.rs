@@ -14,8 +14,9 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting config tools example");
 
     // Connect to kodegen server (config tools are always enabled, no category needed)
-    let client = common::connect_to_server_with_categories(None)
+    let conn = common::connect_to_server_with_categories(None)
         .await?;
+    let client = conn.client();
 
     info!("Connected to server: {:?}", client.server_info());
 
@@ -47,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Graceful shutdown
-    client.close().await?;
+    conn.close().await?;
     info!("Config tools example completed successfully");
 
     Ok(())

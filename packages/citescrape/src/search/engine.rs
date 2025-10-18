@@ -27,9 +27,7 @@ pub struct SearchEngine {
 
 impl SearchEngine {
     /// Create a new search engine instance asynchronously
-    pub async fn create_async(config: &CrawlConfig) -> Result<Self> {
-        let config = config.clone();
-
+    pub async fn create(config: &CrawlConfig) -> Result<Self> {
         let index_dir = config.search_index_dir();
         let index_path_buf = index_dir.clone();
         let memory_limit = config.search_memory_limit();

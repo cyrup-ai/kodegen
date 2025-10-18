@@ -1,0 +1,603 @@
+    Checking kodegen_citescrape v0.1.0 (/Volumes/samsung_t9/kodegen/packages/citescrape)
+    Checking kodegen v0.1.0 (/Volumes/samsung_t9/kodegen/packages/server)
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:17:5
+   |
+17 | /     assert_eq!(
+18 | |         check_http_rate_limit(url, rate),
+19 | |         RateLimitDecision::Allow,
+20 | |         "First CSS download should be allowed"
+21 | |     );
+   | |     ^
+   | |     |
+   | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+   |       kodegen_citescrape::crawl_engine::RateLimitDecision
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+  --> packages/citescrape/tests/kromekover_tests.rs:19:17
+   |
+19 |       let _task = inject(page.clone(), move |result| {
+   |  _________________^^^^^^_______________-
+20 | |         let _ = tx.send(result);
+21 | |     });
+   | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/kromekover_tests.rs:19:38: 19:51}`
+   |
+note: function defined here
+  --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/kromekover/mod.rs:41:8
+   |
+41 | pub fn inject(page: Page) -> crate::runtime::AsyncTask<Result<()>> {
+   |        ^^^^^^
+help: remove the extra argument
+   |
+19 -     let _task = inject(page.clone(), move |result| {
+20 -         let _ = tx.send(result);
+21 -     });
+19 +     let _task = inject(page.clone());
+   |
+
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:17:5
+   |
+17 | /     assert_eq!(
+18 | |         check_http_rate_limit(url, rate),
+19 | |         RateLimitDecision::Allow,
+20 | |         "First CSS download should be allowed"
+21 | |     );
+   | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:27:13
+   |
+26 |             check_http_rate_limit(url, rate),
+   |             -------------------------------- this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+27 |             RateLimitDecision::Deny { .. }
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+   |
+   = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                     found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:42:5
+   |
+42 | /     assert_eq!(
+43 | |         check_http_rate_limit(url, rate),
+44 | |         RateLimitDecision::Allow,
+45 | |         "First image download should be allowed"
+46 | |     );
+   | |     ^
+   | |     |
+   | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+   |       kodegen_citescrape::crawl_engine::RateLimitDecision
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:42:5
+   |
+42 | /     assert_eq!(
+43 | |         check_http_rate_limit(url, rate),
+44 | |         RateLimitDecision::Allow,
+45 | |         "First image download should be allowed"
+46 | |     );
+   | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:52:13
+   |
+51 |             check_http_rate_limit(url, rate),
+   |             -------------------------------- this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+52 |             RateLimitDecision::Deny { .. }
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+   |
+   = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                     found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> packages/citescrape/tests/crawl_events_test.rs:24:21
+    |
+ 24 |       let _task = bus.publish(event, move |result| {
+    |  _____________________^^^^^^^________-
+ 25 | |         let _ = tx.send(result);
+ 26 | |     });
+    | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/crawl_events_test.rs:24:36: 24:49}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/crawl_events/bus.rs:111:18
+    |
+111 |     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
+    |                  ^^^^^^^
+help: remove the extra argument
+    |
+ 24 -     let _task = bus.publish(event, move |result| {
+ 25 -         let _ = tx.send(result);
+ 26 -     });
+ 24 +     let _task = bus.publish(event);
+    |
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:67:5
+   |
+67 | /     assert_eq!(
+68 | |         check_http_rate_limit(url, rate),
+69 | |         RateLimitDecision::Allow,
+70 | |         "First SVG download should be allowed"
+71 | |     );
+   | |     ^
+   | |     |
+   | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+   |       kodegen_citescrape::crawl_engine::RateLimitDecision
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:67:5
+   |
+67 | /     assert_eq!(
+68 | |         check_http_rate_limit(url, rate),
+69 | |         RateLimitDecision::Allow,
+70 | |         "First SVG download should be allowed"
+71 | |     );
+   | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:77:13
+   |
+76 |             check_http_rate_limit(url, rate),
+   |             -------------------------------- this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+77 |             RateLimitDecision::Deny { .. }
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+   |
+   = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                     found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:92:5
+   |
+92 | /     assert_eq!(
+93 | |         check_http_rate_limit(url, rate),
+94 | |         RateLimitDecision::Allow,
+95 | |         "First resource download should be allowed"
+96 | |     );
+   | |     ^
+   | |     |
+   | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+   |       kodegen_citescrape::crawl_engine::RateLimitDecision
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this method takes 2 arguments but 3 arguments were supplied
+   --> packages/citescrape/tests/link_rewriter_test.rs:22:26
+    |
+ 22 |       let _task = rewriter.rewrite_links(html, current_url, move |result| {
+    |  __________________________^^^^^^^^^^^^^____________________-
+ 23 | |         let _ = tx.send(result);
+ 24 | |     });
+    | |_____- unexpected argument #3 of type `{closure@packages/citescrape/tests/link_rewriter_test.rs:22:59: 22:72}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/page_extractor/link_rewriter.rs:156:18
+    |
+156 |     pub async fn rewrite_links(&self, html: String, current_url: String) -> Result<String> {
+    |                  ^^^^^^^^^^^^^
+help: remove the extra argument
+    |
+ 22 -     let _task = rewriter.rewrite_links(html, current_url, move |result| {
+ 23 -         let _ = tx.send(result);
+ 24 -     });
+ 22 +     let _task = rewriter.rewrite_links(html, current_url);
+    |
+
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+  --> packages/citescrape/tests/downloader_rate_limiting_test.rs:92:5
+   |
+92 | /     assert_eq!(
+93 | |         check_http_rate_limit(url, rate),
+94 | |         RateLimitDecision::Allow,
+95 | |         "First resource download should be allowed"
+96 | |     );
+   | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   |
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:102:13
+    |
+101 |             check_http_rate_limit(url, rate),
+    |             -------------------------------- this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+102 |             RateLimitDecision::Deny { .. }
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+    |
+    = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                      found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> packages/citescrape/tests/crawl_events_test.rs:57:21
+    |
+ 57 |       let _task = bus.publish(event.clone(), move |result| {
+    |  _____________________^^^^^^^________________-
+ 58 | |         let _ = pub_tx.send(result);
+ 59 | |     });
+    | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/crawl_events_test.rs:57:44: 57:57}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/crawl_events/bus.rs:111:18
+    |
+111 |     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
+    |                  ^^^^^^^
+help: remove the extra argument
+    |
+ 57 -     let _task = bus.publish(event.clone(), move |result| {
+ 58 -         let _ = pub_tx.send(result);
+ 59 -     });
+ 57 +     let _task = bus.publish(event.clone());
+    |
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:119:5
+    |
+119 | /     assert_eq!(
+120 | |         check_http_rate_limit(domain1_css, rate),
+121 | |         RateLimitDecision::Allow,
+122 | |         "First CSS from domain1 should be allowed"
+123 | |     );
+    | |     ^
+    | |     |
+    | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+    |       kodegen_citescrape::crawl_engine::RateLimitDecision
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0061`.
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:119:5
+    |
+119 | /     assert_eq!(
+120 | |         check_http_rate_limit(domain1_css, rate),
+121 | |         RateLimitDecision::Allow,
+122 | |         "First CSS from domain1 should be allowed"
+123 | |     );
+    | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:129:13
+    |
+128 |             check_http_rate_limit(domain1_image, rate),
+    |             ------------------------------------------ this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+129 |             RateLimitDecision::Deny { .. }
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+    |
+    = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                      found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:135:5
+    |
+135 | /     assert_eq!(
+136 | |         check_http_rate_limit(domain2_css, rate),
+137 | |         RateLimitDecision::Allow,
+138 | |         "CSS from domain2 should be allowed (different domain)"
+139 | |     );
+    | |     ^
+    | |     |
+    | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+    |       kodegen_citescrape::crawl_engine::RateLimitDecision
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+  --> packages/citescrape/tests/batch_indexing_test.rs:94:32
+   |
+94 |     let engine = SearchEngine::create_async(&config).await?;
+   |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+   |
+help: there is an associated function `create` with a similar name
+   |
+94 -     let engine = SearchEngine::create_async(&config).await?;
+94 +     let engine = SearchEngine::create(&config).await?;
+   |
+
+error: could not compile `kodegen_citescrape` (test "link_rewriter_test") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+  --> packages/citescrape/tests/indexing_limits_test.rs:68:32
+   |
+68 |     let engine = SearchEngine::create_async(&config).await?;
+   |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+   |
+help: there is an associated function `create` with a similar name
+   |
+68 -     let engine = SearchEngine::create_async(&config).await?;
+68 +     let engine = SearchEngine::create(&config).await?;
+   |
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> packages/citescrape/tests/crawl_events_test.rs:112:21
+    |
+112 |       let _task = bus.publish(event, move |result| {
+    |  _____________________^^^^^^^________-
+113 | |         let _ = pub_tx.send(result);
+114 | |     });
+    | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/crawl_events_test.rs:112:36: 112:49}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/crawl_events/bus.rs:111:18
+    |
+111 |     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
+    |                  ^^^^^^^
+help: remove the extra argument
+    |
+112 -     let _task = bus.publish(event, move |result| {
+113 -         let _ = pub_tx.send(result);
+114 -     });
+112 +     let _task = bus.publish(event);
+    |
+
+error: could not compile `kodegen_citescrape` (test "kromekover_tests") due to 1 previous error
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:135:5
+    |
+135 | /     assert_eq!(
+136 | |         check_http_rate_limit(domain2_css, rate),
+137 | |         RateLimitDecision::Allow,
+138 | |         "CSS from domain2 should be allowed (different domain)"
+139 | |     );
+    | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/indexing_limits_test.rs:114:32
+    |
+114 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+114 -     let engine = SearchEngine::create_async(&config).await?;
+114 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:161:55
+    |
+161 |         if check_http_rate_limit(&resource_url, rate) == RateLimitDecision::Allow {
+    |            ------------------------------------------ ^^ ------------------------ kodegen_citescrape::crawl_engine::RateLimitDecision
+    |            |
+    |            impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/batch_indexing_test.rs:136:32
+    |
+136 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+136 -     let engine = SearchEngine::create_async(&config).await?;
+136 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/indexing_limits_test.rs:165:32
+    |
+165 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+165 -     let engine = SearchEngine::create_async(&config).await?;
+165 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0369]: binary operation `==` cannot be applied to type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:182:5
+    |
+182 | /     assert_eq!(
+183 | |         check_http_rate_limit("https://www.example.com/style.css", rate),
+184 | |         RateLimitDecision::Allow,
+185 | |         "First request should be allowed"
+186 | |     );
+    | |     ^
+    | |     |
+    | |_____impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>
+    |       kodegen_citescrape::crawl_engine::RateLimitDecision
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/batch_indexing_test.rs:224:32
+    |
+224 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+224 -     let engine = SearchEngine::create_async(&config).await?;
+224 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0599]: no method named `publish_async` found for struct `kodegen_citescrape::crawl_events::CrawlEventBus` in the current scope
+   --> packages/citescrape/tests/crawl_events_test.rs:142:22
+    |
+142 |     let result = bus.publish_async(event).await;
+    |                      ^^^^^^^^^^^^^
+    |
+help: there is a method `publish` with a similar name
+    |
+142 -     let result = bus.publish_async(event).await;
+142 +     let result = bus.publish(event).await;
+    |
+
+error[E0277]: `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>` doesn't implement `std::fmt::Debug`
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:182:5
+    |
+182 | /     assert_eq!(
+183 | |         check_http_rate_limit("https://www.example.com/style.css", rate),
+184 | |         RateLimitDecision::Allow,
+185 | |         "First request should be allowed"
+186 | |     );
+    | |_____^ the trait `std::fmt::Debug` is not implemented for `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+    |
+    = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:192:13
+    |
+191 |             check_http_rate_limit("https://example.com/photo.jpg", rate),
+    |             ------------------------------------------------------------ this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+192 |             RateLimitDecision::Deny { .. }
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+    |
+    = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                      found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+error[E0308]: mismatched types
+   --> packages/citescrape/tests/downloader_rate_limiting_test.rs:201:13
+    |
+200 |             check_http_rate_limit("https://EXAMPLE.COM/icon.svg", rate),
+    |             ----------------------------------------------------------- this expression has type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+201 |             RateLimitDecision::Deny { .. }
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected future, found `RateLimitDecision`
+    |
+    = note: expected opaque type `impl std::future::Future<Output = kodegen_citescrape::crawl_engine::RateLimitDecision>`
+                      found enum `kodegen_citescrape::crawl_engine::RateLimitDecision`
+
+Some errors have detailed explanations: E0277, E0308, E0369.
+For more information about an error, try `rustc --explain E0277`.
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/indexing_limits_test.rs:215:32
+    |
+215 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+215 -     let engine = SearchEngine::create_async(&config).await?;
+215 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> packages/citescrape/tests/crawl_events_test.rs:208:21
+    |
+208 |       let _task = bus.publish(start_event, move |result| {
+    |  _____________________^^^^^^^______________-
+209 | |         let _ = start_tx.send(result);
+210 | |     });
+    | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/crawl_events_test.rs:208:42: 208:55}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/crawl_events/bus.rs:111:18
+    |
+111 |     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
+    |                  ^^^^^^^
+help: remove the extra argument
+    |
+208 -     let _task = bus.publish(start_event, move |result| {
+209 -         let _ = start_tx.send(result);
+210 -     });
+208 +     let _task = bus.publish(start_event);
+    |
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/batch_indexing_test.rs:272:32
+    |
+272 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+272 -     let engine = SearchEngine::create_async(&config).await?;
+272 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/indexing_limits_test.rs:269:32
+    |
+269 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+269 -     let engine = SearchEngine::create_async(&config).await?;
+269 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+   --> packages/citescrape/tests/crawl_events_test.rs:229:21
+    |
+229 |       let _task = bus.publish(page_event.clone(), move |result| {
+    |  _____________________^^^^^^^_____________________-
+230 | |         let _ = page_tx.send(result);
+231 | |     });
+    | |_____- unexpected argument #2 of type `{closure@packages/citescrape/tests/crawl_events_test.rs:229:49: 229:62}`
+    |
+note: method defined here
+   --> /Volumes/samsung_t9/kodegen/packages/citescrape/src/crawl_events/bus.rs:111:18
+    |
+111 |     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
+    |                  ^^^^^^^
+help: remove the extra argument
+    |
+229 -     let _task = bus.publish(page_event.clone(), move |result| {
+230 -         let _ = page_tx.send(result);
+231 -     });
+229 +     let _task = bus.publish(page_event.clone());
+    |
+
+error: could not compile `kodegen_citescrape` (test "downloader_rate_limiting_test") due to 22 previous errors
+For more information about this error, try `rustc --explain E0599`.
+error[E0599]: no function or associated item named `create_async` found for struct `kodegen_citescrape::search::SearchEngine` in the current scope
+   --> packages/citescrape/tests/batch_indexing_test.rs:331:32
+    |
+331 |     let engine = SearchEngine::create_async(&config).await?;
+    |                                ^^^^^^^^^^^^ function or associated item not found in `kodegen_citescrape::search::SearchEngine`
+    |
+help: there is an associated function `create` with a similar name
+    |
+331 -     let engine = SearchEngine::create_async(&config).await?;
+331 +     let engine = SearchEngine::create(&config).await?;
+    |
+
+error: could not compile `kodegen_citescrape` (test "indexing_limits_test") due to 5 previous errors
+error: could not compile `kodegen_citescrape` (test "batch_indexing_test") due to 5 previous errors
+Some errors have detailed explanations: E0061, E0599.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `kodegen_citescrape` (test "crawl_events_test") due to 6 previous errors
+error: the borrowed expression implements the required traits
+   --> packages/server/src/cli/install.rs:302:19
+    |
+302 |             .args(&["build", "--bin", "kodegen"])
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: change this to: `["build", "--bin", "kodegen"]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_borrows_for_generic_args
+    = note: `-D clippy::needless-borrows-for-generic-args` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_borrows_for_generic_args)]`
+
+error: this function has too many arguments (9/7)
+   --> packages/server/src/stdio/server.rs:168:5
+    |
+168 | /     pub async fn new(
+169 | |         sse_url: Option<&str>,
+170 | |         config_manager: kodegen_config::ConfigManager,
+171 | |         usage_tracker: UsageTracker,
+...   |
+177 | |         shutdown_token: CancellationToken,
+178 | |     ) -> Result<Self> {
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: could not compile `kodegen` (bin "kodegen") due to 1 previous error
+error: could not compile `kodegen` (bin "kodegen" test) due to 2 previous errors

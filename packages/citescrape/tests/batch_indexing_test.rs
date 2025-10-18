@@ -91,7 +91,7 @@ async fn test_discover_markdown_files() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -133,7 +133,7 @@ async fn test_batch_index_directory() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine.clone());
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -221,7 +221,7 @@ async fn test_batch_index_empty_directory() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let batch_config = BatchConfig {
@@ -269,7 +269,7 @@ async fn test_batch_size_handling() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     // Use a small batch size to test batching
@@ -328,7 +328,7 @@ async fn test_url_deduplication() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let discovered: Vec<_> = indexer

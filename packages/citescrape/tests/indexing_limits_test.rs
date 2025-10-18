@@ -65,7 +65,7 @@ async fn test_compressed_file_size_limit() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -111,7 +111,7 @@ async fn test_decompressed_content_size_limit() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -162,7 +162,7 @@ async fn test_compression_ratio_limit() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -212,7 +212,7 @@ async fn test_custom_limits_allow_larger_files() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -266,7 +266,7 @@ async fn test_normal_markdown_files_within_limits() -> Result<()> {
         .unwrap()
         .map_err(anyhow::Error::msg)?;
 
-    let engine = SearchEngine::create_async(&config).await?;
+    let engine = SearchEngine::create(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
 
     let crawl_output = temp_dir.path().join("crawl_output");

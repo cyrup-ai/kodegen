@@ -15,11 +15,8 @@ async fn test_evasions() -> Result<()> {
     let page = browser.new_page("about:blank").await?;
 
     // Inject our evasion scripts
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let _task = inject(page.clone(), move |result| {
-        let _ = tx.send(result);
-    });
-    rx.await??;
+    let task = inject(page.clone());
+    task.await?;
 
     // Test navigator properties
     let vendor_result = page.evaluate("navigator.vendor").await?;

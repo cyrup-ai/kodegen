@@ -251,7 +251,6 @@ impl SearchEngineCache {
 
     /// Get cached engine or initialize new one
     ///
-    /// This method handles the callback-to-async conversion for SearchEngine::create_async
     /// Returns both the SearchEngine and optional IndexingSender for use in CrawlConfig
     pub async fn get_or_init(
         &self,
@@ -273,7 +272,7 @@ impl SearchEngineCache {
         drop(engines);
 
         // Initialize new engine
-        let engine = SearchEngine::create_async(config).await.map_err(|e| {
+        let engine = SearchEngine::create(config).await.map_err(|e| {
             McpError::SearchEngine(format!("Failed to initialize search engine: {}", e))
         })?;
 

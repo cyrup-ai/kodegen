@@ -24,9 +24,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Connect to kodegen server with github category
-    let client = common::connect_to_server_with_categories(
+    let conn = common::connect_to_server_with_categories(
         Some(vec![common::ToolCategory::Github])
     ).await?;
+    let client = conn.client();
 
     info!("Connected to server: {:?}", client.server_info());
 
@@ -273,7 +274,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Graceful shutdown
-    client.close().await?;
+    conn.close().await?;
     info!("GitHub tools example completed successfully");
 
     Ok(())

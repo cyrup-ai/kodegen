@@ -189,7 +189,7 @@ static BASE_TIME: OnceLock<Instant> = OnceLock::new();
 /// Get or initialize the base time  
 #[inline]
 fn get_base_time() -> &'static Instant {
-    BASE_TIME.get_or_init(|| Instant::now())
+    BASE_TIME.get_or_init(Instant::now)
 }
 
 /// Extract domain from URL

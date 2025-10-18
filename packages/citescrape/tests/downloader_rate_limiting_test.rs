@@ -6,16 +6,16 @@
 use kodegen_citescrape::crawl_rate_limiter::*;
 
 /// Test that HTTP rate limiting works for CSS downloads
-#[test]
-fn test_http_rate_limit_for_css_downloads() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_http_rate_limit_for_css_downloads() {
+    clear_domain_limiters().await;
 
     let url = "https://example.com/style.css";
     let rate = 1.0; // 1 request per second
 
     // First request should be allowed
     assert_eq!(
-        check_http_rate_limit(url, rate),
+        check_http_rate_limit(url, rate).await,
         RateLimitDecision::Allow,
         "First CSS download should be allowed"
     );
@@ -23,7 +23,7 @@ fn test_http_rate_limit_for_css_downloads() {
     // Immediate second request should be denied
     assert!(
         matches!(
-            check_http_rate_limit(url, rate),
+            check_http_rate_limit(url, rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Immediate second CSS download should be rate limited"
@@ -31,16 +31,16 @@ fn test_http_rate_limit_for_css_downloads() {
 }
 
 /// Test that HTTP rate limiting works for image downloads
-#[test]
-fn test_http_rate_limit_for_image_downloads() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_http_rate_limit_for_image_downloads() {
+    clear_domain_limiters().await;
 
     let url = "https://example.com/photo.jpg";
     let rate = 1.0; // 1 request per second
 
     // First request should be allowed
     assert_eq!(
-        check_http_rate_limit(url, rate),
+        check_http_rate_limit(url, rate).await,
         RateLimitDecision::Allow,
         "First image download should be allowed"
     );
@@ -48,7 +48,7 @@ fn test_http_rate_limit_for_image_downloads() {
     // Immediate second request should be denied
     assert!(
         matches!(
-            check_http_rate_limit(url, rate),
+            check_http_rate_limit(url, rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Immediate second image download should be rate limited"
@@ -56,16 +56,16 @@ fn test_http_rate_limit_for_image_downloads() {
 }
 
 /// Test that HTTP rate limiting works for SVG downloads
-#[test]
-fn test_http_rate_limit_for_svg_downloads() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_http_rate_limit_for_svg_downloads() {
+    clear_domain_limiters().await;
 
     let url = "https://example.com/icon.svg";
     let rate = 1.0; // 1 request per second
 
     // First request should be allowed
     assert_eq!(
-        check_http_rate_limit(url, rate),
+        check_http_rate_limit(url, rate).await,
         RateLimitDecision::Allow,
         "First SVG download should be allowed"
     );
@@ -73,7 +73,7 @@ fn test_http_rate_limit_for_svg_downloads() {
     // Immediate second request should be denied
     assert!(
         matches!(
-            check_http_rate_limit(url, rate),
+            check_http_rate_limit(url, rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Immediate second SVG download should be rate limited"
@@ -81,16 +81,16 @@ fn test_http_rate_limit_for_svg_downloads() {
 }
 
 /// Test that HTTP rate limiting works for generic resource downloads
-#[test]
-fn test_http_rate_limit_for_resource_downloads() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_http_rate_limit_for_resource_downloads() {
+    clear_domain_limiters().await;
 
     let url = "https://example.com/data.bin";
     let rate = 1.0; // 1 request per second
 
     // First request should be allowed
     assert_eq!(
-        check_http_rate_limit(url, rate),
+        check_http_rate_limit(url, rate).await,
         RateLimitDecision::Allow,
         "First resource download should be allowed"
     );
@@ -98,7 +98,7 @@ fn test_http_rate_limit_for_resource_downloads() {
     // Immediate second request should be denied
     assert!(
         matches!(
-            check_http_rate_limit(url, rate),
+            check_http_rate_limit(url, rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Immediate second resource download should be rate limited"
@@ -106,9 +106,9 @@ fn test_http_rate_limit_for_resource_downloads() {
 }
 
 /// Test that rate limiting is applied per-domain for all resource types
-#[test]
-fn test_per_domain_rate_limiting_across_resource_types() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_per_domain_rate_limiting_across_resource_types() {
+    clear_domain_limiters().await;
 
     let domain1_css = "https://example.com/style.css";
     let domain1_image = "https://example.com/photo.jpg";
@@ -117,7 +117,7 @@ fn test_per_domain_rate_limiting_across_resource_types() {
 
     // First request to domain1 (CSS) - allowed
     assert_eq!(
-        check_http_rate_limit(domain1_css, rate),
+        check_http_rate_limit(domain1_css, rate).await,
         RateLimitDecision::Allow,
         "First CSS from domain1 should be allowed"
     );
@@ -125,7 +125,7 @@ fn test_per_domain_rate_limiting_across_resource_types() {
     // Second request to domain1 (image) - denied (same domain, different resource type)
     assert!(
         matches!(
-            check_http_rate_limit(domain1_image, rate),
+            check_http_rate_limit(domain1_image, rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Image from domain1 should be rate limited (domain already used by CSS)"
@@ -133,16 +133,16 @@ fn test_per_domain_rate_limiting_across_resource_types() {
 
     // First request to domain2 (CSS) - allowed (different domain)
     assert_eq!(
-        check_http_rate_limit(domain2_css, rate),
+        check_http_rate_limit(domain2_css, rate).await,
         RateLimitDecision::Allow,
         "CSS from domain2 should be allowed (different domain)"
     );
 }
 
 /// Test that high rate limits allow multiple downloads across resource types
-#[test]
-fn test_high_rate_limit_for_mixed_resources() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_high_rate_limit_for_mixed_resources() {
+    clear_domain_limiters().await;
 
     let base_url = "https://example.com";
     let rate = 100.0; // 100 requests per second
@@ -158,7 +158,7 @@ fn test_high_rate_limit_for_mixed_resources() {
 
     let mut allowed_count = 0;
     for resource_url in resources {
-        if check_http_rate_limit(&resource_url, rate) == RateLimitDecision::Allow {
+        if check_http_rate_limit(&resource_url, rate).await == RateLimitDecision::Allow {
             allowed_count += 1;
         }
     }
@@ -172,15 +172,15 @@ fn test_high_rate_limit_for_mixed_resources() {
 }
 
 /// Test that rate limiting respects domain normalization for all resource types
-#[test]
-fn test_domain_normalization_for_all_resources() {
-    clear_domain_limiters();
+#[tokio::test]
+async fn test_domain_normalization_for_all_resources() {
+    clear_domain_limiters().await;
 
     let rate = 1.0;
 
     // First request with www prefix
     assert_eq!(
-        check_http_rate_limit("https://www.example.com/style.css", rate),
+        check_http_rate_limit("https://www.example.com/style.css", rate).await,
         RateLimitDecision::Allow,
         "First request should be allowed"
     );
@@ -188,7 +188,7 @@ fn test_domain_normalization_for_all_resources() {
     // Second request without www (same normalized domain, different resource type)
     assert!(
         matches!(
-            check_http_rate_limit("https://example.com/photo.jpg", rate),
+            check_http_rate_limit("https://example.com/photo.jpg", rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Should be rate limited (same domain after normalization)"
@@ -197,7 +197,7 @@ fn test_domain_normalization_for_all_resources() {
     // Third request with uppercase (same normalized domain, different resource type)
     assert!(
         matches!(
-            check_http_rate_limit("https://EXAMPLE.COM/icon.svg", rate),
+            check_http_rate_limit("https://EXAMPLE.COM/icon.svg", rate).await,
             RateLimitDecision::Deny { .. }
         ),
         "Should be rate limited (same domain after normalization)"
@@ -207,8 +207,8 @@ fn test_domain_normalization_for_all_resources() {
 /// Consistency verification test
 /// This test documents that all download functions now have consistent rate limiting support.
 /// The rate limiting is implemented via the check_http_rate_limit function which is tested above.
-#[test]
-fn test_rate_limiting_consistency_documentation() {
+#[tokio::test]
+async fn test_rate_limiting_consistency_documentation() {
     // This test serves as documentation that rate limiting is now consistently
     // available across all download function types:
     //
