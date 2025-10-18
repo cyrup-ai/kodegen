@@ -4517,7 +4517,6 @@ dependencies = [
  "futures",
  "futures-util",
  "jwalk",
- "kodegen",
  "kodegen_autoconfig",
  "kodegen_config",
  "kodegen_utils",
