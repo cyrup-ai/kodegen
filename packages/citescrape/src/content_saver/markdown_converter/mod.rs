@@ -211,13 +211,7 @@ pub fn convert_html_to_markdown_sync(html: &str, options: &ConversionOptions) ->
 
     // Stage 2: Clean HTML (with passthrough if disabled)
     let clean_html = if options.clean_html {
-        match clean_html_content(&main_html) {
-            Ok(cleaned) => cleaned,
-            Err(e) => {
-                tracing::warn!("HTML cleaning failed: {}, using uncleaned HTML", e);
-                main_html
-            }
-        }
+        clean_html_content(&main_html)
     } else {
         main_html
     };

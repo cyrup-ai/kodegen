@@ -356,16 +356,15 @@ pub fn clean_html_content(html: &str) -> String {
     );
 
     // Remove any remaining HTML5 semantic elements that don't have markdown equivalents
-    result = SEMANTIC_RE.replace_all(&result, "");
+    result = SEMANTIC_RE.replace_all(&result, "").into_owned();
 
     // Decode HTML entities
     let decoded = decode_html_entities(&result);
     if let Cow::Owned(s) = decoded {
-        result = Cow::Owned(s);
+        result = s;
     }
 
-    // Convert final Cow to owned String for return
-    result.into_owned()
+    result
 }
 
 // ============================================================================
