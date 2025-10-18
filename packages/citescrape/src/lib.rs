@@ -11,41 +11,6 @@ pub mod search;
 pub mod utils;
 pub mod web_search;
 
-/// Pre-initialize all LazyLock statics to prevent blocking in tokio runtime
-/// 
-/// MUST be called before #[tokio::main] or tokio::runtime::Runtime::new().
-/// This forces all LazyLock initialization to happen synchronously in the main thread
-/// before the async runtime starts, preventing "Cannot block the current thread" panics.
-/// 
-/// # LazyLocks Initialized
-/// 
-/// - `crawl_engine::rate_limiter::DOMAIN_LIMITERS` - LRU cache for domain rate limiters
-/// - `crawl_engine::rate_limiter::BASE_TIME` - Base timestamp for rate calculations
-/// 
-/// # Example
-/// 
-/// ```rust
-/// citescrape::preinit_lazy_statics(); // Call BEFORE tokio runtime
-/// 
-/// tokio::runtime::Runtime::new().unwrap().block_on(async {
-///     // Your async code here
-/// });
-/// ```
-pub fn preinit_lazy_statics() {
-    // Force initialization of rate limiter LazyLocks by accessing them
-    // This must happen on the main thread before tokio runtime starts
-    
-    use crawl_engine::rate_limiter;
-    
-    // Touch DOMAIN_LIMITERS by checking tracked domain count (safe read operation)
-    let _ = rate_limiter::get_tracked_domain_count();
-    
-    // Touch BASE_TIME by doing a dummy rate limit check (will touch BASE_TIME internally)
-    let _ = rate_limiter::check_crawl_rate_limit("https://example.com", 1.0);
-    
-    // LazyLocks are now initialized - safe to start tokio runtime
-}
-
 pub use config::CrawlConfig;
 pub use content_saver::{save_json_data, CacheMetadata};
 pub use crawl_engine::{
@@ -110,14 +75,7 @@ macro_rules! on_error {
 }
 
 
-pub fn crawl(
-    config: CrawlConfig,
-    on_result: impl FnOnce(Result<(), CrawlError>) + Send + 'static,
-) -> AsyncTask<()> {
-    spawn_async(async move {
-        let crawler = ChromiumoxideCrawler::new(config);
-        let result = crawler.crawl().await;
-        on_result(result);
-        // AsyncTask returns () since the actual result is passed to callback
-    })
+pub async fn crawl(config: CrawlConfig) -> Result<(), CrawlError> {
+    let crawler = ChromiumoxideCrawler::new(config);
+    crawler.crawl().await
 }

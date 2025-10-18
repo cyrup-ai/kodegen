@@ -14,7 +14,6 @@ use rmcp::{
     transport::stdio,
 };
 use serde_json::json;
-use std::sync::Arc;
 use std::time::Duration;
 use kodegen_utils::usage_tracker::UsageTracker;
 use tokio_util::sync::CancellationToken;
@@ -30,26 +29,26 @@ use tokio_util::sync::CancellationToken;
 /// * `initial_backoff` - Initial backoff duration, doubles on each retry
 /// 
 /// # Returns
-/// * `Ok(client)` - Successfully connected client
+/// * `Ok((client, connection))` - Successfully connected client and connection tuple
 /// * `Err` - All connection attempts failed
 async fn connect_with_retry(
     url: &str,
     max_attempts: u32,
     initial_backoff: Duration,
-) -> Result<kodegen_mcp_client::KodegenClient> {
+) -> Result<(kodegen_mcp_client::KodegenClient, kodegen_mcp_client::KodegenConnection)> {
     let mut backoff = initial_backoff;
     
     for attempt in 1..=max_attempts {
         log::debug!("SSE connection attempt {}/{} to {}", attempt, max_attempts, url);
         
         match kodegen_mcp_client::create_sse_client(url).await {
-            Ok(client) => {
+            Ok((client, connection)) => {
                 if attempt > 1 {
                     log::info!("Connected to SSE server on attempt {}/{}", attempt, max_attempts);
                 } else {
                     log::info!("Connected to SSE server");
                 }
-                return Ok(client);
+                return Ok((client, connection));
             }
             Err(e) => {
                 if attempt == max_attempts {
@@ -87,13 +86,14 @@ async fn connect_with_retry(
 #[derive(Clone)]
 pub struct StdioProxyServer {
     /// Optional SSE client for proxying tool calls.
-    /// 
-    /// Wrapped in Arc because:
-    /// - KodegenClient contains RunningService with non-Clone JoinHandle
-    /// - StdioProxyServer must be Clone for rmcp ServerHandler
-    /// - Multiple request handlers share the same client instance
-    /// - Arc enables shared ownership with proper cleanup semantics
-    sse_client: Option<Arc<kodegen_mcp_client::KodegenClient>>,
+    /// KodegenClient is cheap to clone (Arc pointers internally).
+    sse_client: Option<kodegen_mcp_client::KodegenClient>,
+    
+    /// Connection lifecycle manager (not Clone, held to keep connection alive).
+    /// When this is dropped, the SSE connection will be closed.
+    /// Wrapped in Arc to allow Clone on the struct.
+    sse_connection: Option<std::sync::Arc<kodegen_mcp_client::KodegenConnection>>,
+    
     /// Tool router for metadata and optional local execution
     tool_router: ToolRouter<Self>,
     /// Prompt router for serving prompts locally
@@ -136,7 +136,7 @@ impl StdioProxyServer {
         ).await?;
         
         // Create SSE client if URL provided
-        let sse_client = match sse_url {
+        let (sse_client, sse_connection) = match sse_url {
             Some(url) => {
                 if max_retries > 1 {
                     log::info!(
@@ -159,9 +159,8 @@ impl StdioProxyServer {
                 };
                 
                 match connect_result {
-                    Some(Ok(client)) => {
-                        // Arc is necessary - KodegenClient is not Clone due to JoinHandle in RunningService
-                        Some(Arc::new(client))
+                    Some(Ok((client, connection))) => {
+                        (Some(client), Some(std::sync::Arc::new(connection)))
                     }
                     Some(Err(e)) => {
                         if proxy_required {
@@ -182,7 +181,7 @@ impl StdioProxyServer {
                                  Running in standalone mode.",
                                 e
                             );
-                            None
+                            (None, None)
                         }
                     }
                     None => unreachable!(),
@@ -190,12 +189,13 @@ impl StdioProxyServer {
             }
             None => {
                 log::info!("No SSE URL provided, running in standalone mode");
-                None
+                (None, None)
             }
         };
         
         Ok(Self {
             sse_client,
+            sse_connection,
             tool_router: routers.tool_router,
             prompt_router: routers.prompt_router,
             usage_tracker,

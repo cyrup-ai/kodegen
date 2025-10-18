@@ -494,7 +494,7 @@ async fn process_single_page(
     // Apply rate limiting
     if let Some(rate) = config.crawl_rate_rps {
         use super::rate_limiter::{check_crawl_rate_limit, RateLimitDecision};
-        match check_crawl_rate_limit(&item.url, rate) {
+        match check_crawl_rate_limit(&item.url, rate).await {
             RateLimitDecision::Deny { retry_after } => {
                 debug!("Rate limited, sleeping for {:?}: {}", retry_after, item.url);
                 tokio::time::sleep(retry_after).await;

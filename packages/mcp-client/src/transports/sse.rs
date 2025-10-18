@@ -4,15 +4,27 @@ use rmcp::{
     model::{ClientCapabilities, ClientInfo, Implementation},
     transport::{SseClientTransport, StreamableHttpClientTransport},
 };
-use crate::{KodegenClient, ClientError};
+use crate::{KodegenClient, KodegenConnection, ClientError};
 
 /// Create an SSE client from a URL
-/// 
+///
+/// Returns a tuple of (client, connection):
+/// - `client`: Clone-able handle for MCP operations, share freely across tasks
+/// - `connection`: Lifecycle manager, must be held until shutdown desired
+///
 /// # Example
 /// ```ignore
-/// let client = create_sse_client("http://localhost:8080/sse").await?;
+/// let (client, _conn) = create_sse_client("http://localhost:8080/sse").await?;
+/// let client2 = client.clone();  // Cheap clone!
+/// client.call_tool("my_tool", args).await?;
+/// // _conn dropped here, triggering graceful shutdown
 /// ```
-pub async fn create_sse_client(url: &str) -> Result<KodegenClient, ClientError> {
+///
+/// # Errors
+///
+/// Returns `ClientError::Connection` if the SSE connection fails,
+/// or `ClientError::InitError` if the MCP initialization fails.
+pub async fn create_sse_client(url: &str) -> Result<(KodegenClient, KodegenConnection), ClientError> {
     // SseClientTransport requires async start
     let transport = SseClientTransport::start(url.to_owned())
         .await
@@ -35,16 +47,29 @@ pub async fn create_sse_client(url: &str) -> Result<KodegenClient, ClientError> 
         .await
         .map_err(ClientError::InitError)?;
     
-    Ok(KodegenClient::from_service(service))
+    // Use KodegenConnection to wrap service, then extract client
+    let connection = KodegenConnection::from_service(service);
+    let client = connection.client();
+    
+    Ok((client, connection))
 }
 
 /// Create a Streamable HTTP client from a URL
-/// 
+///
+/// Returns a tuple of (client, connection):
+/// - `client`: Clone-able handle for MCP operations, share freely across tasks
+/// - `connection`: Lifecycle manager, must be held until shutdown desired
+///
 /// # Example
 /// ```ignore
-/// let client = create_streamable_client("http://localhost:8000/mcp").await?;
+/// let (client, _conn) = create_streamable_client("http://localhost:8000/mcp").await?;
+/// let client2 = client.clone();  // Cheap clone!
 /// ```
-pub async fn create_streamable_client(url: &str) -> Result<KodegenClient, ClientError> {
+///
+/// # Errors
+///
+/// Returns `ClientError::InitError` if the MCP initialization fails.
+pub async fn create_streamable_client(url: &str) -> Result<(KodegenClient, KodegenConnection), ClientError> {
     // StreamableHttpClientTransport has simpler constructor
     let transport = StreamableHttpClientTransport::from_uri(url);
     
@@ -64,5 +89,9 @@ pub async fn create_streamable_client(url: &str) -> Result<KodegenClient, Client
         .await
         .map_err(ClientError::InitError)?;
     
-    Ok(KodegenClient::from_service(service))
+    // Use KodegenConnection to wrap service, then extract client
+    let connection = KodegenConnection::from_service(service);
+    let client = connection.client();
+    
+    Ok((client, connection))
 }

@@ -169,7 +169,7 @@ async fn download_all_css(
         async move {
             // Apply rate limiting if configured
             if let Some(rate) = rate_rps {
-                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate) {
+                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate).await {
                     crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                         let error_msg = format!("Rate limited: {}", css_url);
                         log::debug!("{}", error_msg);
@@ -235,7 +235,7 @@ async fn download_all_images(
         async move {
             // Apply rate limiting if configured
             if let Some(rate) = rate_rps {
-                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate) {
+                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate).await {
                     crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                         let error_msg = format!("Rate limited: {}", image_url);
                         log::debug!("{}", error_msg);
@@ -300,7 +300,7 @@ async fn download_all_svgs(
         async move {
             // Apply rate limiting if configured
             if let Some(rate) = rate_rps {
-                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate) {
+                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate).await {
                     crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                         let error_msg = format!("Rate limited: {}", svg_url);
                         log::debug!("{}", error_msg);
@@ -400,7 +400,7 @@ pub fn inline_resources_from_info(
                             
                             // Apply rate limiting if configured
                             if let Some(rate) = rate_rps_clone {
-                                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate) {
+                                match crate::crawl_engine::rate_limiter::check_http_rate_limit(&css_url, rate).await {
                                     crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                                         let error_msg = format!("Rate limited: {}", css_url);
                                         log::debug!("{}", error_msg);
@@ -462,7 +462,7 @@ pub fn inline_resources_from_info(
                         
                         // Apply rate limiting if configured
                         if let Some(rate) = rate_rps_clone {
-                            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate) {
+                            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&svg_url, rate).await {
                                 crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                                     let error_msg = format!("Rate limited: {}", svg_url);
                                     log::debug!("{}", error_msg);
@@ -509,7 +509,7 @@ pub fn inline_resources_from_info(
                         
                         // Apply rate limiting if configured
                         if let Some(rate) = rate_rps_clone {
-                            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate) {
+                            match crate::crawl_engine::rate_limiter::check_http_rate_limit(&image_url, rate).await {
                                 crate::crawl_engine::rate_limiter::RateLimitDecision::Deny { .. } => {
                                     let error_msg = format!("Rate limited: {}", image_url);
                                     log::debug!("{}", error_msg);

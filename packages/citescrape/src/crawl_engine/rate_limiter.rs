@@ -5,6 +5,7 @@
 //! bounds memory usage while maintaining lock-free token bucket operations.
 //!
 //! Key features:
+//! - Async-friendly with tokio::sync primitives
 //! - Thread-safe LRU cache with bounded capacity (max 1000 domains)
 //! - Lock-free per-domain token bucket using atomic operations
 //! - Automatic eviction of least-recently-used domains
@@ -12,13 +13,13 @@
 //! - Per-domain rate limiting with independent token buckets
 //! - Immediate Pass/Deny decisions with no blocking or sleep
 //! - Fixed-point arithmetic for sub-token precision
-//! - Early lock release to minimize contention
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, LazyLock};
+use std::sync::{Arc, LazyLock};
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 use lru::LruCache;
+use tokio::sync::{Mutex, OnceCell};
 
 /// Scaling factor for fixed-point token arithmetic (1000x precision)
 const TOKEN_SCALE: u64 = 1000;
@@ -89,12 +90,9 @@ impl DomainRateLimiter {
                 let tokens_needed = TOKEN_SCALE.saturating_sub(current_tokens);
                 
                 // Calculate nanoseconds needed to accumulate required tokens
-                // tokens_to_add = (elapsed_nanos * rate_per_nano) / RATE_SCALE
-                // Solving for elapsed_nanos: (tokens_needed * RATE_SCALE) / rate_per_nano
                 let nanos_needed = if self.rate_per_nano > 0 {
                     (tokens_needed.saturating_mul(RATE_SCALE)) / self.rate_per_nano
                 } else {
-                    // If rate is zero, wait a small amount
                     1_000_000 // 1ms
                 };
                 
@@ -122,7 +120,6 @@ impl DomainRateLimiter {
             let last_refill = self.last_refill_nanos.load(Ordering::Relaxed);
             
             if now_nanos <= last_refill {
-                // Time hasn't advanced or went backwards, no refill needed
                 break;
             }
             
@@ -130,11 +127,9 @@ impl DomainRateLimiter {
             let tokens_to_add = (elapsed_nanos.saturating_mul(self.rate_per_nano)) / RATE_SCALE;
             
             if tokens_to_add == 0 {
-                // No tokens to add yet
                 break;
             }
             
-            // Update last refill time first to prevent over-refilling
             match self.last_refill_nanos.compare_exchange_weak(
                 last_refill,
                 now_nanos,
@@ -142,13 +137,11 @@ impl DomainRateLimiter {
                 Ordering::Relaxed,
             ) {
                 Ok(_) => {
-                    // Successfully updated timestamp, now add tokens
                     loop {
                         let current_tokens = self.tokens.load(Ordering::Relaxed);
                         let new_tokens = current_tokens.saturating_add(tokens_to_add).min(self.max_tokens);
                         
                         if current_tokens == new_tokens {
-                            // Already at max, no need to update
                             break;
                         }
                         
@@ -159,170 +152,110 @@ impl DomainRateLimiter {
                             Ordering::Relaxed,
                         ) {
                             Ok(_) => break,
-                            Err(_) => continue, // Retry on contention
+                            Err(_) => continue,
                         }
                     }
                     break;
                 }
-                Err(_) => continue, // Another thread updated timestamp, retry
+                Err(_) => continue,
             }
         }
     }
 }
 
 /// Maximum number of domains to track simultaneously
-/// This bounds memory usage to ~500 KB (1000 domains × ~500 bytes each)
 const MAX_DOMAIN_LIMITERS: usize = 1000;
 
-// Global shared state for domain rate limiters
-static DOMAIN_LIMITERS: LazyLock<Mutex<LruCache<String, Arc<DomainRateLimiter>>>> =
-    LazyLock::new(|| {
-        // SAFETY: MAX_DOMAIN_LIMITERS is a non-zero compile-time constant
+// Global shared state for domain rate limiters (async-friendly)
+static DOMAIN_LIMITERS: OnceCell<Mutex<LruCache<String, Arc<DomainRateLimiter>>>> = OnceCell::const_new();
+
+/// Get or initialize the domain limiters cache (async-friendly)
+async fn get_domain_limiters() -> &'static Mutex<LruCache<String, Arc<DomainRateLimiter>>> {
+    DOMAIN_LIMITERS.get_or_init(|| async {
         let capacity = unsafe { NonZeroUsize::new_unchecked(MAX_DOMAIN_LIMITERS) };
         Mutex::new(LruCache::new(capacity))
-    });
+    }).await
+}
 
 /// Base time for all rate limit calculations (shared across threads)
+/// This can remain LazyLock as Instant::now() is non-blocking
 static BASE_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 /// Extract domain from URL
 #[inline]
 pub fn extract_domain(url: &str) -> Option<String> {
-    // Fast path: look for "://" and extract domain portion
     if let Some(scheme_end) = url.find("://") {
         let after_scheme = &url[scheme_end + 3..];
-        
-        // Find end of domain (first '/', '?', '#', or ':')
         let domain_end = after_scheme
             .find(['/', '?', '#', ':'])
             .unwrap_or(after_scheme.len());
-        
         let domain = &after_scheme[..domain_end];
-        
-        // Normalize domain: lowercase and remove www prefix
         let normalized = if domain.starts_with("www.") && domain.len() > 4 {
             &domain[4..]
         } else {
             domain
         };
-        
         Some(normalized.to_lowercase())
     } else {
-        // Fallback: try to parse as domain directly
         let domain = url.split(['/', '?', '#', ':']).next().unwrap_or(url);
         let normalized = if domain.starts_with("www.") && domain.len() > 4 {
             &domain[4..]
         } else {
             domain
         };
-        
         Some(normalized.to_lowercase())
     }
 }
 
-/// Get or create a rate limiter for the specified domain
+/// Get or create a rate limiter for the specified domain (async)
 #[inline]
-fn get_domain_limiter(domain: &str, rate_rps: f64) -> RateLimitDecision {
-    // Try to get the lock without blocking - if we can't get it immediately, allow the request
-    // This prevents blocking the tokio runtime while maintaining rate limiting for most cases
-    let mut cache = match DOMAIN_LIMITERS.try_lock() {
-        Ok(guard) => guard,
-        Err(std::sync::TryLockError::WouldBlock) => {
-            // Lock is held by another thread, allow request to prevent blocking
-            return RateLimitDecision::Allow;
-        }
-        Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
-    };
+async fn get_domain_limiter(domain: &str, rate_rps: f64) -> RateLimitDecision {
+    let cache_mutex = get_domain_limiters().await;
+    let mut cache = cache_mutex.lock().await;
     
-    // Check if limiter exists (updates LRU position)
     if let Some(limiter) = cache.get(domain) {
         let limiter = Arc::clone(limiter);
-        // Release lock before rate limiting computation
         drop(cache);
         return limiter.try_consume_token();
     }
     
-    // Create new limiter (oldest will be evicted if at capacity)
     let limiter = Arc::new(DomainRateLimiter::new(rate_rps));
     cache.put(domain.to_string(), Arc::clone(&limiter));
-    
-    // Release lock before rate limiting computation
     drop(cache);
     limiter.try_consume_token()
 }
 
-/// Check if a crawl request to the given URL should be rate limited
-/// 
-/// This function provides immediate Pass/Deny decisions using per-domain
-/// token buckets to ensure respectful crawling behavior. Uses an LRU cache
-/// with bounded capacity for memory-efficient domain tracking.
-/// 
-/// # Arguments
-/// 
-/// * `url` - The URL to check for rate limiting
-/// * `rate_rps` - The rate limit in requests per second for this domain
-/// 
-/// # Returns
-/// 
-/// * `RateLimitDecision::Allow` - Request can proceed immediately
-/// * `RateLimitDecision::Deny { retry_after }` - Request should be deferred by the specified duration
+/// Check if a crawl request to the given URL should be rate limited (async)
 #[inline]
-pub fn check_crawl_rate_limit(url: &str, rate_rps: f64) -> RateLimitDecision {
-    // Validate rate parameter
+pub async fn check_crawl_rate_limit(url: &str, rate_rps: f64) -> RateLimitDecision {
     if rate_rps <= 0.0 {
         return RateLimitDecision::Allow;
     }
     
-    // Extract domain from URL
     let domain = match extract_domain(url) {
         Some(domain) if !domain.is_empty() => domain,
-        _ => {
-            // Invalid URL or domain, allow request
-            return RateLimitDecision::Allow;
-        }
+        _ => return RateLimitDecision::Allow,
     };
     
-    // Check rate limit for this domain
-    get_domain_limiter(&domain, rate_rps)
+    get_domain_limiter(&domain, rate_rps).await
 }
 
-/// Check if an HTTP request should be rate limited
-/// 
-/// This is a convenience function that wraps `check_crawl_rate_limit`
-/// for use in HTTP download operations.
+/// Check if an HTTP request should be rate limited (async)
 #[inline]
-pub fn check_http_rate_limit(url: &str, rate_rps: f64) -> RateLimitDecision {
-    check_crawl_rate_limit(url, rate_rps)
+pub async fn check_http_rate_limit(url: &str, rate_rps: f64) -> RateLimitDecision {
+    check_crawl_rate_limit(url, rate_rps).await
 }
 
-/// Clear all domain rate limiters for the current thread
-/// 
-/// This can be used to reset rate limiting state between crawl sessions.
-pub fn clear_domain_limiters() {
-    match DOMAIN_LIMITERS.try_lock() {
-        Ok(mut guard) => guard.clear(),
-        Err(std::sync::TryLockError::WouldBlock) => {
-            // Skip clear if lock is held - avoid blocking
-        }
-        Err(std::sync::TryLockError::Poisoned(poisoned)) => {
-            poisoned.into_inner().clear();
-        }
-    }
+/// Clear all domain rate limiters (async)
+pub async fn clear_domain_limiters() {
+    let cache_mutex = get_domain_limiters().await;
+    let mut cache = cache_mutex.lock().await;
+    cache.clear();
 }
 
-/// Get the number of domains currently being tracked for rate limiting
-/// 
-/// This is primarily useful for monitoring and debugging.
-pub fn get_tracked_domain_count() -> usize {
-    match DOMAIN_LIMITERS.try_lock() {
-        Ok(guard) => guard.len(),
-        Err(std::sync::TryLockError::WouldBlock) => {
-            // Return 0 if lock is held - avoid blocking
-            0
-        }
-        Err(std::sync::TryLockError::Poisoned(poisoned)) => {
-            poisoned.into_inner().len()
-        }
-    }
+/// Get the number of domains currently being tracked for rate limiting (async)
+pub async fn get_tracked_domain_count() -> usize {
+    let cache_mutex = get_domain_limiters().await;
+    let cache = cache_mutex.lock().await;
+    cache.len()
 }
-

@@ -4,9 +4,9 @@ use kodegen_citescrape::crawl_engine::rate_limiter;
 #[tokio::test]
 async fn test_rate_limiter_in_async_context() {
     // This test verifies that the rate limiter can be used inside tokio runtime
-    // without "Cannot block the current thread" panics
+    // with fully async API
     
-    let decision = rate_limiter::check_crawl_rate_limit("https://example.com", 1.0);
+    let decision = rate_limiter::check_crawl_rate_limit("https://example.com", 1.0).await;
     
     // Should return a decision (Allow or Deny)
     match decision {
@@ -19,7 +19,7 @@ async fn test_rate_limiter_in_async_context() {
     }
     
     // Verify we can get domain count without panicking
-    let _count = rate_limiter::get_tracked_domain_count();
+    let _count = rate_limiter::get_tracked_domain_count().await;
 }
 
 #[tokio::test]
@@ -34,7 +34,7 @@ async fn test_multiple_concurrent_rate_limit_checks() {
     let mut handles = vec![];
     for url in urls {
         let handle = tokio::spawn(async move {
-            rate_limiter::check_crawl_rate_limit(url, 10.0)
+            rate_limiter::check_crawl_rate_limit(url, 10.0).await
         });
         handles.push(handle);
     }

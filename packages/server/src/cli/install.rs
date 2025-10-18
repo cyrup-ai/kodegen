@@ -6,9 +6,10 @@ use std::io::Write;
 /// Run the install command to configure MCP-compatible editors
 pub fn run_install() -> Result<()> {
     let results = install_all_clients()?;
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
 
     // Try to write formatted output, but don't fail if stdout is broken
-    if let Err(e) = write_formatted_output(&results) {
+    if let Err(e) = write_formatted_output(&mut stdout, &results) {
         // Stdout is broken (pipe closed, redirected to full disk, etc.)
         // Fall back to simple output via stderr
         eprintln!("Warning: Could not write formatted output: {}", e);
@@ -25,17 +26,16 @@ pub fn run_install() -> Result<()> {
     Ok(())
 }
 
-/// Write formatted output to stdout
+/// Write formatted output to the provided writer
 /// Returns error if any write operation fails (broken pipe, full disk, etc.)
-fn write_formatted_output(results: &[InstallResult]) -> Result<()> {
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+fn write_formatted_output<W: Write + WriteColor>(writer: &mut W, results: &[InstallResult]) -> Result<()> {
 
     // Header
-    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
-    writeln!(&mut stdout, "\n┌─────────────────────────────────────────────┐")?;
-    writeln!(&mut stdout, "│   🔍 MCP Editor Configuration Results       │")?;
-    writeln!(&mut stdout, "└─────────────────────────────────────────────┘\n")?;
-    stdout.reset()?;
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
+    writeln!(writer, "\n┌─────────────────────────────────────────────┐")?;
+    writeln!(writer, "│   🔍 MCP Editor Configuration Results       │")?;
+    writeln!(writer, "└─────────────────────────────────────────────┘\n")?;
+    writer.reset()?;
 
     let mut configured = 0;
     let mut skipped = 0;
@@ -44,73 +44,73 @@ fn write_formatted_output(results: &[InstallResult]) -> Result<()> {
     for result in results {
         if result.success {
             // Success - green checkmark
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
-            write!(&mut stdout, "  ✓ ")?;
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-            writeln!(&mut stdout, "{}", result.client_name)?;
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
+            write!(writer, "  ✓ ")?;
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+            writeln!(writer, "{}", result.client_name)?;
         } else {
             // Failed - red X or dim skip
             if result.message == "Not installed" {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-                write!(&mut stdout, "  ○ ")?;
-                writeln!(&mut stdout, "{}", result.client_name)?;
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
+                write!(writer, "  ○ ")?;
+                writeln!(writer, "{}", result.client_name)?;
             } else {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-                write!(&mut stdout, "  ✗ ")?;
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
-                writeln!(&mut stdout, "{}", result.client_name)?;
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
+                write!(writer, "  ✗ ")?;
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
+                writeln!(writer, "{}", result.client_name)?;
             }
         }
 
         // Config path
         if let Some(ref path) = result.config_path {
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-            writeln!(&mut stdout, "     {}", path.display())?;
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
+            writeln!(writer, "     {}", path.display())?;
         }
 
         // Status message
         if result.success {
             if result.message.contains("Already") {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
-                writeln!(&mut stdout, "     {}\n", result.message)?;
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
+                writeln!(writer, "     {}\n", result.message)?;
                 skipped += 1;
             } else {
-                stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-                writeln!(&mut stdout, "     {}\n", result.message)?;
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+                writeln!(writer, "     {}\n", result.message)?;
                 configured += 1;
             }
         } else {
-            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-            writeln!(&mut stdout, "     {}\n", result.message)?;
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
+            writeln!(writer, "     {}\n", result.message)?;
             failed += 1;
         }
-        stdout.reset()?;
+        writer.reset()?;
     }
 
     // Summary
-    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
-    writeln!(&mut stdout, "─────────────────────────────────────────────")?;
-    stdout.reset()?;
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
+    writeln!(writer, "─────────────────────────────────────────────")?;
+    writer.reset()?;
 
-    write!(&mut stdout, "  ")?;
+    write!(writer, "  ")?;
     if configured > 0 {
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
-        write!(&mut stdout, "{} configured", configured)?;
-        stdout.reset()?;
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true))?;
+        write!(writer, "{} configured", configured)?;
+        writer.reset()?;
     }
     if skipped > 0 {
-        if configured > 0 { write!(&mut stdout, " • ")?; }
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
-        write!(&mut stdout, "{} already configured", skipped)?;
-        stdout.reset()?;
+        if configured > 0 { write!(writer, " • ")?; }
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
+        write!(writer, "{} already configured", skipped)?;
+        writer.reset()?;
     }
     if failed > 0 {
-        if configured > 0 || skipped > 0 { write!(&mut stdout, " • ")?; }
-        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
-        write!(&mut stdout, "{} not installed", failed)?;
-        stdout.reset()?;
+        if configured > 0 || skipped > 0 { write!(writer, " • ")?; }
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Black)).set_intense(true))?;
+        write!(writer, "{} not installed", failed)?;
+        writer.reset()?;
     }
-    writeln!(&mut stdout, "\n")?;
+    writeln!(writer, "\n")?;
 
     Ok(())
 }
@@ -120,6 +120,35 @@ mod tests {
     use super::*;
     use kodegen_client_autoconfig::InstallResult;
     use std::path::PathBuf;
+    use std::io;
+    use termcolor::{ColorSpec, WriteColor};
+
+    /// Test writer that always fails with BrokenPipe error
+    struct FailingWriter;
+
+    impl Write for FailingWriter {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "test broken pipe"))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "test broken pipe"))
+        }
+    }
+
+    impl WriteColor for FailingWriter {
+        fn supports_color(&self) -> bool {
+            false
+        }
+
+        fn set_color(&mut self, _spec: &ColorSpec) -> io::Result<()> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "test broken pipe"))
+        }
+
+        fn reset(&mut self) -> io::Result<()> {
+            Err(io::Error::new(io::ErrorKind::BrokenPipe, "test broken pipe"))
+        }
+    }
 
     // Helper to create mock install results
     fn create_mock_results() -> Vec<InstallResult> {
@@ -149,16 +178,42 @@ mod tests {
     }
 
     #[test]
-    fn test_write_formatted_output_with_valid_results() {
-        // Test that write_formatted_output handles valid results
+    fn test_write_formatted_output_with_broken_pipe() {
+        // Test that write_formatted_output returns error when writer fails
         let results = create_mock_results();
+        let mut failing_writer = FailingWriter;
         
-        // Function should handle output gracefully
-        // In a real terminal, this would succeed
-        // When stdout is redirected in tests, it may fail, but that's expected
-        let _result = write_formatted_output(&results);
+        // Should return error when writer fails
+        let result = write_formatted_output(&mut failing_writer, &results);
+        assert!(result.is_err(), "Expected error when writing to broken pipe");
         
-        // Test passes if it doesn't panic
+        // Verify it's the expected error type
+        if let Err(e) = result {
+            let error_msg = e.to_string();
+            assert!(
+                error_msg.contains("broken pipe") || error_msg.contains("test broken pipe"),
+                "Expected broken pipe error, got: {}",
+                error_msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_write_formatted_output_with_valid_writer() {
+        // Test with a buffer writer (won't fail)
+        use termcolor::Buffer;
+        
+        let results = create_mock_results();
+        let mut buffer = Buffer::ansi();
+        
+        // Should succeed with a working writer
+        let result = write_formatted_output(&mut buffer, &results);
+        assert!(result.is_ok(), "Expected success with working writer");
+        
+        // Verify some output was written
+        let output = String::from_utf8_lossy(buffer.as_slice());
+        assert!(output.contains("MCP Editor Configuration Results"));
+        assert!(output.contains("VSCode"));
     }
 
     #[test]
@@ -182,15 +237,21 @@ mod tests {
     #[test]
     fn test_empty_results() {
         // Test with empty results list
-        let results: Vec<InstallResult> = vec![];
-        let _result = write_formatted_output(&results);
+        use termcolor::Buffer;
         
-        // Should not panic with empty results
+        let results: Vec<InstallResult> = vec![];
+        let mut buffer = Buffer::ansi();
+        let result = write_formatted_output(&mut buffer, &results);
+        
+        // Should succeed with empty results
+        assert!(result.is_ok(), "Expected success with empty results");
     }
 
     #[test]
     fn test_mixed_results() {
         // Test with mix of success/failure results
+        use termcolor::Buffer;
+        
         let results = vec![
             InstallResult {
                 client_name: "Success1".to_string(),
@@ -215,8 +276,69 @@ mod tests {
             },
         ];
         
-        let _result = write_formatted_output(&results);
+        let mut buffer = Buffer::ansi();
+        let result = write_formatted_output(&mut buffer, &results);
         
-        // Should handle mixed results without panicking
+        // Should handle mixed results without errors
+        assert!(result.is_ok(), "Expected success with mixed results");
+        
+        // Verify output contains expected data
+        let output = String::from_utf8_lossy(buffer.as_slice());
+        assert!(output.contains("Success1"));
+        assert!(output.contains("Failure1"));
+        assert!(output.contains("Success2"));
+    }
+
+    /// Integration test: Verify broken pipe handling with real binary
+    /// This test spawns the actual kodegen binary and breaks the pipe
+    #[test]
+    #[ignore] // Run with: cargo test -- --ignored
+    fn test_integration_broken_pipe_handling() {
+        use std::process::{Command, Stdio};
+        use std::io::Read;
+        
+        // Build the binary first
+        let build_status = Command::new("cargo")
+            .args(&["build", "--bin", "kodegen"])
+            .status()
+            .expect("Failed to build kodegen");
+        
+        assert!(build_status.success(), "Failed to build kodegen binary");
+        
+        // Spawn kodegen install and immediately close stdout (breaks pipe)
+        let mut child = Command::new("./target/debug/kodegen")
+            .arg("install")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn kodegen");
+        
+        // Read only 1 byte from stdout then drop it (breaks the pipe)
+        if let Some(mut stdout) = child.stdout.take() {
+            let mut buf = [0u8; 1];
+            let _ = stdout.read(&mut buf);
+            drop(stdout); // This breaks the pipe
+        }
+        
+        // Wait for process to complete
+        let output = child.wait_with_output().expect("Failed to wait for child");
+        
+        // CRITICAL: Should exit successfully despite broken pipe
+        assert!(
+            output.status.success(),
+            "kodegen install should succeed even with broken pipe, but got exit code: {:?}",
+            output.status.code()
+        );
+        
+        // Should have fallback output in stderr
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        
+        // Verify fallback warning message appears
+        assert!(
+            stderr.contains("Warning: Could not write formatted output") ||
+            stderr.contains("Install results:"),
+            "Expected fallback message in stderr when pipe breaks, got: {}",
+            stderr
+        );
     }
 }

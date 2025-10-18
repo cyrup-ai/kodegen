@@ -9,19 +9,8 @@ mod stdio;
 
 use cli::{Cli, Commands, ServerMode};
 
-fn main() -> Result<()> {
-    // Pre-initialize citescrape LazyLock statics BEFORE starting tokio runtime
-    // This prevents "Cannot block the current thread" panics
-    #[cfg(feature = "citescrape")]
-    {
-        kodegen_citescrape::preinit_lazy_statics();
-    }
-    
-    // Create tokio runtime manually so preinit happens first
-    tokio::runtime::Runtime::new()?.block_on(async_main())
-}
-
-async fn async_main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     // Initialize logging
     env_logger::init();
     

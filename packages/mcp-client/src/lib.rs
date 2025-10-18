@@ -1,6 +1,7 @@
 use rmcp::{
     model::{CallToolRequestParam, CallToolResult, ClientInfo, InitializeResult},
-    service::RunningService,
+    service::{Peer, RunningService},
+    RoleClient,
 };
 use tokio::time::{timeout, Duration};
 
@@ -15,21 +16,22 @@ pub use transports::{create_sse_client, create_streamable_client};
 /// Default timeout for MCP operations (30 seconds)
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Generic MCP Client
+/// Cheap-to-clone client handle for MCP operations
+///
+/// This handle can be cloned freely and shared across tasks/threads.
+/// All MCP operations (call_tool, list_tools, etc.) are available through this handle.
+/// Cloning only copies Arc pointers internally, making it very cheap.
+#[derive(Clone)]
 pub struct KodegenClient {
-    client: RunningService<rmcp::RoleClient, ClientInfo>,
+    peer: Peer<RoleClient>,
     default_timeout: Duration,
 }
 
 impl KodegenClient {
-    /// Create a client from an existing MCP service connection
-    ///
-    /// # Errors
-    ///
-    /// Returns `ClientError` if the connection fails.
-    pub fn from_service(client: RunningService<rmcp::RoleClient, ClientInfo>) -> Self {
-        Self { 
-            client,
+    /// Create a client from a peer (internal use)
+    pub(crate) fn from_peer(peer: Peer<RoleClient>) -> Self {
+        Self {
+            peer,
             default_timeout: DEFAULT_TIMEOUT,
         }
     }
@@ -39,8 +41,8 @@ impl KodegenClient {
     /// # Example
     ///
     /// ```ignore
-    /// let client = KodegenClient::from_service(service)
-    ///     .with_timeout(Duration::from_secs(60));
+    /// let (client, _conn) = create_sse_client(url).await?;
+    /// let client = client.with_timeout(Duration::from_secs(60));
     /// ```
     #[must_use]
     pub fn with_timeout(mut self, duration: Duration) -> Self {
@@ -51,7 +53,7 @@ impl KodegenClient {
     /// Get server information
     #[must_use]
     pub fn server_info(&self) -> Option<&InitializeResult> {
-        self.client.peer_info()
+        self.peer.peer_info()
     }
 
     /// List all available tools
@@ -61,7 +63,7 @@ impl KodegenClient {
     /// Returns `ClientError::Timeout` if the operation exceeds the configured timeout,
     /// or `ClientError::ServiceError` if the MCP request fails.
     pub async fn list_tools(&self) -> Result<Vec<rmcp::model::Tool>, ClientError> {
-        timeout(self.default_timeout, self.client.list_all_tools())
+        timeout(self.default_timeout, self.peer.list_all_tools())
             .await
             .map_err(|_| ClientError::Timeout(
                 format!("list_tools timed out after {}s", self.default_timeout.as_secs())
@@ -76,7 +78,7 @@ impl KodegenClient {
     /// Returns `ClientError::Timeout` if the operation exceeds the configured timeout,
     /// or `ClientError::ServiceError` if the tool call fails or the tool does not exist.
     pub async fn call_tool(&self, name: &str, arguments: serde_json::Value) -> Result<CallToolResult, ClientError> {
-        let call = self.client.call_tool(CallToolRequestParam {
+        let call = self.peer.call_tool(CallToolRequestParam {
             // name.to_string() allocation is required because CallToolRequestParam
             // expects Cow<'static, str>. Cannot use borrowed reference from &str parameter
             // as it doesn't satisfy the 'static lifetime requirement.
@@ -135,21 +137,59 @@ impl KodegenClient {
                 format!("Failed to parse response from tool '{}': {}", name, e)
             ))
     }
+}
+
+/// Connection lifecycle manager for MCP client
+///
+/// Manages the underlying connection and provides graceful shutdown.
+/// NOT Clone - only one owner should manage the connection lifecycle.
+///
+/// The connection should be held as long as you want the MCP connection to remain active.
+/// When dropped, the connection will be cancelled automatically.
+pub struct KodegenConnection {
+    service: RunningService<RoleClient, ClientInfo>,
+}
+
+impl KodegenConnection {
+    /// Create connection from running service (internal use)
+    pub(crate) fn from_service(service: RunningService<RoleClient, ClientInfo>) -> Self {
+        Self { service }
+    }
+    
+    /// Get a clone-able client handle for MCP operations
+    ///
+    /// This creates a lightweight client handle that can be cloned and shared.
+    /// Multiple client handles can coexist and all operate on the same underlying connection.
+    pub fn client(&self) -> KodegenClient {
+        KodegenClient::from_peer(self.service.peer().clone())
+    }
     
     /// Graceful shutdown with proper MCP protocol cancellation
     ///
+    /// Consumes the connection and performs a clean shutdown of the MCP protocol.
+    ///
     /// # Errors
     ///
-    /// Returns `ClientError::Timeout` if the operation exceeds the configured timeout,
-    /// or `ClientError` if the service cancellation fails.
+    /// Returns `ClientError` if the service cancellation fails.
     pub async fn close(self) -> Result<(), ClientError> {
-        let cancel_future = self.client.cancel();
-        
-        timeout(self.default_timeout, cancel_future)
+        self.service.cancel()
             .await
-            .map_err(|_| ClientError::Timeout(
-                format!("close operation timed out after {}s", self.default_timeout.as_secs())
-            ))?
+            .map(|_| ())
+            .map_err(ClientError::from)
+    }
+    
+    /// Wait for the connection to close naturally
+    ///
+    /// This will block until the remote side closes the connection or an error occurs.
+    /// Useful for long-lived connections where you want to keep the connection alive
+    /// until the remote end terminates it.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ClientError` if the connection fails or closes with an error.
+    pub async fn wait(self) -> Result<(), ClientError> {
+        self.service.waiting()
+            .await
             .map(|_| ())
             .map_err(ClientError::from)
     }

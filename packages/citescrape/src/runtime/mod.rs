@@ -7,15 +7,15 @@ pub mod async_stream;
 pub mod async_task;
 pub mod async_wrappers;
 pub mod channel;
-pub mod thread_pool;
-pub mod zero_alloc;
+// pub mod thread_pool;  // TODO: Implement or remove
+// pub mod zero_alloc;   // TODO: Implement or remove
 
 pub use async_stream::{AsyncStream, StreamSender, TrySendError};
 pub use async_task::{spawn_async, spawn_stream, AsyncTask, TaskGuard, ready, pending, TaskError};
 pub use async_wrappers::{AsyncJsonSave, BrowserAction, CrawlRequest};
 pub use channel::*;
-pub use thread_pool::ThreadPool;
-pub use zero_alloc::{spawn_string, spawn_unit, SmallString, unwrap_result};
+// pub use thread_pool::ThreadPool;
+// pub use zero_alloc::{spawn_string, spawn_unit, SmallString, unwrap_result};
 
 // DEPRECATED: recv_async! macro - blocks async runtime threads!
 // 
@@ -99,50 +99,27 @@ macro_rules! on_unit_result {
     };
 }
 
-/// Global executor module providing zero-allocation async runtime services.
+/// Global executor module providing async runtime services.
+/// Note: Currently using tokio for async execution
 pub mod executor {
-    use super::thread_pool::ThreadPool;
-    use futures_executor::block_on;
     use std::{
         future::Future,
-        sync::{LazyLock, atomic::AtomicBool},
         task::Waker,
     };
 
-    /// Global executor state with lock-free coordination
-    struct GlobalExecutor {
-        /// Work-stealing thread pool for job execution
-        pool: ThreadPool,
-        /// Atomic flag for executor state
-        #[allow(dead_code)]
-        running: AtomicBool,
-    }
-
-    /// Global executor instance initialized on first access.
-    static GLOBAL_EXECUTOR: LazyLock<GlobalExecutor> = LazyLock::new(|| {
-        GlobalExecutor {
-            pool: ThreadPool::new(),
-            running: AtomicBool::new(true),
-        }
-    });
-
-    /// Spawn a future onto the global executor (zero allocation for small futures)
+    /// Spawn a future onto the tokio runtime
     #[inline(always)]
     pub fn spawn<F>(future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        GLOBAL_EXECUTOR.pool.execute(move || {
-            block_on(future);
-        });
+        tokio::task::spawn(future);
     }
     
-    /// Register a waker for notifications (no-op in this simple implementation)
+    /// Register a waker for notifications (no-op - tokio handles this)
     #[inline(always)]
     pub fn register_waker(_waker: Waker) {
-        // In a more sophisticated executor, this would register the waker
-        // for notifications when work is available. For our simple executor,
-        // we rely on busy polling which is acceptable for this use case.
+        // Tokio runtime handles waker registration internally
     }
 }
 
