@@ -1,4 +1,4 @@
-use kodegen_citescrape::content_saver::markdown_converter::html_preprocessing::*;
+use kodegen_citescrape::content_saver::markdown_converter::extract_main_content;
 
 // Tests from extract_main_content.rs
 #[test]

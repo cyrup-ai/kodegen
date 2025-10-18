@@ -100,7 +100,7 @@ impl Crawler for ChromiumoxideCrawler {
             // Create a new crawler within the spawned task
             let mut crawler = ChromiumoxideCrawler::new(config);
 
-            // Do the actual crawling work
+            // Execute crawl implementation
             let result = crawler.crawl_impl().await;
 
             // Convert from anyhow::Result to CrawlResult

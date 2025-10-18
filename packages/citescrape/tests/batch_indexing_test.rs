@@ -78,17 +78,10 @@ async fn test_discover_markdown_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -120,17 +113,10 @@ async fn test_batch_index_directory() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -208,17 +194,10 @@ async fn test_batch_index_empty_directory() -> Result<()> {
     let empty_dir = temp_dir.path().join("empty");
     fs::create_dir_all(&empty_dir)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -256,17 +235,10 @@ async fn test_batch_size_handling() -> Result<()> {
     let temp_dir = TempDir::new()?;
     create_test_crawl_output(&temp_dir)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;
@@ -315,17 +287,10 @@ async fn test_url_deduplication() -> Result<()> {
     fs::write(path1.join("index.md.gz"), &content)?;
     fs::write(path2.join("index.md.gz"), &content)?;
 
-    let (config_tx, mut config_rx) = kodegen_citescrape::runtime::create_channel();
-    let _config_task = CrawlConfig::builder()
+    let config = CrawlConfig::builder()
         .storage_dir(temp_dir.path().to_path_buf())
         .start_url("https://example.com")
-        .build(move |result| {
-            let _ = config_tx.send(result);
-        });
-    let config = config_rx
-        .recv()
-        .await
-        .unwrap()
+        .build()
         .map_err(anyhow::Error::msg)?;
 
     let engine = SearchEngine::create(&config).await?;

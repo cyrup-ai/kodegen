@@ -104,7 +104,7 @@ impl CrawlEventBus {
     /// * `Ok(usize)` - Number of active subscribers that received the event
     /// * `Err(EventBusError)` - If publishing failed
     pub async fn publish(&self, event: CrawlEvent) -> Result<usize, EventBusError> {
-        let result = match self.sender.send(event) {
+        match self.sender.send(event) {
             Ok(subscriber_count) => {
                 if self.config.enable_metrics {
                     self.metrics.increment_published();
@@ -123,9 +123,7 @@ impl CrawlEventBus {
                 }
                 Err(EventBusError::NoSubscribers)
             }
-        };
-
-        result
+        }
     }
 
     /// Publish an event with backpressure control

@@ -1,4 +1,4 @@
-use citescrape::web_search::*;
+use kodegen_citescrape::web_search::*;
 
 #[tokio::test]
 #[ignore] // Requires browser installation

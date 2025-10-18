@@ -289,10 +289,6 @@ impl SearchEngineCache {
                 log::error!("Failed to start incremental indexing service: {}", e);
                 None
             }
-            Err(e) => {
-                log::error!("Failed to receive indexing service initialization: {}", e);
-                None
-            }
         };
 
         let engine = Arc::new(engine);

@@ -1,4 +1,3 @@
-use kodegen_citescrape::runtime::spawn_async;
 use kodegen_citescrape::search::errors::{RetryConfig, SearchError};
 use kodegen_citescrape::search::runtime_helpers::*;
 use std::sync::Arc;
@@ -19,27 +18,27 @@ async fn test_retry_task_success() {
 
     let result = retry_task(config, move || {
         let count = counter_clone.fetch_add(1, Ordering::SeqCst);
-        spawn_async(async move {
+        async move {
             if count < 2 {
                 Err(SearchError::WriterAcquisition("transient".to_string()))
             } else {
                 Ok(42)
             }
-        })
+        }
     })
     .await;
 
-    assert_eq!(result.unwrap().unwrap(), 42);
+    assert_eq!(result.unwrap(), 42);
     assert_eq!(counter.load(Ordering::SeqCst), 3);
 }
 
 #[tokio::test]
 async fn test_fallback_task() {
     let result = fallback_task(
-        || spawn_async(async { Err(SearchError::Other("primary failed".to_string())) }),
-        || spawn_async(async { Ok(100) }),
+        || async { Err(SearchError::Other("primary failed".to_string())) },
+        || async { Ok(100) },
     )
     .await;
 
-    assert_eq!(result.unwrap().unwrap(), 100);
+    assert_eq!(result.unwrap(), 100);
 }

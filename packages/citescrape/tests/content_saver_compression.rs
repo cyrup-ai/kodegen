@@ -1,5 +1,4 @@
-use citescrape::content_saver::compression::*;
-use flate2::write::GzEncoder;
+use kodegen_citescrape::content_saver::save_compressed_file;
 use flate2::{Compression, GzBuilder};
 use std::io::{Cursor, Write};
 use std::time::Instant;

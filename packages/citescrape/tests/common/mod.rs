@@ -145,17 +145,11 @@ pub async fn create_test_config(
     storage_dir: &Path,
     start_url: &str,
 ) -> kodegen_citescrape::config::CrawlConfig {
-    let (tx, mut rx) = kodegen_citescrape::runtime::create_channel();
-    let _task = kodegen_citescrape::config::CrawlConfig::builder()
+    kodegen_citescrape::config::CrawlConfig::builder()
         .storage_dir(storage_dir.to_path_buf())
         .start_url(start_url)
         .limit(Some(10))
-        .build(move |result| {
-            let _ = tx.send(result);
-        });
-    rx.recv()
-        .await
-        .unwrap()
+        .build()
         .expect("Failed to create test config")
 }
 

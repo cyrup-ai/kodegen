@@ -244,7 +244,7 @@ impl MarkdownIndexer {
         (stream, cancel_handle)
     }
 
-    /// Index a single file with zero-allocation optimizations (legacy async API)
+    /// Index a single file with zero-allocation optimizations
     async fn index_single_file_optimized(
         engine: &SearchEngine,
         file_path: &Path,
