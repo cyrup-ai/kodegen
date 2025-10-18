@@ -576,7 +576,6 @@ async fn process_single_page(
     }
 
     // Extract page data
-    let (data_tx, data_rx) = tokio::sync::oneshot::channel();
     let extract_config = crate::page_extractor::page_data::ExtractPageDataConfig {
         output_dir: config.storage_dir.clone(),
         link_rewriter: link_rewriter.clone(),
@@ -584,63 +583,42 @@ async fn process_single_page(
         crawl_rate_rps: config.crawl_rate_rps,
         save_html: config.save_raw_html(),
     };
-    let task = page_extractor::extract_page_data(
+
+    let page_data = page_extractor::extract_page_data(
         page.clone(),
         item.url.clone(),
         extract_config,
-        move |result| {
-            let _ = data_tx.send(result);
-        }
-    );
-    let _data_guard = TaskGuard::new(task, "extract_page_data");
-
-    let page_data = match data_rx.await {
-        Ok(Ok(data)) => data,
-        Ok(Err(e)) => {
-            warn!("Failed to extract page data for {}: {}", item.url, e);
-            return Err(e);
-        }
-        Err(_) => {
-            warn!("Data extraction channel closed for {}", item.url);
-            return Err(anyhow::anyhow!("Data extraction channel closed"));
-        }
-    };
+    ).await.map_err(|e| {
+        warn!("Failed to extract page data for {}: {}", item.url, e);
+        e
+    })?;
 
     let html_size = page_data.content.len();
 
     // Save markdown if requested
     if config.save_markdown() {
-        let (markdown_tx, markdown_rx) = tokio::sync::oneshot::channel();
         let conversion_options = ConversionOptions::default();
-        let page_data_content = page_data.content.clone();
-
-        let task = convert_html_to_markdown_async(
+        
+        let processed_markdown = match convert_html_to_markdown(
             &page_data.content,
-            &conversion_options,
-            move |result| {
-                let final_markdown = match result {
-                    Ok(md) => md,
-                    Err(e) => {
-                        warn!("Markdown conversion failed: {}, using html2md fallback", e);
-                        html2md::parse_html(&page_data_content)
-                    }
-                };
-                let _ = markdown_tx.send(final_markdown);
+            &conversion_options
+        ).await {
+            Ok(md) => md,
+            Err(e) => {
+                warn!("Markdown conversion failed: {}, using html2md fallback", e);
+                html2md::parse_html(&page_data.content)
             }
-        );
-        let _markdown_guard = TaskGuard::new(task, "markdown_conversion");
+        };
 
-        if let Ok(processed_markdown) = markdown_rx.await {
-            match content_saver::save_markdown_content(
-                processed_markdown,
-                item.url.clone(),
-                config.storage_dir.clone(),
-                crate::search::MessagePriority::Normal,
-                indexing_sender.clone(),
-            ).await {
-                Ok(()) => debug!("Markdown saved for {}", item.url),
-                Err(e) => warn!("Failed to save markdown for {}: {}", item.url, e),
-            }
+        match content_saver::save_markdown_content(
+            processed_markdown,
+            item.url.clone(),
+            config.storage_dir.clone(),
+            crate::search::MessagePriority::Normal,
+            indexing_sender.clone(),
+        ).await {
+            Ok(()) => debug!("Markdown saved for {}", item.url),
+            Err(e) => warn!("Failed to save markdown for {}: {}", item.url, e),
         }
     }
 
@@ -659,24 +637,16 @@ async fn process_single_page(
     // Capture screenshot if requested
     let mut screenshot_captured = false;
     if config.save_screenshots() {
-        let (screenshot_tx, screenshot_rx) = tokio::sync::oneshot::channel();
-        let task = page_extractor::capture_screenshot(
+        match page_extractor::capture_screenshot(
             page.clone(),
             &item.url,
             config.storage_dir(),
-            move |result| {
-                let _ = screenshot_tx.send(result);
-            }
-        );
-        let _screenshot_guard = TaskGuard::new(task, "capture_screenshot");
-        
-        match screenshot_rx.await {
-            Ok(Ok(())) => {
+        ).await {
+            Ok(()) => {
                 debug!("Screenshot saved for {}", item.url);
                 screenshot_captured = true;
             }
-            Ok(Err(e)) => warn!("Failed to save screenshot for {}: {}", item.url, e),
-            Err(_) => warn!("Screenshot task cancelled for {}", item.url),
+            Err(e) => warn!("Failed to save screenshot for {}: {}", item.url, e),
         }
     }
 

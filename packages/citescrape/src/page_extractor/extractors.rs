@@ -153,30 +153,13 @@ pub async fn capture_screenshot(
     let screenshot_data = page.screenshot(params).await
         .map_err(|e| anyhow::anyhow!("Failed to capture screenshot: {}", e))?;
 
-    // Still uses callback pattern - content_saver conversion is separate task
-    let (save_tx, save_rx) = tokio::sync::oneshot::channel();
-    let save_guard = crate::content_saver::save_compressed_file(
+    // Save compressed file directly with async/await
+    let _metadata = crate::content_saver::save_compressed_file(
         screenshot_data,
         &path,
         "image/png",
-        move |metadata_result| {
-            let _ = save_tx.send(metadata_result);
-        }
-    );
+    ).await?;
 
-    let result = match save_rx.await {
-        Ok(Ok(_metadata)) => {
-            log::info!("Screenshot captured and saved successfully for URL: {}", url);
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            Err(anyhow::anyhow!("Failed to save screenshot: {}", e))
-        }
-        Err(_) => {
-            Err(anyhow::anyhow!("Screenshot save task was cancelled"))
-        }
-    };
-
-    drop(save_guard);
-    result
+    log::info!("Screenshot captured and saved successfully for URL: {}", url);
+    Ok(())
 }

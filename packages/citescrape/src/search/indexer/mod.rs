@@ -288,12 +288,7 @@ impl MarkdownIndexer {
 
     /// Get index statistics
     #[inline]
-    pub fn get_index_stats(
-        &self,
-        on_result: impl FnOnce(Result<super::engine::IndexStats>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        // Delegate directly to engine.get_stats without intermediate channel
-        // to avoid nested spawn + blocking recv anti-pattern
-        self.engine.get_stats(on_result)
+    pub async fn get_index_stats(&self) -> Result<super::engine::IndexStats> {
+        self.engine.get_stats().await
     }
 }

@@ -40,13 +40,9 @@ impl SearchEngine {
 
         // Build search schema FIRST before creating/opening index
         // This ensures the index is created with the correct schema
-        let schema_builder = SearchSchema::builder();
-        let (build_tx, build_rx) = tokio::sync::oneshot::channel();
-        let _build_task = schema_builder.build(move |result| {
-            let _ = build_tx.send(result);
-        });
-        let schema = build_rx.await
-            .map_err(|_| anyhow::anyhow!("Failed to receive schema build result"))?
+        let schema = SearchSchema::builder()
+            .build()
+            .await
             .with_context(|| "Failed to build schema")?;
         
         // Open or create Tantivy index with the proper schema
@@ -62,12 +58,9 @@ impl SearchEngine {
         };
 
         // Register custom tokenizers with the index
-        let (reg_tx, reg_rx) = tokio::sync::oneshot::channel();
-        let _reg_task = SearchSchema::builder().register_tokenizers(index.tokenizers(), move |result| {
-            let _ = reg_tx.send(result);
-        });
-        reg_rx.await
-            .map_err(|_| anyhow::anyhow!("Failed to receive tokenizer registration result"))?
+        SearchSchema::builder()
+            .register_tokenizers(index.tokenizers())
+            .await
             .with_context(|| "Failed to register tokenizers")?;
 
         // Configure index settings
@@ -128,10 +121,8 @@ impl SearchEngine {
             })
         });
         
-        match task.await {
-            Ok(result) => result,
-            Err(e) => Err(SearchError::Other(format!("Task execution failed: {}", e))),
-        }
+        task.await
+            .map_err(|e| SearchError::Other(format!("Task execution failed: {}", e)))?
     }
     
     /// Create an index writer with configured memory limit
@@ -171,13 +162,10 @@ impl SearchEngine {
         writer: &mut IndexWriter,
     ) -> SearchResult<()> {
         let start = std::time::Instant::now();
-        let reader = self.reader.clone();
         
-        // We need to perform the commit synchronously since we have a mutable reference
-        let commit_result = writer.commit()
-            .map_err(|e| SearchError::CommitFailed(format!("Index commit failed: {}", e)));
-        
-        commit_result?;
+        // Synchronous commit (uses &mut reference)
+        writer.commit()
+            .map_err(|e| SearchError::CommitFailed(format!("Index commit failed: {}", e)))?;
         
         let commit_duration = start.elapsed();
         tracing::info!(
@@ -186,7 +174,7 @@ impl SearchEngine {
         );
         
         // Reload reader to see changes
-        reader.reload()
+        self.reader.reload()
             .map_err(|e| SearchError::Other(format!("Failed to reload reader: {}", e)))?;
         
         let total_duration = start.elapsed();
@@ -201,13 +189,11 @@ impl SearchEngine {
 
     /// Check if index exists and is valid with corruption detection
     pub async fn validate_index(&self) -> SearchResult<bool> {
-        let engine = self.clone();
-        
-        let searcher = engine.reader.searcher();
+        let searcher = self.reader.searcher();
         let num_docs = searcher.num_docs();
         
         // Try to perform a simple search to verify index integrity
-        let test_query = engine.query_parser.parse_query("*")
+        let test_query = self.query_parser.parse_query("*")
             .map_err(|e| SearchError::QueryParsing(format!("Failed to parse test query: {}", e)))?;
     
         match searcher.search(&test_query, &tantivy::collector::Count) {

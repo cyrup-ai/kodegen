@@ -15,7 +15,7 @@ use super::config::EventBusConfig;
 use super::errors::EventBusError;
 use super::metrics::{EventBusMetrics, MetricsSnapshot};
 use super::streaming::FilteredReceiver;
-use super::types::CrawlEvent;
+use super::types::{BatchPublishResult, CrawlEvent};
 
 /// Event bus for publishing and subscribing to crawl events
 #[derive(Debug, Clone)]
@@ -100,64 +100,38 @@ impl CrawlEventBus {
     /// # Returns
     /// * `Ok(usize)` - Number of active subscribers that received the event
     /// * `Err(EventBusError)` - If publishing failed
-    pub fn publish(
+    pub async fn publish(
         &self,
         event: CrawlEvent,
-        on_result: impl FnOnce(Result<usize, EventBusError>) + Send + 'static,
-    ) -> AsyncTask<()> {
-        let sender = self.sender.clone();
-        let config = self.config.clone();
-        let metrics = self.metrics.clone();
-        let in_flight = self.in_flight.clone();
+    ) -> Result<usize, EventBusError> {
+        // Increment counter before processing
+        self.in_flight.fetch_add(1, Ordering::SeqCst);
         
-        // Increment counter before spawning
-        in_flight.fetch_add(1, Ordering::SeqCst);
+        let result = match self.sender.send(event) {
+            Ok(subscriber_count) => {
+                if self.config.enable_metrics {
+                    self.metrics.increment_published();
+                    self.metrics.update_subscriber_count(subscriber_count);
+                    
+                    if subscriber_count == 0 {
+                        self.metrics.increment_dropped();
+                        log::debug!("Published event but no active subscribers");
+                    }
+                }
+                Ok(subscriber_count)
+            }
+            Err(broadcast::error::SendError(_)) => {
+                if self.config.enable_metrics {
+                    self.metrics.increment_failed();
+                }
+                Err(EventBusError::NoSubscribers)
+            }
+        };
         
-        spawn_async(async move {
-            let result = match sender.send(event) {
-                Ok(subscriber_count) => {
-                    if config.enable_metrics {
-                        metrics.increment_published();
-                        metrics.update_subscriber_count(subscriber_count);
-                        
-                        if subscriber_count == 0 {
-                            metrics.increment_dropped();
-                            log::debug!("Published event but no active subscribers");
-                        }
-                    }
-                    Ok(subscriber_count)
-                }
-                Err(broadcast::error::SendError(_)) => {
-                    if config.enable_metrics {
-                        metrics.increment_failed();
-                    }
-                    Err(EventBusError::NoSubscribers)
-                }
-            };
-            
-            on_result(result);
-            
-            // Decrement counter after callback executes
-            in_flight.fetch_sub(1, Ordering::SeqCst);
-        })
-    }
-
-    /// Publish an event asynchronously with proper await semantics
-    /// 
-    /// Returns a future that resolves when the event has been published.
-    /// Callers should await this future to ensure proper event delivery.
-    /// 
-    /// # Returns
-    /// * `Ok(usize)` - Number of subscribers that received the event
-    /// * `Err(EventBusError)` - If publishing failed
-    pub fn publish_async(&self, event: CrawlEvent) -> impl Future<Output = Result<usize, EventBusError>> {
-        let (tx, rx) = oneshot::channel();
-        let _task = self.publish(event, move |result| {
-            let _ = tx.send(result);
-        });
-        async move { 
-            rx.await.unwrap_or(Err(EventBusError::NoSubscribers))
-        }
+        // Decrement counter after processing
+        self.in_flight.fetch_sub(1, Ordering::SeqCst);
+        
+        result
     }
 
     /// Publish an event with backpressure control

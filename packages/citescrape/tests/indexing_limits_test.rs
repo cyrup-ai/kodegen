@@ -58,12 +58,7 @@ async fn test_compressed_file_size_limit() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, engine_rx) = std::sync::mpsc::channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv()
-        .map_err(|_| anyhow::anyhow!("Failed to receive engine creation result"))??;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -105,12 +100,7 @@ async fn test_decompressed_content_size_limit() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, engine_rx) = std::sync::mpsc::channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv()
-        .map_err(|_| anyhow::anyhow!("Failed to receive engine creation result"))??;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -157,12 +147,7 @@ async fn test_compression_ratio_limit() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, engine_rx) = std::sync::mpsc::channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv()
-        .map_err(|_| anyhow::anyhow!("Failed to receive engine creation result"))??;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -208,12 +193,7 @@ async fn test_custom_limits_allow_larger_files() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, engine_rx) = std::sync::mpsc::channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv()
-        .map_err(|_| anyhow::anyhow!("Failed to receive engine creation result"))??;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -263,12 +243,7 @@ async fn test_normal_markdown_files_within_limits() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, engine_rx) = std::sync::mpsc::channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv()
-        .map_err(|_| anyhow::anyhow!("Failed to receive engine creation result"))??;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");

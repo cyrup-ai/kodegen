@@ -67,11 +67,7 @@ async fn test_discover_markdown_files() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, mut engine_rx) = kodegen_citescrape::runtime::create_channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv().await.unwrap()?;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -108,11 +104,7 @@ async fn test_batch_index_directory() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, mut engine_rx) = kodegen_citescrape::runtime::create_channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv().await.unwrap()?;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine.clone());
     
     let crawl_output = temp_dir.path().join("crawl_output");
@@ -168,11 +160,7 @@ async fn test_batch_index_directory() -> Result<()> {
     // Give a small delay to ensure commit is fully processed
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     
-    let (stats_tx, mut stats_rx) = kodegen_citescrape::runtime::create_channel();
-    let _stats_task = indexer.get_index_stats(move |result| {
-        let _ = stats_tx.send(result);
-    });
-    let stats = stats_rx.recv().await.unwrap()?;
+    let stats = indexer.get_index_stats().await?;
     eprintln!("Stats: num_documents={}, num_segments={}", stats.num_documents, stats.num_segments);
     assert_eq!(stats.num_documents, 6);
     
@@ -194,11 +182,7 @@ async fn test_batch_index_empty_directory() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, mut engine_rx) = kodegen_citescrape::runtime::create_channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv().await.unwrap()?;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let batch_config = BatchConfig {
@@ -242,11 +226,7 @@ async fn test_batch_size_handling() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, mut engine_rx) = kodegen_citescrape::runtime::create_channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv().await.unwrap()?;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     // Use a small batch size to test batching
@@ -301,11 +281,7 @@ async fn test_url_deduplication() -> Result<()> {
         });
     let config = config_rx.recv().await.unwrap().map_err(anyhow::Error::msg)?;
     
-    let (engine_tx, mut engine_rx) = kodegen_citescrape::runtime::create_channel();
-    let _engine_task = SearchEngine::create_async(&config, move |result| {
-        let _ = engine_tx.send(result);
-    });
-    let engine = engine_rx.recv().await.unwrap()?;
+    let engine = SearchEngine::create_async(&config).await?;
     let indexer = MarkdownIndexer::new(engine);
     
     let discovered: Vec<_> = indexer.discover_markdown_files_stream(&crawl_output)

@@ -7,7 +7,6 @@ use anyhow::{Context, Result};
 use chromiumoxide::Page;
 
 use crate::content_saver;
-use crate::content_saver::await_with_timeout;
 
 use super::extractors::*;
 
@@ -265,29 +264,23 @@ pub async fn extract_page_data(
 
     // Save HTML content if enabled
     if config.save_html {
-        // Prepare data for callback
-        let url_for_registration = url.clone();
-
-        let _task = content_saver::save_html_content_with_resources(
+        match content_saver::save_html_content_with_resources(
             &content_with_rewritten_links,
             url.clone(),
             config.output_dir.clone(),
             &resources,
             config.max_inline_image_size_bytes,
             config.crawl_rate_rps,
-            move |result| {
-                match result {
-                    Ok(()) => {
-                        log::info!("HTML content saved successfully for: {}", url_for_registration);
-                    }
-                    Err(e) => {
-                        log::warn!("Failed to save HTML for {}: {}", url_for_registration, e);
-                        // Note: URL is already registered even if save failed
-                        // This is acceptable - worst case is a 404 for a registered path
-                    }
-                }
+        ).await {
+            Ok(()) => {
+                log::info!("HTML content saved successfully for: {}", url);
             }
-        );
+            Err(e) => {
+                log::warn!("Failed to save HTML for {}: {}", url, e);
+                // Note: URL is already registered even if save failed
+                // This is acceptable - worst case is a 404 for a registered path
+            }
+        }
     }
 
     log::info!("Successfully extracted page data for URL: {}", url);

@@ -259,14 +259,8 @@ impl SearchEngineCache {
         // Release lock during initialization (long operation)
         drop(engines);
         
-        // Initialize new engine using channel pattern
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let _task = SearchEngine::create_async(config, move |result| {
-            let _ = tx.send(result);
-        });
-        
-        let engine = rx.await
-            .map_err(|e| McpError::SearchEngine(format!("Failed to receive search engine: {}", e)))?
+        // Initialize new engine
+        let engine = SearchEngine::create_async(config).await
             .map_err(|e| McpError::SearchEngine(format!("Failed to initialize search engine: {}", e)))?;
         
         // Start incremental indexing service with engine clone

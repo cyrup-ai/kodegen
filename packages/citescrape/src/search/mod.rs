@@ -28,14 +28,6 @@ use crate::runtime::AsyncTask;
 /// Initialize the search system with the given configuration
 pub fn initialize_search(config: crate::config::CrawlConfig) -> AsyncTask<Result<SearchEngine>> {
     crate::runtime::spawn_async(async move {
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let task = SearchEngine::create_async(&config, move |result| {
-            let _ = tx.send(result);
-        });
-        let _guard = crate::runtime::TaskGuard::new(task, "SearchEngine::create_async");
-        match rx.await.map_err(|_| anyhow::anyhow!("Failed to initialize search engine")) {
-            Ok(result) => result,
-            Err(e) => Err(anyhow::anyhow!(e))
-        }
+        SearchEngine::create_async(&config).await
     })
 }

@@ -13,6 +13,7 @@ use rmcp::{
     service::RequestContext,
     transport::stdio,
 };
+use rand::Rng;
 use serde_json::json;
 use std::time::Duration;
 use kodegen_utils::usage_tracker::UsageTracker;
@@ -106,8 +107,12 @@ async fn connect_with_retry(
         }
         
         // Sleep before retry, but make it cancellable
+        // Add jitter (0-25% of backoff) to prevent thundering herd
+        let jitter = rand::thread_rng().gen_range(0..backoff.as_millis() / 4);
+        let sleep_duration = backoff + Duration::from_millis(jitter as u64);
+        
         tokio::select! {
-            _ = tokio::time::sleep(backoff) => {},
+            _ = tokio::time::sleep(sleep_duration) => {},
             _ = shutdown_token.cancelled() => {
                 log::info!("Connection retry cancelled during backoff");
                 return Err(anyhow::anyhow!("Connection cancelled during shutdown"));

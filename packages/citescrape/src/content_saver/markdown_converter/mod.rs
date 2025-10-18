@@ -42,8 +42,6 @@
 
 use anyhow::Result;
 
-use crate::runtime::{spawn_async, AsyncTask};
-
 // Declare sub-modules
 mod html_preprocessing;
 mod html_to_markdown;
@@ -285,7 +283,7 @@ mod tests {
             </html>
         "#;
 
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();
@@ -297,7 +295,7 @@ mod tests {
     fn test_convert_with_minimal_options() {
         let html = "<html><body><h2>Heading</h2><p>Content</p></body></html>";
 
-        let result = convert_html_to_markdown(html, &ConversionOptions::minimal());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::minimal());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();
@@ -318,7 +316,7 @@ mod tests {
             </html>
         "#;
 
-        let result = convert_html_to_markdown(html, &ConversionOptions::text_only());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::text_only());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();
@@ -344,7 +342,7 @@ mod tests {
             </html>
         "#;
 
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();
@@ -366,7 +364,7 @@ mod tests {
         "#;
 
         // First convert to markdown (which might produce setext-style from html2md)
-        let result = convert_html_to_markdown(html, &ConversionOptions::default());
+        let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
         let markdown = result.unwrap();

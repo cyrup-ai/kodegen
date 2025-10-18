@@ -6,7 +6,6 @@ use crate::search::MessagePriority;
 use crate::utils::get_mirror_path;
 
 use super::compression::save_compressed_file;
-use super::await_with_timeout;
 
 /// Save markdown content to disk with optional search indexing
 ///
@@ -28,19 +27,8 @@ pub async fn save_markdown_content(
     priority: MessagePriority,
     indexing_sender: Option<Arc<IndexingSender>>,
 ) -> Result<()> {
-    // Determine save path
-    let (path_tx, path_rx) = tokio::sync::oneshot::channel();
-    let url_for_path = url.clone();
-    let path_task = get_mirror_path(&url, &output_dir, "index.md", move |result| {
-        super::log_send_error::<std::path::PathBuf, anyhow::Error>(
-            path_tx.send(result),
-            "get_mirror_path",
-            &url_for_path
-        );
-    });
-    
-    let _path_guard = crate::runtime::TaskGuard::new(path_task, "get_mirror_path_markdown");
-    let path = await_with_timeout(path_rx, 30, "mirror path resolution for markdown").await??;
+    // get_mirror_path is now async
+    let path = get_mirror_path(&url, &output_dir, "index.md").await?;
     
     // Ensure parent directory exists
     tokio::fs::create_dir_all(
@@ -48,23 +36,12 @@ pub async fn save_markdown_content(
             .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
     ).await?;
     
-    // Save compressed markdown
-    let (compress_tx, compress_rx) = tokio::sync::oneshot::channel();
-    let url_for_compress = url.clone();
-    let _compress_guard = save_compressed_file(
+    // save_compressed_file is now async
+    let metadata = save_compressed_file(
         markdown_content.into_bytes(),
         &path,
         "text/markdown",
-        move |result| {
-            super::log_send_error::<super::CacheMetadata, anyhow::Error>(
-                compress_tx.send(result),
-                "save_compressed_file",
-                &url_for_compress
-            );
-        }
-    );
-    
-    let metadata = await_with_timeout(compress_rx, 60, "compress markdown").await??;
+    ).await?;
     
     // Trigger search indexing if sender provided
     if let Some(sender) = indexing_sender {

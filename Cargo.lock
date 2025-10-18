@@ -4321,6 +4321,7 @@ dependencies = [
  "minijinja",
  "once_cell",
  "parking_lot",
+ "rand 0.8.5",
  "regex",
  "reqwest",
  "rmcp",
