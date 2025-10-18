@@ -4692,7 +4692,7 @@ dependencies = [
  "which 8.0.0",
  "winapi",
  "windows 0.62.2",
- "x509-parser",
+ "x509-parser 0.18.0",
  "zip 5.1.1",
 ]
 
@@ -4733,23 +4733,33 @@ name = "kodegen_install"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
+ "atomic-counter",
  "base64 0.22.1",
  "cc",
  "cfg-if",
  "chrono",
  "clap",
  "dirs 6.0.0",
+ "env_logger",
+ "futures",
+ "kodegen_daemon",
  "log",
  "nix 0.30.1",
+ "once_cell",
+ "pem",
  "plist",
  "rcgen",
  "serde",
  "tempfile",
  "termcolor 1.4.1",
  "thiserror 2.0.17",
+ "time",
  "tokio",
+ "tokio-stream",
  "toml 0.9.8",
  "which 8.0.0",
+ "x509-parser 0.17.0",
 ]
 
 [[package]]
@@ -8177,6 +8187,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -9942,6 +9953,23 @@ name = "writeable"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
+
+[[package]]
+name = "x509-parser"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4569f339c0c402346d4a75a9e39cf8dad310e287eef1ff56d4c68e5067f53460"
+dependencies = [
+ "asn1-rs",
+ "data-encoding",
+ "der-parser",
+ "lazy_static",
+ "nom",
+ "oid-registry",
+ "rusticata-macros",
+ "thiserror 2.0.17",
+ "time",
+]
 
 [[package]]
 name = "x509-parser"

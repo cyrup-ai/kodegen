@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::config::ServiceDefinition;
+use super::config::ServiceDefinition;
 
 /// Builder for daemon installation metadata.
 ///

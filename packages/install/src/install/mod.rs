@@ -3,12 +3,20 @@
 //! This module provides the decomposed installer functionality split into
 //! logical modules for better maintainability and adherence to the 300-line limit.
 
+pub mod builder;
 pub mod config;
 pub mod core;
+pub mod error;
+pub mod fluent_voice;
+pub mod linux;
+pub mod macos;
 pub mod uninstall;
+pub mod windows;
 
 // Re-export key types and functions for backward compatibility
+pub use builder::{CommandBuilder, InstallerBuilder};
 pub use core::AsyncTask;
+pub use error::InstallerError;
 
 // All config and uninstall functions removed as unused
 
@@ -60,5 +68,25 @@ pub async fn uninstall_async(dry: bool) -> Result<()> {
         config::validate_configuration(&config_path)
     } else {
         uninstall::uninstall_kodegen_daemon().await
+    }
+}
+
+/// Install daemon asynchronously using platform-specific implementation
+pub async fn install_daemon_async(builder: InstallerBuilder) -> Result<(), InstallerError> {
+    #[cfg(target_os = "macos")]
+    return macos::PlatformExecutor::install(builder);
+
+    #[cfg(target_os = "linux")]
+    return linux::PlatformExecutor::install(builder);
+
+    #[cfg(target_os = "windows")]
+    return windows::PlatformExecutor::install(builder);
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    {
+        let _ = builder;
+        Err(InstallerError::System(
+            "Unsupported platform".to_string(),
+        ))
     }
 }
