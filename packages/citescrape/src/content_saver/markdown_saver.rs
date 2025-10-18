@@ -27,7 +27,7 @@ pub async fn save_markdown_content(
     priority: MessagePriority,
     indexing_sender: Option<Arc<IndexingSender>>,
 ) -> Result<()> {
-    let path = get_mirror_path(&url, &output_dir, "index.md")?;
+    let path = get_mirror_path(&url, &output_dir, "index.md").await?;
 
     // Ensure parent directory exists
     tokio::fs::create_dir_all(

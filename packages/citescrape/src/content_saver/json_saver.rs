@@ -10,7 +10,7 @@ pub async fn save_json_data(
     url: String,
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
-    let path = get_mirror_path(&url, &output_dir, "index.json")?;
+    let path = get_mirror_path(&url, &output_dir, "index.json").await?;
 
     // JSON serialization (keep spawn_blocking - CPU intensive)
     let json_str = tokio::task::spawn_blocking(move || serde_json::to_string_pretty(&data))
@@ -36,7 +36,7 @@ pub async fn save_page_data(
     url: String,
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
-    let path = get_mirror_path(&url, &output_dir, "index.json")?;
+    let path = get_mirror_path(&url, &output_dir, "index.json").await?;
 
     // PageData serialization (keep spawn_blocking - CPU intensive)
     let json_content =

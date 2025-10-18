@@ -1,7 +1,7 @@
-//! Simple crawling execution with callback-based completion
+//! Simple async crawling execution
 //!
-//! This module provides the simple crawl_impl API that executes a crawl
-//! and calls back with the final result. Uses NoOpProgress internally
+//! This module provides the simple crawl_impl async API that executes a crawl
+//! and returns the final result. Uses NoOpProgress internally
 //! for zero-overhead execution.
 
 use anyhow::Result;
@@ -28,10 +28,9 @@ use super::core::{NoOpProgress, crawl_pages};
 /// * `config` - Crawl configuration
 /// * `link_rewriter` - Link rewriting manager
 /// * `chrome_data_dir` - Optional Chrome data directory
-/// * `on_result` - Callback invoked with the final result
 ///
 /// # Returns
-/// AsyncTask handle for the spawned crawl operation
+/// `Result<Option<PathBuf>>` - Returns the chrome data directory path on success
 pub async fn crawl_impl(
     config: CrawlConfig,
     link_rewriter: LinkRewriter,

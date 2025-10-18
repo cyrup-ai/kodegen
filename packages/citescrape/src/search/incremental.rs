@@ -557,7 +557,7 @@ impl IncrementalIndexingService {
         let mut failed_operations = 0;
 
         // Process each message with retry logic
-        for message in deduplicated_batch {
+        'batch_processing: for message in deduplicated_batch {
             let completion_id = Self::extract_completion_id(&message);
             let mut retry_count = 0;
             let mut last_error = None;
@@ -579,13 +579,27 @@ impl IncrementalIndexingService {
                         .delete_document(&mut writer, url.to_string())
                         .map_err(|e| anyhow::anyhow!("{}", e)),
                     IndexingMessage::Optimize { .. } => {
-                        match engine.commit_and_optimize(writer).await {
+                        // Optimize consumes writer - must always reassign
+                        let commit_result = engine.commit_and_optimize(writer).await;
+                        match commit_result {
                             Ok(w) => {
                                 writer = w;  // Reassign writer for continued use
                                 *stats.last_optimization.lock().await = Some(Instant::now());
                                 Ok(())
                             }
-                            Err(e) => Err(anyhow::anyhow!("Failed to optimize index: {}", e))
+                            Err(e) => {
+                                // Writer consumed - recreate for subsequent messages
+                                match engine.writer(Some(64 * 1024 * 1024)).await {
+                                    Ok(w) => {
+                                        writer = w;
+                                        Err(anyhow::anyhow!("Failed to optimize index: {}", e))
+                                    }
+                                    Err(_writer_err) => {
+                                        // Critical: cannot recreate writer, abort batch processing
+                                        break 'batch_processing;
+                                    }
+                                }
+                            }
                         }
                     }
                     IndexingMessage::Shutdown => Ok(()), // No-op, handled by worker loop
@@ -633,8 +647,9 @@ impl IncrementalIndexingService {
 
         // Commit batch (writer consumed on error, cannot retry)
         match engine.commit_and_optimize(writer).await {
-            Ok(w) => {
-                writer = w;
+            Ok(_w) => {
+                // Writer successfully committed and optimized
+                // Not reassigning as it's not used after this point
             }
             Err(_) => {
                 // Commit failed, writer consumed, individual operations were processed

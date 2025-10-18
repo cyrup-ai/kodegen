@@ -144,13 +144,14 @@ pub async fn capture_screenshot(page: Page, url: &str, output_dir: &std::path::P
     let url = url.to_string();
     let output_dir = output_dir.to_path_buf();
 
-    // Get mirror path (synchronous - pure computation)
-    let path = crate::utils::get_mirror_path(&url, &output_dir, "index.png")?;
+    // Get mirror path (async)
+    let path = crate::utils::get_mirror_path(&url, &output_dir, "index.png").await?;
 
-    std::fs::create_dir_all(
+    tokio::fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?,
-    )?;
+    )
+    .await?;
 
     let params = CaptureScreenshotParams {
         quality: Some(100),

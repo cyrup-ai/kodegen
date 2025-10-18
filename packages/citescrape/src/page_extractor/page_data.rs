@@ -275,7 +275,7 @@ pub async fn extract_page_data(
 
     // Get local path for URL registration BEFORE saving
     // This allows us to register the URL→path mapping after successful save
-    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html")
+    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await
     {
         Ok(path) => path.to_string_lossy().to_string(),
         Err(e) => {

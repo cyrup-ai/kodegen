@@ -15,8 +15,8 @@ pub async fn save_html_content(
 ) -> Result<()> {
     let config = crate::inline_css::InlineConfig::default();
 
-    // get_mirror_path is sync, call it first
-    let path = get_mirror_path(&url, &output_dir, "index.html")?;
+    // get_mirror_path is async, await it
+    let path = get_mirror_path(&url, &output_dir, "index.html").await?;
 
     // inline_all_resources is async
     let inline_result = crate::inline_css::inline_all_resources(
@@ -71,8 +71,8 @@ pub async fn save_html_content_with_resources(
     let html_content = html_content.to_string();
     let resources = resources.clone();
 
-    // Get mirror path first (synchronous - pure computation)
-    let path = get_mirror_path(&url, &output_dir, "index.html")?;
+    // Get mirror path first (async)
+    let path = get_mirror_path(&url, &output_dir, "index.html").await?;
     
     // Then inline resources (async)
     let config = crate::inline_css::InlineConfig::default();
