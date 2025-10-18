@@ -246,7 +246,7 @@ impl LinkRewriter {
 
     /// Calculate relative path from source URL to target local path (synchronous)
     ///
-    /// This is the core path calculation logic extracted for use within spawn_async blocks.
+    /// This is the core path calculation logic extracted for use in async contexts.
     ///
     /// # Arguments
     /// * `from_url` - The source page URL (e.g., "https://example.com/docs/api.html")

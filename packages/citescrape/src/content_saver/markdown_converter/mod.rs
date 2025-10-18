@@ -283,7 +283,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         assert!(markdown.contains("# Test Title"));
         assert!(markdown.contains("**test**"));
     }
@@ -295,7 +295,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::minimal());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         // With minimal options, headings might not be normalized
         assert!(markdown.contains("Heading"));
         assert!(markdown.contains("Content"));
@@ -316,7 +316,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::text_only());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         // Text-only mode should strip images and convert links to plain text
         assert!(markdown.contains("Article"));
         assert!(!markdown.contains("![Photo]")); // No images
@@ -342,7 +342,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         // Should extract article content and remove nav/footer
         assert!(markdown.contains("# Main Content"));
         assert!(markdown.contains("Article text"));
@@ -364,7 +364,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         // Should contain ATX-style heading (with process_headings enabled)
         // The actual format depends on html2md output, but our processor should normalize it
         assert!(markdown.contains("Title"));
@@ -388,7 +388,7 @@ mod tests {
         let result = convert_html_to_markdown_sync(html, &ConversionOptions::default());
         assert!(result.is_ok());
 
-        let markdown = result.unwrap();
+        let markdown = result.expect("Test operation should succeed");
         assert!(markdown.contains("Code Example"));
         // Should contain code block markers
         assert!(markdown.contains("```") || markdown.contains("    ")); // Fenced or indented code

@@ -275,9 +275,10 @@ pub fn create_server_error_response(
     });
 
     if let Some(data_value) = data {
+        // SAFETY: We just created error with json! macro as an object, so as_object_mut() will succeed
         error
             .as_object_mut()
-            .unwrap()
+            .expect("BUG: json! macro created non-object Value - this should never happen")
             .insert("data".to_string(), data_value);
     }
 

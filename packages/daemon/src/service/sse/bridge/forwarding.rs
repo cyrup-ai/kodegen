@@ -531,7 +531,9 @@ impl McpBridge {
             return Err(anyhow::anyhow!("Response must be a JSON object"));
         }
 
-        let obj = response.as_object().unwrap();
+        // SAFETY: We just checked is_object() above, so as_object() will return Some
+        let obj = response.as_object()
+            .expect("BUG: as_object() returned None after is_object() check - this should never happen");
 
         // Check for required jsonrpc field
         match obj.get("jsonrpc") {

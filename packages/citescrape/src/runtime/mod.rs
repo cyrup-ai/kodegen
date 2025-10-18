@@ -39,7 +39,7 @@ pub use channel::*;
 #[macro_export]
 macro_rules! recv_async {
     ($rx:expr) => {{
-        $crate::recv_async!($rx, "AsyncTask channel closed unexpectedly", 30)
+        $crate::recv_async!($rx, "Channel closed unexpectedly", 30)
     }};
     ($rx:expr, $msg:expr) => {{
         $crate::recv_async!($rx, $msg, 30)

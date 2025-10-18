@@ -534,9 +534,9 @@ Real content.
 
         // NEW: Verify print statement stays inside fence
         let lines: Vec<&str> = result.lines().collect();
-        let opening_idx = lines.iter().position(|l| l.contains("```python")).unwrap();
-        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").unwrap();
-        let print_idx = lines.iter().position(|l| l.contains("print(")).unwrap();
+        let opening_idx = lines.iter().position(|l| l.contains("```python")).expect("Test operation should succeed");
+        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").expect("Test operation should succeed");
+        let print_idx = lines.iter().position(|l| l.contains("print(")).expect("Test operation should succeed");
 
         assert!(
             print_idx > opening_idx && print_idx < closing_idx,
@@ -613,11 +613,11 @@ This is prose text.
 
         // Verify heading is NOT inside the fence
         let lines: Vec<&str> = result.lines().collect();
-        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").unwrap();
+        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").expect("Test operation should succeed");
         let heading_idx = lines
             .iter()
             .position(|l| l.contains("# Next Section"))
-            .unwrap();
+            .expect("Test operation should succeed");
 
         assert!(
             heading_idx > closing_idx,
