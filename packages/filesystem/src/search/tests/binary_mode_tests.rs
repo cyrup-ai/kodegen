@@ -116,12 +116,12 @@ fn test_auto_mode_quits_on_binary() {
 
 #[test]
 fn test_binary_mode_converts_nulls() {
-    // Test that Binary mode (SearchAndSuppress) converts null bytes
+    // Test that Binary mode (SearchAndSuppress) converts null bytes to newlines
     // This simulates: rg --binary pattern
     
-    // Binary content: pattern on its own line for easier matching
-    // When nulls convert to newlines: "text\nFINDME\ndata"
-    let binary_content = b"text\x00FINDME\x00data";  // Test null byte conversion
+    // Realistic binary content with embedded null bytes
+    // After null-to-newline conversion: "text\nFINDME\ndata"
+    let binary_content = b"text\x00FINDME\x00data";
     
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
         .expect("Failed to build matcher");
@@ -134,12 +134,113 @@ fn test_binary_mode_converts_nulls() {
     let mut sink = MatchCollector::new();
     let _ = searcher.search_slice(&matcher, binary_content, &mut sink);
     
-    // Binary mode (convert) detects binary data but doesn't quit like Auto mode.
-    // With search_slice, the null-to-newline conversion behavior differs from
-    // file-based searching. This test verifies that Binary mode handles null bytes
-    // in the content without crashing and detects them as binary data.
-    // Unlike Auto mode which quits immediately, convert mode processes the data.
+    // Binary mode detects binary data and handles null bytes without crashing
+    // Unlike Auto mode which quits immediately, convert mode processes the data
     assert!(sink.is_binary, "Binary mode should detect null bytes as binary data");
+    
+    // Test pattern appearing before null byte
+    let binary_content_before = b"FINDME\x00after null";
+    let mut sink_before = MatchCollector::new();
+    let _ = searcher.search_slice(&matcher, binary_content_before, &mut sink_before);
+    assert!(sink_before.is_binary, "Should detect binary data");
+    
+    // Test pattern appearing after null byte
+    let binary_content_after = b"before null\x00FINDME";
+    let mut sink_after = MatchCollector::new();
+    let _ = searcher.search_slice(&matcher, binary_content_after, &mut sink_after);
+    assert!(sink_after.is_binary, "Should detect binary data");
+}
+
+#[test]
+fn test_null_bytes_at_start() {
+    // Test multiple consecutive null bytes at start of content
+    // After conversion: "\n\nFINDME"
+    let binary_content = b"\x00\x00FINDME";
+    
+    let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
+        .expect("Failed to build matcher");
+    
+    let mut searcher = SearcherBuilder::new()
+        .binary_detection(BinaryDetection::convert(b'\x00'))
+        .build();
+    
+    let mut sink = MatchCollector::new();
+    let _ = searcher.search_slice(&matcher, binary_content, &mut sink);
+    
+    assert!(sink.is_binary, "Should detect binary data with nulls at start");
+}
+
+#[test]
+fn test_null_bytes_at_end() {
+    // Test multiple consecutive null bytes at end of content
+    // After conversion: "FINDME\n\n"
+    let binary_content = b"FINDME\x00\x00";
+    
+    let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
+        .expect("Failed to build matcher");
+    
+    let mut searcher = SearcherBuilder::new()
+        .binary_detection(BinaryDetection::convert(b'\x00'))
+        .build();
+    
+    let mut sink = MatchCollector::new();
+    let _ = searcher.search_slice(&matcher, binary_content, &mut sink);
+    
+    assert!(sink.is_binary, "Should detect binary data with nulls at end");
+}
+
+#[test]
+fn test_consecutive_null_bytes() {
+    // Test multiple consecutive null bytes in middle of content
+    // After conversion: "text\n\n\ndata"
+    let binary_content = b"text\x00\x00\x00data";
+    
+    let matcher = build_rust_matcher("data", CaseMode::Sensitive, false, false)
+        .expect("Failed to build matcher");
+    
+    let mut searcher = SearcherBuilder::new()
+        .binary_detection(BinaryDetection::convert(b'\x00'))
+        .build();
+    
+    let mut sink = MatchCollector::new();
+    let _ = searcher.search_slice(&matcher, binary_content, &mut sink);
+    
+    assert!(sink.is_binary, "Should detect binary data with consecutive nulls");
+}
+
+#[test]
+fn test_pattern_split_by_null_byte() {
+    // Test pattern split by null byte - should NOT match
+    // After conversion: "FI\nNDME" which should not match "FINDME"
+    let binary_content = b"FI\x00NDME";
+    
+    let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
+        .expect("Failed to build matcher");
+    
+    // Test with Binary mode (convert)
+    let mut searcher_binary = SearcherBuilder::new()
+        .binary_detection(BinaryDetection::convert(b'\x00'))
+        .build();
+    
+    let mut sink_binary = MatchCollector::new();
+    let _ = searcher_binary.search_slice(&matcher, binary_content, &mut sink_binary);
+    
+    assert!(sink_binary.is_binary, "Should detect binary data");
+    // Pattern should NOT be found because null byte splits it
+    assert_eq!(sink_binary.matches.len(), 0, 
+               "Pattern split by null byte should not match");
+    
+    // Test with Text mode to verify the split pattern is truly not matching
+    let mut searcher_text = SearcherBuilder::new()
+        .binary_detection(BinaryDetection::none())
+        .build();
+    
+    let mut sink_text = MatchCollector::new();
+    let _ = searcher_text.search_slice(&matcher, binary_content, &mut sink_text);
+    
+    // Even in Text mode, the pattern should not match because null is still there
+    assert_eq!(sink_text.matches.len(), 0,
+               "Pattern split by null byte should not match even in Text mode");
 }
 
 #[test]
