@@ -70,18 +70,8 @@ async fn main() -> anyhow::Result<()> {
     
     match common::extract_json(&result) {
         Ok(output) => {
-            if let Some(messages) = output.get("messages").and_then(|m| m.as_array()) {
-                for msg in messages {
-                    if let Some(role) = msg.get("role").and_then(|r| r.as_str())
-                        && let Some(content_arr) = msg.get("content").and_then(|c| c.as_array()) {
-                        for content_item in content_arr {
-                            if let Some(text_content) = content_item.get("text").and_then(|t| t.as_str()) {
-                                info!("{}: {}", role, text_content);
-                            }
-                        }
-                    }
-                }
-            } else {
+            if let Err(e) = common::display_agent_messages(&output) {
+                tracing::error!("Failed to display agent messages: {}", e);
                 info!("Agent output: {:?}", output);
             }
         }
@@ -135,13 +125,8 @@ async fn main() -> anyhow::Result<()> {
     
     match common::extract_json(&result) {
         Ok(agents) => {
-            if let Some(arr) = agents.as_array() {
-                info!("Total active agents: {}", arr.len());
-                for agent in arr {
-                    let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
-                    let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-                    info!("  Agent {}: {}", id, model);
-                }
+            if let Err(e) = common::display_agents_list(&agents) {
+                tracing::error!("Failed to display agents list: {}", e);
             }
         }
         Err(e) => {
@@ -172,13 +157,8 @@ async fn main() -> anyhow::Result<()> {
     
     match common::extract_json(&result) {
         Ok(agents) => {
-            if let Some(arr) = agents.as_array() {
-                info!("Total active agents: {}", arr.len());
-                for agent in arr {
-                    let id = agent.get("sessionId").and_then(|s| s.as_str()).unwrap_or("unknown");
-                    let model = agent.get("model").and_then(|m| m.as_str()).unwrap_or("unknown");
-                    info!("  Agent {}: {}", id, model);
-                }
+            if let Err(e) = common::display_agents_list(&agents) {
+                tracing::error!("Failed to display agents list for verification: {}", e);
             }
         }
         Err(e) => {

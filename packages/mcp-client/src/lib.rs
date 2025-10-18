@@ -1,5 +1,5 @@
 use rmcp::{
-    model::{CallToolRequestParam, CallToolResult, InitializeRequestParam, InitializeResult},
+    model::{CallToolRequestParam, CallToolResult, ClientInfo, InitializeResult},
     service::RunningService,
 };
 use tokio::time::{timeout, Duration};
@@ -17,7 +17,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Generic MCP Client
 pub struct KodegenClient {
-    client: RunningService<rmcp::RoleClient, InitializeRequestParam>,
+    client: RunningService<rmcp::RoleClient, ClientInfo>,
     default_timeout: Duration,
 }
 
@@ -27,7 +27,7 @@ impl KodegenClient {
     /// # Errors
     ///
     /// Returns `ClientError` if the connection fails.
-    pub fn from_service(client: RunningService<rmcp::RoleClient, InitializeRequestParam>) -> Self {
+    pub fn from_service(client: RunningService<rmcp::RoleClient, ClientInfo>) -> Self {
         Self { 
             client,
             default_timeout: DEFAULT_TIMEOUT,

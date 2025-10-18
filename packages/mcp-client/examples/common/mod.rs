@@ -175,6 +175,69 @@ pub fn extract_json(result: &CallToolResult) -> Result<serde_json::Value> {
     serde_json::from_str(&text).context("Invalid JSON in response")
 }
 
+/// Display agent messages from parsed JSON output
+///
+/// Extracts and logs messages from Claude agent response JSON.
+/// Handles the nested structure of messages with roles and content arrays.
+///
+/// # Errors
+///
+/// Returns error if:
+/// - No messages array found in JSON
+/// - Messages are not in expected format
+pub fn display_agent_messages(output: &serde_json::Value) -> Result<()> {
+    let messages = output.get("messages")
+        .and_then(|m| m.as_array())
+        .context("No messages array in output")?;
+
+    for msg in messages {
+        let role = msg.get("role")
+            .and_then(|r| r.as_str())
+            .context("Message missing role field")?;
+
+        let content_arr = msg.get("content")
+            .and_then(|c| c.as_array())
+            .context("Message missing content array")?;
+
+        for content_item in content_arr {
+            if let Some(text_content) = content_item.get("text").and_then(|t| t.as_str()) {
+                tracing::info!("{}: {}", role, text_content);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract and display agent info from agents list
+///
+/// Handles the common pattern of iterating over agent arrays
+/// and displaying their session IDs and models.
+///
+/// # Errors
+///
+/// Returns error if agents data is not in expected array format
+pub fn display_agents_list(agents: &serde_json::Value) -> Result<()> {
+    let arr = agents.as_array()
+        .context("Agents data is not an array")?;
+
+    tracing::info!("Total active agents: {}", arr.len());
+    
+    for agent in arr {
+        let id = agent.get("sessionId")
+            .and_then(|s| s.as_str())
+            .context("Agent missing sessionId")?;
+        
+        let model = agent.get("model")
+            .and_then(|m| m.as_str())
+            .context("Agent missing model")?;
+        
+        tracing::info!("  Agent {}: {}", id, model);
+    }
+
+    Ok(())
+}
+
 /// Cached workspace root to avoid repeated cargo metadata executions
 ///
 /// This is populated on first call to find_workspace_root() and reused for all
