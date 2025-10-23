@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use url::Url;
 
 /// Parsed database connection string information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DSNInfo {
     /// Database protocol/type: "postgres", "mysql", "sqlite", "sqlserver"
     pub protocol: String,
@@ -31,6 +31,52 @@ pub struct DSNInfo {
 
     /// Query parameters from DSN (e.g., sslmode=disable)
     pub query_params: HashMap<String, String>,
+}
+
+// Custom Debug implementation that redacts sensitive data
+impl std::fmt::Debug for DSNInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DSNInfo")
+            .field("protocol", &self.protocol)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| "[REDACTED]"))
+            .field("hostname", &self.hostname)
+            .field("port", &self.port)
+            .field("database", &self.database)
+            .field("query_params", &self.query_params)
+            .finish()
+    }
+}
+
+// Display implementation that shows safe connection string (password masked)
+impl std::fmt::Display for DSNInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}://", self.protocol)?;
+        
+        if let Some(ref user) = self.username {
+            write!(f, "{}:***@", user)?;  // Show username, mask password
+        }
+        
+        write!(f, "{}", self.hostname)?;
+        
+        if let Some(port) = self.port {
+            write!(f, ":{}", port)?;
+        }
+        
+        write!(f, "/{}", self.database)?;
+        
+        if !self.query_params.is_empty() {
+            write!(f, "?")?;
+            let params: Vec<String> = self
+                .query_params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
+            write!(f, "{}", params.join("&"))?;
+        }
+        
+        Ok(())
+    }
 }
 
 impl DSNInfo {

@@ -4,25 +4,40 @@
 //! They handle common cases for safety validation and query transformation.
 
 use crate::error::DatabaseError;
+use crate::types::DatabaseType;
 
 /// Split multi-statement SQL by semicolons, respecting string literals
+///
+/// Handles both SQL standard doubled-quote escaping (`''`, `""`) and MySQL-style
+/// backslash escaping (`\'`, `\"`, `\\`) based on database type.
 ///
 /// # Examples
 /// ```
 /// let sql = "SELECT 1; INSERT INTO t VALUES ('a;b'); SELECT 2;";
-/// let stmts = split_sql_statements(sql);
+/// let stmts = split_sql_statements(sql, DatabaseType::Postgres);
 /// assert_eq!(stmts.len(), 3);
 /// assert_eq!(stmts[1], "INSERT INTO t VALUES ('a;b')");
 /// ```
-pub fn split_sql_statements(sql: &str) -> Vec<String> {
+pub fn split_sql_statements(sql: &str, db_type: DatabaseType) -> Vec<String> {
     let mut statements = Vec::new();
     let mut current = String::new();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut chars = sql.chars().peekable();
+    
+    // Determine if backslash escapes are enabled
+    let backslash_escapes = matches!(db_type, DatabaseType::MySQL | DatabaseType::MariaDB);
 
     while let Some(ch) = chars.next() {
         match ch {
+            // Handle backslash escapes for MySQL/MariaDB
+            '\\' if backslash_escapes && (in_single_quote || in_double_quote) => {
+                current.push(ch);
+                // Consume next character (the escaped character)
+                if let Some(next_ch) = chars.next() {
+                    current.push(next_ch);
+                }
+            }
             '\'' if !in_double_quote => {
                 current.push(ch);
                 // Handle escaped quotes (doubled quotes: '' in SQL)
@@ -64,20 +79,32 @@ pub fn split_sql_statements(sql: &str) -> Vec<String> {
 
 /// Strip SQL comments (single-line and multi-line), respecting string literals
 ///
+/// Handles both SQL standard doubled-quote escaping (`''`, `""`) and MySQL-style
+/// backslash escaping (`\'`, `\"`, `\\`) based on database type.
+///
 /// # Examples
 /// ```
 /// let sql = "SELECT * FROM users -- get all\n/* WHERE active */";
-/// let cleaned = strip_comments(sql);
+/// let cleaned = strip_comments(sql, DatabaseType::Postgres);
 /// assert_eq!(cleaned, "SELECT * FROM users \n");
 /// ```
-pub fn strip_comments(sql: &str) -> String {
+pub fn strip_comments(sql: &str, db_type: DatabaseType) -> String {
     let mut result = String::new();
     let mut chars = sql.chars().peekable();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
+    
+    let backslash_escapes = matches!(db_type, DatabaseType::MySQL | DatabaseType::MariaDB);
 
     while let Some(ch) = chars.next() {
         match ch {
+            // Handle backslash escapes for MySQL/MariaDB
+            '\\' if backslash_escapes && (in_single_quote || in_double_quote) => {
+                result.push(ch);
+                if let Some(next_ch) = chars.next() {
+                    result.push(next_ch);
+                }
+            }
             '\'' if !in_double_quote => {
                 result.push(ch);
                 if chars.peek() == Some(&'\'') {
@@ -127,13 +154,13 @@ pub fn strip_comments(sql: &str) -> String {
 /// # Examples
 /// ```
 /// let sql = "  SELECT * FROM users";
-/// assert_eq!(extract_first_keyword(sql)?, "select");
+/// assert_eq!(extract_first_keyword(sql, DatabaseType::Postgres)?, "select");
 ///
 /// let sql = "-- comment\nINSERT INTO logs";
-/// assert_eq!(extract_first_keyword(sql)?, "insert");
+/// assert_eq!(extract_first_keyword(sql, DatabaseType::Postgres)?, "insert");
 /// ```
-pub fn extract_first_keyword(sql: &str) -> Result<String, DatabaseError> {
-    let cleaned = strip_comments(sql);
+pub fn extract_first_keyword(sql: &str, db_type: DatabaseType) -> Result<String, DatabaseError> {
+    let cleaned = strip_comments(sql, db_type);
     let trimmed = cleaned.trim();
 
     if trimmed.is_empty() {

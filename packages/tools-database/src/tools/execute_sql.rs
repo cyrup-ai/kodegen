@@ -4,10 +4,11 @@
 //! and transaction wrapping for consistent database operations.
 
 use crate::{
-    DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
-    validate_readonly_sql,
+    DatabaseType, apply_row_limit, error::DatabaseError, extract_first_keyword,
+    split_sql_statements, validate_readonly_sql,
 };
 use anyhow::Context;
+use base64::Engine as _;  // For base64 encoding of binary data
 use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
@@ -95,28 +96,40 @@ impl ExecuteSQLTool {
     }
 
     /// Execute multiple SQL statements within a transaction
-    async fn execute_multi(&self, statements: &[String]) -> Result<Value, McpError> {
-        // Begin transaction
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .context("Failed to begin transaction")?;
-
+    /// Returns partial results if execution fails partway through
+    async fn execute_multi_transactional(&self, statements: &[String]) -> Result<Value, McpError> {
+        let mut tx = self.pool.begin().await.context("Failed to begin transaction")?;
         let mut all_rows = Vec::new();
+        let mut executed_statements = 0;
 
-        // Execute each statement in sequence
-        for statement in statements {
-            let rows = sqlx::query(statement)
-                .fetch_all(&mut *tx)
-                .await
-                .context("SQL execution failed. Transaction rolled back.")?;
-
-            // Collect rows from SELECT/WITH/EXPLAIN statements
-            if !rows.is_empty() {
-                for row in &rows {
-                    let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
-                    all_rows.push(json_row);
+        for (index, statement) in statements.iter().enumerate() {
+            match sqlx::query(statement).fetch_all(&mut *tx).await {
+                Ok(rows) => {
+                    executed_statements += 1;
+                    if !rows.is_empty() {
+                        for row in &rows {
+                            let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
+                            all_rows.push(json_row);
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Rollback transaction
+                    let _ = tx.rollback().await;
+                    
+                    // Return partial results with error context
+                    return Ok(json!({
+                        "partial_results": {
+                            "rows": all_rows,
+                            "row_count": all_rows.len()
+                        },
+                        "error": format!("Statement {} failed: {}", index + 1, e),
+                        "failed_statement": statement,
+                        "failed_at_index": index + 1,
+                        "executed_statements": executed_statements,
+                        "total_statements": statements.len(),
+                        "transaction_rolled_back": true
+                    }));
                 }
             }
         }
@@ -124,13 +137,73 @@ impl ExecuteSQLTool {
         // Commit transaction
         tx.commit().await.context("Failed to commit transaction")?;
 
-        let row_count = all_rows.len();
+        Ok(json!({
+            "rows": all_rows,
+            "row_count": all_rows.len(),
+            "executed_statements": executed_statements,
+            "total_statements": statements.len()
+        }))
+    }
+
+    /// Execute multiple SQL statements WITHOUT transaction
+    /// Continues execution on error, collecting all results and errors
+    async fn execute_multi_non_transactional(&self, statements: &[String]) -> Result<Value, McpError> {
+        let mut all_rows = Vec::new();
+        let mut errors = Vec::new();
+        let mut executed_statements = 0;
+
+        for (index, statement) in statements.iter().enumerate() {
+            match sqlx::query(statement).fetch_all(&*self.pool).await {
+                Ok(rows) => {
+                    executed_statements += 1;
+                    if !rows.is_empty() {
+                        for row in &rows {
+                            let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
+                            all_rows.push(json_row);
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Record error but continue execution
+                    errors.push(json!({
+                        "statement_index": index + 1,
+                        "statement": statement,
+                        "error": e.to_string()
+                    }));
+                }
+            }
+        }
 
         Ok(json!({
             "rows": all_rows,
-            "row_count": row_count
+            "row_count": all_rows.len(),
+            "executed_statements": executed_statements,
+            "total_statements": statements.len(),
+            "errors": errors,
+            "has_errors": !errors.is_empty()
         }))
     }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/// Determine if statements contain write operations requiring transaction
+fn should_use_transaction(statements: &[String]) -> bool {
+    use crate::extract_first_keyword;
+    
+    statements.iter().any(|stmt| {
+        if let Ok(keyword) = extract_first_keyword(stmt) {
+            matches!(
+                keyword.as_str(),
+                "insert" | "update" | "delete" | "create" | "alter" | "drop" | "truncate"
+            )
+        } else {
+            // If can't parse keyword, assume write for safety
+            true
+        }
+    })
 }
 
 // ============================================================================
@@ -158,12 +231,16 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
         // Match on database type names
         let value = match type_name {
             // Text types (most databases)
-            "TEXT" | "VARCHAR" | "CHAR" | "STRING" | "BPCHAR" => row
-                .try_get::<Option<String>, _>(ordinal)
-                .ok()
-                .flatten()
-                .map(Value::String)
-                .unwrap_or(Value::Null),
+            "TEXT" | "VARCHAR" | "CHAR" | "STRING" | "BPCHAR" | "NAME" | "CITEXT" => {
+                match row.try_get::<Option<String>, _>(ordinal) {
+                    Ok(Some(s)) => Value::String(s),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as TEXT: {}",
+                        name, e
+                    ))),
+                }
+            }
             // Integer types
             "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT" => {
                 row.try_get::<Option<i64>, _>(ordinal)
@@ -218,10 +295,19 @@ impl Tool for ExecuteSQLTool {
 
     fn description() -> &'static str {
         "Execute SQL query or multiple SQL statements (separated by semicolons). \
-         Supports read-only mode enforcement and automatic row limiting. \
-         Returns query results as JSON array with row count. \
-         Multi-statement queries are executed within a transaction for consistency. \
-         Supported operations: SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER (based on configuration)."
+         \n\n\
+         MULTI-STATEMENT BEHAVIOR:\n\
+         - Write operations (INSERT/UPDATE/DELETE/CREATE/ALTER/DROP) use transactions\n\
+         - Read operations (SELECT/EXPLAIN/SHOW) execute independently without transaction\n\
+         - On error: returns partial results from successful statements plus error details\n\
+         \n\
+         Returns query results as JSON with:\n\
+         - rows: array of result rows\n\
+         - row_count: number of rows returned\n\
+         - errors: array of errors (if any failures)\n\
+         - partial_results: results before failure (if transaction rolled back)\n\
+         \n\
+         Supports read-only mode enforcement and automatic row limiting."
     }
 
     fn read_only() -> bool {
@@ -280,7 +366,12 @@ impl Tool for ExecuteSQLTool {
         if statements.len() == 1 {
             self.execute_single(&statements[0]).await
         } else {
-            self.execute_multi(&statements).await
+            // Route based on statement types
+            if should_use_transaction(&statements) {
+                self.execute_multi_transactional(&statements).await
+            } else {
+                self.execute_multi_non_transactional(&statements).await
+            }
         }
     }
 

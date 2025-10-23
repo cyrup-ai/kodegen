@@ -50,6 +50,7 @@ thiserror = "1"
 # Utilities
 url = "2"
 regex = "1"
+base64 = "0.22"
 
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 

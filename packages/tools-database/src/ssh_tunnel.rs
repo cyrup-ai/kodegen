@@ -7,10 +7,22 @@
 use crate::error::DatabaseError;
 use ssh2::Session;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
-use tokio::time::{Duration, timeout};
+use tokio::time::{Duration, timeout, sleep, Instant};
+
+/// RAII guard to ensure connection counter decrements on all exit paths
+struct ConnectionGuard {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::Relaxed);
+    }
+}
 
 /// SSH authentication method
 #[derive(Clone)]
@@ -75,6 +87,8 @@ pub struct SSHTunnel {
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
     /// Background listener task handle
     listener_task: Option<JoinHandle<()>>,
+    /// Track active connections for graceful shutdown
+    active_connections: Arc<AtomicUsize>,
 }
 
 /// Establish SSH session and authenticate
@@ -155,7 +169,16 @@ async fn handle_tunnel_connection(
     session: Arc<Mutex<Session>>,
     target_host: String,
     target_port: u16,
+    active_connections: Arc<AtomicUsize>,
 ) -> Result<(), DatabaseError> {
+    // Increment counter at start
+    active_connections.fetch_add(1, Ordering::Relaxed);
+    
+    // Ensure decrement on all exit paths
+    let _guard = ConnectionGuard {
+        counter: active_connections.clone(),
+    };
+    
     // Create SSH channel in blocking context
     let channel = {
         let session_clone = session.clone();
@@ -253,6 +276,7 @@ async fn start_port_forwarder(
     target_host: String,
     target_port: u16,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+    active_connections: Arc<AtomicUsize>,
 ) -> Result<(u16, JoinHandle<()>), DatabaseError> {
     // Bind to localhost with auto-assigned port
     let listener = TcpListener::bind("127.0.0.1:0").await.map_err(|e| {
@@ -278,6 +302,7 @@ async fn start_port_forwarder(
                         Ok((stream, _addr)) => {
                             let session = session.clone();
                             let target_host = target_host.clone();
+                            let conn_counter = active_connections.clone();
 
                             // Spawn task to handle this connection
                             tokio::spawn(async move {
@@ -286,6 +311,7 @@ async fn start_port_forwarder(
                                     session,
                                     target_host,
                                     target_port,
+                                    conn_counter,
                                 )
                                 .await
                                 {
@@ -345,12 +371,16 @@ pub async fn establish_tunnel(
     // Create shutdown channel
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
 
+    // Initialize connection counter
+    let active_connections = Arc::new(AtomicUsize::new(0));
+
     // Start port forwarder
     let (local_port, listener_task) = start_port_forwarder(
         session.clone(),
         tunnel_config.target_host.clone(),
         tunnel_config.target_port,
         shutdown_rx,
+        active_connections.clone(),
     )
     .await?;
 
@@ -361,6 +391,7 @@ pub async fn establish_tunnel(
         target_port: tunnel_config.target_port,
         shutdown_tx,
         listener_task: Some(listener_task),
+        active_connections,
     })
 }
 

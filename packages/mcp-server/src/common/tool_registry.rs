@@ -54,13 +54,13 @@ pub async fn register_all_tools<S>(
     mut tool_router: ToolRouter<S>,
     mut prompt_router: PromptRouter<S>,
     config_manager: &kodegen_tools_config::ConfigManager,
-    usage_tracker: &UsageTracker,
+    _usage_tracker: &UsageTracker,
     enabled_categories: &Option<HashSet<String>>,
-    database_dsn: Option<&str>,
+    _database_dsn: Option<&str>,
     #[cfg(feature = "database")]
-    ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
+    _ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
     #[cfg(not(feature = "database"))]
-    ssh_config: Option<()>,
+    _ssh_config: Option<()>,
 ) -> Result<(ToolRouter<S>, PromptRouter<S>, crate::common::router_builder::Managers)>
 where
     S: Send + Sync + 'static
