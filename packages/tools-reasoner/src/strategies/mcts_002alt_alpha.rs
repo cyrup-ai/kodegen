@@ -2,7 +2,7 @@ use crate::state::StateManager;
 use crate::strategies::base::{
     AsyncPath, BaseStrategy, ClearedSignal, Metric, MetricStream, Reasoning, Strategy,
 };
-use crate::strategies::experiments::mcts_002_alpha::{MCTS002AlphaStrategy, PolicyGuidedNode};
+use crate::strategies::mcts_002_alpha::{MCTS002AlphaStrategy, PolicyGuidedNode};
 use crate::types::{ReasoningRequest, ReasoningResponse, ThoughtNode};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};

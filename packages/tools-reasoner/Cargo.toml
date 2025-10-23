@@ -1,23 +1,62 @@
 [package]
-name = "sweetmcp-plugin-reasoner"
-version = "0.1.0"
+name = "kodegen_tools_reasoner"
+version.workspace = true
 edition = "2024"
-description = "WASM plugin for MCP Reasoner with Beam Search and Monte Carlo Tree Search"
-license = "MIT"
-repository = "https://github.com/yourusername/mcp-reasoner-plugin"
-
-[workspace]
+description = "Advanced reasoning tool with Beam Search and MCTS strategies"
+authors = ["KODEGEN.ᴀɪ"]
+homepage = "https://kodegen.ai"
+repository = "https://github.com/cyrup-ai/kodegen"
+readme = "../../README.md"
+categories = ["development-tools", "command-line-utilities", "api-bindings"]
+keywords = ["mcp", "reasoning", "agent", "mcts", "beam-search"]
+license = "Apache-2.0 OR MIT"
 
 [lib]
-name = "sweetmcp_plugin_reasoner"
-crate-type = ["cdylib"]
+name = "kodegen_tools_reasoner"
+crate-type = ["lib"]  # Native library, not WASM
 
 [dependencies]
-extism-pdk = "1.4.1"
+# Core MCP tool infrastructure
+kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = [
+    "client", "schemars", "server",
+    "transport-child-process", "transport-io", "transport-sse-client",
+    "transport-sse-client-reqwest", "transport-streamable-http-client",
+    "transport-streamable-http-client-reqwest"
+], version = "0.8.1" }
+
+# Async runtime
+tokio = { version = "1.48", features = ["full"] }
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.17", features = ["v4", "serde", "rng-getrandom"] }
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
-once_cell = "1.21"
-tokio = { version = "1", features = ["sync"] }
-log = "0.4.28"
+
+# Schema generation for MCP
+schemars = "1.0"
+
+# Error handling
+anyhow = "1.0"
+
+# UUID generation for node IDs
+uuid = { version = "1.18", features = ["serde", "v4"] }
+
+# LRU cache for state management
+lru = "0.12"
+
+# HTTP client for VoyageAI embeddings (strategies/base.rs:285-373)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Regex for logical scoring (strategies/base.rs)
+regex = "1.12"
+
+# Async stream utilities
+tokio-stream = "0.1"
+futures = "0.3"
+
+# Logging
+log = "0.4"
+tracing = "0.1"
+
+# Workspace hack for dependency deduplication
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }

@@ -19,6 +19,7 @@ members = [
     "packages/tools-introspection",
     "packages/tools-process",
     "packages/tools-prompt",
+    "packages/tools-reasoner",
     "packages/tools-sequential-thinking",
     "packages/tools-terminal",
     "packages/utils",

@@ -158,6 +158,11 @@ where
             })
             .unwrap_or(2); // 2 connections default for responsiveness
         
+        // Install database drivers for sqlx::any
+        // This MUST be called before creating AnyPool or AnyConnection
+        // It registers the compiled-in drivers (postgres, mysql, sqlite) based on cargo features
+        sqlx::any::install_default_drivers();
+        
         // Connect to database with timeout configuration
         let pool = {
             // Get timeout configuration from ConfigManager
@@ -265,6 +270,12 @@ where
         (tool_router, prompt_router) = register_sequential_thinking_tool(tool_router, prompt_router).await?;
     }
     
+    // Reasoner tools
+    #[cfg(feature = "reasoner")]
+    if is_category_enabled("reasoner", enabled_categories) {
+        (tool_router, prompt_router) = register_reasoner_tools(tool_router, prompt_router).await?;
+    }
+    
     // Claude agent tools
     #[cfg(feature = "claude_agent")]
     if is_category_enabled("claude_agent", enabled_categories) {
@@ -311,6 +322,12 @@ where
         } else {
             log::warn!("Database tools enabled but no database connection provided");
         }
+    }
+    
+    // Reasoner tools
+    #[cfg(feature = "reasoner")]
+    if is_category_enabled("reasoner", enabled_categories) {
+        (tool_router, prompt_router) = register_reasoner_tools(tool_router, prompt_router).await?;
     }
     
     Ok((tool_router, prompt_router, managers))
@@ -462,6 +479,25 @@ where
     // Start cleanup task after tool is registered to avoid race conditions
     thinking_tool.start_cleanup_task();
     
+    Ok((tool_router, prompt_router))
+}
+
+#[cfg(feature = "reasoner")]
+async fn register_reasoner_tools<S>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+) -> Result<(ToolRouter<S>, PromptRouter<S>)>
+where
+    S: Send + Sync + 'static
+{
+    log::debug!("Initializing reasoner tools");
+
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_reasoner::SequentialThinkingReasonerTool::new(None)
+    );
+
     Ok((tool_router, prompt_router))
 }
 
@@ -697,5 +733,24 @@ where
         kodegen_tools_database::tools::GetPoolStatsTool::new(pool.clone(), connection_url)?
     );
     
+    Ok((tool_router, prompt_router))
+}
+
+#[cfg(feature = "reasoner")]
+async fn register_reasoner_tools<S>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+) -> Result<(ToolRouter<S>, PromptRouter<S>)>
+where
+    S: Send + Sync + 'static
+{
+    log::debug!("Initializing reasoner tools");
+
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_reasoner::SequentialThinkingReasonerTool::new(None)
+    );
+
     Ok((tool_router, prompt_router))
 }

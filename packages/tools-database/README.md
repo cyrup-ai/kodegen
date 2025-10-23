@@ -2,6 +2,51 @@
 
 Docker-based example demonstrating all 7 database tools across 4 database types.
 
+## Configuration
+
+The database tools support the following configuration keys for controlling timeout and retry behavior:
+
+### Retry Configuration
+
+- **`db_max_retries`** (default: `2`)
+  - Maximum number of retry attempts for failed queries
+  - Total attempts = `max_retries + 1` (e.g., 2 retries = 3 total attempts)
+  - Applies to both connection errors and timeout errors
+
+- **`db_retry_backoff_ms`** (default: `500`)
+  - Base backoff duration in milliseconds for exponential backoff
+  - Actual backoff = `base_ms × 2^attempt + jitter`
+  - Example progression: 500ms → 1000ms → 2000ms → 4000ms (capped at `db_max_backoff_ms`)
+  - Jitter (0-100ms) is added randomly to prevent thundering herd
+
+- **`db_max_backoff_ms`** (default: `5000`)
+  - Maximum backoff duration cap in milliseconds
+  - Prevents exponential backoff from growing indefinitely
+  - Example: With base=500ms, attempt 4+ will cap at 5000ms + jitter
+
+### Timeout Configuration
+
+- **`db_query_timeout_secs`** (default: `60`)
+  - Maximum time in seconds to wait for query execution before timing out
+  - Applies per query attempt (not cumulative across retries)
+  - Configurable per operation via the timeout helper
+
+### Example Configuration
+
+```json
+{
+  "db_max_retries": 3,
+  "db_retry_backoff_ms": 1000,
+  "db_max_backoff_ms": 10000,
+  "db_query_timeout_secs": 120
+}
+```
+
+With these settings:
+- Total attempts: 4 (1 initial + 3 retries)
+- Backoff progression: 1000ms → 2000ms → 4000ms → 8000ms (all + 0-100ms jitter)
+- Query timeout: 120 seconds per attempt
+
 ## Quick Start
 
 ```bash

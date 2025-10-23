@@ -89,7 +89,9 @@ async fn connect_to_database_server(
     let mut cmd = Command::new("cargo");
     cmd.current_dir(workspace_root);
     cmd.args([
-        "run", "--package", "kodegen", "--bin", "kodegen", "--",
+        "run", "--package", "kodegen", "--bin", "kodegen",
+        "--no-default-features", "--features", "database",
+        "--",
         "--sse", "127.0.0.1:18080",
         "--tools", "database",
         "--database-dsn", database_dsn,

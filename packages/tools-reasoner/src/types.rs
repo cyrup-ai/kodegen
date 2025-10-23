@@ -1,7 +1,8 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ThoughtNode {
     pub id: String,
     pub thought: String,
@@ -14,7 +15,7 @@ pub struct ThoughtNode {
     pub is_complete: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReasoningRequest {
     pub thought: String,
     #[serde(rename = "thoughtNumber")]
@@ -33,7 +34,7 @@ pub struct ReasoningRequest {
     pub num_simulations: Option<usize>, // Number of MCTS simulations to run
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReasoningResponse {
     #[serde(rename = "nodeId")]
     pub node_id: String,
@@ -52,7 +53,7 @@ pub struct ReasoningResponse {
     pub strategy_used: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReasoningStats {
     #[serde(rename = "totalNodes")]
     pub total_nodes: usize,
@@ -66,7 +67,7 @@ pub struct ReasoningStats {
     pub strategy_metrics: HashMap<String, StrategyMetrics>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StrategyMetrics {
     pub name: String,
     #[serde(rename = "nodesExplored")]

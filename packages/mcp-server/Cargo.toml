@@ -26,6 +26,7 @@ kodegen_tools_terminal = { path = "../tools-terminal", optional = true , version
 kodegen_tools_process = { path = "../tools-process", optional = true , version = "0.0.1" }
 kodegen_tools_introspection = { path = "../tools-introspection", optional = true , version = "0.0.1" }
 kodegen_tools_prompt = { path = "../tools-prompt", optional = true , version = "0.0.1" }
+kodegen_tools_reasoner = { path = "../tools-reasoner", optional = true , version = "0.0.1" }
 kodegen_tools_sequential_thinking = { path = "../tools-sequential-thinking", optional = true , version = "0.0.1" }
 kodegen_tools_claude_agent = { path = "../tools-claude-agent", optional = true , version = "0.0.1" }
 kodegen_tools_citescrape = { path = "../tools-citescrape", optional = true , version = "0.0.1" }
@@ -122,6 +123,7 @@ all = [
     "process",
     "introspection",
     "prompt",
+    "reasoner",
     "sequential_thinking",
     "claude_agent",
     "citescrape",
@@ -137,6 +139,7 @@ terminal = ["dep:kodegen_tools_terminal"]
 process = ["dep:kodegen_tools_process"]
 introspection = ["dep:kodegen_tools_introspection"]
 prompt = ["dep:kodegen_tools_prompt"]
+reasoner = ["dep:kodegen_tools_reasoner"]
 sequential_thinking = ["dep:kodegen_tools_sequential_thinking"]
 claude_agent = ["dep:kodegen_tools_claude_agent"]
 citescrape = ["dep:kodegen_tools_citescrape"]

@@ -46,7 +46,8 @@ pub fn get_schemas_query(db_type: DatabaseType) -> String {
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:134-145
-            "SELECT schema_name FROM information_schema.schemata \
+            // Cast schema_name to TEXT for sqlx::any compatibility (NAME type not supported)
+            "SELECT schema_name::TEXT FROM information_schema.schemata \
              WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast') \
              ORDER BY schema_name"
                 .to_string()
@@ -92,7 +93,8 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:150-166
-            let sql = "SELECT table_name FROM information_schema.tables \
+            // Cast table_name to TEXT for sqlx::any compatibility
+            let sql = "SELECT table_name::TEXT FROM information_schema.tables \
                        WHERE table_schema = $1 AND table_type = 'BASE TABLE' \
                        ORDER BY table_name"
                 .to_string();

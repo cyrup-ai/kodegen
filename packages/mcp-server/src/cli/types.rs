@@ -250,6 +250,9 @@ pub fn available_categories() -> Vec<&'static str> {
         #[cfg(feature = "prompt")]
         "prompt",
 
+        #[cfg(feature = "reasoner")]
+        "reasoner",
+
         #[cfg(feature = "sequential_thinking")]
         "sequential_thinking",
 

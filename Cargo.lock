@@ -6724,6 +6724,7 @@ dependencies = [
  "kodegen_tools_introspection",
  "kodegen_tools_process",
  "kodegen_tools_prompt",
+ "kodegen_tools_reasoner",
  "kodegen_tools_sequential_thinking",
  "kodegen_tools_terminal",
  "kodegen_utils",
@@ -7327,6 +7328,28 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "workspace-hack",
+]
+
+[[package]]
+name = "kodegen_tools_reasoner"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "futures",
+ "kodegen_mcp_tool",
+ "log",
+ "lru 0.12.5",
+ "regex",
+ "reqwest",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "uuid",
  "workspace-hack",
 ]
 

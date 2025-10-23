@@ -6,6 +6,65 @@ use kodegen_tools_config::ConfigManager;
 use std::time::Duration;
 use tokio::time::timeout;
 
+/// Calculate retry backoff duration with exponential growth, cap, and jitter
+///
+/// Uses configurable base backoff and maximum cap from config, with random jitter
+/// to prevent thundering herd problem when multiple clients retry simultaneously.
+///
+/// # Arguments
+///
+/// * `config` - ConfigManager to read backoff configuration
+/// * `attempt` - Current retry attempt number (0-indexed)
+///
+/// # Returns
+///
+/// Duration to sleep before next retry attempt
+///
+/// # Configuration
+///
+/// * `db_retry_backoff_ms` - Base backoff in milliseconds (default: 500)
+/// * `db_max_backoff_ms` - Maximum backoff cap in milliseconds (default: 5000)
+///
+/// # Formula
+///
+/// `backoff = min(base_ms * 2^attempt, max_ms) + random_jitter(0-100ms)`
+///
+/// # Example
+///
+/// With defaults (base=500ms, max=5000ms):
+/// - Attempt 0: 500ms + jitter = 500-600ms
+/// - Attempt 1: 1000ms + jitter = 1000-1100ms
+/// - Attempt 2: 2000ms + jitter = 2000-2100ms
+/// - Attempt 3: 4000ms + jitter = 4000-4100ms
+/// - Attempt 4+: 5000ms + jitter = 5000-5100ms (capped)
+fn calculate_backoff(config: &ConfigManager, attempt: u32) -> Duration {
+    let base_backoff_ms = config
+        .get_value("db_retry_backoff_ms")
+        .and_then(|v| match v {
+            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
+            _ => None,
+        })
+        .unwrap_or(500); // Default 500ms, not 100ms
+    
+    let max_backoff_ms = config
+        .get_value("db_max_backoff_ms")
+        .and_then(|v| match v {
+            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
+            _ => None,
+        })
+        .unwrap_or(5000); // Default 5 seconds cap
+    
+    // Add jitter to prevent thundering herd
+    let jitter = rand::random::<u64>() % 100; // 0-100ms random jitter
+    
+    // Calculate backoff with exponential growth and cap
+    let backoff_ms = (base_backoff_ms * 2_u64.pow(attempt))
+        .min(max_backoff_ms)
+        + jitter;
+    
+    Duration::from_millis(backoff_ms)
+}
+
 /// Execute a database query with timeout protection and automatic retry
 ///
 /// Wraps any async database operation with tokio::time::timeout and retries
@@ -82,32 +141,8 @@ where
                     );
                     last_error = Some(sqlx_err);
                     
-                    // Configurable exponential backoff with jitter
-                    let base_backoff_ms = config
-                        .get_value("db_retry_backoff_ms")
-                        .and_then(|v| match v {
-                            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
-                            _ => None,
-                        })
-                        .unwrap_or(500); // Default 500ms, not 100ms
-                    
-                    let max_backoff_ms = config
-                        .get_value("db_max_backoff_ms")
-                        .and_then(|v| match v {
-                            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
-                            _ => None,
-                        })
-                        .unwrap_or(5000); // Default 5 seconds cap
-                    
-                    // Add jitter to prevent thundering herd
-                    let jitter = rand::random::<u64>() % 100; // 0-100ms random jitter
-                    
-                    // Calculate backoff with exponential growth and cap
-                    let backoff_ms = (base_backoff_ms * 2_u64.pow(attempt))
-                        .min(max_backoff_ms)
-                        + jitter;
-                    
-                    tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                    // Use configurable exponential backoff with jitter
+                    tokio::time::sleep(calculate_backoff(config, attempt)).await;
                     continue;
                 } else {
                     // Non-retryable error or max retries exhausted
@@ -126,7 +161,8 @@ where
                         attempt + 1,
                         max_retries + 1
                     );
-                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    // Use configurable exponential backoff with jitter
+                    tokio::time::sleep(calculate_backoff(config, attempt)).await;
                     continue;
                 } else {
                     return Err(DatabaseError::QueryError(format!(

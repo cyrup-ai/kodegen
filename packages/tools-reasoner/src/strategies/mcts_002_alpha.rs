@@ -15,11 +15,8 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing;
 use uuid::Uuid;
 
-// Extism host function for embeddings
-#[host_fn]
-extern "ExtismHost" {
-    fn get_text_embedding(text: String) -> Vec<f32>;
-}
+// Note: Text embedding functionality requires VoyageAI API (VOYAGE_API_KEY env var)
+// Removed WASM host function - native implementation uses BaseStrategy methods
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyGuidedNode {
