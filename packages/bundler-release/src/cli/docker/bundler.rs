@@ -456,14 +456,46 @@ impl ContainerBundler {
                 command: "read directory entry".to_string(),
                 reason: format!("Failed to read entry in {}: {}", bundle_dir.display(), e),
             }))?;
-            
             let path = entry.path();
-            runtime_config.verbose_println(&format!("  Found: {}", path.display()));
             
-            if path.is_file() {
+            // Skip non-regular files (directories, symlinks)
+            let metadata = std::fs::symlink_metadata(&path).map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "read file metadata".to_string(),
+                reason: format!("Failed to read metadata for {}: {}", path.display(), e),
+            }))?;
+            if !metadata.is_file() || metadata.is_symlink() {
+                runtime_config.verbose_println(&format!("  Skipping non-regular file: {}", path.display()));
+                continue;
+            }
+            
+            // Check minimum size
+            if metadata.len() < 1024 {
+                runtime_config.verbose_println(&format!("  Skipping small file: {} ({} bytes)", path.display(), metadata.len()));
+                continue;
+            }
+            
+            // Validate file extension matches platform
+            let extension = path.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_lowercase());
+            
+            let is_valid_artifact = match platform {
+                PackageType::Deb => extension.as_deref() == Some("deb"),
+                PackageType::Rpm => extension.as_deref() == Some("rpm"),
+                PackageType::AppImage => {
+                    extension.is_none() || extension.as_deref() == Some("appimage")
+                }
+                PackageType::WindowsMsi => extension.as_deref() == Some("msi"),
+                PackageType::Nsis => extension.as_deref() == Some("exe"),
+                PackageType::Dmg => extension.as_deref() == Some("dmg"),
+                PackageType::MacOsBundle => extension.as_deref() == Some("app"),
+            };
+            
+            if is_valid_artifact {
+                runtime_config.verbose_println(&format!("  ✓ Artifact: {}", path.display()));
                 artifacts.push(path);
-            } else if path.is_dir() {
-                runtime_config.verbose_println(&format!("  Skipping directory: {}", path.display()));
+            } else {
+                runtime_config.verbose_println(&format!("  Skipping non-artifact: {} (wrong extension)", path.display()));
             }
         }
 

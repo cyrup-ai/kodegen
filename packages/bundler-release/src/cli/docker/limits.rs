@@ -95,6 +95,23 @@ impl ContainerLimits {
     ) -> Result<Self, String> {
         let memory_mb = Self::parse_memory_to_mb(&memory)?;
         
+        // Validate minimum (Docker requires 4MB, we require 512MB for builds)
+        if memory_mb < 512 {
+            return Err(format!(
+                "Memory limit too low: {} MB (minimum: 512 MB)\n\
+                 Docker builds require significant memory for compilation.",
+                memory_mb
+            ));
+        }
+        
+        // Validate maximum (sanity check: 1TB)
+        if memory_mb > 1024 * 1024 {
+            return Err(format!(
+                "Memory limit too high: {} MB (maximum: 1 TB)",
+                memory_mb
+            ));
+        }
+        
         let memory_swap = if let Some(swap) = memory_swap {
             let swap_mb = Self::parse_memory_to_mb(&swap)?;
             
@@ -112,7 +129,48 @@ impl ContainerLimits {
             format!("{}m", memory_mb + 2048)
         };
         
-        let cpus = cpus.unwrap_or_else(|| num_cpus::get().to_string());
+        // Validate CPUs
+        let cpus = if let Some(cpus_str) = cpus {
+            let cpus_f32: f32 = cpus_str.parse()
+                .map_err(|_| format!(
+                    "Invalid --cpus value: '{}' (expected number like '2' or '1.5')",
+                    cpus_str
+                ))?;
+            
+            if cpus_f32 <= 0.0 {
+                return Err(format!(
+                    "CPU limit must be positive, got: {}",
+                    cpus_f32
+                ));
+            }
+            
+            if cpus_f32 > 1024.0 {
+                return Err(format!(
+                    "CPU limit too high: {} (maximum: 1024)",
+                    cpus_f32
+                ));
+            }
+            
+            cpus_str
+        } else {
+            num_cpus::get().to_string()
+        };
+        
+        // Validate PID limit
+        if pids_limit < 10 {
+            return Err(format!(
+                "PID limit too low: {} (minimum: 10)\n\
+                 Builds require multiple processes.",
+                pids_limit
+            ));
+        }
+        
+        if pids_limit > 1_000_000 {
+            return Err(format!(
+                "PID limit too high: {} (maximum: 1,000,000)",
+                pids_limit
+            ));
+        }
         
         Ok(Self {
             memory,  // Keep original format for Docker
@@ -290,5 +348,75 @@ mod tests {
             1000,
         );
         assert!(result.is_err());
+    }
+    
+    // Memory bounds tests
+    #[test]
+    fn test_from_cli_memory_too_low() {
+        let result = ContainerLimits::from_cli("100m".to_string(), None, None, 1000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("512 MB"));
+    }
+    
+    #[test]
+    fn test_from_cli_memory_too_high() {
+        let result = ContainerLimits::from_cli("2000000m".to_string(), None, None, 1000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("1 TB"));
+    }
+    
+    // CPU validation tests
+    #[test]
+    fn test_from_cli_invalid_cpu_format() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, Some("abc".to_string()), 1000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid --cpus"));
+    }
+    
+    #[test]
+    fn test_from_cli_zero_cpus() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, Some("0".to_string()), 1000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("positive"));
+    }
+    
+    #[test]
+    fn test_from_cli_negative_cpus() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, Some("-2".to_string()), 1000);
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_from_cli_excessive_cpus() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, Some("9999".to_string()), 1000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("1024"));
+    }
+    
+    #[test]
+    fn test_from_cli_valid_fractional_cpus() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, Some("1.5".to_string()), 1000);
+        assert!(result.is_ok());
+    }
+    
+    // PID validation tests
+    #[test]
+    fn test_from_cli_zero_pids() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, None, 0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("10"));
+    }
+    
+    #[test]
+    fn test_from_cli_excessive_pids() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, None, 5_000_000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("1,000,000"));
+    }
+    
+    #[test]
+    fn test_from_cli_valid_pids() {
+        let result = ContainerLimits::from_cli("4g".to_string(), None, None, 500);
+        assert!(result.is_ok());
     }
 }

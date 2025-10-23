@@ -62,7 +62,6 @@ pub fn find_bundle_directory(
 /// Checks:
 /// - File exists and is readable
 /// - File size > 0 (not empty)
-/// - File has expected extension
 ///
 /// # Arguments
 ///
