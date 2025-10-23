@@ -356,22 +356,53 @@ pub async fn build_docker_image(
         }
     }
 
-    // Wait with timeout
-    let status = tokio::time::timeout(
-        DOCKER_BUILD_TIMEOUT,
-        child.wait()
-    ).await
-        .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "docker build".to_string(),
-            reason: format!(
-                "Docker build timed out after {} minutes",
-                DOCKER_BUILD_TIMEOUT.as_secs() / 60
-            ),
-        }))?
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "docker build".to_string(),
-            reason: e.to_string(),
-        }))?;
+    // Wait with timeout - handle timeout explicitly to kill child
+    let status = tokio::time::timeout(DOCKER_BUILD_TIMEOUT, child.wait()).await;
+
+    let status = match status {
+        Ok(Ok(status)) => status,  // Completed normally
+        Ok(Err(e)) => {
+            // Wait failed (process error)
+            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "docker build".to_string(),
+                reason: e.to_string(),
+            }));
+        }
+        Err(_elapsed) => {
+            // Timeout occurred - kill the process before returning error
+            runtime_config.warn("Docker build timed out, terminating process...");
+            
+            // Kill process (SIGKILL)
+            if let Err(e) = child.kill().await {
+                eprintln!("Warning: Failed to kill docker build process: {}", e);
+            }
+            
+            // Wait for process to exit and reap zombie (with short timeout)
+            let _ = tokio::time::timeout(
+                Duration::from_secs(10),
+                child.wait()
+            ).await;
+            
+            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "docker build".to_string(),
+                reason: format!(
+                    "Docker build timed out after {} minutes.\n\
+                     \n\
+                     Possible causes:\n\
+                     • Slow network connection to Docker registry\n\
+                     • Large base image download\n\
+                     • Complex Dockerfile with many layers\n\
+                     \n\
+                     Solutions:\n\
+                     • Check network connection\n\
+                     • Increase timeout if build is legitimately slow\n\
+                     • Optimize Dockerfile (fewer layers, smaller base images)\n\
+                     • Use local registry/cache",
+                    DOCKER_BUILD_TIMEOUT.as_secs() / 60
+                ),
+            }));
+        }
+    };
 
     if !status.success() {
         return Err(ReleaseError::Cli(CliError::ExecutionFailed {

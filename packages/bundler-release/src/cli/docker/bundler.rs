@@ -273,22 +273,55 @@ impl ContainerBundler {
             }
         }
 
-        // Wait for child process completion with timeout
-        let status = tokio::time::timeout(
-            DOCKER_RUN_TIMEOUT,
-            child.wait()
-        ).await
-            .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: format!("bundle {} in container", platform_str),
-                reason: format!(
-                    "Docker bundling timed out after {} minutes",
+        // Wait for child process completion with timeout - handle timeout explicitly to kill child
+        let status = tokio::time::timeout(DOCKER_RUN_TIMEOUT, child.wait()).await;
+
+        let status = match status {
+            Ok(Ok(status)) => status,  // Completed normally
+            Ok(Err(e)) => {
+                // Wait failed (process error)
+                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: format!("docker run {}", docker_args.join(" ")),
+                    reason: e.to_string(),
+                }));
+            }
+            Err(_elapsed) => {
+                // Timeout occurred - kill the process before returning error
+                runtime_config.warn(&format!(
+                    "Docker bundling timed out after {} minutes, terminating...",
                     DOCKER_RUN_TIMEOUT.as_secs() / 60
-                ),
-            }))?
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: format!("docker run {}", docker_args.join(" ")),
-                reason: e.to_string(),
-            }))?;
+                ));
+                
+                // Kill process (SIGKILL)
+                if let Err(e) = child.kill().await {
+                    eprintln!("Warning: Failed to kill docker run process: {}", e);
+                }
+                
+                // Wait for process to exit and reap zombie (with short timeout)
+                let _ = tokio::time::timeout(
+                    Duration::from_secs(10),
+                    child.wait()
+                ).await;
+                
+                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: format!("bundle {} in container", platform_str),
+                    reason: format!(
+                        "Docker bundling timed out after {} minutes.\n\
+                         \n\
+                         This usually indicates:\n\
+                         • Very slow build (large dependency downloads)\n\
+                         • System resource constraints\n\
+                         • Network issues\n\
+                         \n\
+                         Try:\n\
+                         • Increase container resource limits\n\
+                         • Check available system memory/CPU\n\
+                         • Use --build flag to reuse cached builds",
+                        DOCKER_RUN_TIMEOUT.as_secs() / 60
+                    ),
+                }));
+            }
+        };
 
         // Retrieve captured stderr from background task
         let stderr_lines = if let Some(handle) = stderr_handle {
@@ -308,7 +341,7 @@ impl ContainerBundler {
                 // Get system memory info
                 let mut sys = sysinfo::System::new();
                 sys.refresh_memory();
-                let total_memory_gb = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
+                let total_memory_gb = sys.total_memory() / 1024 / 1024 / 1024;
 
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                     command: format!("bundle {} in container", platform_str),
