@@ -306,16 +306,19 @@ pub fn get_indexes_query(
             Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
         DatabaseType::MySQL | DatabaseType::MariaDB => {
-            // Query returns distinct indexes without column aggregation
-            // Columns will be fetched per-index in the tool implementation
-            // to avoid GROUP_CONCAT 1024-byte truncation limit
-            let sql = "SELECT DISTINCT \
+            // Single query returns ALL index-column rows
+            // Grouping happens in Rust (get_table_indexes.rs) to avoid:
+            // 1. GROUP_CONCAT 1024-byte truncation limit
+            // 2. N+1 query pattern
+            let sql = "SELECT \
                            index_name, \
+                           column_name, \
+                           seq_in_index, \
                            NOT non_unique as is_unique, \
                            index_name = 'PRIMARY' as is_primary \
                        FROM information_schema.statistics \
                        WHERE table_schema = ? AND table_name = ? \
-                       ORDER BY index_name"
+                       ORDER BY index_name, seq_in_index"
                 .to_string();
             Ok((sql, vec![schema.to_string(), table.to_string()]))
         }

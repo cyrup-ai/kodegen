@@ -84,6 +84,8 @@ impl std::fmt::Display for DSNInfo {
         Ok(())
     }
 }
+
+impl DSNInfo {
     /// Reconstruct DSN string from components WITH plaintext password (wrapped in Secret).
     ///
     /// # Security
@@ -160,9 +162,6 @@ impl std::fmt::Display for DSNInfo {
     )]
     pub fn to_dsn(&self) -> String {
         self.to_connection_string().expose_secret().to_string()
-    }
-
-        dsn
     }
 
     /// Reconstruct DSN string WITHOUT password (safe for display/logging)

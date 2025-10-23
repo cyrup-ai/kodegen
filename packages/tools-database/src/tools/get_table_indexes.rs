@@ -1,6 +1,6 @@
 //! Get table indexes tool
 
-use crate::schema_queries::{get_indexes_query, get_index_columns_query};
+use crate::schema_queries::get_indexes_query;
 use crate::tools::helpers::resolve_schema_default;
 use crate::tools::timeout::execute_with_timeout;
 use crate::types::{DatabaseType, TableIndex};
@@ -118,50 +118,28 @@ impl Tool for GetTableIndexesTool {
 
         match db_type {
             DatabaseType::MySQL | DatabaseType::MariaDB => {
-                // MySQL: Two-step approach to avoid GROUP_CONCAT truncation
+                // MySQL: Single query returns all index-column rows
+                // Group by index_name in Rust to avoid GROUP_CONCAT truncation
+                use std::collections::HashMap;
+                
+                // HashMap: index_name -> (columns, is_unique, is_primary)
+                let mut index_map: HashMap<String, (Vec<String>, bool, bool)> = HashMap::new();
+                
                 for row in rows.iter() {
                     let index_name: String = row.try_get("index_name").unwrap_or_default();
+                    let column_name: String = row.try_get("column_name").unwrap_or_default();
                     let is_unique: bool = row.try_get("is_unique").unwrap_or(false);
                     let is_primary: bool = row.try_get("is_primary").unwrap_or(false);
-
-                    // Fetch columns for this specific index
-                    let (col_query, col_params) = get_index_columns_query(
-                        db_type,
-                        &schema,
-                        &args.table,
-                        &index_name,
-                    );
-
-                    let pool_col = self.pool.clone();
-                    let col_query_owned = col_query.clone();
-                    let col_params_owned = col_params.clone();
-                    let index_name_clone = index_name.clone();
-                    let col_rows = execute_with_timeout(
-                        &self.config,
-                        "db_metadata_query_timeout_secs",
-                        Duration::from_secs(10),
-                        || {
-                            let pool = pool_col.clone();
-                            let query = col_query_owned.clone();
-                            let params = col_params_owned.clone();
-                            async move {
-                                let mut q = sqlx::query(&query);
-                                for param in &params {
-                                    q = q.bind(param);
-                                }
-                                q.fetch_all(&*pool).await
-                            }
-                        },
-                        &format!("Getting columns for index '{}'", index_name_clone),
-                    )
-                    .await?;
-
-                    // Extract column names
-                    let column_names: Vec<String> = col_rows
-                        .iter()
-                        .map(|r| r.try_get("column_name").unwrap_or_default())
-                        .collect();
-
+                    
+                    index_map
+                        .entry(index_name)
+                        .or_insert_with(|| (Vec::new(), is_unique, is_primary))
+                        .0
+                        .push(column_name);
+                }
+                
+                // Convert HashMap to Vec<TableIndex>
+                for (index_name, (column_names, is_unique, is_primary)) in index_map {
                     indexes.push(TableIndex {
                         index_name,
                         column_names,
