@@ -3,6 +3,7 @@
 use crate::error::DatabaseError;
 use crate::schema_queries::get_stored_procedures_query;
 use crate::tools::helpers::resolve_schema_default;
+use crate::tools::timeout::execute_with_timeout;
 use crate::types::{DatabaseType, StoredProcedure};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// Arguments for get_stored_procedures tool
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -35,7 +37,6 @@ pub struct GetStoredProceduresPromptArgs {}
 pub struct GetStoredProceduresTool {
     pool: Arc<AnyPool>,
     db_type: DatabaseType,
-    #[allow(dead_code)]
     config: Arc<ConfigManager>,
 }
 
@@ -105,14 +106,19 @@ impl Tool for GetStoredProceduresTool {
             .into());
         };
 
-        // Execute with parameters
+        // Execute with parameters and timeout
         let mut q = sqlx::query(&query);
         for param in &params {
             q = q.bind(param);
         }
-        let rows = q.fetch_all(&*self.pool).await.map_err(|e| {
-            DatabaseError::QueryError(format!("Failed to get stored procedures: {}", e))
-        })?;
+        let rows = execute_with_timeout(
+            &self.config,
+            "db_metadata_query_timeout_secs",
+            Duration::from_secs(10), // 10s default for metadata
+            q.fetch_all(&*self.pool),
+            "Getting stored procedures",
+        )
+        .await?;
 
         // Parse into StoredProcedure structs
         let procedures: Vec<StoredProcedure> = rows

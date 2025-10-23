@@ -589,12 +589,12 @@ where
     let (tool_router, prompt_router) = register_tool(
         tool_router,
         prompt_router,
-        kodegen_tools_database::tools::ListSchemasTool::new(pool.clone(), connection_url)?
+        kodegen_tools_database::tools::ListSchemasTool::new(pool.clone(), connection_url, config_manager.clone())?
     );
     let (tool_router, prompt_router) = register_tool(
         tool_router,
         prompt_router,
-        kodegen_tools_database::tools::ListTablesTool::new(pool.clone(), connection_url)?
+        kodegen_tools_database::tools::ListTablesTool::new(pool.clone(), connection_url, config_manager.clone())?
     );
     let (tool_router, prompt_router) = register_tool(
         tool_router,

@@ -7,7 +7,6 @@ use crate::{
     DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
     validate_readonly_sql, tools::timeout::execute_with_timeout,
 };
-use anyhow::Context;
 use base64::Engine as _;  // For base64 encoding of binary data
 use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;

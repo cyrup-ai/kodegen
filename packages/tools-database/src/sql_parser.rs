@@ -1,10 +1,11 @@
 //! SQL parsing utilities for statement splitting, comment stripping, and keyword extraction
 //!
-//! These are SIMPLE string manipulation utilities, not full SQL parsers.
-//! They handle common cases for safety validation and query transformation.
+//! Uses sqlparser crate for proper SQL parsing with validation.
 
 use crate::error::DatabaseError;
 use crate::types::DatabaseType;
+use sqlparser::dialect::{Dialect, GenericDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect};
+use sqlparser::parser::Parser;
 
 /// Split multi-statement SQL by semicolons, respecting string literals
 ///
