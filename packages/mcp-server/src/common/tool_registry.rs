@@ -82,6 +82,8 @@ where
     if let Some(dsn) = database_dsn {
         use kodegen_tools_database::{establish_tunnel, rewrite_dsn_for_tunnel};
         use anyhow::Context;
+        use sqlx::pool::PoolOptions;
+        use std::time::Duration;
         
         let final_dsn = if let Some((ssh_cfg, tunnel_cfg)) = ssh_config {
             // Establish tunnel
@@ -94,9 +96,52 @@ where
             dsn.to_string()
         };
         
-        // Connect to database
-        let pool = sqlx::AnyPool::connect(&final_dsn).await
-            .context("Failed to connect to database")?;
+        // Connect to database with timeout configuration
+        let pool = {
+            // Get timeout configuration from ConfigManager
+            let acquire_timeout = config_manager
+                .get_value("db_acquire_timeout_secs")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                    _ => None,
+                })
+                .unwrap_or(Duration::from_secs(30)); // 30s default
+            
+            let idle_timeout = config_manager
+                .get_value("db_idle_timeout_secs")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                    _ => None,
+                })
+                .unwrap_or(Duration::from_secs(600)); // 10 minutes default
+            
+            let max_lifetime = config_manager
+                .get_value("db_max_lifetime_secs")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                    _ => None,
+                })
+                .unwrap_or(Duration::from_secs(1800)); // 30 minutes default
+            
+            let max_connections = config_manager
+                .get_value("db_max_connections")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(n as u32),
+                    _ => None,
+                })
+                .unwrap_or(10); // 10 connections default
+            
+            // Build pool with PoolOptions
+            PoolOptions::new()
+                .max_connections(max_connections)
+                .acquire_timeout(acquire_timeout)
+                .idle_timeout(Some(idle_timeout))
+                .max_lifetime(Some(max_lifetime))
+                .test_before_acquire(true) // Verify connection health
+                .connect(&final_dsn)
+                .await
+                .context("Failed to connect to database")?
+        };
         
         log::info!("✓ Database connected ({})", 
             kodegen_tools_database::detect_database_type(&final_dsn)?);

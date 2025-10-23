@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_split_respects_string_literals() {
         let sql = "SELECT 1; INSERT INTO t VALUES ('a;b;c'); SELECT 2;";
-        let stmts = split_sql_statements(sql);
+        let stmts = split_sql_statements(sql, DatabaseType::Postgres);
         assert_eq!(stmts.len(), 3);
         assert!(stmts[1].contains("'a;b;c'"));
     }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_strip_preserves_strings() {
         let sql = "SELECT '-- not a comment' FROM t";
-        let cleaned = strip_comments(sql);
+        let cleaned = strip_comments(sql, DatabaseType::Postgres);
         assert!(cleaned.contains("-- not a comment"));
     }
 }

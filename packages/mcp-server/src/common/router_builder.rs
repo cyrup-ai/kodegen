@@ -2,6 +2,7 @@
 use anyhow::Result;
 use rmcp::handler::server::router::{tool::ToolRouter, prompt::PromptRouter};
 use std::collections::HashSet;
+#[cfg(any(feature = "citescrape", feature = "database"))]
 use std::sync::Arc;
 use kodegen_utils::usage_tracker::UsageTracker;
 

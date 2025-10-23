@@ -4,8 +4,8 @@
 //! and transaction wrapping for consistent database operations.
 
 use crate::{
-    DatabaseType, apply_row_limit, error::DatabaseError, extract_first_keyword,
-    split_sql_statements, validate_readonly_sql,
+    DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
+    validate_readonly_sql,
 };
 use anyhow::Context;
 use base64::Engine as _;  // For base64 encoding of binary data
@@ -190,11 +190,11 @@ impl ExecuteSQLTool {
 // ============================================================================
 
 /// Determine if statements contain write operations requiring transaction
-fn should_use_transaction(statements: &[String]) -> bool {
+fn should_use_transaction(statements: &[String], db_type: DatabaseType) -> bool {
     use crate::extract_first_keyword;
     
     statements.iter().any(|stmt| {
-        if let Ok(keyword) = extract_first_keyword(stmt) {
+        if let Ok(keyword) = extract_first_keyword(stmt, db_type) {
             matches!(
                 keyword.as_str(),
                 "insert" | "update" | "delete" | "create" | "alter" | "drop" | "truncate"
@@ -242,27 +242,104 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                 }
             }
             // Integer types
-            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT" => {
-                row.try_get::<Option<i64>, _>(ordinal)
-                    .ok()
-                    .flatten()
-                    .map(|v| json!(v))
-                    .unwrap_or(Value::Null)
+            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT" | "SERIAL" | "BIGSERIAL" => {
+                match row.try_get::<Option<i64>, _>(ordinal) {
+                    Ok(Some(v)) => json!(v),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as INTEGER: {}",
+                        name, e
+                    ))),
+                }
             }
             // Boolean types
-            "BOOLEAN" | "BOOL" | "TINYINT(1)" => row
-                .try_get::<Option<bool>, _>(ordinal)
-                .ok()
-                .flatten()
-                .map(Value::Bool)
-                .unwrap_or(Value::Null),
+            "BOOLEAN" | "BOOL" | "TINYINT(1)" => {
+                match row.try_get::<Option<bool>, _>(ordinal) {
+                    Ok(Some(b)) => Value::Bool(b),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as BOOLEAN: {}",
+                        name, e
+                    ))),
+                }
+            }
             // Float types
-            "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "NUMERIC" | "DECIMAL" => row
-                .try_get::<Option<f64>, _>(ordinal)
-                .ok()
-                .flatten()
-                .map(|v| json!(v))
-                .unwrap_or(Value::Null),
+            "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "DOUBLE PRECISION" => {
+                match row.try_get::<Option<f64>, _>(ordinal) {
+                    Ok(Some(v)) => json!(v),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as FLOAT: {}",
+                        name, e
+                    ))),
+                }
+            }
+            // DECIMAL/NUMERIC - extract as string to preserve precision
+            "NUMERIC" | "DECIMAL" | "NUMBER" => {
+                match row.try_get::<Option<String>, _>(ordinal) {
+                    Ok(Some(s)) => Value::String(s),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as DECIMAL: {}",
+                        name, e
+                    ))),
+                }
+            }
+            // JSON types - parse as serde_json::Value
+            "JSON" | "JSONB" => {
+                match row.try_get::<Option<String>, _>(ordinal) {
+                    Ok(Some(json_str)) => {
+                        serde_json::from_str(&json_str).unwrap_or_else(|e| {
+                            log::warn!("Failed to parse JSON column '{}': {}", name, e);
+                            Value::String(json_str)  // Fallback to raw string
+                        })
+                    }
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as JSON: {}",
+                        name, e
+                    ))),
+                }
+            }
+            // Binary types - encode as base64 string
+            "BYTEA" | "BLOB" | "BINARY" | "VARBINARY" => {
+                match row.try_get::<Option<Vec<u8>>, _>(ordinal) {
+                    Ok(Some(bytes)) => {
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                        json!({
+                            "type": "base64",
+                            "data": encoded
+                        })
+                    }
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as BYTEA: {}",
+                        name, e
+                    ))),
+                }
+            }
+            // Date/Time types - extract as strings
+            "TIMESTAMP" | "TIMESTAMPTZ" | "DATETIME" | "DATE" | "TIME" | "INTERVAL" => {
+                match row.try_get::<Option<String>, _>(ordinal) {
+                    Ok(Some(s)) => Value::String(s),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as {}: {}",
+                        name, type_name, e
+                    ))),
+                }
+            }
+            // UUID - extract as string
+            "UUID" => {
+                match row.try_get::<Option<String>, _>(ordinal) {
+                    Ok(Some(s)) => Value::String(s),
+                    Ok(None) => Value::Null,
+                    Err(e) => return Err(DatabaseError::QueryError(format!(
+                        "Failed to extract column '{}' as UUID: {}",
+                        name, e
+                    ))),
+                }
+            }
             // Fallback for unsupported types
             _ => {
                 // Log warning but don't fail
@@ -360,14 +437,14 @@ impl Tool for ExecuteSQLTool {
         };
 
         // 5. Split into statements
-        let statements = split_sql_statements(&sql);
+        let statements = split_sql_statements(&sql, db_type);
 
         // 6. Execute single or multi-statement
         if statements.len() == 1 {
             self.execute_single(&statements[0]).await
         } else {
             // Route based on statement types
-            if should_use_transaction(&statements) {
+            if should_use_transaction(&statements, db_type) {
                 self.execute_multi_transactional(&statements).await
             } else {
                 self.execute_multi_non_transactional(&statements).await

@@ -409,26 +409,76 @@ impl SSHTunnel {
             .unwrap_or(false)
     }
 
-    /// Close the tunnel and clean up resources
+    /// Close the tunnel gracefully and wait for cleanup
+    /// 
+    /// This method:
+    /// 1. Sends shutdown signal to listener
+    /// 2. Waits for active connections to drain (with timeout)
+    /// 3. Waits for listener task to finish (with timeout)
+    /// 
+    /// Users should always call this method explicitly for guaranteed cleanup.
+    /// If not called, Drop will attempt best-effort cleanup in background.
     pub async fn close(mut self) {
-        // Send shutdown signal
+        // Send shutdown signal to stop accepting new connections
         let _ = self.shutdown_tx.send(());
-
-        // Wait for listener task to finish
-        if let Some(task) = self.listener_task.take() {
-            let _ = task.await;
+        
+        // Wait for active connections to drain (max 30 seconds)
+        let drain_start = Instant::now();
+        while self.active_connections.load(Ordering::Relaxed) > 0 {
+            if drain_start.elapsed() > Duration::from_secs(30) {
+                log::warn!(
+                    "Timeout waiting for {} active connections to drain after 30s",
+                    self.active_connections.load(Ordering::Relaxed)
+                );
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
         }
-
-        // Session will be dropped automatically
+        
+        // Wait for listener task to finish (max 5 seconds)
+        if let Some(task) = self.listener_task.take() {
+            match timeout(Duration::from_secs(5), task).await {
+                Ok(Ok(())) => {
+                    log::debug!("SSH tunnel listener task closed cleanly");
+                }
+                Ok(Err(e)) => {
+                    log::error!("SSH tunnel listener task panicked: {:?}", e);
+                }
+                Err(_) => {
+                    log::error!("SSH tunnel listener task timeout after 5s - task may still be running");
+                }
+            }
+        }
+        
+        // SSH session will be dropped automatically via Arc
     }
 }
 
 impl Drop for SSHTunnel {
     fn drop(&mut self) {
-        // Send shutdown signal (non-blocking)
+        // Best-effort cleanup: send shutdown signal
         let _ = self.shutdown_tx.send(());
-
-        // Note: Can't await in Drop, so listener task cleanup happens in background
-        // This is acceptable as tokio runtime will clean up tasks on shutdown
+        
+        // If task still exists, spawn detached cleanup task
+        if self.listener_task.is_some() {
+            log::warn!(
+                "SSHTunnel dropped without calling close() - spawning background cleanup task. \
+                 Consider calling .close().await for guaranteed cleanup."
+            );
+            
+            // Try to spawn cleanup task (may fail if runtime shutting down)
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                let task = self.listener_task.take();
+                handle.spawn(async move {
+                    if let Some(t) = task {
+                        // Give task 5 seconds to finish
+                        let _ = tokio::time::timeout(
+                            Duration::from_secs(5),
+                            t
+                        ).await;
+                    }
+                });
+            }
+        }
     }
 }
