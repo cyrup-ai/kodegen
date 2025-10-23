@@ -283,16 +283,30 @@ impl ContainerBundler {
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                     command: format!("bundle {} in container", platform_str),
                     reason: format!(
-                        "Container ran out of memory during bundling.\n\n\
-                         System has {:.2} GB total RAM.\n\n\
-                         Docker is likely using default memory limits which may be insufficient for Rust builds.\n\n\
+                        "Container ran out of memory during build.\n\
+                         \n\
+                         Current memory limit: {} (swap: {})\n\
+                         \n\
+                         The container exhausted available memory while building. This typically happens when:\n\
+                         • Building large Rust projects with many dependencies\n\
+                         • Parallel compilation uses more RAM than available\n\
+                         • Debug builds require more memory than release builds\n\
+                         \n\
                          Solutions:\n\
-                         1. Increase Docker memory limit in Docker Desktop settings (recommended: 8GB+)\n\
-                         2. Use --memory flag: docker run --memory=8g ...\n\
-                         3. Check Docker Desktop → Settings → Resources → Memory\n\n\
-                         Error output:\n{}",
+                         1. Increase memory limit:\n\
+                            cargo run -p kodegen_release -- bundle --platform {} --docker-memory 8g\n\
+                         \n\
+                         2. Build fewer platforms in parallel (run multiple times with --platform)\n\
+                         \n\
+                         3. Use release builds (they use less memory):\n\
+                            cargo run -p kodegen_release -- bundle --platform {} --release\n\
+                         \n\
+                         4. Check available system memory: {} GB total",
+                        self.limits.memory,
+                        self.limits.memory_swap,
+                        platform_str,
+                        platform_str,
                         total_memory_gb,
-                        stderr_str
                     ),
                 }));
             } else {
