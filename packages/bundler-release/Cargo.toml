@@ -30,13 +30,13 @@ path = "src/lib.rs"
 gix = "0.74.0"
 
 # Shared Git operations package
-kodegen_tools_git = { path = "../tools-git" , version = "0.1.8" }
+kodegen_tools_git = { path = "../tools-git" , version = "0.0.1" }
 
 # GitHub API integration for releases
-kodegen_tools_github = { path = "../tools-github" , version = "0.1.8" }
+kodegen_tools_github = { path = "../tools-github" , version = "0.0.1" }
 
 # Code signing for macOS artifacts
-kodegen_bundler_sign = { path = "../bundler-sign" , version = "0.1.8" }
+kodegen_bundler_sign = { path = "../bundler-sign" , version = "0.0.1" }
 
 # Binary content for asset upload
 bytes = "1.10"
@@ -105,7 +105,7 @@ url = "2.5"                 # URL parsing errors
 regex = "1.12"              # Regular expression errors (macOS/Windows)
 dirs = "6.0"                # Cross-platform cache directory
 cyrup_termcolor = "2.0"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ar = "0.9"                  # AR archive for .deb

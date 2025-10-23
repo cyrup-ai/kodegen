@@ -31,7 +31,7 @@ dashmap = "6.1"
 # Plugin system
 extism = "1.12.0"
 extism-pdk = "1.4.1"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 # Workspace hack
 

@@ -21,23 +21,23 @@ keywords = [
 cyrup_termcolor = "2.0"
 
 # Tool packages - OPTIONAL (only compiled when features are enabled)
-kodegen_tools_filesystem = { path = "../tools-filesystem", optional = true , version = "0.1.8" }
-kodegen_tools_terminal = { path = "../tools-terminal", optional = true , version = "0.1.8" }
-kodegen_tools_process = { path = "../tools-process", optional = true , version = "0.1.8" }
-kodegen_tools_introspection = { path = "../tools-introspection", optional = true , version = "0.1.8" }
-kodegen_tools_prompt = { path = "../tools-prompt", optional = true , version = "0.1.8" }
-kodegen_tools_sequential_thinking = { path = "../tools-sequential-thinking", optional = true , version = "0.1.8" }
-kodegen_tools_claude_agent = { path = "../tools-claude-agent", optional = true , version = "0.1.8" }
-kodegen_tools_citescrape = { path = "../tools-citescrape", optional = true , version = "0.1.8" }
-kodegen_tools_git = { path = "../tools-git", optional = true , version = "0.1.8" }
-kodegen_tools_github = { path = "../tools-github", optional = true , version = "0.1.8" }
+kodegen_tools_filesystem = { path = "../tools-filesystem", optional = true , version = "0.0.1" }
+kodegen_tools_terminal = { path = "../tools-terminal", optional = true , version = "0.0.1" }
+kodegen_tools_process = { path = "../tools-process", optional = true , version = "0.0.1" }
+kodegen_tools_introspection = { path = "../tools-introspection", optional = true , version = "0.0.1" }
+kodegen_tools_prompt = { path = "../tools-prompt", optional = true , version = "0.0.1" }
+kodegen_tools_sequential_thinking = { path = "../tools-sequential-thinking", optional = true , version = "0.0.1" }
+kodegen_tools_claude_agent = { path = "../tools-claude-agent", optional = true , version = "0.0.1" }
+kodegen_tools_citescrape = { path = "../tools-citescrape", optional = true , version = "0.0.1" }
+kodegen_tools_git = { path = "../tools-git", optional = true , version = "0.0.1" }
+kodegen_tools_github = { path = "../tools-github", optional = true , version = "0.0.1" }
 
 # Core packages - REQUIRED (always compiled)
-kodegen_tools_config = { path = "../tools-config" , version = "0.1.8" }
-kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.1.8" }
-kodegen_utils = { path = "../utils" , version = "0.1.8" }
-kodegen_bundler_autoconfig = { path = "../bundler-autoconfig" , version = "0.1.8" }
-kodegen_mcp_client = { path = "../mcp-client" , version = "0.1.8" }
+kodegen_tools_config = { path = "../tools-config" , version = "0.0.1" }
+kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
+kodegen_utils = { path = "../utils" , version = "0.0.1" }
+kodegen_bundler_autoconfig = { path = "../bundler-autoconfig" , version = "0.0.1" }
+kodegen_mcp_client = { path = "../mcp-client" , version = "0.0.1" }
 
 # CLI argument parsing
 clap = { version = "4.5", features = ["derive", "env"] }
@@ -106,7 +106,7 @@ base64 = "0.22.1"
 mime_guess = "2.0.5"
 once_cell = "1.21.3"
 parking_lot = "0.12.5"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [features]
 default = ["all"]

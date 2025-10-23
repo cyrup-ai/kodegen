@@ -18,7 +18,7 @@ keywords = [
 ]
 
 [dependencies]
-kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.1.8" }
+kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
 
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
@@ -47,7 +47,7 @@ lru = "0.16"
 
 # Logging
 log = "0.4"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [lib]
 name = "kodegen_utils"

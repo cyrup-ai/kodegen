@@ -51,10 +51,10 @@ cyrup_termcolor = "2.0"
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server"], version = "0.8.1" }
 
 # Tool trait and error types
-kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.1.8" }
+kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
 
 # Prompt template system
-kodegen_tools_prompt = { path = "../tools-prompt" , version = "0.1.8" }
+kodegen_tools_prompt = { path = "../tools-prompt" , version = "0.0.1" }
 
 # JSON Schema generation
 schemars = "1.0"
@@ -64,7 +64,7 @@ anyhow = "1.0"
 
 # Concurrent access for session manager
 parking_lot = "0.12"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 anyhow = "1.0"

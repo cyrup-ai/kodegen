@@ -18,8 +18,8 @@ keywords = [
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
-kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.1.8" }
-kodegen_utils = { path = "../utils" , version = "0.1.8" }
+kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
+kodegen_utils = { path = "../utils" , version = "0.0.1" }
 
 # MCP SDK
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
@@ -71,7 +71,7 @@ base64 = "0.22.1"
 mime_guess = "2.0.5"
 once_cell = "1.21.3"
 parking_lot = "0.12.5"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [lib]
 name = "kodegen_tools_config"

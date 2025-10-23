@@ -1079,7 +1079,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-hakari-regenerate"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "cargo-hakari",
@@ -5849,7 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "axum-server",
@@ -5903,7 +5903,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_bundler_autoconfig"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -5931,7 +5931,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_bundler_install"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arrayvec 0.7.6",
@@ -5981,7 +5981,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_bundler_release"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -6037,7 +6037,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_bundler_sign"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_daemon"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arrayvec 0.7.6",
@@ -6142,7 +6142,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_mcp_client"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6160,7 +6160,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_mcp_tool"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6178,7 +6178,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_citescrape"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "ahash",
  "anyhow",
@@ -6250,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_claude_agent"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -6280,7 +6280,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_config"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6311,7 +6311,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_filesystem"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6344,7 +6344,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_git"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -6367,7 +6367,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_github"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -6401,7 +6401,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_introspection"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "kodegen_mcp_tool",
@@ -6416,7 +6416,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_process"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "kodegen_mcp_tool",
@@ -6431,7 +6431,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_prompt"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -6449,7 +6449,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_sequential_thinking"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "cyrup_termcolor",
@@ -6468,7 +6468,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_tools_terminal"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -6493,7 +6493,7 @@ dependencies = [
 
 [[package]]
 name = "kodegen_utils"
-version = "0.1.8"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -12632,7 +12632,7 @@ dependencies = [
 
 [[package]]
 name = "workspace-hack"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "aho-corasick",
  "anstream",

@@ -1,6 +1,6 @@
 [package]
 name = "cargo-hakari-regenerate"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/davidmaple/kodegen"
@@ -54,7 +54,7 @@ scopeguard = "1.2.0"
 # Performance optimizations
 smallvec = { version = "2.0.0-alpha.11", features = ["serde"] }
 regex = "1.11.2"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tokio-test = "0.4.4"

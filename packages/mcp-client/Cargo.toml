@@ -27,7 +27,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Process management (for cleanup on error in examples)
 sysinfo = "0.37"
-workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tempfile = "3.23"  # For filesystem test fixtures
