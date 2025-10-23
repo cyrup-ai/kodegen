@@ -181,6 +181,7 @@ impl ContainerBundler {
     /// # Arguments
     ///
     /// * `workspace_path` - Path to the workspace root (will be mounted in container)
+    #[allow(dead_code)]
     pub fn new(workspace_path: PathBuf) -> Self {
         Self::with_limits(workspace_path, ContainerLimits::default())
     }
@@ -301,8 +302,21 @@ impl ContainerBundler {
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "check_dockerfile".to_string(),
                 reason: format!(
-                    "Dockerfile not found at expected path: {}\n\
-                     Expected location: .devcontainer/Dockerfile",
+                    "Dockerfile not found at: {}\n\
+                     \n\
+                     To use Docker for cross-platform builds, you need a Dockerfile.\n\
+                     The expected location is:\n\
+                     {}\n\
+                     \n\
+                     This Dockerfile provides a Linux container with:\n\
+                     • Rust toolchain (matching rust-toolchain.toml)\n\
+                     • Wine + .NET 4.0 (for building Windows .msi installers)\n\
+                     • NSIS (for building .exe installers)\n\
+                     • Tools for .deb, .rpm, and AppImage creation\n\
+                     \n\
+                     See example and setup guide:\n\
+                     https://github.com/cyrup/kodegen/tree/main/.devcontainer",
+                    dockerfile_path.display(),
                     dockerfile_path.display()
                 ),
             }));
@@ -848,6 +862,25 @@ impl ContainerBundler {
                 }));
             }
             
+            // Check for common Docker errors with pattern matching
+            let help_text = if stderr.contains("permission denied") || stderr.contains("Permission denied") {
+                "\n\nℹ  Tip: Docker permission issue. Run:\n   \
+                 sudo usermod -aG docker $USER\n   \
+                 Then log out and log back in."
+            } else if stderr.contains("Cannot connect to the Docker daemon") {
+                "\n\nℹ  Tip: Docker daemon not accessible:\n   \
+                 • Ensure Docker Desktop/daemon is running\n   \
+                 • Check: docker ps"
+            } else if stderr.contains("no space left on device") || stderr.contains("No space left on device") {
+                "\n\nℹ  Tip: Disk space exhausted. Clean up:\n   \
+                 docker system prune -a --volumes"
+            } else if stderr.contains("manifest unknown") || stderr.contains("not found") {
+                "\n\nℹ  Tip: Docker image may not be built. Run:\n   \
+                 docker images | grep kodegen-release-builder"
+            } else {
+                ""
+            };
+            
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                 command: format!("bundle {} in container", platform_str),
                 reason: format!(
@@ -855,16 +888,12 @@ impl ContainerBundler {
                      \n\
                      Stderr:\n{}\n\
                      \n\
-                     Stdout:\n{}\n\
-                     \n\
-                     Common causes:\n\
-                     • Cargo build errors inside container\n\
-                     • Missing dependencies in Docker image\n\
-                     • Bundler errors (check bundler logs above)\n\
-                     • Docker daemon issues",
+                     Stdout:\n{}\
+                     {}",
                     output.status.code().unwrap_or(-1),
                     stderr,
                     stdout,
+                    help_text
                 ),
             }));
         }
