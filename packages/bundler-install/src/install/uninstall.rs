@@ -67,23 +67,14 @@ pub async fn uninstall_kodegen_daemon() -> Result<()> {
     Ok(())
 }
 
-/// Validate existing wildcard certificate with fast validation (used by config.rs)
+/// Validate existing certificate with fast validation (used by config.rs)
 #[allow(dead_code)] // Library function for certificate validation operations
 pub fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
     let cert_content = fs::read_to_string(cert_path).context("Failed to read certificate file")?;
 
-    // Basic validation - check if it contains the expected domains
-    let required_domains = [
-        "kodegen.kodegen.dev",
-        "kodegen.kodegen.ai",
-        "kodegen.kodegen.cloud",
-        "kodegen.kodegen.pro",
-    ];
-
-    for domain in &required_domains {
-        if !cert_content.contains(domain) {
-            return Err(anyhow::anyhow!("Missing required domain: {domain}"));
-        }
+    // Basic validation - check if it contains the expected domain
+    if !cert_content.contains("mcp.kodegen.ai") {
+        return Err(anyhow::anyhow!("Missing required domain: mcp.kodegen.ai"));
     }
 
     // Check if it has both certificate and private key
@@ -158,21 +149,21 @@ async fn remove_wildcard_certificate_from_system() -> Result<()> {
 /// Remove wildcard certificate from macOS keychain
 #[cfg(target_os = "macos")]
 async fn remove_wildcard_certificate_macos() -> Result<()> {
-    info!("Removing Kodegen wildcard certificate from macOS System keychain");
+    info!("Removing Kodegen certificate from macOS System keychain");
 
     // Find and delete the certificate
     let output = Command::new("security")
         .args([
             "delete-certificate",
             "-c",
-            "*.kodegen.dev",
+            "mcp.kodegen.ai",
             "/Library/Keychains/System.keychain",
         ])
         .output()
         .context("Failed to execute security command")?;
 
     if output.status.success() {
-        info!("Successfully removed Kodegen wildcard certificate from macOS System keychain");
+        info!("Successfully removed Kodegen certificate from macOS System keychain");
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         // Don't treat this as a fatal error since the certificate might not exist

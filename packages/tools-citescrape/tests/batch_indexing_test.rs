@@ -55,9 +55,12 @@ fn create_test_crawl_output(dir: &TempDir) -> Result<()> {
     }
 
     // Add a corrupted file for error testing
+    // Create data with gzip magic bytes (0x1f, 0x8b) but invalid content
+    // This will trigger decompression which will fail
     let corrupted_dir = crawl_output.join("corrupted.com");
     fs::create_dir_all(&corrupted_dir)?;
-    fs::write(corrupted_dir.join("index.md.gz"), b"invalid gzip data")?;
+    let invalid_gzip_data = vec![0x1f, 0x8b, 0xFF, 0xFF, 0xFF, 0xFF]; // Magic bytes + invalid data
+    fs::write(corrupted_dir.join("index.md.gz"), invalid_gzip_data)?;
 
     Ok(())
 }

@@ -263,6 +263,7 @@ pub async fn install_kodegen_daemon(
         .country("US".to_string())
         .validity_days(365)
         .key_size(2048)
+        .add_san("mcp.kodegen.ai".to_string())
         .add_san("localhost".to_string())
         .add_san("127.0.0.1".to_string())
         .add_san("::1".to_string());
@@ -529,29 +530,23 @@ async fn generate_and_import_wildcard_certificate() -> Result<()> {
         .await
         .context("Failed to create certificate directory")?;
 
-    info!("Generating Kodegen wildcard certificate...");
+    info!("Generating Kodegen certificate for mcp.kodegen.ai...");
 
-    // Create certificate parameters for wildcard certificate
-    let mut params = CertificateParams::new(vec!["*.kodegen.dev".to_string()])?;
+    // Create certificate parameters for mcp.kodegen.ai
+    let mut params = CertificateParams::new(vec!["mcp.kodegen.ai".to_string()])?;
 
-    // Add subject alternative names for all Kodegen domains
+    // Add subject alternative names for local MCP server
     params.subject_alt_names = vec![
-        SanType::DnsName(Ia5String::try_from("*.kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("*.kodegen.kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.dev").context("Invalid DNS name")?),
-        SanType::DnsName(
-            Ia5String::try_from("*.kodegen.kodegen.cloud").context("Invalid DNS name")?,
-        ),
-        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.cloud").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("*.kodegen.kodegen.pro").context("Invalid DNS name")?),
-        SanType::DnsName(Ia5String::try_from("kodegen.kodegen.pro").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("mcp.kodegen.ai").context("Invalid DNS name")?),
+        SanType::DnsName(Ia5String::try_from("localhost").context("Invalid DNS name")?),
+        SanType::IpAddress("127.0.0.1".parse()?),
+        SanType::IpAddress("::1".parse()?),
     ];
 
     // Set distinguished name
     let mut dn = DistinguishedName::new();
     dn.push(DnType::OrganizationName, "Kodegen");
-    dn.push(DnType::CommonName, "*.kodegen.dev");
+    dn.push(DnType::CommonName, "mcp.kodegen.ai");
     params.distinguished_name = dn;
 
     // Set non-expiring validity period (100 years)
@@ -590,10 +585,167 @@ async fn generate_and_import_wildcard_certificate() -> Result<()> {
     }
 
     info!(
-        "Kodegen wildcard certificate generated successfully at {}",
+        "Kodegen certificate generated successfully at {}",
         wildcard_cert_path.display()
     );
+
+    // Import certificate to system trust store
+    import_certificate_to_system(&wildcard_cert_path).await?;
+
     Ok(())
+}
+
+/// Import certificate to system trust store
+async fn import_certificate_to_system(cert_path: &Path) -> Result<()> {
+    cfg_if::cfg_if! {
+        if #[cfg(target_os = "macos")] {
+            import_certificate_macos(cert_path).await
+        } else if #[cfg(target_os = "linux")] {
+            import_certificate_linux(cert_path).await
+        } else if #[cfg(target_os = "windows")] {
+            import_certificate_windows(cert_path).await
+        } else {
+            warn!("Certificate import not supported on this platform");
+            Ok(())
+        }
+    }
+}
+
+/// Import certificate to macOS System keychain
+#[cfg(target_os = "macos")]
+async fn import_certificate_macos(cert_path: &Path) -> Result<()> {
+    info!("Importing certificate to macOS System keychain...");
+
+    // Extract just the certificate part (not private key) for system trust
+    let combined_pem = tokio::fs::read_to_string(cert_path)
+        .await
+        .context("Failed to read certificate file")?;
+
+    // Find the certificate part (everything before the private key)
+    let cert_only = if let Some(key_start) = combined_pem.find("-----BEGIN PRIVATE KEY-----") {
+        &combined_pem[..key_start]
+    } else {
+        &combined_pem
+    };
+
+    // Write certificate-only file to temp location
+    let temp_cert = std::env::temp_dir().join("kodegen_mcp_cert.crt");
+    tokio::fs::write(&temp_cert, cert_only)
+        .await
+        .context("Failed to write temp certificate")?;
+
+    // Import to System keychain (requires elevated privileges)
+    let output = tokio::process::Command::new("security")
+        .args([
+            "add-trusted-cert",
+            "-d",  // Add to admin trust settings
+            "-r", "trustRoot",  // Trust as root certificate
+            "-k", "/Library/Keychains/System.keychain",
+            temp_cert.to_str().ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
+        ])
+        .output()
+        .await
+        .context("Failed to execute security command")?;
+
+    // Clean up temp file
+    let _ = tokio::fs::remove_file(&temp_cert).await;
+
+    if output.status.success() {
+        info!("Successfully imported certificate to macOS System keychain");
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(anyhow::anyhow!("Failed to import certificate to macOS keychain: {stderr}"))
+    }
+}
+
+/// Import certificate to Linux system trust store
+#[cfg(target_os = "linux")]
+async fn import_certificate_linux(cert_path: &Path) -> Result<()> {
+    info!("Importing certificate to Linux system trust store...");
+
+    // Extract just the certificate part (not private key)
+    let combined_pem = tokio::fs::read_to_string(cert_path)
+        .await
+        .context("Failed to read certificate file")?;
+
+    let cert_only = if let Some(key_start) = combined_pem.find("-----BEGIN PRIVATE KEY-----") {
+        &combined_pem[..key_start]
+    } else {
+        &combined_pem
+    };
+
+    // Copy to system CA certificates directory
+    let system_cert_path = "/usr/local/share/ca-certificates/kodegen-mcp.crt";
+    
+    // Ensure directory exists
+    tokio::fs::create_dir_all("/usr/local/share/ca-certificates")
+        .await
+        .context("Failed to create ca-certificates directory")?;
+
+    tokio::fs::write(system_cert_path, cert_only)
+        .await
+        .context("Failed to write certificate to system trust store")?;
+
+    // Update certificate trust store
+    let output = tokio::process::Command::new("update-ca-certificates")
+        .output()
+        .await
+        .context("Failed to execute update-ca-certificates")?;
+
+    if output.status.success() {
+        info!("Successfully imported certificate to Linux system trust store");
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(anyhow::anyhow!("Failed to update certificate trust store: {stderr}"))
+    }
+}
+
+/// Import certificate to Windows certificate store
+#[cfg(target_os = "windows")]
+async fn import_certificate_windows(cert_path: &Path) -> Result<()> {
+    info!("Importing certificate to Windows certificate store...");
+
+    // Extract just the certificate part (not private key)
+    let combined_pem = tokio::fs::read_to_string(cert_path)
+        .await
+        .context("Failed to read certificate file")?;
+
+    let cert_only = if let Some(key_start) = combined_pem.find("-----BEGIN PRIVATE KEY-----") {
+        &combined_pem[..key_start]
+    } else {
+        &combined_pem
+    };
+
+    // Write certificate-only file to temp location
+    let temp_cert = std::env::temp_dir().join("kodegen_mcp_cert.crt");
+    tokio::fs::write(&temp_cert, cert_only)
+        .await
+        .context("Failed to write temp certificate")?;
+
+    // Import to Trusted Root Certification Authorities store
+    let output = tokio::process::Command::new("certutil")
+        .args([
+            "-addstore",
+            "-f",
+            "Root",
+            temp_cert.to_str().ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
+        ])
+        .output()
+        .await
+        .context("Failed to execute certutil command")?;
+
+    // Clean up temp file
+    let _ = tokio::fs::remove_file(&temp_cert).await;
+
+    if output.status.success() {
+        info!("Successfully imported certificate to Windows certificate store");
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(anyhow::anyhow!("Failed to import certificate to Windows store: {stderr}"))
+    }
 }
 
 /// Get certificate directory path with platform-specific logic
@@ -655,15 +807,7 @@ fn add_kodegen_host_entries() -> Result<()> {
     // Prepare Kodegen host entries
     let kodegen_entries = vec![
         "# Kodegen entries",
-        "127.0.0.1 kodegen.kodegen.dev",
-        "127.0.0.1 api.kodegen.kodegen.dev",
-        "127.0.0.1 ws.kodegen.kodegen.dev",
-        "127.0.0.1 kodegen.kodegen.cloud",
-        "127.0.0.1 api.kodegen.kodegen.cloud",
-        "127.0.0.1 ws.kodegen.kodegen.cloud",
-        "127.0.0.1 kodegen.kodegen.pro",
-        "127.0.0.1 api.kodegen.kodegen.pro",
-        "127.0.0.1 ws.kodegen.kodegen.pro",
+        "127.0.0.1 mcp.kodegen.ai",
         "# End Kodegen entries",
     ];
 

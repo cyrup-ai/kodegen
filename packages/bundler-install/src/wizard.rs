@@ -58,7 +58,7 @@ fn show_welcome() {
     let _ = writeln!(stdout, "Installing system daemon service...\n");
     let _ = writeln!(stdout, "This will install:");
     let _ = writeln!(stdout, "  • Kodegen MCP Server daemon");
-    let _ = writeln!(stdout, "  • TLS certificates for secure communication");
+    let _ = writeln!(stdout, "  • TLS certificate for mcp.kodegen.ai");
     let _ = writeln!(stdout, "  • System service configuration");
     let _ = writeln!(stdout, "  • Chromium browser (~100MB for web scraping)\n");
     
@@ -97,11 +97,11 @@ pub fn show_completion(_options: &InstallOptions, result: &InstallationResult) {
     
     if result.certificates_installed {
         let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
-        let _ = writeln!(stdout, "  ✓ TLS certificates (CA + server)");
+        let _ = writeln!(stdout, "  ✓ TLS certificate (mcp.kodegen.ai)");
         let _ = stdout.reset();
     } else {
         let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
-        let _ = writeln!(stdout, "  ⚠ TLS certificates (installation failed)");
+        let _ = writeln!(stdout, "  ⚠ TLS certificate (installation failed)");
         let _ = stdout.reset();
     }
     
