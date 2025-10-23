@@ -84,14 +84,6 @@ impl ContainerBundler {
         let build_uuid = Uuid::new_v4();
         let container_name = format!("kodegen-bundle-{}", build_uuid);
 
-        // Create isolated temp target directory for this build
-        let temp_target_dir = workspace_path.join(format!("target-temp-{}", build_uuid));
-        std::fs::create_dir_all(&temp_target_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "create temporary target directory".to_string(),
-                reason: format!("Failed to create {}: {}", temp_target_dir.display(), e),
-            }))?;
-
         // Create RAII guard to ensure cleanup on failure
         // Guard will automatically call `docker rm -f` when dropped (on error or panic)
         let _guard = ContainerGuard {
@@ -144,6 +136,14 @@ impl ContainerBundler {
                     ),
                 }))?;
         }
+
+        // Create isolated temp target directory for this build
+        let temp_target_dir = workspace_path.join(format!("target-temp-{}", build_uuid));
+        std::fs::create_dir_all(&temp_target_dir)
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "create temporary target directory".to_string(),
+                reason: format!("Failed to create {}: {}", temp_target_dir.display(), e),
+            }))?;
 
         // SECURITY: Get current user ID to map into container (prevents root execution)
         // This ensures files created in container have correct ownership
@@ -235,14 +235,48 @@ impl ContainerBundler {
             docker_args.push("--release".to_string());
         }
 
-        // Run docker with captured output for OOM detection
-        let output = tokio::time::timeout(
+        // Spawn docker process with both stdout/stderr piped for streaming + OOM detection
+        let mut child = Command::new("docker")
+            .args(&docker_args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: format!("docker run {}", docker_args.join(" ")),
+                reason: e.to_string(),
+            }))?;
+
+        // Spawn background task to capture stderr for OOM detection
+        let stderr_handle = if let Some(stderr) = child.stderr.take() {
+            Some(tokio::spawn(async move {
+                let reader = BufReader::new(stderr);
+                let mut lines = reader.lines();
+                let mut captured_lines = Vec::new();
+                
+                while let Ok(Some(line)) = lines.next_line().await {
+                    captured_lines.push(line);
+                }
+                
+                captured_lines
+            }))
+        } else {
+            None
+        };
+
+        // Stream stdout in real-time (foreground task)
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+            
+            while let Ok(Some(line)) = lines.next_line().await {
+                runtime_config.indent(&line);
+            }
+        }
+
+        // Wait for child process completion with timeout
+        let status = tokio::time::timeout(
             DOCKER_RUN_TIMEOUT,
-            Command::new("docker")
-                .args(&docker_args)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .output()
+            child.wait()
         ).await
             .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
                 command: format!("bundle {} in container", platform_str),
@@ -256,22 +290,23 @@ impl ContainerBundler {
                 reason: e.to_string(),
             }))?;
 
-        // Display stdout
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        for line in stdout_str.lines() {
-            runtime_config.indent(line);
-        }
+        // Retrieve captured stderr from background task
+        let stderr_lines = if let Some(handle) = stderr_handle {
+            handle.await.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
-        if !output.status.success() {
-            // Check for OOM indicators in stderr
-            let stderr_str = String::from_utf8_lossy(&output.stderr);
+        // Check exit status and stderr for OOM indicators
+        if !status.success() {
+            let stderr_str = stderr_lines.join("\n");
             let is_oom = stderr_str.contains("OOMKilled") 
                 || stderr_str.contains("out of memory")
                 || stderr_str.contains("OutOfMemoryError");
 
             if is_oom {
                 // Get system memory info
-                let mut sys = sysinfo::System::new_all();
+                let mut sys = sysinfo::System::new();
                 sys.refresh_memory();
                 let total_memory_gb = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
@@ -307,16 +342,17 @@ impl ContainerBundler {
             } else {
                 // Generic failure with captured output
                 let error_output = if !stderr_str.is_empty() {
-                    format!("stderr:\n{}\n\nstdout:\n{}", stderr_str, stdout_str)
+                    // Note: stdout already streamed, no need to include it in error
+                    format!("stderr:\n{}", stderr_str)
                 } else {
-                    format!("stdout:\n{}", stdout_str)
+                    "No error output captured".to_string()
                 };
 
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                     command: format!("bundle {} in container", platform_str),
                     reason: format!(
                         "Container bundling failed with exit code: {}\n\n{}",
-                        output.status.code().unwrap_or(-1),
+                        status.code().unwrap_or(-1),
                         error_output
                     ),
                 }));
@@ -431,6 +467,79 @@ impl ContainerBundler {
 
         // Verify artifacts are valid before declaring success
         verify_artifacts(&artifacts, runtime_config)?;
+
+        // Atomically move artifacts from temp to final location
+        // This is the ONLY point where race conditions could occur, but rename is atomic
+        let final_bundle_dir = self.workspace_path
+            .join("target")
+            .join("release")
+            .join("bundle")
+            .join(platform_str.to_lowercase());
+
+        let temp_bundle_dir = temp_target_dir
+            .join("release")
+            .join("bundle")
+            .join(platform_str.to_lowercase());
+
+        // Ensure parent directory exists
+        if let Some(parent) = final_bundle_dir.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "create bundle parent directory".to_string(),
+                    reason: format!("Failed to create {}: {}", parent.display(), e),
+                }))?;
+        }
+
+        // Remove old final directory if it exists (safe here because we have artifacts)
+        if final_bundle_dir.exists() {
+            std::fs::remove_dir_all(&final_bundle_dir)
+                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "remove old bundle directory".to_string(),
+                    reason: format!("Failed to remove {}: {}", final_bundle_dir.display(), e),
+                }))?;
+        }
+
+        // Atomic rename: only one process can succeed
+        std::fs::rename(&temp_bundle_dir, &final_bundle_dir)
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "move artifacts to final location".to_string(),
+                reason: format!(
+                    "Failed to move {} to {}: {}\n\
+                     This may indicate another process completed first.",
+                    temp_bundle_dir.display(),
+                    final_bundle_dir.display(),
+                    e
+                ),
+            }))?;
+
+        runtime_config.verbose_println(&format!(
+            "Moved artifacts from temp to final location: {}",
+            final_bundle_dir.display()
+        ));
+
+        // Update artifact paths to point to final location
+        let artifacts = artifacts
+            .into_iter()
+            .map(|path| {
+                // Replace temp path prefix with final path prefix
+                path.strip_prefix(&temp_target_dir)
+                    .ok()
+                    .and_then(|rel| Some(self.workspace_path.join("target").join(rel)))
+                    .unwrap_or(path)
+            })
+            .collect::<Vec<_>>();
+
+        // Clean up temporary target directory
+        std::fs::remove_dir_all(&temp_target_dir)
+            .map_err(|e| {
+                // Log but don't fail - temp cleanup is not critical
+                runtime_config.verbose_println(&format!(
+                    "Warning: Failed to clean up temp directory {}: {}",
+                    temp_target_dir.display(),
+                    e
+                ));
+            })
+            .ok(); // Ignore errors - don't fail build over cleanup
 
         // Container cleanup strategy:
         // - Normal exit: --rm flag auto-removes container when process exits

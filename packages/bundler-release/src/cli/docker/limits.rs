@@ -39,7 +39,7 @@ impl ContainerLimits {
     /// - CPUs: 50% of available cores (minimum 2)
     /// - PIDs: 1000 (sufficient for most builds, prevents fork bombs)
     pub fn detect_safe_limits() -> Self {
-        let mut sys = System::new_all();
+        let mut sys = System::new();
         sys.refresh_memory();
         
         // Calculate memory limit (50% of total, min 2GB, max 8GB)
