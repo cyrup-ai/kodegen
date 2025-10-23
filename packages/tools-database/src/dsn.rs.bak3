@@ -84,37 +84,39 @@ impl std::fmt::Display for DSNInfo {
         Ok(())
     }
 }
-    /// Reconstruct DSN string from components WITH plaintext password (wrapped in Secret).
+
+impl DSNInfo {
+    /// Reconstruct DSN string from components WITH plaintext password.
     ///
-    /// # Security
+    /// # Security Warning
     ///
-    /// Returns `Secret<String>` that cannot be accidentally logged or displayed.
-    /// The password is protected from exposure in logs, error messages, and debug output.
+    /// The returned string contains the plaintext password (if present).
+    /// Only use the result for:
+    /// - Direct database connections via `sqlx::AnyPool::connect()`
+    /// - Secure credential storage (encrypted vaults)
     ///
-    /// To use the DSN for database connections:
-    /// ```rust
-    /// let secret_dsn = dsn_info.to_connection_string();
-    /// let pool = AnyPool::connect(secret_dsn.expose_secret()).await?;
-    /// ```
+    /// **DO NOT:**
+    /// - Log the result
+    /// - Display to users  
+    /// - Include in error messages
+    /// - Store in plaintext config files
+    /// - Send over unencrypted channels
     ///
-    /// For logging, use the safe display method:
-    /// ```rust
-    /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
-    /// ```
+    /// For safe display/logging, use [`to_safe_dsn()`] instead.
     ///
     /// # Example
     /// ```rust
-    /// // CORRECT: Protected connection string
-    /// let secret_dsn = dsn_info.to_connection_string();
-    /// let pool = AnyPool::connect(secret_dsn.expose_secret()).await?;
+    /// // CORRECT: Direct connection
+    /// let pool = AnyPool::connect(&dsn_info.to_dsn()).await?;
     ///
-    /// // CORRECT: Safe logging
+    /// // CORRECT: Logging (safe)
     /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
     ///
-    /// // WRONG: This won't compile!
-    /// // log::info!("DSN: {}", secret_dsn);  // ❌ Error: Secret<String> doesn't implement Display
+    /// // WRONG: Logging (exposes password!)
+    /// log::info!("Connected to {}", dsn_info.to_dsn());  // ⚠️ DON'T DO THIS
     /// ```
-    pub fn to_connection_string(&self) -> Secret<String> {
+    #[must_use = "This DSN contains plaintext password - only use for database connections"]
+    pub fn to_dsn(&self) -> String {
         let mut dsn = format!("{}://", self.protocol);
 
         // Add auth if present
@@ -147,20 +149,6 @@ impl std::fmt::Display for DSNInfo {
                 .collect();
             dsn.push_str(&params.join("&"));
         }
-
-        Secret::new(dsn)
-    }
-
-    /// Deprecated: Use `to_connection_string()` instead.
-    ///
-    /// This method is kept for backward compatibility but will be removed in a future version.
-    #[deprecated(
-        since = "0.1.0",
-        note = "Use `to_connection_string()` which returns `Secret<String>` for better security"
-    )]
-    pub fn to_dsn(&self) -> String {
-        self.to_connection_string().expose_secret().to_string()
-    }
 
         dsn
     }

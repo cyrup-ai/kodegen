@@ -105,3 +105,13 @@ pub const SEARCH_USERS: &str = "search_users";
 // Config tools (2)
 pub const GET_CONFIG: &str = "get_config";
 pub const SET_CONFIG_VALUE: &str = "set_config_value";
+
+
+// Database tools (7)
+pub const LIST_SCHEMAS: &str = "list_schemas";
+pub const LIST_TABLES: &str = "list_tables";
+pub const GET_TABLE_SCHEMA: &str = "get_table_schema";
+pub const GET_TABLE_INDEXES: &str = "get_table_indexes";
+pub const GET_STORED_PROCEDURES: &str = "get_stored_procedures";
+pub const EXECUTE_SQL: &str = "execute_sql";
+pub const GET_POOL_STATS: &str = "get_pool_stats";

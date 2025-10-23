@@ -21,6 +21,7 @@
 //! - SQLite: `?` (positional, but PRAGMA commands can't be parameterized)
 //! - SQL Server: `@P1`, `@P2`, `@P3` (named)
 
+use crate::error::DatabaseError;
 use crate::types::DatabaseType;
 
 /// Returns SQL to list schemas/databases (excludes system schemas)
@@ -144,18 +145,11 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
 /// - `is_nullable` (String - "YES" or "NO")
 /// - `column_default` (Option<String>)
 ///
-/// ## ⚠️ SECURITY - SQLite PRAGMA Validation
+/// ## SQLite PRAGMA Validation
 ///
-/// SQLite PRAGMA commands do NOT support parameterized queries. Table names must be
-/// interpolated directly into the query string.
-///
-/// **VALIDATION**: All calling code MUST use `validate::validate_sqlite_identifier()`
-/// before calling this function. See:
-/// - [`packages/tools-database/src/tools/get_table_schema.rs`](../tools/get_table_schema.rs)
-/// - [`packages/tools-database/src/tools/get_table_indexes.rs`](../tools/get_table_indexes.rs)
-///
-/// Validation is implemented at the tool boundary (where user input enters) rather than
-/// in this utility function to keep query generation pure and error handling clear.
+/// For SQLite, PRAGMA commands do NOT support parameterized queries. This function
+/// automatically validates table names before interpolation to prevent SQL injection.
+/// Validation uses strict rules: alphanumeric + underscore only, no SQL keywords.
 ///
 /// ## SQLite PRAGMA Return Values
 ///
@@ -169,13 +163,17 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
 ///
 /// The ExecuteSQL tool must transform these to match the TableColumn struct.
 ///
+/// ## Errors
+///
+/// Returns `DatabaseError::QueryError` if the table name fails validation (SQLite only).
+///
 /// ## Example
 ///
 /// ```rust
 /// use kodegen_tools_database::types::DatabaseType;
 /// use kodegen_tools_database::schema_queries::get_table_schema_query;
 ///
-/// let (sql, params) = get_table_schema_query(DatabaseType::Postgres, "public", "users");
+/// let (sql, params) = get_table_schema_query(DatabaseType::Postgres, "public", "users")?;
 /// // Returns: ("SELECT column_name, data_type... WHERE table_schema = $1 AND table_name = $2",
 /// //           ["public", "users"])
 /// ```
@@ -183,7 +181,7 @@ pub fn get_table_schema_query(
     db_type: DatabaseType,
     schema: &str,
     table: &str,
-) -> (String, Vec<String>) {
+) -> Result<(String, Vec<String>), DatabaseError> {
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:232-250
@@ -192,7 +190,7 @@ pub fn get_table_schema_query(
                        WHERE table_schema = $1 AND table_name = $2 \
                        ORDER BY ordinal_position"
                 .to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
         DatabaseType::MySQL | DatabaseType::MariaDB => {
             // Reference: tmp/dbhub/src/connectors/mysql/index.ts:279-299
@@ -201,18 +199,17 @@ pub fn get_table_schema_query(
                        WHERE table_schema = ? AND table_name = ? \
                        ORDER BY ordinal_position"
                 .to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
         DatabaseType::SQLite => {
-            // Reference: tmp/dbhub/src/connectors/sqlite/index.ts:254-272
-            // SECURITY: Table name must be validated before interpolation!
-            // PRAGMA doesn't support parameterization
+            // SECURITY: Validate identifier before string interpolation
+            // This prevents SQL injection in PRAGMA commands which cannot use parameters
+            crate::validate::validate_sqlite_identifier(table)?;
+            
             let sql = format!("PRAGMA table_info({})", table);
-            // Note: PRAGMA returns different column names:
-            // cid, name (use as column_name), type (use as data_type),
-            // notnull (convert to is_nullable), dflt_value (use as column_default), pk
-            // The ExecuteSQL tool will need to transform these to match TableColumn
-            (sql, vec![])
+            // Note: PRAGMA returns different column names (cid, name, type, notnull, dflt_value, pk)
+            // ExecuteSQL tool transforms these to match TableColumn struct
+            Ok((sql, vec![]))
         }
         DatabaseType::SqlServer => {
             let sql = "SELECT column_name, data_type, is_nullable, column_default \
@@ -220,7 +217,7 @@ pub fn get_table_schema_query(
                        WHERE table_schema = @P1 AND table_name = @P2 \
                        ORDER BY ordinal_position"
                 .to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
     }
 }
@@ -242,20 +239,25 @@ pub fn get_table_schema_query(
 /// Uses `array_agg()` to aggregate multi-column indexes.
 ///
 /// ### MySQL/MariaDB
-/// Uses `information_schema.statistics` with `GROUP_CONCAT()` to aggregate columns.
-/// Note: `NON_UNIQUE=0` means the index IS unique.
+/// Uses `information_schema.statistics` with columns fetched per-index to avoid
+/// GROUP_CONCAT truncation limits.
 ///
 /// ### SQLite
-/// Returns `PRAGMA index_list()` which only provides index names and unique flags.
-/// Complete index information requires multiple PRAGMA calls:
+/// Returns `PRAGMA index_list()` which requires follow-up calls. PRAGMA commands
+/// cannot use parameterized queries, so this function automatically validates
+/// table names before interpolation to prevent SQL injection.
+///
+/// Complete SQLite index info requires:
 /// 1. `PRAGMA index_list(table_name)` - gets index names and unique flags
 /// 2. For each index: `PRAGMA index_info(index_name)` - gets columns
 /// 3. `PRAGMA table_info(table_name)` - finds primary key columns
 ///
-/// The ExecuteSQL tool will need to make follow-up calls to get complete index information.
-///
 /// ### SQL Server
 /// Uses sys.indexes and sys.index_columns with `STRING_AGG()` for column aggregation.
+///
+/// ## Errors
+///
+/// Returns `DatabaseError::QueryError` if the table name fails validation (SQLite only).
 ///
 /// ## Example
 ///
@@ -263,14 +265,14 @@ pub fn get_table_schema_query(
 /// use kodegen_tools_database::types::DatabaseType;
 /// use kodegen_tools_database::schema_queries::get_indexes_query;
 ///
-/// let (sql, params) = get_indexes_query(DatabaseType::Postgres, "public", "users");
+/// let (sql, params) = get_indexes_query(DatabaseType::Postgres, "public", "users")?;
 /// // Returns: ("SELECT i.relname as index_name... FROM pg_class t...", ["public", "users"])
 /// ```
 pub fn get_indexes_query(
     db_type: DatabaseType,
     schema: &str,
     table: &str,
-) -> (String, Vec<String>) {
+) -> Result<(String, Vec<String>), DatabaseError> {
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:200-230
@@ -301,7 +303,7 @@ pub fn get_indexes_query(
                        ORDER BY \
                            i.relname"
                 .to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
         DatabaseType::MySQL | DatabaseType::MariaDB => {
             // Query returns distinct indexes without column aggregation
@@ -315,14 +317,16 @@ pub fn get_indexes_query(
                        WHERE table_schema = ? AND table_name = ? \
                        ORDER BY index_name"
                 .to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
         DatabaseType::SQLite => {
-            // Reference: tmp/dbhub/src/connectors/sqlite/index.ts:189-252
-            // Note: Complete index info requires multiple PRAGMA calls
-            // This returns the index list; ExecuteSQL tool will need to make follow-up calls
+            // SECURITY: Validate identifier before string interpolation
+            crate::validate::validate_sqlite_identifier(table)?;
+            
             let sql = format!("PRAGMA index_list({})", table);
-            (sql, vec![])
+            // Note: Returns index list only; ExecuteSQL tool makes follow-up calls
+            // to PRAGMA index_info(index_name) for each index to get columns
+            Ok((sql, vec![]))
         }
         DatabaseType::SqlServer => {
             let sql = "SELECT \
@@ -337,7 +341,7 @@ pub fn get_indexes_query(
                          AND SCHEMA_NAME(OBJECTPROPERTY(i.object_id, 'SchemaId')) = @P1 \
                        GROUP BY i.name, i.is_unique, i.is_primary_key \
                        ORDER BY i.name".to_string();
-            (sql, vec![schema.to_string(), table.to_string()])
+            Ok((sql, vec![schema.to_string(), table.to_string()]))
         }
     }
 }

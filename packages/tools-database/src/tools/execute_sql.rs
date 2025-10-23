@@ -157,18 +157,16 @@ impl ExecuteSQLTool {
                     // Rollback transaction
                     let _ = tx.rollback().await;
                     
-                    // Return partial results with error context
+                    // Return error WITHOUT uncommitted data (transaction was rolled back)
                     return Ok(json!({
-                        "partial_results": {
-                            "rows": all_rows,
-                            "row_count": all_rows.len()
-                        },
+                        "success": false,
                         "error": format!("Statement {} failed: {}", index + 1, e),
                         "failed_statement": statement,
                         "failed_at_index": index + 1,
                         "executed_statements": executed_statements,
                         "total_statements": statements.len(),
-                        "transaction_rolled_back": true
+                        "transaction_status": "rolled_back",
+                        "note": "All changes were rolled back due to error. No data was committed."
                     }));
                 }
             }
@@ -444,13 +442,13 @@ impl Tool for ExecuteSQLTool {
          MULTI-STATEMENT BEHAVIOR:\n\
          - Write operations (INSERT/UPDATE/DELETE/CREATE/ALTER/DROP) use transactions\n\
          - Read operations (SELECT/EXPLAIN/SHOW) execute independently without transaction\n\
-         - On error: returns partial results from successful statements plus error details\n\
+         - On transactional error: returns error details without data (all changes rolled back)\n\
+         - On non-transactional error: returns committed data plus errors array\n\
          \n\
          Returns query results as JSON with:\n\
          - rows: array of result rows\n\
          - row_count: number of rows returned\n\
-         - errors: array of errors (if any failures)\n\
-         - partial_results: results before failure (if transaction rolled back)\n\
+         - errors: array of errors (if any failures in non-transactional mode)\n\
          \n\
          Supports read-only mode enforcement and automatic row limiting."
     }

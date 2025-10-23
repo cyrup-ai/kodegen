@@ -94,7 +94,7 @@ impl Tool for GetStoredProceduresTool {
         // Resolve schema
         let schema = match args.schema {
             Some(s) => s,
-            None => resolve_schema_default(db_type, &self.pool).await?,
+            None => resolve_schema_default(db_type, &self.pool, &self.config).await?,
         };
 
         // Get query from helper (DBTOOL_5)

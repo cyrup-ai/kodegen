@@ -83,16 +83,11 @@ impl Tool for GetTableIndexesTool {
         // Resolve schema
         let schema = match args.schema {
             Some(s) => s,
-            None => resolve_schema_default(db_type, &self.pool).await?,
+            None => resolve_schema_default(db_type, &self.pool, &self.config).await?,
         };
 
-        // SECURITY: Validate table name for SQLite PRAGMA queries
-        if db_type == DatabaseType::SQLite {
-            crate::validate::validate_sqlite_identifier(&args.table)?;
-        }
-
-        // Get query from helper (DBTOOL_5)
-        let (query, params) = get_indexes_query(db_type, &schema, &args.table);
+        // Get query from helper (DBTOOL_5) - validation enforced for SQLite
+        let (query, params) = get_indexes_query(db_type, &schema, &args.table)?;
 
         // Execute with parameters and timeout
         let pool = self.pool.clone();

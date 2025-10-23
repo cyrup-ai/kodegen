@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: kodegen-test-postgres
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts/postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./init-scripts/fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:9.1
+    container_name: kodegen-test-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init-scripts/mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./init-scripts/fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "testuser", "-ptestpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mariadb:
+    image: mariadb:11.6
+    container_name: kodegen-test-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_USER: testuser
+      MARIADB_PASSWORD: testpass
+      MARIADB_DATABASE: testdb
+    ports:
+      - "3307:3306"  # Different host port to avoid conflict with MySQL
+    volumes:
+      - ./init-scripts/mariadb.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./init-scripts/fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
