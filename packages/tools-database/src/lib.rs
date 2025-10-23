@@ -9,6 +9,7 @@ pub mod types;
 // Utilities (implemented in later tasks)
 pub mod dsn;
 pub mod readonly;
+pub mod validate;
 pub mod schema_queries;
 pub mod sql_limiter;
 pub mod sql_parser;
@@ -24,6 +25,7 @@ pub use dsn::{
 };
 pub use error::DatabaseError;
 pub use readonly::validate_readonly_sql;
+pub use validate::validate_sqlite_identifier;
 pub use schema_queries::{
     get_default_schema, get_indexes_query, get_schemas_query, get_stored_procedures_query,
     get_table_schema_query, get_tables_query,

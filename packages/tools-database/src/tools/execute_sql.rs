@@ -5,7 +5,7 @@
 
 use crate::{
     DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
-    validate_readonly_sql,
+    validate_readonly_sql, tools::timeout::execute_with_timeout,
 };
 use anyhow::Context;
 use base64::Engine as _;  // For base64 encoding of binary data
@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 use sqlx::AnyPool;
 use sqlx::{Column, Row, TypeInfo};
 use std::sync::Arc;
+use std::time::Duration;
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -342,13 +343,13 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
             }
             // Fallback for unsupported types
             _ => {
-                // Log warning but don't fail
-                log::warn!(
-                    "Unsupported column type '{}' for column '{}'",
-                    type_name,
-                    name
-                );
-                json!(format!("UNSUPPORTED_TYPE: {}", type_name))
+                return Err(DatabaseError::QueryError(format!(
+                    "Unsupported column type '{}' for column '{}'. \
+                     Supported types: TEXT, VARCHAR, INTEGER, BIGINT, BOOLEAN, REAL, FLOAT, DOUBLE, \
+                     NUMERIC, DECIMAL, JSON, JSONB, BYTEA, BLOB, TIMESTAMP, DATE, TIME, UUID. \
+                     Consider casting this column in your query: CAST({} AS TEXT)",
+                    type_name, name, name
+                )))
             }
         };
 

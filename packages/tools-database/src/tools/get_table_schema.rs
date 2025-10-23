@@ -90,6 +90,11 @@ impl Tool for GetTableSchemaTool {
             None => resolve_schema_default(db_type, &self.pool).await?,
         };
 
+        // SECURITY: Validate table name for SQLite PRAGMA queries
+        if db_type == DatabaseType::SQLite {
+            crate::validate::validate_sqlite_identifier(&args.table)?;
+        }
+
         // Get query from helper (DBTOOL_5)
         let (query, params) = get_table_schema_query(db_type, &schema, &args.table);
 

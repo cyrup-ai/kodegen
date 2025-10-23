@@ -4,6 +4,8 @@
 pub mod helpers;
 pub use helpers::*;
 
+pub mod timeout;
+
 // DBTOOL_6 - ExecuteSQL - SQL query execution tool
 pub mod execute_sql;
 pub use execute_sql::ExecuteSQLTool;

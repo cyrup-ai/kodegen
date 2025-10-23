@@ -79,13 +79,13 @@ where
     let mut database_pool: Option<(Arc<sqlx::AnyPool>, String)> = None;
     
     #[cfg(feature = "database")]
-    if let Some(dsn) = database_dsn {
+    if let Some(dsn) = _database_dsn {
         use kodegen_tools_database::{establish_tunnel, rewrite_dsn_for_tunnel};
         use anyhow::Context;
         use sqlx::pool::PoolOptions;
         use std::time::Duration;
         
-        let final_dsn = if let Some((ssh_cfg, tunnel_cfg)) = ssh_config {
+        let final_dsn = if let Some((ssh_cfg, tunnel_cfg)) = _ssh_config {
             // Establish tunnel
             let tunnel = establish_tunnel(ssh_cfg, tunnel_cfg).await?;
             let tunneled_dsn = rewrite_dsn_for_tunnel(dsn, tunnel.local_port())?;
@@ -170,7 +170,7 @@ where
     // Introspection tools
     #[cfg(feature = "introspection")]
     if is_category_enabled("introspection", enabled_categories) {
-        (tool_router, prompt_router) = register_introspection_tools(tool_router, prompt_router, usage_tracker).await?;
+        (tool_router, prompt_router) = register_introspection_tools(tool_router, prompt_router, _usage_tracker).await?;
     }
     
     // Prompt tools
