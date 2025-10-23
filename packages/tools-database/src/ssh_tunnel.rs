@@ -61,12 +61,15 @@ pub struct TunnelConfig {
 /// SSH tunnel with local port forwarding
 pub struct SSHTunnel {
     /// Shared SSH session for creating channels
+    #[allow(dead_code)]
     session: Arc<Mutex<Session>>,
     /// Local port where tunnel is listening
     local_port: u16,
     /// Target database host (from SSH server's perspective)
+    #[allow(dead_code)]
     target_host: String,
     /// Target database port
+    #[allow(dead_code)]
     target_port: u16,
     /// Shutdown signal sender
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
@@ -161,20 +164,24 @@ async fn handle_tunnel_connection(
 ) -> Result<(), DatabaseError> {
     // Create SSH channel in blocking context
     let channel = {
-        let session_lock = session.lock().await;
+        let session_clone = session.clone();
         let target_host_clone = target_host.clone();
 
-        tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || -> Result<ssh2::Channel, DatabaseError> {
+            let session_lock = session_clone.lock().map_err(|e| {
+                DatabaseError::SSHTunnelError(format!("Failed to lock session: {}", e))
+            })?;
+            
             session_lock
                 .channel_direct_tcpip(&target_host_clone, target_port, None)
+                .map_err(|e| {
+                    DatabaseError::SSHTunnelError(format!("Failed to create SSH channel: {}", e))
+                })
         })
         .await
         .map_err(|e| {
             DatabaseError::SSHTunnelError(format!("Channel task panicked: {}", e))
-        })?
-        .map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("Failed to create SSH channel: {}", e))
-        })?
+        })??
     };
 
     // Copy data bidirectionally in blocking context
