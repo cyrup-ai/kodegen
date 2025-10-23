@@ -1,0 +1,1408 @@
+{
+  "url": "https://tokio.rs/#tk-lib-tokio",
+  "title": "Tokio - An asynchronous Rust runtime",
+  "content": "<!DOCTYPE html><html><head><meta charset=\"utf-8\" data-next-head=\"\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" data-next-head=\"\"><title data-next-head=\"\">Tokio - An asynchronous Rust runtime</title><meta name=\"description\" content=\"Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.\" data-next-head=\"\"><link rel=\"alternate icon\" type=\"image/png\" href=\"/favicon-32x32.png\" data-next-head=\"\"><link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" data-next-head=\"\"><link rel=\"alternate\" type=\"application/rss+xml\" href=\"/blog/index.xml\" data-next-head=\"\"><link rel=\"preload\" href=\"/_next/static/media/47cbc4e2adbc5db9-s.p.woff2\" as=\"font\" type=\"font/woff2\" crossorigin=\"anonymous\" data-next-font=\"size-adjust\"><link rel=\"preload\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" as=\"style\"><link rel=\"preload\" href=\"/_next/static/css/1018df78a05ccae4.css\" as=\"style\"><link rel=\"stylesheet\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" data-n-g=\"\"><link rel=\"stylesheet\" href=\"/_next/static/css/1018df78a05ccae4.css\" data-n-p=\"\"><noscript data-n-css=\"\"></noscript><script defer=\"\" nomodule=\"\" src=\"/_next/static/chunks/polyfills-42372ed130431b0a.js\"></script><script src=\"/_next/static/chunks/webpack-f8185607c88ffb0b.js\" defer=\"\"></script><script src=\"/_next/static/chunks/framework-516982be4eea35ea.js\" defer=\"\"></script><script src=\"/_next/static/chunks/main-11f62a962ab540a8.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/_app-7e9c39878777ce10.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/index-7ae6452e991d02c9.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js\" defer=\"\"></script></head><body><link rel=\"preload\" as=\"image\" href=\"/img/tokio-horizontal.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/bytes.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/hyper.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/mio.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/runtime.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/tonic.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/tower.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/tracing.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/linkerd.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/aws.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/discord.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/azure.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/pingcap.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/dropbox.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/meta.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/logos/one-signal.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/icons/tokio.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-runtime.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-hyper.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-tonic.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-tower.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-mio.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-tracing.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-bytes.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/stack-lines.svg\"><div id=\"__next\"><main class=\"__className_22ceb1\"><nav class=\"navbar is-spaced\" role=\"navigation\" aria-label=\"main navigation\"><div class=\"container\"><div class=\"navbar-brand\"><a href=\"index.html\" class=\"navbar-item\" data-citescrape-interactive=\"interactive-0\"><img src=\"/img/tokio-horizontal.svg\" alt=\"tokio-logo\" width=\"133\" height=\"56\"></a><a role=\"button\" class=\"navbar-burger\" aria-label=\"menu\" aria-expanded=\"false\" data-citescrape-interactive=\"interactive-1\"><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span></a></div><div class=\"navbar-menu\"><div class=\"navbar-end\"><a href=\"tokio/tutorial/index.html\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-2\">Learn</a><a href=\"https://docs.rs/tokio\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-3\">API Docs</a><a href=\"blog/2025-09-26-announcing-tokio-conf-cfp/index.html\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-4\">Blog</a><hr class=\"is-hidden-mobile\"><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://twitter.com/tokio_rs\" data-citescrape-interactive=\"interactive-5\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"m 1033.0757,785.67723 536.386,-610.09838 H 1442.3554 L 976.61152,705.31871 604.62327,175.57885 H 175.57884 L 738.0981,976.63931 175.57884,1616.4212 h 127.11352 l 491.83748,-559.4233 392.84686,559.4233 h 429.0444 L 1033.0445,785.67723 Z M 858.97635,983.69686 801.9814,903.9293 348.49316,269.21053 h 195.2389 l 365.97034,512.23831 56.9949,79.76754 475.7181,665.83142 H 1247.1765 L 858.97635,983.72736 Z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://github.com/tokio-rs/tokio\" data-citescrape-interactive=\"interactive-6\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-7\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></div></div></div></nav><div class=\"tk-landing\"><section class=\"hero is-primary tk-intro\"><div class=\"hero-body\"><div class=\"container tk-hero-bg\"><div id=\"tk-float-bytes\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/bytes.svg\"></div><div id=\"tk-float-hyper\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/hyper.svg\"></div><div id=\"tk-float-mio\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/mio.svg\"></div><div id=\"tk-float-runtime\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/runtime.svg\"></div><div id=\"tk-float-runtime2\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/runtime.svg\"></div><div id=\"tk-float-tonic\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/tonic.svg\"></div><div id=\"tk-float-tower\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/tower.svg\"></div><div id=\"tk-float-tracing\" class=\"tk-float is-hidden-mobile\"><img src=\"/img/icons/tracing.svg\"></div><div class=\"container has-text-centered has-text-left-mobile\"><h1 class=\"title\">Build reliable network applications without compromising speed.</h1><h2 class=\"subtitle\">Tokio is an asynchronous runtime for the Rust programming language. It provides the building blocks needed for writing network applications. It gives the flexibility to target a wide range of systems, from large servers with dozens of cores to small embedded devices.</h2><div class=\"has-text-centered-mobile\"><a href=\"tokio/tutorial/index.html\" class=\"button is-link is-medium\" data-citescrape-interactive=\"interactive-8\">Get Started</a></div></div></div></div></section><section class=\"hero tk-users\"><div class=\"hero-body\"><div class=\"container has-text-centered\"><h1 class=\"title\">Built by the community, for the community.</h1><nav class=\"container columns is-multiline is-mobile is-centered is-vcentered\"><div class=\"column is-3\"><a href=\"https://linkerd.io\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-9\"><figure class=\"image linkerd\"><img src=\"/img/logos/linkerd.svg\" alt=\"linkerd\"></figure></a></div><div class=\"column is-3\"><a href=\"https://aws.amazon.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-10\"><figure class=\"image aws\"><img src=\"/img/logos/aws.svg\" alt=\"aws\"></figure></a></div><div class=\"column is-3\"><a href=\"https://discord.com/\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-11\"><figure class=\"image discord\"><img src=\"/img/logos/discord.svg\" alt=\"discord\"></figure></a></div><div class=\"column is-3\"><a href=\"https://azure.microsoft.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-12\"><figure class=\"image azure\"><img src=\"/img/logos/azure.svg\" alt=\"azure\"></figure></a></div><div class=\"column is-3\"><a href=\"https://pingcap.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-13\"><figure class=\"image pingcap\"><img src=\"/img/logos/pingcap.svg\" alt=\"pingcap\"></figure></a></div><div class=\"column is-3\"><a href=\"https://www.dropbox.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-14\"><figure class=\"image dropbox\"><img src=\"/img/logos/dropbox.svg\" alt=\"dropbox\"></figure></a></div><div class=\"column is-3\"><a href=\"https://www.meta.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-15\"><figure class=\"image meta\"><img src=\"/img/logos/meta.svg\" alt=\"meta\"></figure></a></div><div class=\"column is-3\"><a href=\"https://onesignal.com\" rel=\"nofollow\" data-citescrape-interactive=\"interactive-16\"><figure class=\"image one-signal\"><img src=\"/img/logos/one-signal.svg\" alt=\"one-signal\"></figure></a></div></nav></div></div></section><section class=\"tk-features\"><div class=\"container\"><div class=\"columns is-multiline\"><div class=\"column is-half is-flex tk-lib tk-lib-runtime\"><div class=\"card\"><div class=\"card-content\"><div class=\"media\"><div class=\"media-content\"><h1 class=\"title is-4\">Reliable</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Tokio's APIs are memory-safe, thread-safe, and misuse-resistant. This helps prevent common bugs, such as unbounded queues, buffer overflows, and task starvation.</h2></div></div></div></div><div class=\"column is-half is-flex tk-lib tk-lib-hyper\"><div class=\"card\"><div class=\"card-content\"><div class=\"media\"><div class=\"media-content\"><h1 class=\"title is-4\">Fast</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Building on top of Rust, Tokio provides a multi-threaded, work-stealing scheduler. Applications can process hundreds of thousands of requests per second with minimal overhead.</h2></div></div></div></div><div class=\"column is-half is-flex tk-lib tk-lib-tonic\"><div class=\"card\"><div class=\"card-content\"><div class=\"media\"><div class=\"media-content\"><h1 class=\"title is-4\">Easy</h1></div></div><div class=\"content\"><h2 class=\"subtitle\"><code>async</code>/<code>await</code> reduces the complexity of writing asynchronous applications. Paired with Tokio's utilities and vibrant ecosystem, writing applications is a breeze.</h2></div></div></div></div><div class=\"column is-half is-flex tk-lib tk-lib-tower\"><div class=\"card\"><div class=\"card-content\"><div class=\"media\"><div class=\"media-content\"><h1 class=\"title is-4\">Flexible</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">The needs of a server application differ from that of an embedded device. Although Tokio comes with defaults that work well out of the box, it also provides the knobs needed to fine tune to different cases.</h2></div></div></div></div></div></div></section><section class=\"tk-stack\"><div class=\"container\"><div class=\"columns\"><div class=\"column is-1 tk-menu is-hidden-touch\"><div class=\"container anchor\"><aside class=\"menu\"><ul class=\"menu-list\"><li class=\"tk-lib-tokio is-active\"><a href=\"#tk-lib-tokio\" data-citescrape-interactive=\"interactive-17\">Stack</a> </li><li class=\"tk-lib-runtime\"><a href=\"index.html\" data-citescrape-interactive=\"interactive-18\">Runtime</a> </li><li class=\"tk-lib-hyper\"><a href=\"#tk-lib-hyper\" data-citescrape-interactive=\"interactive-19\">Hyper</a> </li><li class=\"tk-lib-tonic\"><a href=\"#tk-lib-tonic\" data-citescrape-interactive=\"interactive-20\">Tonic</a> </li><li class=\"tk-lib-tower\"><a href=\"#tk-lib-tower\" data-citescrape-interactive=\"interactive-21\">Tower</a> </li><li class=\"tk-lib-mio\"><a href=\"#tk-lib-mio\" data-citescrape-interactive=\"interactive-22\">Mio</a> </li><li class=\"tk-lib-tracing\"><a href=\"#tk-lib-tracing\" data-citescrape-interactive=\"interactive-23\">Tracing</a> </li><li class=\"tk-lib-bytes\"><a href=\"#tk-lib-bytes\" data-citescrape-interactive=\"interactive-24\">Bytes</a> </li></ul></aside></div></div><div class=\"column is-5-desktop is-half-tablet tk-libs\"><div class=\"card\"><div id=\"tk-lib-stack-tokio\" class=\"card-content tk-lib-tokio\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-tokio\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/tokio.svg\" alt=\"The stack\">The stack</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Applications aren't built in a vacuum. The Tokio stack includes everything needed to ship to production, fast.</h2></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-runtime\" class=\"card-content tk-lib-runtime\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-runtime\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/runtime.svg\" alt=\"Runtime\">Runtime</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Including I/O, timer, filesystem, synchronization, and scheduling facilities, the Tokio runtime is the foundation of asynchronous applications.</h2><p class=\"learn-more has-text-right\"><a href=\"tokio/tutorial/index.html\" data-citescrape-interactive=\"interactive-25\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-hyper\" class=\"card-content tk-lib-hyper\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-hyper\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/hyper.svg\" alt=\"Hyper\">Hyper</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">An HTTP client and server library supporting both the HTTP 1 and 2 protocols.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/hyperium/hyper\" data-citescrape-interactive=\"interactive-26\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-tonic\" class=\"card-content tk-lib-tonic\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-tonic\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/tonic.svg\" alt=\"Tonic\">Tonic</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">A boilerplate-free gRPC client and server library. The easiest way to expose and consume an API over the network.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/hyperium/tonic\" data-citescrape-interactive=\"interactive-27\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-tower\" class=\"card-content tk-lib-tower\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-tower\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/tower.svg\" alt=\"Tower\">Tower</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Modular components for building reliable clients and servers. Includes retry, load-balancing, filtering, request-limiting facilities, and more.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/tower-rs/tower\" data-citescrape-interactive=\"interactive-28\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-mio\" class=\"card-content tk-lib-mio\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-mio\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/mio.svg\" alt=\"Mio\">Mio</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Minimal portable API on top of the operating-system's evented I/O API.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/tokio-rs/mio\" data-citescrape-interactive=\"interactive-29\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-tracing\" class=\"card-content tk-lib-tracing\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-tracing\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/tracing.svg\" alt=\"Tracing\">Tracing</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">Unified insight into the application and libraries. Provides structured, event-based, data collection and logging.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/tokio-rs/tracing\" data-citescrape-interactive=\"interactive-30\">Learn more ➔</a></p></div></div></div><div class=\"card\"><div id=\"tk-lib-stack-bytes\" class=\"card-content tk-lib-bytes\"><div class=\"media\"><div class=\"media-content\"><a id=\"tk-lib-bytes\" style=\"display:block;position:relative;top:-40vh;visibility:hidden\"></a><h1 class=\"title is-4\"><img src=\"/img/icons/bytes.svg\" alt=\"Bytes\">Bytes</h1></div></div><div class=\"content\"><h2 class=\"subtitle\">At the core, networking applications manipulate byte streams. Bytes provides a rich set of utilities for manipulating byte arrays.</h2><p class=\"learn-more has-text-right\"><a href=\"https://github.com/tokio-rs/bytes\" data-citescrape-interactive=\"interactive-31\">Learn more ➔</a></p></div></div></div></div><div class=\"column is-half is-hidden-mobile\"><div class=\"container anchor\"><img class=\"tk-stack-active\" data-stack-id=\"runtime\" src=\"/img/stack-runtime.svg\" style=\"z-index:3\"><img class=\"tk-stack-active\" data-stack-id=\"hyper\" src=\"/img/stack-hyper.svg\" style=\"z-index:4\"><img class=\"tk-stack-active\" data-stack-id=\"tonic\" src=\"/img/stack-tonic.svg\" style=\"z-index:6\"><img class=\"tk-stack-active\" data-stack-id=\"tower\" src=\"/img/stack-tower.svg\" style=\"z-index:5\"><img class=\"tk-stack-active\" data-stack-id=\"mio\" src=\"/img/stack-mio.svg\" style=\"z-index:2\"><img class=\"tk-stack-active\" data-stack-id=\"tracing\" src=\"/img/stack-tracing.svg\" style=\"z-index:0\"><img class=\"tk-stack-active\" data-stack-id=\"bytes\" src=\"/img/stack-bytes.svg\" style=\"z-index:1\"><img id=\"tk-stack-lines\" data-stack-id=\"lines\" src=\"/img/stack-lines.svg\" style=\"z-index:7\"></div></div></div></div></section></div><footer class=\"footer\"><div class=\"container\"><div class=\"columns\"><div class=\"column is-half tk-help is-hidden-mobile\"><img src=\"/img/tokio-horizontal.svg\" alt=\"tokio-logo\" width=\"133\" height=\"56\"><div class=\"tk-help-links\"><p>Get Help:<a href=\"https://github.com/tokio-rs/tokio/discussions\" target=\"_blank\" data-citescrape-interactive=\"interactive-32\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a href=\"https://discord.gg/tokio\" target=\"_blank\" data-citescrape-interactive=\"interactive-33\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></p><p>Stay up to date:<a href=\"https://twitter.com/tokio_rs\" target=\"_blank\" data-citescrape-interactive=\"interactive-34\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"m 1033.0757,785.67723 536.386,-610.09838 H 1442.3554 L 976.61152,705.31871 604.62327,175.57885 H 175.57884 L 738.0981,976.63931 175.57884,1616.4212 h 127.11352 l 491.83748,-559.4233 392.84686,559.4233 h 429.0444 L 1033.0445,785.67723 Z M 858.97635,983.69686 801.9814,903.9293 348.49316,269.21053 h 195.2389 l 365.97034,512.23831 56.9949,79.76754 475.7181,665.83142 H 1247.1765 L 858.97635,983.72736 Z\" fill=\"#fff\"></path></svg></span></a></p></div></div><div class=\"column is-half\"><div class=\"columns is-multiline is-mobile tk-footer-libs\"><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Tokio</p><p><a href=\"tokio/tutorial/index.html\" target=\"_blank\" data-citescrape-interactive=\"interactive-35\">Docs</a></p><p><a href=\"https://github.com/tokio-rs/tokio\" target=\"_blank\" data-citescrape-interactive=\"interactive-36\">Github</a></p></div><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Hyper</p><p><a href=\"https://docs.rs/hyper\" target=\"_blank\" data-citescrape-interactive=\"interactive-37\">Docs</a></p><p><a href=\"https://github.com/hyperium/hyper\" target=\"_blank\" data-citescrape-interactive=\"interactive-38\">Github</a></p></div><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Tonic</p><p><a href=\"https://docs.rs/tonic\" target=\"_blank\" data-citescrape-interactive=\"interactive-39\">Docs</a></p><p><a href=\"https://github.com/hyperium/tonic\" target=\"_blank\" data-citescrape-interactive=\"interactive-40\">Github</a></p></div><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Tower</p><p><a href=\"https://docs.rs/tower\" target=\"_blank\" data-citescrape-interactive=\"interactive-41\">Docs</a></p><p><a href=\"https://github.com/tower-rs/tower\" target=\"_blank\" data-citescrape-interactive=\"interactive-42\">Github</a></p></div><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Mio</p><p><a href=\"https://docs.rs/mio\" target=\"_blank\" data-citescrape-interactive=\"interactive-43\">Docs</a></p><p><a href=\"https://github.com/tokio-rs/mio\" target=\"_blank\" data-citescrape-interactive=\"interactive-44\">Github</a></p></div><div class=\"column is-one-third\"><p class=\"tk-lib-name\">Tracing</p><p><a href=\"https://docs.rs/tracing\" target=\"_blank\" data-citescrape-interactive=\"interactive-45\">Docs</a></p><p><a href=\"https://github.com/tokio-rs/tracing\" target=\"_blank\" data-citescrape-interactive=\"interactive-46\">Github</a></p></div></div></div></div><div class=\"container has-text-centered\"><p>Built with all the love in the world by<!-- --> <a href=\"https://twitter.com/carllerche\" target=\"_blank\" rel=\"noopener\" data-citescrape-interactive=\"interactive-47\">@carllerche</a></p></div><div class=\"container has-text-centered\"><p>with the help of<!-- --> <a href=\"https://github.com/tokio-rs/tokio/graphs/contributors\" target=\"_blank\" data-citescrape-interactive=\"interactive-48\">our contributors</a>.</p></div><div class=\"container has-text-centered\"><p>Hosted by<!-- --> <a href=\"https://netlify.com\" target=\"_blank\" rel=\"sponsored nofollow\" data-citescrape-interactive=\"interactive-49\">Netlify</a></p></div></div></footer></main></div><script id=\"__NEXT_DATA__\" type=\"application/json\">{\"props\":{\"pageProps\":{\"app\":{\"blog\":{\"date\":1758844800000,\"key\":\"2025-09-26-announcing-tokio-conf-cfp\",\"href\":\"/blog/2025-09-26-announcing-tokio-conf-cfp\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"menuTitle\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"mdPath\":\"blog/2025-09-26-announcing-tokio-conf-cfp.md\",\"data\":{\"date\":\"2025-09-26\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"description\":\"September 26, 2025\"},\"description\":\"September 26, 2025\"}}},\"__N_SSG\":true},\"page\":\"/\",\"query\":{},\"buildId\":\"saG1Arpw3ae62kf8YSloC\",\"isFallback\":false,\"gsp\":true,\"scriptLoader\":[]}</script><next-route-announcer><p aria-live=\"assertive\" id=\"__next-route-announcer__\" role=\"alert\" style=\"border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;\"></p></next-route-announcer></body></html>",
+  "metadata": {
+    "description": "Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.",
+    "keywords": [],
+    "author": null,
+    "published_date": null,
+    "modified_date": null,
+    "language": null,
+    "canonical_url": null,
+    "robots": null,
+    "viewport": "width=device-width, initial-scale=1",
+    "headers": {}
+  },
+  "interactive_elements": {
+    "forms": [],
+    "buttons": [],
+    "links": [
+      {
+        "href": "https://tokio.rs/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-0\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-0",
+          "href": "/",
+          "class": "navbar-item"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Learn",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-2\"]",
+        "attributes": {
+          "href": "/tokio/tutorial",
+          "data-citescrape-interactive": "interactive-2",
+          "class": "navbar-item navbar-text"
+        }
+      },
+      {
+        "href": "https://docs.rs/tokio",
+        "text": "API Docs",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-3\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-3",
+          "class": "navbar-item navbar-text",
+          "href": "https://docs.rs/tokio"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+        "text": "Blog",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-4\"]",
+        "attributes": {
+          "href": "/blog/2025-09-26-announcing-tokio-conf-cfp",
+          "class": "navbar-item navbar-text",
+          "data-citescrape-interactive": "interactive-4"
+        }
+      },
+      {
+        "href": "https://twitter.com/tokio_rs",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-5\"]",
+        "attributes": {
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://twitter.com/tokio_rs",
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-5"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-6\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-6",
+          "class": "navbar-item navbar-icon tk-social",
+          "target": "_blank",
+          "href": "https://github.com/tokio-rs/tokio"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-7\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-7",
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://discord.gg/tokio",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Get Started",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-8\"]",
+        "attributes": {
+          "class": "button is-link is-medium",
+          "href": "/tokio/tutorial",
+          "data-citescrape-interactive": "interactive-8"
+        }
+      },
+      {
+        "href": "https://linkerd.io/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-9\"]",
+        "attributes": {
+          "rel": "nofollow",
+          "data-citescrape-interactive": "interactive-9",
+          "href": "https://linkerd.io"
+        }
+      },
+      {
+        "href": "https://aws.amazon.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-10\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-10",
+          "href": "https://aws.amazon.com",
+          "rel": "nofollow"
+        }
+      },
+      {
+        "href": "https://discord.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-11\"]",
+        "attributes": {
+          "href": "https://discord.com/",
+          "rel": "nofollow",
+          "data-citescrape-interactive": "interactive-11"
+        }
+      },
+      {
+        "href": "https://azure.microsoft.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-12\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-12",
+          "href": "https://azure.microsoft.com",
+          "rel": "nofollow"
+        }
+      },
+      {
+        "href": "https://pingcap.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-13\"]",
+        "attributes": {
+          "href": "https://pingcap.com",
+          "rel": "nofollow",
+          "data-citescrape-interactive": "interactive-13"
+        }
+      },
+      {
+        "href": "https://www.dropbox.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-14\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-14",
+          "href": "https://www.dropbox.com",
+          "rel": "nofollow"
+        }
+      },
+      {
+        "href": "https://www.meta.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-15\"]",
+        "attributes": {
+          "rel": "nofollow",
+          "href": "https://www.meta.com",
+          "data-citescrape-interactive": "interactive-15"
+        }
+      },
+      {
+        "href": "https://onesignal.com/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": "nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-16\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-16",
+          "href": "https://onesignal.com",
+          "rel": "nofollow"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-tokio",
+        "text": "Stack",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-17\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-17",
+          "href": "#tk-lib-tokio"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-runtime",
+        "text": "Runtime",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-18\"]",
+        "attributes": {
+          "href": "#tk-lib-runtime",
+          "data-citescrape-interactive": "interactive-18"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-hyper",
+        "text": "Hyper",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-19\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-19",
+          "href": "#tk-lib-hyper"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-tonic",
+        "text": "Tonic",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-20\"]",
+        "attributes": {
+          "href": "#tk-lib-tonic",
+          "data-citescrape-interactive": "interactive-20"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-tower",
+        "text": "Tower",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-21\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-21",
+          "href": "#tk-lib-tower"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-mio",
+        "text": "Mio",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-22\"]",
+        "attributes": {
+          "href": "#tk-lib-mio",
+          "data-citescrape-interactive": "interactive-22"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-tracing",
+        "text": "Tracing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-23\"]",
+        "attributes": {
+          "href": "#tk-lib-tracing",
+          "data-citescrape-interactive": "interactive-23"
+        }
+      },
+      {
+        "href": "https://tokio.rs/#tk-lib-bytes",
+        "text": "Bytes",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-24\"]",
+        "attributes": {
+          "href": "#tk-lib-bytes",
+          "data-citescrape-interactive": "interactive-24"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-25\"]",
+        "attributes": {
+          "href": "/tokio/tutorial",
+          "data-citescrape-interactive": "interactive-25"
+        }
+      },
+      {
+        "href": "https://github.com/hyperium/hyper",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-26\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-26",
+          "href": "https://github.com/hyperium/hyper"
+        }
+      },
+      {
+        "href": "https://github.com/hyperium/tonic",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-27\"]",
+        "attributes": {
+          "href": "https://github.com/hyperium/tonic",
+          "data-citescrape-interactive": "interactive-27"
+        }
+      },
+      {
+        "href": "https://github.com/tower-rs/tower",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-28\"]",
+        "attributes": {
+          "href": "https://github.com/tower-rs/tower",
+          "data-citescrape-interactive": "interactive-28"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/mio",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-29\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/mio",
+          "data-citescrape-interactive": "interactive-29"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tracing",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-30\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/tracing",
+          "data-citescrape-interactive": "interactive-30"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/bytes",
+        "text": "Learn more ➔",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-31\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/bytes",
+          "data-citescrape-interactive": "interactive-31"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio/discussions",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-32\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-32",
+          "href": "https://github.com/tokio-rs/tokio/discussions",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-33\"]",
+        "attributes": {
+          "target": "_blank",
+          "href": "https://discord.gg/tokio",
+          "data-citescrape-interactive": "interactive-33"
+        }
+      },
+      {
+        "href": "https://twitter.com/tokio_rs",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-34\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-34",
+          "href": "https://twitter.com/tokio_rs",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-35\"]",
+        "attributes": {
+          "target": "_blank",
+          "href": "/tokio/tutorial",
+          "data-citescrape-interactive": "interactive-35"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-36\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/tokio",
+          "data-citescrape-interactive": "interactive-36",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://docs.rs/hyper",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-37\"]",
+        "attributes": {
+          "target": "_blank",
+          "href": "https://docs.rs/hyper",
+          "data-citescrape-interactive": "interactive-37"
+        }
+      },
+      {
+        "href": "https://github.com/hyperium/hyper",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-38\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-38",
+          "href": "https://github.com/hyperium/hyper",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://docs.rs/tonic",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-39\"]",
+        "attributes": {
+          "target": "_blank",
+          "href": "https://docs.rs/tonic",
+          "data-citescrape-interactive": "interactive-39"
+        }
+      },
+      {
+        "href": "https://github.com/hyperium/tonic",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-40\"]",
+        "attributes": {
+          "href": "https://github.com/hyperium/tonic",
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-40"
+        }
+      },
+      {
+        "href": "https://docs.rs/tower",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-41\"]",
+        "attributes": {
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-41",
+          "href": "https://docs.rs/tower"
+        }
+      },
+      {
+        "href": "https://github.com/tower-rs/tower",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-42\"]",
+        "attributes": {
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-42",
+          "href": "https://github.com/tower-rs/tower"
+        }
+      },
+      {
+        "href": "https://docs.rs/mio",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-43\"]",
+        "attributes": {
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-43",
+          "href": "https://docs.rs/mio"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/mio",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-44\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/mio",
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-44"
+        }
+      },
+      {
+        "href": "https://docs.rs/tracing",
+        "text": "Docs",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-45\"]",
+        "attributes": {
+          "href": "https://docs.rs/tracing",
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-45"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tracing",
+        "text": "Github",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-46\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-46",
+          "href": "https://github.com/tokio-rs/tracing",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://twitter.com/carllerche",
+        "text": "@carllerche",
+        "title": null,
+        "target": "_blank",
+        "rel": "noopener",
+        "selector": "[data-citescrape-interactive=\"interactive-47\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-47",
+          "rel": "noopener",
+          "target": "_blank",
+          "href": "https://twitter.com/carllerche"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio/graphs/contributors",
+        "text": "our contributors",
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-48\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-48",
+          "href": "https://github.com/tokio-rs/tokio/graphs/contributors",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://netlify.com/",
+        "text": "Netlify",
+        "title": null,
+        "target": "_blank",
+        "rel": "sponsored nofollow",
+        "selector": "[data-citescrape-interactive=\"interactive-49\"]",
+        "attributes": {
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-49",
+          "href": "https://netlify.com",
+          "rel": "sponsored nofollow"
+        }
+      }
+    ],
+    "inputs": [],
+    "clickable": [],
+    "navigation": []
+  },
+  "links": [
+    {
+      "url": "https://tokio.rs/",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial",
+      "text": "Learn",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://docs.rs/tokio",
+      "text": "API Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+      "text": "Blog",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    },
+    {
+      "url": "https://twitter.com/tokio_rs",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio_rs"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio"
+    },
+    {
+      "url": "https://discord.gg/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://linkerd.io/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://aws.amazon.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://discord.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://azure.microsoft.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://pingcap.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://www.dropbox.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://www.meta.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://onesignal.com/",
+      "text": "",
+      "title": "",
+      "rel": "nofollow",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-tokio",
+      "text": "Stack",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-runtime",
+      "text": "Runtime",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-hyper",
+      "text": "Hyper",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-tonic",
+      "text": "Tonic",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-tower",
+      "text": "Tower",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-mio",
+      "text": "Mio",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-tracing",
+      "text": "Tracing",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/#tk-lib-bytes",
+      "text": "Bytes",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://github.com/hyperium/hyper",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/hyperium/hyper"
+    },
+    {
+      "url": "https://github.com/hyperium/tonic",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/hyperium/tonic"
+    },
+    {
+      "url": "https://github.com/tower-rs/tower",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tower-rs/tower"
+    },
+    {
+      "url": "https://github.com/tokio-rs/mio",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/mio"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tracing",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tracing"
+    },
+    {
+      "url": "https://github.com/tokio-rs/bytes",
+      "text": "Learn more ➔",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/bytes"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/discussions",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio/discussions"
+    },
+    {
+      "url": "https://docs.rs/hyper",
+      "text": "Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/hyper"
+    },
+    {
+      "url": "https://docs.rs/tonic",
+      "text": "Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tonic"
+    },
+    {
+      "url": "https://docs.rs/tower",
+      "text": "Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tower"
+    },
+    {
+      "url": "https://docs.rs/mio",
+      "text": "Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/mio"
+    },
+    {
+      "url": "https://docs.rs/tracing",
+      "text": "Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tracing"
+    },
+    {
+      "url": "https://twitter.com/carllerche",
+      "text": "@carllerche",
+      "title": "",
+      "rel": "noopener",
+      "is_external": true,
+      "path": "/carllerche"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/graphs/contributors",
+      "text": "our contributors",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio/graphs/contributors"
+    },
+    {
+      "url": "https://netlify.com/",
+      "text": "Netlify",
+      "title": "",
+      "rel": "sponsored nofollow",
+      "is_external": true,
+      "path": "/"
+    }
+  ],
+  "resources": {
+    "scripts": [
+      {
+        "url": "https://tokio.rs/_next/static/chunks/polyfills-42372ed130431b0a.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/webpack-f8185607c88ffb0b.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/framework-516982be4eea35ea.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/main-11f62a962ab540a8.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/_app-7e9c39878777ce10.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/index-7ae6452e991d02c9.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": null,
+        "inline": true,
+        "async_load": true,
+        "defer": false,
+        "content_hash": null
+      }
+    ],
+    "stylesheets": [
+      {
+        "url": "https://tokio.rs/_next/static/css/56c6dcfe840a75e8.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/css/1018df78a05ccae4.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      }
+    ],
+    "images": [
+      {
+        "url": "https://tokio.rs/img/tokio-horizontal.svg",
+        "alt": "tokio-logo",
+        "dimensions": [
+          133,
+          56
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/bytes.svg",
+        "alt": null,
+        "dimensions": [
+          40,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/hyper.svg",
+        "alt": null,
+        "dimensions": [
+          45,
+          45
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/mio.svg",
+        "alt": null,
+        "dimensions": [
+          42,
+          42
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/runtime.svg",
+        "alt": null,
+        "dimensions": [
+          34,
+          34
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/runtime.svg",
+        "alt": null,
+        "dimensions": [
+          34,
+          34
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tonic.svg",
+        "alt": null,
+        "dimensions": [
+          40,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tower.svg",
+        "alt": null,
+        "dimensions": [
+          44,
+          44
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tracing.svg",
+        "alt": null,
+        "dimensions": [
+          55,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/linkerd.svg",
+        "alt": "linkerd",
+        "dimensions": [
+          128,
+          29
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/aws.svg",
+        "alt": "aws",
+        "dimensions": [
+          128,
+          77
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/discord.svg",
+        "alt": "discord",
+        "dimensions": [
+          128,
+          35
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/azure.svg",
+        "alt": "azure",
+        "dimensions": [
+          128,
+          38
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/pingcap.svg",
+        "alt": "pingcap",
+        "dimensions": [
+          128,
+          34
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/dropbox.svg",
+        "alt": "dropbox",
+        "dimensions": [
+          128,
+          27
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/meta.svg",
+        "alt": "meta",
+        "dimensions": [
+          128,
+          26
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/logos/one-signal.svg",
+        "alt": "one-signal",
+        "dimensions": [
+          128,
+          30
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tokio.svg",
+        "alt": "The stack",
+        "dimensions": [
+          68,
+          61
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/runtime.svg",
+        "alt": "Runtime",
+        "dimensions": [
+          35,
+          35
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/hyper.svg",
+        "alt": "Hyper",
+        "dimensions": [
+          45,
+          45
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tonic.svg",
+        "alt": "Tonic",
+        "dimensions": [
+          40,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tower.svg",
+        "alt": "Tower",
+        "dimensions": [
+          44,
+          44
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/mio.svg",
+        "alt": "Mio",
+        "dimensions": [
+          42,
+          42
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/tracing.svg",
+        "alt": "Tracing",
+        "dimensions": [
+          55,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/icons/bytes.svg",
+        "alt": "Bytes",
+        "dimensions": [
+          40,
+          40
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-runtime.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-hyper.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-tonic.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-tower.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-mio.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-tracing.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-bytes.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/stack-lines.svg",
+        "alt": null,
+        "dimensions": [
+          546,
+          382
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/tokio-horizontal.svg",
+        "alt": "tokio-logo",
+        "dimensions": [
+          133,
+          56
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      }
+    ],
+    "media": [],
+    "fonts": [
+      {
+        "url": "https://tokio.rs/_next/static/media/47cbc4e2adbc5db9-s.p.woff2",
+        "format": "font/woff2",
+        "family": "unknown",
+        "weight": null,
+        "style": null
+      }
+    ]
+  },
+  "timing": {
+    "navigation_start": 1761159295520,
+    "dom_complete": 1761159296074,
+    "load_complete": 1761159296074,
+    "first_paint": null,
+    "first_contentful_paint": null,
+    "largest_contentful_paint": null
+  },
+  "security": {
+    "https": true,
+    "hsts": false,
+    "csp": "",
+    "x_frame_options": "",
+    "permissions_policy": ""
+  },
+  "crawled_at": "2025-10-22T18:54:56.086827Z"
+}

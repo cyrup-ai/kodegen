@@ -1,0 +1,7 @@
+{
+    "mcpServers": {
+        "kodegen": {
+            "command": "kodegen"
+        }
+    }
+}

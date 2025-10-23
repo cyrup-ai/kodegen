@@ -1,0 +1,50 @@
+[package]
+name        = "kodegen_tools_github"
+version.workspace = true
+edition     = "2024"
+authors     = ["David Maple <david@kodegen.ai>"]
+description = "Github tools in Pure Rust via Octocrab"
+license = "Apache-2.0 OR MIT"
+
+[dependencies]
+kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.1.8" }
+kodegen_utils = { path = "../utils" , version = "0.1.8" }
+schemars = "1.0"
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
+
+
+octocrab    = "0.47.0"
+bytes       = "1.10"
+snafu       = "0.8"
+thiserror   = "2.0.17"
+anyhow      = "1.0"
+chrono      = "0.4"
+log         = "0.4"
+tokio       = { version = "1.48", features = ["rt", "rt-multi-thread", "macros", "sync", "fs"] }
+tokio-stream = "0.1"
+futures     = "0.3"
+serde       = { version = "1.0", features = ["derive"] }
+serde_json  = "1.0"
+serde_yaml  = "0.9"
+toml        = "0.9"
+walkdir     = "2.5"
+lazy_static = "1.5"
+regex       = "1.12"
+reqwest     = { version = "0.12", features = ["json"] }
+semver      = "1.0"
+lru         = "0.16"
+tempfile    = "3.23"
+jsonwebtoken = { version = "9.3", default-features = true }
+gix = { version = "0.74", features = ["worktree-mutation", "blocking-network-client"] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+tempfile    = "3.23"
+
+[features]
+default = ["mcp"]
+mcp = []  # Feature flag for MCP tools
+
+[lib]
+name = "kodegen_tools_github"
+path = "src/lib.rs"

@@ -1,0 +1,53 @@
+[workspace]
+members = [
+    "packages/bundler-autoconfig",
+    "packages/bundler-install",
+    "packages/bundler-release",
+    "packages/bundler-sign",
+    "packages/cargo-hakari-regenerate",
+    "packages/mcp-client",
+    "packages/mcp-daemon",
+    "packages/mcp-server",
+    "packages/mcp-tool",
+    "packages/tools-citescrape",
+    "packages/tools-claude-agent",
+    "packages/tools-config",
+    "packages/tools-filesystem",
+    "packages/tools-git",
+    "packages/tools-github",
+    "packages/tools-introspection",
+    "packages/tools-process",
+    "packages/tools-prompt",
+    "packages/tools-sequential-thinking",
+    "packages/tools-terminal",
+    "packages/utils",
+    "workspace-hack"
+]
+exclude = ["tmp/*", "docs/*", "forks/*"]
+resolver = "3"
+
+# [patch.crates-io] section removed - using cyrup_termcolor from crates.io directly
+
+# TRANSITIVE DEPENDENCY WARNING DOCUMENTATION
+# Issue: num-bigint-dig v0.8.4 has future-incompatibility warnings
+# Dependency chain: 
+#   - dsa v0.6.3 -> num-bigint-dig v0.8.4
+#   - rsa v0.9.11 -> num-bigint-dig v0.8.4  
+#   - openpgp-card-rpgp v0.4.1 -> num-bigint-dig v0.8.4
+# Problem: num-bigint-dig uses private `vec!` macro (will be hard error in future Rust)
+# Status: Waiting for upstream maintainers to update these crypto libraries
+# Reference: https://github.com/rust-lang/rust/issues/120192
+# Assessed: 2025-10-20 - This is a transitive dependency issue beyond our control
+# Decision: Document and monitor, does NOT count toward "0 warnings" success criteria
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[workspace.package]
+version = "0.0.1"
+license = "Apache-2.0 OR MIT"
+
+# [workspace.dependencies] for termcolor removed - using cyrup_termcolor from crates.io

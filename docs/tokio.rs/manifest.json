@@ -1,0 +1,19 @@
+{
+  "crawl_id": "cb20a4e1-74d7-4d86-9b51-6f80a9567dfe",
+  "start_url": "https://tokio.rs/",
+  "output_dir": "/Volumes/samsung_t9/kodegen/docs/tokio.rs",
+  "search_index_dir": "/Volumes/samsung_t9/kodegen/docs/tokio.rs/.search_index",
+  "start_time": 1761159293,
+  "end_time": 1761159296,
+  "status": "Completed",
+  "total_pages": 5,
+  "config_summary": {
+    "start_url": "https://tokio.rs/",
+    "max_depth": 1,
+    "limit": 3,
+    "save_markdown": true,
+    "save_screenshots": false,
+    "enable_search": true,
+    "crawl_rate_rps": 2.0
+  }
+}

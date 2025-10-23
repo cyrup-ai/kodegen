@@ -1,0 +1,19 @@
+{
+  "crawl_id": "88fe429c-fdd2-4baf-9b24-33a983eac506",
+  "start_url": "https://ratatui.rs/",
+  "output_dir": "/Volumes/samsung_t9/kodegen/docs/ratatui.rs",
+  "search_index_dir": "/Volumes/samsung_t9/kodegen/docs/ratatui.rs/.search_index",
+  "start_time": 1761159286,
+  "end_time": 1761159289,
+  "status": "Completed",
+  "total_pages": 7,
+  "config_summary": {
+    "start_url": "https://ratatui.rs/",
+    "max_depth": 2,
+    "limit": 5,
+    "save_markdown": true,
+    "save_screenshots": false,
+    "enable_search": true,
+    "crawl_rate_rps": 2.0
+  }
+}

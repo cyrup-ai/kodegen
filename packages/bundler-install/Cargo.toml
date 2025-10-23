@@ -1,0 +1,83 @@
+[package]
+name = "kodegen_bundler_install"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "kodegen_install"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+dirs = "6.0"
+which = "8"
+cc = "1.2"
+tempfile = "3.23"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "fs"] }
+cfg-if = "1.0"
+thiserror = "2.0"
+log = "0.4"
+env_logger = "0.11"
+chrono = "0.4"
+cyrup_termcolor = "2.0"
+rcgen = "0.14"
+base64 = "0.22"
+pem = "3.0"
+x509-parser = "0.18"
+time = "0.3"
+kodegen_daemon = { path = "../mcp-daemon" , version = "0.1.8" }
+tokio-stream = { version = "0.1", features = ["sync"] }
+once_cell = "1.21"
+futures = "0.3"
+arrayvec = "0.7"
+atomic-counter = "1.0"
+reqwest = { version = "0.12", features = ["blocking"] }
+libc = "0.2"
+sha2 = "0.10"
+hex = "0.4"
+
+# Archive extraction (for binary downloads)
+zip = { version = "6.0", default-features = false, features = ["deflate"] }
+flate2 = "1.1"
+tar = "0.4"
+
+# Interactive wizard UI
+inquire = "0.9"
+indicatif = "0.18"
+
+# Chromium installation support (required)
+kodegen_tools_citescrape = { path = "../tools-citescrape" , version = "0.1.8" }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1.8"
+zip = { version = "6.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "time", "zstd"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.30", features = ["user"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Registry",
+    "Win32_System_Services",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+] }
+
+[build-dependencies]
+pkg-config = "0.3.32"
+cc = "1.2"
+tempfile = "3.23"
+which = "8.0"
+zip = { version = "6.0", default-features = false, features = ["aes-crypto", "bzip2", "deflate64", "deflate", "time", "zstd"] }
+plist = "1.8.0"
+jwalk = "0.8.1"
+rayon = "1.11.0"
+fastrand = "2.3.0"
+sha2 = "0.10"
+hex = "0.4"

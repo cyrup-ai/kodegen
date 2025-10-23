@@ -1,0 +1,335 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get-version
+        run: |
+          if [ -n "${{ github.ref_name }}" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="v0.0.0-dev"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.get-version.outputs.version }}" \
+            --draft \
+            --title "${{ steps.get-version.outputs.version }}" \
+            --notes "Release ${{ steps.get-version.outputs.version }}"
+
+  build-linux-x86_64:
+    name: Linux x86_64 (.deb, .rpm, AppImage)
+    needs: create-release
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: ${{ env.TARGET }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc6-dev libssl-dev pkg-config
+
+      - name: Build binaries
+        run: |
+          cargo build --release \
+            --bin kodegen_install \
+            --bin kodegen \
+            --bin kodegend \
+            --target ${{ env.TARGET }}
+          
+          # Copy to expected location for bundler
+          mkdir -p target/release
+          cp target/${{ env.TARGET }}/release/kodegen_install target/release/
+          cp target/${{ env.TARGET }}/release/kodegen target/release/
+          cp target/${{ env.TARGET }}/release/kodegend target/release/
+
+      - name: Create bundles
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        run: |
+          cargo run -p kodegen_release -- bundle \
+            --release \
+            --all-platforms \
+            --target ${{ env.TARGET }}
+
+      - name: Upload Linux x86_64 artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" \
+            target/release/bundle/deb/*.deb \
+            target/release/bundle/rpm/*.rpm \
+            target/release/bundle/appimage/*.AppImage \
+            --clobber
+
+  build-linux-aarch64:
+    name: Linux aarch64 (.deb, .rpm, AppImage)
+    needs: create-release
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      TARGET: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: ${{ env.TARGET }}
+
+      - name: Install cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build binaries with cross
+        run: |
+          cross build --release \
+            --bin kodegen_install \
+            --bin kodegen \
+            --bin kodegend \
+            --target ${{ env.TARGET }}
+          
+          # Copy to expected location for bundler
+          mkdir -p target/release
+          cp target/${{ env.TARGET }}/release/kodegen_install target/release/
+          cp target/${{ env.TARGET }}/release/kodegen target/release/
+          cp target/${{ env.TARGET }}/release/kodegend target/release/
+
+      - name: Create bundles
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        run: |
+          cargo run -p kodegen_release -- bundle \
+            --release \
+            --all-platforms \
+            --target ${{ env.TARGET }}
+
+      - name: Upload Linux aarch64 artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" \
+            target/release/bundle/deb/*.deb \
+            target/release/bundle/rpm/*.rpm \
+            target/release/bundle/appimage/*.AppImage \
+            --clobber
+
+  build-macos-intel:
+    name: macOS x86_64 (.app, .dmg)
+    needs: create-release
+    runs-on: macos-13
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      TARGET: x86_64-apple-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: ${{ env.TARGET }}
+
+      - name: Build binaries
+        run: |
+          cargo build --release \
+            --bin kodegen_install \
+            --bin kodegen \
+            --bin kodegend \
+            --target ${{ env.TARGET }}
+          
+          # Copy to expected location for bundler
+          mkdir -p target/release
+          cp target/${{ env.TARGET }}/release/kodegen_install target/release/
+          cp target/${{ env.TARGET }}/release/kodegen target/release/
+          cp target/${{ env.TARGET }}/release/kodegend target/release/
+
+      - name: Create bundles
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        run: |
+          cargo run -p kodegen_release -- bundle \
+            --release \
+            --all-platforms \
+            --target ${{ env.TARGET }}
+
+      - name: Upload macOS x86_64 artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" \
+            target/release/bundle/macos/*.app \
+            target/release/bundle/dmg/*.dmg \
+            --clobber
+
+  build-macos-silicon:
+    name: macOS aarch64 (.app, .dmg)
+    needs: create-release
+    runs-on: macos-14
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      TARGET: aarch64-apple-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: ${{ env.TARGET }}
+
+      - name: Build binaries
+        run: |
+          cargo build --release \
+            --bin kodegen_install \
+            --bin kodegen \
+            --bin kodegend \
+            --target ${{ env.TARGET }}
+          
+          # Copy to expected location for bundler
+          mkdir -p target/release
+          cp target/${{ env.TARGET }}/release/kodegen_install target/release/
+          cp target/${{ env.TARGET }}/release/kodegen target/release/
+          cp target/${{ env.TARGET }}/release/kodegend target/release/
+
+      - name: Create bundles
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        run: |
+          cargo run -p kodegen_release -- bundle \
+            --release \
+            --all-platforms \
+            --target ${{ env.TARGET }}
+
+      - name: Upload macOS aarch64 artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" \
+            target/release/bundle/macos/*.app \
+            target/release/bundle/dmg/*.dmg \
+            --clobber
+
+  build-windows:
+    name: Windows x86_64 (.msi, .nsis)
+    needs: create-release
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+      TARGET: x86_64-pc-windows-msvc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: ${{ env.TARGET }}
+
+      - name: Build binaries
+        run: |
+          cargo build --release `
+            --bin kodegen_install `
+            --bin kodegen `
+            --bin kodegend `
+            --target ${{ env.TARGET }}
+          
+          # Copy to expected location for bundler
+          New-Item -ItemType Directory -Force -Path target/release
+          Copy-Item target/${{ env.TARGET }}/release/kodegen_install.exe target/release/
+          Copy-Item target/${{ env.TARGET }}/release/kodegen.exe target/release/
+          Copy-Item target/${{ env.TARGET }}/release/kodegend.exe target/release/
+        shell: powershell
+
+      - name: Create bundles
+        run: |
+          cargo run -p kodegen_release -- bundle `
+            --release `
+            --all-platforms `
+            --target ${{ env.TARGET }}
+        shell: powershell
+
+      - name: Upload Windows x86_64 artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$env:VERSION" `
+            target/release/bundle/msi/*/*.msi `
+            target/release/bundle/nsis/*.exe `
+            --clobber
+        shell: powershell
+
+  publish-release:
+    name: Publish Release
+    needs: 
+      - create-release
+      - build-linux-x86_64
+      - build-linux-aarch64
+      - build-macos-intel
+      - build-macos-silicon
+      - build-windows
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$VERSION" --draft=false

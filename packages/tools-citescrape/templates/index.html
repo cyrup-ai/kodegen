@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>citeskrape Viewer</title>
+    <!-- External libraries for better rendering -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #4a9eff;
+            --accent-hover: #6ab0ff;
+            --border: #404040;
+            --success: #4caf50;
+            --error: #f44336;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .tree-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        /* Tree view */
+        .tree-node {
+            margin-bottom: 2px;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .tree-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .tree-item.selected {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tree-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .tree-children {
+            margin-left: 1.5rem;
+        }
+
+        /* Main content */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .main-header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            flex: 1;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--bg-primary);
+        }
+
+        .tab.active {
+            background: var(--bg-primary);
+            border-bottom-color: var(--bg-primary);
+        }
+
+        .content-container {
+            flex: 1;
+            overflow: auto;
+            background: var(--bg-primary);
+            padding: 2rem;
+        }
+
+        /* Content styles */
+        .content-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .json-viewer {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .markdown-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-content p {
+            margin-bottom: 1rem;
+        }
+
+        /* JSON Tree Viewer */
+        .json-tree {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
+        .json-tree ul {
+            list-style: none;
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .json-tree > ul {
+            padding-left: 0;
+        }
+
+        .json-tree .key {
+            color: #4a9eff;
+            cursor: pointer;
+        }
+
+        .json-tree .string {
+            color: #98c379;
+        }
+
+        .json-tree .number {
+            color: #d19a66;
+        }
+
+        .json-tree .boolean {
+            color: #d19a66;
+        }
+
+        .json-tree .null {
+            color: #abb2bf;
+        }
+
+        .json-tree .toggle {
+            cursor: pointer;
+            user-select: none;
+            margin-right: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .json-tree .collapsed > ul {
+            display: none;
+        }
+
+        /* Loading and error states */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            color: var(--error);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Metadata panel */
+        .metadata-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 400px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .metadata-panel.open {
+            transform: translateX(0);
+        }
+
+        .metadata-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metadata-content {
+            padding: 1rem;
+        }
+
+        /* Utility classes */
+        .btn {
+            padding: 0.5rem 1rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn.active {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -300px;
+                z-index: 999;
+                transition: left 0.3s;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .metadata-panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <input type="text" class="search-box" placeholder="Search files..." id="searchBox">
+            </div>
+            <div class="tree-container" id="treeContainer">
+                <div class="loading">Loading file tree...</div>
+            </div>
+        </div>
+        
+        <div class="main">
+            <div class="main-header">
+                <div class="tabs" id="tabs">
+                    <!-- Tabs will be dynamically added here -->
+                </div>
+                <button class="btn btn-icon" id="metadataToggle">ℹ️</button>
+            </div>
+            <div class="content-container" id="contentContainer">
+                <div class="loading">Select a file to view</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="metadata-panel" id="metadataPanel">
+        <div class="metadata-header">
+            <h3>Metadata</h3>
+            <button class="btn btn-icon" id="metadataClose">✕</button>
+        </div>
+        <div class="metadata-content" id="metadataContent">
+            <!-- Metadata will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let fileTree = null;
+        let currentPath = null;
+        let currentType = 'html';
+
+        // API functions
+        async function fetchFileTree() {
+            try {
+                const response = await fetch('/api/tree');
+                if (!response.ok) throw new Error('Failed to fetch file tree');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching file tree:', error);
+                return null;
+            }
+        }
+
+        async function fetchContent(path, type) {
+            try {
+                const response = await fetch(`/api/content/${path}?type=${type}`);
+                if (!response.ok) throw new Error('Failed to fetch content');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching content:', error);
+                return null;
+            }
+        }
+
+        // UI rendering functions
+        function renderTree(node, container, level = 0) {
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = 'tree-node';
+            nodeDiv.style.marginLeft = `${level * 20}px`;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'tree-item';
+            itemDiv.dataset.path = node.path;
+            itemDiv.dataset.isDir = node.is_dir;
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = node.is_dir ? '📁' : '📄';
+
+            const name = document.createElement('span');
+            name.textContent = node.name;
+
+            itemDiv.appendChild(icon);
+            itemDiv.appendChild(name);
+            nodeDiv.appendChild(itemDiv);
+
+            itemDiv.addEventListener('click', () => {
+                if (!node.is_dir) {
+                    selectFile(node.path, node.content_types || ['html']);
+                } else {
+                    // Toggle directory expansion
+                    const children = nodeDiv.querySelector('.tree-children');
+                    if (children) {
+                        children.style.display = children.style.display === 'none' ? 'block' : 'none';
+                        icon.textContent = children.style.display === 'none' ? '📁' : '📂';
+                    }
+                }
+            });
+
+            if (node.is_dir && node.children) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'tree-children';
+                node.children.forEach(child => {
+                    renderTree(child, childrenDiv, level + 1);
+                });
+                nodeDiv.appendChild(childrenDiv);
+            }
+
+            container.appendChild(nodeDiv);
+        }
+
+        function selectFile(path, contentTypes) {
+            currentPath = path;
+            
+            // Update selected state in tree
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.path === path);
+            });
+
+            // Render tabs for available content types
+            renderTabs(contentTypes);
+            
+            // Load the first content type
+            if (contentTypes.length > 0) {
+                loadContent(contentTypes[0]);
+            }
+        }
+
+        function renderTabs(contentTypes) {
+            const tabsContainer = document.getElementById('tabs');
+            tabsContainer.innerHTML = '';
+
+            contentTypes.forEach((type, index) => {
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.textContent = type.toUpperCase();
+                tab.dataset.type = type;
+                
+                if (index === 0) {
+                    tab.classList.add('active');
+                    currentType = type;
+                }
+
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    loadContent(type);
+                });
+
+                tabsContainer.appendChild(tab);
+            });
+        }
+
+        async function loadContent(type) {
+            const container = document.getElementById('contentContainer');
+            container.innerHTML = '<div class="loading">Loading content...</div>';
+
+            const content = await fetchContent(currentPath, type);
+            if (!content) {
+                container.innerHTML = '<div class="error">Failed to load content</div>';
+                return;
+            }
+
+            currentType = type;
+            
+            switch (type) {
+                case 'html':
+                    renderHtmlContent(content.content, container);
+                    break;
+                case 'json':
+                    renderJsonContent(content.content, container);
+                    break;
+                case 'markdown':
+                    renderMarkdownContent(content.content, container);
+                    break;
+                case 'screenshot':
+                    await renderScreenshot(currentPath, container);
+                    break;
+                default:
+                    container.innerHTML = '<div class="error">Unknown content type</div>';
+            }
+
+            // Update metadata if available
+            if (content.metadata) {
+                updateMetadata(content.metadata);
+            }
+        }
+
+        function renderHtmlContent(html, container) {
+            const iframe = document.createElement('iframe');
+            iframe.className = 'content-frame';
+            iframe.srcdoc = html;
+            iframe.sandbox = 'allow-same-origin allow-scripts allow-forms allow-modals';
+            container.innerHTML = '';
+            container.appendChild(iframe);
+        }
+
+        function renderJsonContent(jsonStr, container) {
+            try {
+                const json = JSON.parse(jsonStr);
+                container.innerHTML = '';
+                
+                // Add toggle buttons
+                const controls = document.createElement('div');
+                controls.style.marginBottom = '1rem';
+                
+                const treeBtn = document.createElement('button');
+                treeBtn.className = 'btn';
+                treeBtn.textContent = 'Tree View';
+                treeBtn.style.marginRight = '0.5rem';
+                
+                const rawBtn = document.createElement('button');
+                rawBtn.className = 'btn';
+                rawBtn.textContent = 'Raw JSON';
+                
+                controls.appendChild(treeBtn);
+                controls.appendChild(rawBtn);
+                container.appendChild(controls);
+                
+                // Create both views
+                const treeContainer = document.createElement('div');
+                treeContainer.className = 'json-tree';
+                const tree = createJsonTree(json);
+                treeContainer.appendChild(tree);
+                
+                const rawContainer = document.createElement('pre');
+                rawContainer.style.display = 'none';
+                const code = document.createElement('code');
+                code.className = 'language-json';
+                code.textContent = JSON.stringify(json, null, 2);
+                rawContainer.appendChild(code);
+                
+                container.appendChild(treeContainer);
+                container.appendChild(rawContainer);
+                
+                // Apply syntax highlighting to raw view
+                Prism.highlightElement(code);
+                
+                // Toggle between views
+                treeBtn.onclick = () => {
+                    treeContainer.style.display = 'block';
+                    rawContainer.style.display = 'none';
+                    treeBtn.classList.add('active');
+                    rawBtn.classList.remove('active');
+                };
+                
+                rawBtn.onclick = () => {
+                    treeContainer.style.display = 'none';
+                    rawContainer.style.display = 'block';
+                    rawBtn.classList.add('active');
+                    treeBtn.classList.remove('active');
+                };
+                
+                // Default to tree view
+                treeBtn.classList.add('active');
+                
+            } catch (error) {
+                container.innerHTML = '<div class="error">Invalid JSON content</div>';
+            }
+        }
+
+        function createJsonTree(data, isRoot = true) {
+            const ul = document.createElement('ul');
+            
+            if (Array.isArray(data)) {
+                data.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    
+                    if (typeof item === 'object' && item !== null) {
+                        const toggle = document.createElement('span');
+                        toggle.className = 'toggle';
+                        toggle.textContent = '▼';
+                        toggle.onclick = () => {
+                            li.classList.toggle('collapsed');
+                            toggle.textContent = li.classList.contains('collapsed') ? '▶' : '▼';
+                        };
+                        
+                        li.appendChild(toggle);
+                        li.appendChild(document.createTextNode(`[${index}]: `));
+                        
+                        if (Array.isArray(item)) {
+                            li.appendChild(document.createTextNode(`[${item.length}]`));
+                        } else {
+                            li.appendChild(document.createTextNode('{...}'));
+                        }
+                        
+                        li.appendChild(createJsonTree(item, false));
+                    } else {
+                        li.appendChild(document.createTextNode(`[${index}]: `));
+                        li.appendChild(createValueSpan(item));
+                    }
+                    
+                    ul.appendChild(li);
+                });
+            } else if (typeof data === 'object' && data !== null) {
+                for (const [key, value] of Object.entries(data)) {
+                    const li = document.createElement('li');
+                    
+                    if (typeof value === 'object' && value !== null) {
+                        const toggle = document.createElement('span');
+                        toggle.className = 'toggle';
+                        toggle.textContent = '▼';
+                        toggle.onclick = () => {
+                            li.classList.toggle('collapsed');
+                            toggle.textContent = li.classList.contains('collapsed') ? '▶' : '▼';
+                        };
+                        
+                        const keySpan = document.createElement('span');
+                        keySpan.className = 'key';
+                        keySpan.textContent = `"${key}": `;
+                        
+                        li.appendChild(toggle);
+                        li.appendChild(keySpan);
+                        
+                        if (Array.isArray(value)) {
+                            li.appendChild(document.createTextNode(`[${value.length}]`));
+                        } else {
+                            li.appendChild(document.createTextNode('{...}'));
+                        }
+                        
+                        li.appendChild(createJsonTree(value, false));
+                    } else {
+                        const keySpan = document.createElement('span');
+                        keySpan.className = 'key';
+                        keySpan.textContent = `"${key}": `;
+                        li.appendChild(keySpan);
+                        li.appendChild(createValueSpan(value));
+                    }
+                    
+                    ul.appendChild(li);
+                }
+            }
+            
+            return ul;
+        }
+
+        function createValueSpan(value) {
+            const valueSpan = document.createElement('span');
+            if (typeof value === 'string') {
+                valueSpan.className = 'string';
+                valueSpan.textContent = `"${value}"`;
+            } else if (typeof value === 'number') {
+                valueSpan.className = 'number';
+                valueSpan.textContent = value;
+            } else if (typeof value === 'boolean') {
+                valueSpan.className = 'boolean';
+                valueSpan.textContent = value;
+            } else if (value === null) {
+                valueSpan.className = 'null';
+                valueSpan.textContent = 'null';
+            }
+            return valueSpan;
+        }
+
+        function renderMarkdownContent(htmlContent, container) {
+            // The server now returns rendered HTML for markdown
+            container.innerHTML = htmlContent;
+        }
+
+        async function renderScreenshot(path, container) {
+            container.innerHTML = '<div class="loading">Loading screenshot...</div>';
+            
+            try {
+                const content = await fetchContent(path, 'screenshot');
+                if (!content) {
+                    container.innerHTML = '<div class="error">Failed to load screenshot</div>';
+                    return;
+                }
+                
+                const img = document.createElement('img');
+                img.src = content.content; // This is the base64 data URL
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+                img.style.border = '1px solid var(--border)';
+                img.style.borderRadius = '4px';
+                
+                container.innerHTML = '';
+                container.appendChild(img);
+            } catch (error) {
+                console.error('Error loading screenshot:', error);
+                container.innerHTML = '<div class="error">Failed to load screenshot</div>';
+            }
+        }
+
+
+        function updateMetadata(metadata) {
+            const content = document.getElementById('metadataContent');
+            content.innerHTML = '';
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'json-tree';
+            const tree = createJsonTree(metadata);
+            treeContainer.appendChild(tree);
+            content.appendChild(treeContainer);
+        }
+
+        // Search functionality
+        function filterTree(searchTerm) {
+            const treeItems = document.querySelectorAll('.tree-item');
+            treeItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                const matches = text.includes(searchTerm.toLowerCase());
+                item.style.display = matches ? 'flex' : 'none';
+            });
+        }
+
+        // Initialize
+        async function init() {
+            // Load file tree
+            fileTree = await fetchFileTree();
+            if (fileTree) {
+                const treeContainer = document.getElementById('treeContainer');
+                treeContainer.innerHTML = '';
+                renderTree(fileTree, treeContainer);
+            }
+
+            // Set up search
+            const searchBox = document.getElementById('searchBox');
+            searchBox.addEventListener('input', (e) => {
+                filterTree(e.target.value);
+            });
+
+            // Set up metadata panel
+            const metadataToggle = document.getElementById('metadataToggle');
+            const metadataClose = document.getElementById('metadataClose');
+            const metadataPanel = document.getElementById('metadataPanel');
+
+            metadataToggle.addEventListener('click', () => {
+                metadataPanel.classList.add('open');
+            });
+
+            metadataClose.addEventListener('click', () => {
+                metadataPanel.classList.remove('open');
+            });
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>

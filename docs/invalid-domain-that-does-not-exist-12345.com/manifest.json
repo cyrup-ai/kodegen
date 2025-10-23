@@ -1,0 +1,23 @@
+{
+  "crawl_id": "08675e8f-69ad-44cd-b1eb-b9cd74425782",
+  "start_url": "https://invalid-domain-that-does-not-exist-12345.com/",
+  "output_dir": "/Volumes/samsung_t9/kodegen/docs/invalid-domain-that-does-not-exist-12345.com",
+  "search_index_dir": "/Volumes/samsung_t9/kodegen/docs/invalid-domain-that-does-not-exist-12345.com/.search_index",
+  "start_time": 1761159290,
+  "end_time": 1761159291,
+  "status": {
+    "Failed": {
+      "error": "No pages could be crawled. This may indicate an invalid URL, network issue, or inaccessible domain."
+    }
+  },
+  "total_pages": 0,
+  "config_summary": {
+    "start_url": "https://invalid-domain-that-does-not-exist-12345.com/",
+    "max_depth": 3,
+    "limit": 1,
+    "save_markdown": true,
+    "save_screenshots": false,
+    "enable_search": true,
+    "crawl_rate_rps": 2.0
+  }
+}

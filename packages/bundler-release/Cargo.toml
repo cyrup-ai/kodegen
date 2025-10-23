@@ -1,0 +1,126 @@
+[package]
+name = "kodegen_bundler_release"
+version.workspace = true
+edition = "2024"
+description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
+authors = ["KODEGEN.ᴀɪ"]
+homepage = "https://kodegen.ai"
+repository = "https://github.com/cyrup-ai/kodegen"
+readme = "../../README.md"
+categories = ["development-tools", "command-line-utilities", "api-bindings"]
+keywords = [
+    "mcp",
+    "terminal",
+    "agent",
+    "filesystem",
+    "claude"
+]
+license = "Apache-2.0 OR MIT"
+
+[[bin]]
+name = "kodegen_bundler_release"
+path = "src/main.rs"
+
+[lib]
+name = "kodegen_bundler_release"
+path = "src/lib.rs"
+
+[dependencies]
+# Git operations using pure Rust (no CLI)
+gix = "0.74.0"
+
+# Shared Git operations package
+kodegen_tools_git = { path = "../tools-git" , version = "0.1.8" }
+
+# GitHub API integration for releases
+kodegen_tools_github = { path = "../tools-github" , version = "0.1.8" }
+
+# Code signing for macOS artifacts
+kodegen_bundler_sign = { path = "../bundler-sign" , version = "0.1.8" }
+
+# Binary content for asset upload
+bytes = "1.10"
+
+# Format-preserving TOML editing
+toml_edit = "0.23.7"
+
+# Semantic version parsing and manipulation
+semver = { version = "1.0.27", features = ["serde"] }
+
+# CLI argument parsing
+clap = { version = "4.5", features = ["derive", "cargo"] }
+
+# Error handling and context
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Async runtime for process execution
+tokio = { version = "1.48", features = ["full"] }
+
+# JSON serialization for state persistence
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date and time handling for state tracking
+chrono = { version = "0.4", features = ["serde"] }
+
+# Dependency graph analysis
+petgraph = "0.8"
+
+# TOML parsing and manipulation
+toml = "0.9"
+
+# Process execution
+which = "8.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Base64 encoding/decoding for certificate handling
+base64 = "0.22"
+
+# Path utilities
+path-absolutize = "3.1"
+
+# Workspace integration 
+sugars_collections = { version = "0.3.1", git = "https://github.com/cyrup-ai/cyrup-sugars.git" }
+
+# Bundler dependencies
+handlebars = "6.3"          # Template rendering
+image = "0.25"              # Icon conversion
+tar = "0.4"                 # Archive creation
+flate2 = "1.1"              # Compression
+uuid = { version = "1.18", features = ["v4", "v5"] }  # GUID generation
+md5 = "0.8"                 # Checksums
+sha1 = "0.10"               # SHA-1 hashing
+sha2 = "0.10"               # SHA-256 hashing
+walkdir = "2.5"             # Directory traversal
+hex = "0.4"                 # Hex encoding
+glob = "0.3"                # Pattern matching
+zip = "6.0"                 # Archive creation errors
+goblin = "0.10"              # Binary parsing errors
+ureq = { version = "3.1", features = ["json"] }  # HTTP request errors
+url = "2.5"                 # URL parsing errors
+regex = "1.12"              # Regular expression errors (macOS/Windows)
+dirs = "6.0"                # Cross-platform cache directory
+cyrup_termcolor = "2.0"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ar = "0.9"                  # AR archive for .deb
+rpm = "0.18"                # RPM package creation
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1.8"               # Info.plist handling
+icns = "0.3"                # ICNS creation
+time = "0.3"                # Timestamp handling
+tempfile = "3.23"           # Temporary directory for DMG staging
+
+[target.'cfg(windows)'.dependencies]
+ico = "0.4"                 # ICO icon creation
+
+[dev-dependencies]
+tempfile = "3.23"
+assert_cmd = "2.0"
+predicates = "3.1"

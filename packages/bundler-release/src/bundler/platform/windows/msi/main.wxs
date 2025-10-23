@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="{{product_name}}"
+    Language="1033"
+    Version="{{version}}"
+    Manufacturer="{{manufacturer}}"
+    UpgradeCode="{{upgrade_code}}">
+    
+    <Package
+      InstallerVersion="200"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="{{arch}}"
+      Description="{{product_name}} Installer" />
+    
+    <!-- Upgrade handling -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+      AllowSameVersionUpgrades="yes" />
+    
+    <MediaTemplate EmbedCab="yes" />
+    
+    <!-- Directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- Program Files -->
+      <Directory Id="{{program_files}}">
+        <Directory Id="INSTALLDIR" Name="{{product_name}}">
+          {{#each binaries}}
+          <Component Id="{{component_id}}" Guid="*" Win64="{{../win64}}">
+            <File
+              Id="{{file_id}}"
+              Source="{{path}}"
+              Name="{{name}}.exe"
+              KeyPath="yes" />
+          </Component>
+          {{/each}}
+        </Directory>
+      </Directory>
+      
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}">
+          <Component Id="ApplicationShortcut" Guid="*" Win64="{{win64}}">
+            <Shortcut
+              Id="ApplicationStartMenuShortcut"
+              Name="{{product_name}}"
+              Target="[INSTALLDIR]{{main_binary_name}}"
+              WorkingDirectory="INSTALLDIR"
+              Description="Launch {{product_name}}" />
+            <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\{{manufacturer}}\{{product_name}}"
+              Name="installed"
+              Type="integer"
+              Value="1"
+              KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+    
+    <!-- Features to install -->
+    <Feature Id="MainApplication" Title="Main Application" Level="1">
+      {{#each binaries}}
+      <ComponentRef Id="{{component_id}}" />
+      {{/each}}
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+    
+    <!-- CustomAction: Run kodegen_install after installation -->
+    <CustomAction 
+      Id="RunKodegenInstall"
+      FileKey="File_kodegen_install"
+      ExeCommand="--from-platform msi --gui"
+      Execute="deferred"
+      Impersonate="no"
+      Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RunKodegenInstall" After="InstallFiles">
+        NOT Installed
+      </Custom>
+    </InstallExecuteSequence>
+    
+    <!-- Custom Branding Images -->
+    {{#if banner_path}}
+    <WixVariable Id="WixUIBannerBmp" Value="{{banner_path}}" />
+    {{/if}}
+    
+    {{#if dialog_image_path}}
+    <WixVariable Id="WixUIDialogBmp" Value="{{dialog_image_path}}" />
+    {{/if}}
+    
+    <!-- UI Configuration -->
+    {{#if license_path}}
+    <WixVariable Id="WixUILicenseRtf" Value="{{license_path}}" />
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    {{else}}
+    <UIRef Id="WixUI_Minimal" />
+    {{/if}}
+  </Product>
+</Wix>

@@ -1,0 +1,706 @@
+{
+  "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+  "title": "The TokioConf 2026 Call For Talk Proposals is now open | Tokio - An asynchronous Rust runtime",
+  "content": "<!DOCTYPE html><html><head><meta charset=\"utf-8\" data-next-head=\"\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" data-next-head=\"\"><title data-next-head=\"\">The TokioConf 2026 Call For Talk Proposals is now open | Tokio - An asynchronous Rust runtime</title><meta name=\"description\" content=\"Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.\" data-next-head=\"\"><link rel=\"alternate icon\" type=\"image/png\" href=\"/favicon-32x32.png\" data-next-head=\"\"><link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" data-next-head=\"\"><link rel=\"alternate\" type=\"application/rss+xml\" href=\"/blog/index.xml\" data-next-head=\"\"><link rel=\"preload\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" as=\"style\"><link rel=\"preload\" href=\"/_next/static/css/1018df78a05ccae4.css\" as=\"style\"><link rel=\"stylesheet\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" data-n-g=\"\"><link rel=\"stylesheet\" href=\"/_next/static/css/1018df78a05ccae4.css\" data-n-p=\"\"><noscript data-n-css=\"\"></noscript><script defer=\"\" nomodule=\"\" src=\"/_next/static/chunks/polyfills-42372ed130431b0a.js\"></script><script src=\"/_next/static/chunks/webpack-f8185607c88ffb0b.js\" defer=\"\"></script><script src=\"/_next/static/chunks/framework-516982be4eea35ea.js\" defer=\"\"></script><script src=\"/_next/static/chunks/main-11f62a962ab540a8.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/_app-7e9c39878777ce10.js\" defer=\"\"></script><script src=\"/_next/static/chunks/53-8a2741c040907755.js\" defer=\"\"></script><script src=\"/_next/static/chunks/547-573b033aa0b73315.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/blog/%5B...slug%5D-fa78ad5afca7cf3e.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js\" defer=\"\"></script></head><body><link rel=\"preload\" as=\"image\" href=\"/img/tokio-horizontal.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/arrow-left.svg\"><div id=\"__next\"><main class=\"__className_22ceb1\"><nav class=\"navbar is-spaced\" role=\"navigation\" aria-label=\"main navigation\"><div class=\"container\"><div class=\"navbar-brand\"><a href=\"../../index.html\" class=\"navbar-item\" data-citescrape-interactive=\"interactive-0\"><img src=\"/img/tokio-horizontal.svg\" alt=\"tokio-logo\" width=\"133\" height=\"56\"></a><a role=\"button\" class=\"navbar-burger\" aria-label=\"menu\" aria-expanded=\"false\" data-citescrape-interactive=\"interactive-1\"><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span></a></div><div class=\"navbar-menu\"><div class=\"navbar-end\"><a href=\"../../tokio/tutorial/index.html\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-2\">Learn</a><a href=\"https://docs.rs/tokio\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-3\">API Docs</a><a href=\"/blog/2025-09-26-announcing-tokio-conf-cfp\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-4\">Blog</a><hr class=\"is-hidden-mobile\"><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://twitter.com/tokio_rs\" data-citescrape-interactive=\"interactive-5\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"m 1033.0757,785.67723 536.386,-610.09838 H 1442.3554 L 976.61152,705.31871 604.62327,175.57885 H 175.57884 L 738.0981,976.63931 175.57884,1616.4212 h 127.11352 l 491.83748,-559.4233 392.84686,559.4233 h 429.0444 L 1033.0445,785.67723 Z M 858.97635,983.69686 801.9814,903.9293 348.49316,269.21053 h 195.2389 l 365.97034,512.23831 56.9949,79.76754 475.7181,665.83142 H 1247.1765 L 858.97635,983.72736 Z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://github.com/tokio-rs/tokio\" data-citescrape-interactive=\"interactive-6\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-7\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></div></div></div></nav><div class=\"columns is-marginless tk-docs\"><div class=\"column is-one-quarter tk-docs-nav\"><aside class=\"menu\"><div class=\"tk-toc is-hidden-tablet\"><a href=\"#\" data-citescrape-interactive=\"interactive-8\">TABLE OF CONTENTS<span class=\"icon\"><span class=\"tk-arrow\"></span></span></a></div><div class=\"tk-menu-body\"><p class=\"menu-label\">2025</p><ul class=\"menu-list\"><li class=\"is-active\"><a href=\"/blog/2025-09-26-announcing-tokio-conf-cfp\" data-citescrape-interactive=\"interactive-9\"><b>September<!-- --> <!-- -->26</b>The TokioConf 2026 Call For Talk Proposals is now open</a></li><li class=\"\"><a href=\"/blog/2025-06-19-announcing-tokio-conf\" data-citescrape-interactive=\"interactive-10\"><b>June<!-- --> <!-- -->19</b>Announcing TokioConf 2026</a></li><li class=\"\"><a href=\"/blog/2025-01-01-announcing-axum-0-8-0\" data-citescrape-interactive=\"interactive-11\"><b>January<!-- --> <!-- -->1</b>Announcing axum 0.8.0</a></li></ul><p class=\"menu-label\">2024</p><ul class=\"menu-list\"><li class=\"\"><a href=\"/blog/2024-10-23-announcing-toasty\" data-citescrape-interactive=\"interactive-12\"><b>October<!-- --> <!-- -->23</b>Announcing Toasty, an async ORM for Rust</a></li></ul><p class=\"menu-label\">2023</p><ul class=\"menu-list\"><li class=\"\"><a href=\"/blog/2023-11-27-announcing-axum-0-7-0\" data-citescrape-interactive=\"interactive-13\"><b>November<!-- --> <!-- -->27</b>Announcing axum 0.7.0</a></li><li class=\"\"><a href=\"/blog/2023-01-03-announcing-turmoil\" data-citescrape-interactive=\"interactive-14\"><b>January<!-- --> <!-- -->3</b>Announcing turmoil</a></li></ul></div><div class=\"is-hidden-mobile\"><div class=\"all-posts-link\"><a href=\"/blog\" data-citescrape-interactive=\"interactive-15\">More Blog Posts</a></div></div></aside></div><div class=\"column is-three-quarters tk-content\"><section class=\"section content\"><div class=\"columns\"><div class=\"column is-two-thirds tk-markdown\"><h1 class=\"title blog-title\" id=\"\">The TokioConf 2026 Call For Talk Proposals is now open</h1><p class=\"description\">September 26, 2025</p><div><p>We are excited to announce that the Call for Speakers for TokioConf 2026 is\nofficially open!</p>\n<p>As we announced in June, the Tokio project is hosting the inaugural TokioConf,\nwhich will take place on April 20-22 in Portland, OR, and will gather 300\ndevelopers to exchange ideas, learn from one another, and explore the future of\nasync Rust. The conference focuses on the practical side of async Rust\ndevelopment. Whether you've been working with async Rust for years and have\nlessons to share, you're new to it and figuring out the patterns, or you're a\nstudent preparing to start your first job, we want talks that help everyone who\nuses async Rust in production.</p>\n<p><a href=\"https://sessionize.com/tokioconf-2026\" data-citescrape-interactive=\"interactive-16\">Submit a talk proposal here</a>.</p>\n<p>We're looking for talks across all technical levels - every talk should provide\npeople with practical insights they can apply in their own work. Whether you're\nsharing beginner lessons or advanced optimization tricks, focus on real\nexperiences and practical applications that people can actually use. We are\nespecially interested in talks about:</p>\n<p><ins>Production Lessons:</ins><br>\nWhat actually happened when you shipped async code to production - the outages,\nthe tough debugging sessions, the scaling surprises. What tools do you wish\nyou'd known about, and what would you do differently next time?</p>\n<p><ins>Architecture Patterns &amp; Design:</ins><br>\nThe architectural decisions that worked (and the ones that didn't) - actor\npatterns, channels, when to spin up multiple runtimes, different concurrency\napproaches, and when you probably shouldn't use Tokio at all.</p>\n<p><ins>Performance Optimization:</ins><br>\nStories about hunting down that one blocking call that was tanking performance,\ntuning runtimes, dealing with oversubscription, and annoying OS scheduling\npauses. Share the optimization tricks that actually made a difference.</p>\n<p><ins>Debugging &amp; Monitoring:</ins><br>\nHow do you actually figure out what's going wrong in async code, especially in\nproduction? Share your debugging and monitoring setups that work.</p>\n<p><ins>Rust Everywhere:</ins><br>\nCan Rust really work everywhere, not just for high-performance systems? Real\nexperiences using async Rust for typical applications, what's working, what's\nstill missing, and what we'd need to get there.</p>\n<p><ins>Testing Async Code:</ins><br>\nHow to actually test this stuff without pulling your hair out, catching those\nsneaky cancellation bugs before they hit users, and the practices that help you\nship reliable async systems.</p>\n<p><ins>Team Adoption:</ins><br>\nThe real story of adoption - what worked when convincing your team, the training\nthat actually helped, the failures and false starts, the common concerns and\nroadblocks you hit, and how to build codebases that your whole team can work\nwith.</p>\n<p><ins>What's Next:</ins><br>\nIndustry shifts and emerging technologies that will impact how we build async\napplications. New paradigms, AI, evolving infrastructure - what's coming that\nasync Rust developers should be thinking about?</p>\n<h2 id=\"how-to-submit\">How to Submit</h2>\n<p>Have something the community should hear about? We're accepting submissions\nthrough December 8, 2025. Submit your proposal at\n<a href=\"https://sessionize.com/tokioconf-2026\" data-citescrape-interactive=\"interactive-17\">https://sessionize.com/tokioconf-2026</a>. We'll be making the final\ndecisions late January 2026.</p>\n<p>Questions about your talk idea? Reach out to us at\n<a href=\"hello@tokioconf.com\" data-citescrape-interactive=\"interactive-18\">hello@tokioconf.com</a> - we're happy to help you figure out\nif your experience would make a great talk. There is also a #tokioconf channel\non the Tokio project <a href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-19\">Discord</a>, another good place to ask questions.</p>\n<h2 id=\"what-happens-next\">What Happens Next</h2>\n<p>We are busy planning the conference and will be announcing more details over the\ncoming months. Sign up for email updates at\n<a href=\"https://tokioconf.com\" data-citescrape-interactive=\"interactive-20\">tokioconf.com</a>, or follow us on <a href=\"https://bsky.app/profile/tokioconf.com\" data-citescrape-interactive=\"interactive-21\">Bluesky</a> or <a href=\"https://hachyderm.io/@tokioconf\" data-citescrape-interactive=\"interactive-22\">Mastodon</a> to\nget updates.</p>\n<p>Looking forward to hearing what you've learned building with async Rust.</p></div><div class=\"tk-doc-footer\"><div class=\"level\"><div class=\"level-left\"><div class=\"level-item tk-prev\"><a href=\"/blog/2025-06-19-announcing-tokio-conf\" rel=\"prev\" data-citescrape-interactive=\"interactive-23\"><span class=\"tk-arrow\" style=\"margin-right:0.5rem\"><img src=\"/img/arrow-left.svg\"></span>Announcing TokioConf 2026</a></div></div><div class=\"level-right\"><div class=\"level-item tk-next\"></div></div></div><div class=\"level\"><div class=\"level-left\"><div class=\"level-item tk-help-links\"><p>Get Help:<a href=\"https://github.com/tokio-rs/tokio/discussions\" data-citescrape-interactive=\"interactive-24\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-25\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></p></div></div><div class=\"level-right\"><div class=\"level-item tk-edit-this-page\"><a href=\"https://github.com/tokio-rs/website/edit/master/content/blog/2025-09-26-announcing-tokio-conf-cfp.md\" data-citescrape-interactive=\"interactive-26\">Edit this page</a></div></div></div></div></div><aside class=\"column is-one-third tk-content-summary\"><ul class=\"tk-content-summary-menu\"><li><a href=\"#\" data-citescrape-interactive=\"interactive-27\">The TokioConf 2026 Call For Talk Proposals is now open</a><ul><li><a href=\"#how-to-submit\" data-citescrape-interactive=\"interactive-28\">How to Submit</a></li><li><a href=\"#what-happens-next\" data-citescrape-interactive=\"interactive-29\">What Happens Next</a></li></ul></li></ul></aside></div></section></div></div></main></div><script id=\"__NEXT_DATA__\" type=\"application/json\">{\"props\":{\"pageProps\":{\"page\":{\"key\":\"2025-09-26-announcing-tokio-conf-cfp\",\"href\":\"/blog/2025-09-26-announcing-tokio-conf-cfp\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"menuTitle\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"mdPath\":\"blog/2025-09-26-announcing-tokio-conf-cfp.md\",\"data\":{\"date\":\"2025-09-26\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"description\":\"September 26, 2025\"},\"body\":\"\\u003cp\\u003eWe are excited to announce that the Call for Speakers for TokioConf 2026 is\\nofficially open!\\u003c/p\\u003e\\n\\u003cp\\u003eAs we announced in June, the Tokio project is hosting the inaugural TokioConf,\\nwhich will take place on April 20-22 in Portland, OR, and will gather 300\\ndevelopers to exchange ideas, learn from one another, and explore the future of\\nasync Rust. The conference focuses on the practical side of async Rust\\ndevelopment. Whether you've been working with async Rust for years and have\\nlessons to share, you're new to it and figuring out the patterns, or you're a\\nstudent preparing to start your first job, we want talks that help everyone who\\nuses async Rust in production.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003ca href=\\\"https://sessionize.com/tokioconf-2026\\\"\\u003eSubmit a talk proposal here\\u003c/a\\u003e.\\u003c/p\\u003e\\n\\u003cp\\u003eWe're looking for talks across all technical levels - every talk should provide\\npeople with practical insights they can apply in their own work. Whether you're\\nsharing beginner lessons or advanced optimization tricks, focus on real\\nexperiences and practical applications that people can actually use. We are\\nespecially interested in talks about:\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eProduction Lessons:\\u003c/ins\\u003e\\u003cbr\\u003e\\nWhat actually happened when you shipped async code to production - the outages,\\nthe tough debugging sessions, the scaling surprises. What tools do you wish\\nyou'd known about, and what would you do differently next time?\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eArchitecture Patterns \\u0026#x26; Design:\\u003c/ins\\u003e\\u003cbr\\u003e\\nThe architectural decisions that worked (and the ones that didn't) - actor\\npatterns, channels, when to spin up multiple runtimes, different concurrency\\napproaches, and when you probably shouldn't use Tokio at all.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003ePerformance Optimization:\\u003c/ins\\u003e\\u003cbr\\u003e\\nStories about hunting down that one blocking call that was tanking performance,\\ntuning runtimes, dealing with oversubscription, and annoying OS scheduling\\npauses. Share the optimization tricks that actually made a difference.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eDebugging \\u0026#x26; Monitoring:\\u003c/ins\\u003e\\u003cbr\\u003e\\nHow do you actually figure out what's going wrong in async code, especially in\\nproduction? Share your debugging and monitoring setups that work.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eRust Everywhere:\\u003c/ins\\u003e\\u003cbr\\u003e\\nCan Rust really work everywhere, not just for high-performance systems? Real\\nexperiences using async Rust for typical applications, what's working, what's\\nstill missing, and what we'd need to get there.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eTesting Async Code:\\u003c/ins\\u003e\\u003cbr\\u003e\\nHow to actually test this stuff without pulling your hair out, catching those\\nsneaky cancellation bugs before they hit users, and the practices that help you\\nship reliable async systems.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eTeam Adoption:\\u003c/ins\\u003e\\u003cbr\\u003e\\nThe real story of adoption - what worked when convincing your team, the training\\nthat actually helped, the failures and false starts, the common concerns and\\nroadblocks you hit, and how to build codebases that your whole team can work\\nwith.\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003cins\\u003eWhat's Next:\\u003c/ins\\u003e\\u003cbr\\u003e\\nIndustry shifts and emerging technologies that will impact how we build async\\napplications. New paradigms, AI, evolving infrastructure - what's coming that\\nasync Rust developers should be thinking about?\\u003c/p\\u003e\\n\\u003ch2 id=\\\"how-to-submit\\\"\\u003eHow to Submit\\u003c/h2\\u003e\\n\\u003cp\\u003eHave something the community should hear about? We're accepting submissions\\nthrough December 8, 2025. Submit your proposal at\\n\\u003ca href=\\\"https://sessionize.com/tokioconf-2026\\\"\\u003ehttps://sessionize.com/tokioconf-2026\\u003c/a\\u003e. We'll be making the final\\ndecisions late January 2026.\\u003c/p\\u003e\\n\\u003cp\\u003eQuestions about your talk idea? Reach out to us at\\n\\u003ca href=\\\"hello@tokioconf.com\\\"\\u003ehello@tokioconf.com\\u003c/a\\u003e - we're happy to help you figure out\\nif your experience would make a great talk. There is also a #tokioconf channel\\non the Tokio project \\u003ca href=\\\"https://discord.gg/tokio\\\"\\u003eDiscord\\u003c/a\\u003e, another good place to ask questions.\\u003c/p\\u003e\\n\\u003ch2 id=\\\"what-happens-next\\\"\\u003eWhat Happens Next\\u003c/h2\\u003e\\n\\u003cp\\u003eWe are busy planning the conference and will be announcing more details over the\\ncoming months. Sign up for email updates at\\n\\u003ca href=\\\"https://tokioconf.com\\\"\\u003etokioconf.com\\u003c/a\\u003e, or follow us on \\u003ca href=\\\"https://bsky.app/profile/tokioconf.com\\\"\\u003eBluesky\\u003c/a\\u003e or \\u003ca href=\\\"https://hachyderm.io/@tokioconf\\\"\\u003eMastodon\\u003c/a\\u003e to\\nget updates.\\u003c/p\\u003e\\n\\u003cp\\u003eLooking forward to hearing what you've learned building with async Rust.\\u003c/p\\u003e\",\"description\":\"September 26, 2025\",\"prev\":{\"title\":\"Announcing TokioConf 2026\",\"href\":\"/blog/2025-06-19-announcing-tokio-conf\"}},\"menu\":[{\"key\":\"2025\",\"title\":\"2025\",\"nested\":[{\"date\":1758844800000,\"key\":\"2025-09-26-announcing-tokio-conf-cfp\",\"href\":\"/blog/2025-09-26-announcing-tokio-conf-cfp\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"menuTitle\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"mdPath\":\"blog/2025-09-26-announcing-tokio-conf-cfp.md\",\"data\":{\"date\":\"2025-09-26\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"description\":\"September 26, 2025\"},\"description\":\"September 26, 2025\"},{\"date\":1750291200000,\"key\":\"2025-06-19-announcing-tokio-conf\",\"href\":\"/blog/2025-06-19-announcing-tokio-conf\",\"title\":\"Announcing TokioConf 2026\",\"menuTitle\":\"Announcing TokioConf 2026\",\"mdPath\":\"blog/2025-06-19-announcing-tokio-conf.md\",\"data\":{\"date\":\"2025-06-19\",\"title\":\"Announcing TokioConf 2026\",\"description\":\"June 19, 2025\"},\"description\":\"June 19, 2025\"},{\"date\":1735689600000,\"key\":\"2025-01-01-announcing-axum-0-8-0\",\"href\":\"/blog/2025-01-01-announcing-axum-0-8-0\",\"title\":\"Announcing axum 0.8.0\",\"menuTitle\":\"Announcing axum 0.8.0\",\"mdPath\":\"blog/2025-01-01-announcing-axum-0-8-0.md\",\"data\":{\"date\":\"2025-01-01\",\"title\":\"Announcing axum 0.8.0\",\"description\":\"January 01, 2025\"},\"description\":\"January 01, 2025\"}]},{\"key\":\"2024\",\"title\":\"2024\",\"nested\":[{\"date\":1729641600000,\"key\":\"2024-10-23-announcing-toasty\",\"href\":\"/blog/2024-10-23-announcing-toasty\",\"title\":\"Announcing Toasty, an async ORM for Rust\",\"menuTitle\":\"Announcing Toasty, an async ORM for Rust\",\"mdPath\":\"blog/2024-10-23-announcing-toasty.md\",\"data\":{\"date\":\"2024-10-23\",\"title\":\"Announcing Toasty, an async ORM for Rust\",\"description\":\"October 23, 2024\"},\"description\":\"October 23, 2024\"}]},{\"key\":\"2023\",\"title\":\"2023\",\"nested\":[{\"date\":1701043200000,\"key\":\"2023-11-27-announcing-axum-0-7-0\",\"href\":\"/blog/2023-11-27-announcing-axum-0-7-0\",\"title\":\"Announcing axum 0.7.0\",\"menuTitle\":\"Announcing axum 0.7.0\",\"mdPath\":\"blog/2023-11-27-announcing-axum-0-7-0.md\",\"data\":{\"date\":\"2023-11-27\",\"title\":\"Announcing axum 0.7.0\",\"description\":\"November 27, 2023\"},\"description\":\"November 27, 2023\"},{\"date\":1672704000000,\"key\":\"2023-01-03-announcing-turmoil\",\"href\":\"/blog/2023-01-03-announcing-turmoil\",\"title\":\"Announcing turmoil\",\"menuTitle\":\"Announcing turmoil\",\"mdPath\":\"blog/2023-01-03-announcing-turmoil.md\",\"data\":{\"date\":\"2023-01-03\",\"title\":\"Announcing turmoil\",\"description\":\"January 3, 2023\"},\"description\":\"January 3, 2023\"}]}],\"app\":{\"blog\":{\"date\":1758844800000,\"key\":\"2025-09-26-announcing-tokio-conf-cfp\",\"href\":\"/blog/2025-09-26-announcing-tokio-conf-cfp\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"menuTitle\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"mdPath\":\"blog/2025-09-26-announcing-tokio-conf-cfp.md\",\"data\":{\"date\":\"2025-09-26\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"description\":\"September 26, 2025\"},\"description\":\"September 26, 2025\"}}},\"__N_SSG\":true},\"page\":\"/blog/[...slug]\",\"query\":{\"slug\":[\"2025-09-26-announcing-tokio-conf-cfp\"]},\"buildId\":\"saG1Arpw3ae62kf8YSloC\",\"isFallback\":false,\"gsp\":true,\"scriptLoader\":[]}</script><next-route-announcer><p aria-live=\"assertive\" id=\"__next-route-announcer__\" role=\"alert\" style=\"border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;\"></p></next-route-announcer></body></html>",
+  "metadata": {
+    "description": "Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.",
+    "keywords": [],
+    "author": null,
+    "published_date": null,
+    "modified_date": null,
+    "language": null,
+    "canonical_url": null,
+    "robots": null,
+    "viewport": "width=device-width, initial-scale=1",
+    "headers": {}
+  },
+  "interactive_elements": {
+    "forms": [],
+    "buttons": [],
+    "links": [
+      {
+        "href": "https://tokio.rs/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-0\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-0",
+          "href": "/",
+          "class": "navbar-item"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Learn",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-2\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-2",
+          "class": "navbar-item navbar-text",
+          "href": "/tokio/tutorial"
+        }
+      },
+      {
+        "href": "https://docs.rs/tokio",
+        "text": "API Docs",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-3\"]",
+        "attributes": {
+          "class": "navbar-item navbar-text",
+          "href": "https://docs.rs/tokio",
+          "data-citescrape-interactive": "interactive-3"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+        "text": "Blog",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-4\"]",
+        "attributes": {
+          "class": "navbar-item navbar-text",
+          "href": "/blog/2025-09-26-announcing-tokio-conf-cfp",
+          "data-citescrape-interactive": "interactive-4"
+        }
+      },
+      {
+        "href": "https://twitter.com/tokio_rs",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-5\"]",
+        "attributes": {
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-5",
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://twitter.com/tokio_rs"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-6\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-6",
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://github.com/tokio-rs/tokio",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-7\"]",
+        "attributes": {
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://discord.gg/tokio",
+          "target": "_blank",
+          "data-citescrape-interactive": "interactive-7"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#",
+        "text": "TABLE OF CONTENTS",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-8\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-8",
+          "href": "#"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+        "text": "September 26The TokioConf 2026 Call For Talk Proposals is now open",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-9\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-9",
+          "href": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-06-19-announcing-tokio-conf",
+        "text": "June 19Announcing TokioConf 2026",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-10\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-10",
+          "href": "/blog/2025-06-19-announcing-tokio-conf"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-01-01-announcing-axum-0-8-0",
+        "text": "January 1Announcing axum 0.8.0",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-11\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-11",
+          "href": "/blog/2025-01-01-announcing-axum-0-8-0"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2024-10-23-announcing-toasty",
+        "text": "October 23Announcing Toasty, an async ORM for Rust",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-12\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-12",
+          "href": "/blog/2024-10-23-announcing-toasty"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2023-11-27-announcing-axum-0-7-0",
+        "text": "November 27Announcing axum 0.7.0",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-13\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-13",
+          "href": "/blog/2023-11-27-announcing-axum-0-7-0"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2023-01-03-announcing-turmoil",
+        "text": "January 3Announcing turmoil",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-14\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-14",
+          "href": "/blog/2023-01-03-announcing-turmoil"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog",
+        "text": "More Blog Posts",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-15\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-15",
+          "href": "/blog"
+        }
+      },
+      {
+        "href": "https://sessionize.com/tokioconf-2026",
+        "text": "Submit a talk proposal here",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-16\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-16",
+          "href": "https://sessionize.com/tokioconf-2026"
+        }
+      },
+      {
+        "href": "https://sessionize.com/tokioconf-2026",
+        "text": "https://sessionize.com/tokioconf-2026",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-17\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-17",
+          "href": "https://sessionize.com/tokioconf-2026"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/hello@tokioconf.com",
+        "text": "hello@tokioconf.com",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-18\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-18",
+          "href": "hello@tokioconf.com"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": "Discord",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-19\"]",
+        "attributes": {
+          "href": "https://discord.gg/tokio",
+          "data-citescrape-interactive": "interactive-19"
+        }
+      },
+      {
+        "href": "https://tokioconf.com/",
+        "text": "tokioconf.com",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-20\"]",
+        "attributes": {
+          "href": "https://tokioconf.com",
+          "data-citescrape-interactive": "interactive-20"
+        }
+      },
+      {
+        "href": "https://bsky.app/profile/tokioconf.com",
+        "text": "Bluesky",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-21\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-21",
+          "href": "https://bsky.app/profile/tokioconf.com"
+        }
+      },
+      {
+        "href": "https://hachyderm.io/@tokioconf",
+        "text": "Mastodon",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-22\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-22",
+          "href": "https://hachyderm.io/@tokioconf"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-06-19-announcing-tokio-conf",
+        "text": "Announcing TokioConf 2026",
+        "title": null,
+        "target": null,
+        "rel": "prev",
+        "selector": "[data-citescrape-interactive=\"interactive-23\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-23",
+          "rel": "prev",
+          "href": "/blog/2025-06-19-announcing-tokio-conf"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio/discussions",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-24\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/tokio/discussions",
+          "data-citescrape-interactive": "interactive-24"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-25\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-25",
+          "href": "https://discord.gg/tokio"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/website/edit/master/content/blog/2025-09-26-announcing-tokio-conf-cfp.md",
+        "text": "Edit this page",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-26\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-26",
+          "href": "https://github.com/tokio-rs/website/edit/master/content/blog/2025-09-26-announcing-tokio-conf-cfp.md"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#",
+        "text": "The TokioConf 2026 Call For Talk Proposals is now open",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-27\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-27",
+          "href": "#"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#how-to-submit",
+        "text": "How to Submit",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-28\"]",
+        "attributes": {
+          "href": "#how-to-submit",
+          "data-citescrape-interactive": "interactive-28"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#what-happens-next",
+        "text": "What Happens Next",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-29\"]",
+        "attributes": {
+          "href": "#what-happens-next",
+          "data-citescrape-interactive": "interactive-29"
+        }
+      }
+    ],
+    "inputs": [],
+    "clickable": [],
+    "navigation": []
+  },
+  "links": [
+    {
+      "url": "https://tokio.rs/",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial",
+      "text": "Learn",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://docs.rs/tokio",
+      "text": "API Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+      "text": "Blog",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    },
+    {
+      "url": "https://twitter.com/tokio_rs",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio_rs"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio"
+    },
+    {
+      "url": "https://discord.gg/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#",
+      "text": "TABLE OF CONTENTS",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-06-19-announcing-tokio-conf",
+      "text": "June 19Announcing TokioConf 2026",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-06-19-announcing-tokio-conf"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-01-01-announcing-axum-0-8-0",
+      "text": "January 1Announcing axum 0.8.0",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-01-01-announcing-axum-0-8-0"
+    },
+    {
+      "url": "https://tokio.rs/blog/2024-10-23-announcing-toasty",
+      "text": "October 23Announcing Toasty, an async ORM for Rust",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2024-10-23-announcing-toasty"
+    },
+    {
+      "url": "https://tokio.rs/blog/2023-11-27-announcing-axum-0-7-0",
+      "text": "November 27Announcing axum 0.7.0",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2023-11-27-announcing-axum-0-7-0"
+    },
+    {
+      "url": "https://tokio.rs/blog/2023-01-03-announcing-turmoil",
+      "text": "January 3Announcing turmoil",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2023-01-03-announcing-turmoil"
+    },
+    {
+      "url": "https://tokio.rs/blog",
+      "text": "More Blog Posts",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog"
+    },
+    {
+      "url": "https://sessionize.com/tokioconf-2026",
+      "text": "Submit a talk proposal here",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokioconf-2026"
+    },
+    {
+      "url": "https://tokio.rs/blog/hello@tokioconf.com",
+      "text": "hello@tokioconf.com",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/hello@tokioconf.com"
+    },
+    {
+      "url": "https://tokioconf.com/",
+      "text": "tokioconf.com",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/"
+    },
+    {
+      "url": "https://bsky.app/profile/tokioconf.com",
+      "text": "Bluesky",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/profile/tokioconf.com"
+    },
+    {
+      "url": "https://hachyderm.io/@tokioconf",
+      "text": "Mastodon",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/@tokioconf"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/discussions",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio/discussions"
+    },
+    {
+      "url": "https://github.com/tokio-rs/website/edit/master/content/blog/2025-09-26-announcing-tokio-conf-cfp.md",
+      "text": "Edit this page",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/website/edit/master/content/blog/2025-09-26-announcing-tokio-conf-cfp.md"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#how-to-submit",
+      "text": "How to Submit",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp#what-happens-next",
+      "text": "What Happens Next",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    }
+  ],
+  "resources": {
+    "scripts": [
+      {
+        "url": "https://tokio.rs/_next/static/chunks/polyfills-42372ed130431b0a.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/webpack-f8185607c88ffb0b.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/framework-516982be4eea35ea.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/main-11f62a962ab540a8.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/_app-7e9c39878777ce10.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/53-8a2741c040907755.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/547-573b033aa0b73315.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/blog/%5B...slug%5D-fa78ad5afca7cf3e.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": null,
+        "inline": true,
+        "async_load": true,
+        "defer": false,
+        "content_hash": null
+      }
+    ],
+    "stylesheets": [
+      {
+        "url": "https://tokio.rs/_next/static/css/56c6dcfe840a75e8.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/css/1018df78a05ccae4.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      }
+    ],
+    "images": [
+      {
+        "url": "https://tokio.rs/img/tokio-horizontal.svg",
+        "alt": "tokio-logo",
+        "dimensions": [
+          133,
+          56
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/arrow-left.svg",
+        "alt": null,
+        "dimensions": [
+          22,
+          22
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      }
+    ],
+    "media": [],
+    "fonts": []
+  },
+  "timing": {
+    "navigation_start": 1761159295010,
+    "dom_complete": 1761159295323,
+    "load_complete": 1761159295323,
+    "first_paint": null,
+    "first_contentful_paint": null,
+    "largest_contentful_paint": null
+  },
+  "security": {
+    "https": true,
+    "hsts": false,
+    "csp": "",
+    "x_frame_options": "",
+    "permissions_policy": ""
+  },
+  "crawled_at": "2025-10-22T18:54:55.336935Z"
+}

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hairline Fix Canvas Fingerprinting Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    .pass { background: #d4edda; }
+    .fail { background: #f8d7da; }
+    canvas { border: 1px solid #000; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Canvas Fingerprinting Protection Test</h1>
+  <div id="results"></div>
+  
+  <script src="../src/kromekover/evasions/hairline_fix.js"></script>
+  
+  <script>
+    const results = document.getElementById('results');
+    
+    function addResult(name, passed, details) {
+      const div = document.createElement('div');
+      div.className = `test ${passed ? 'pass' : 'fail'}`;
+      div.innerHTML = `
+        <strong>${passed ? '✅' : '❌'} ${name}</strong><br>
+        ${details}
+      `;
+      results.appendChild(div);
+    }
+    
+    function hashImageData(imageData) {
+      let hash = 5381;
+      for (let i = 0; i < imageData.data.length; i++) {
+        hash = ((hash << 5) + hash) + imageData.data[i];
+        hash = hash & hash;
+      }
+      return hash;
+    }
+    
+    // Test 1: Consistency check - same canvas should return same data
+    console.log('Test 1: Consistency Check');
+    const canvas1 = document.createElement('canvas');
+    canvas1.width = 100;
+    canvas1.height = 100;
+    const ctx1 = canvas1.getContext('2d');
+    ctx1.fillStyle = 'rgba(255, 0, 0, 1)';
+    ctx1.fillRect(0, 0, 100, 100);
+    
+    const data1a = ctx1.getImageData(0, 0, 100, 100);
+    const data1b = ctx1.getImageData(0, 0, 100, 100);
+    
+    const hash1a = hashImageData(data1a);
+    const hash1b = hashImageData(data1b);
+    
+    const consistent = hash1a === hash1b;
+    addResult(
+      'Consistency Test', 
+      consistent, 
+      `Called getImageData() twice. Hash1: ${hash1a}, Hash2: ${hash1b}. ${consistent ? 'IDENTICAL ✓' : 'DIFFERENT ✗'}`
+    );
+    
+    // Test 2: Verify noise was actually applied
+    console.log('Test 2: Noise Applied Check');
+    const canvas2 = document.createElement('canvas');
+    canvas2.width = 100;
+    canvas2.height = 100;
+    const ctx2 = canvas2.getContext('2d');
+    ctx2.fillStyle = 'rgba(128, 128, 128, 1)';
+    ctx2.fillRect(0, 0, 100, 100);
+    
+    const data2 = ctx2.getImageData(0, 0, 100, 100);
+    
+    // Check if pixels are exactly 128,128,128 (no noise) or slightly different (noise applied)
+    let hasVariation = false;
+    for (let i = 0; i < data2.data.length; i += 4) {
+      const r = data2.data[i];
+      const g = data2.data[i + 1];
+      const b = data2.data[i + 2];
+      if (r !== 128 || g !== 128 || b !== 128) {
+        hasVariation = true;
+        break;
+      }
+    }
+    
+    addResult(
+      'Noise Applied Test',
+      hasVariation,
+      `Drew solid gray (128,128,128). ${hasVariation ? 'Pixels modified (noise applied) ✓' : 'Pixels unchanged (no noise) ✗'}`
+    );
+    
+    // Test 3: Different canvases should produce different results
+    console.log('Test 3: Different Canvas Test');
+    const canvas3a = document.createElement('canvas');
+    canvas3a.width = 100;
+    canvas3a.height = 100;
+    const ctx3a = canvas3a.getContext('2d');
+    ctx3a.fillStyle = 'rgba(255, 0, 0, 1)';
+    ctx3a.fillRect(0, 0, 100, 100);
+    
+    const canvas3b = document.createElement('canvas');
+    canvas3b.width = 100;
+    canvas3b.height = 100;
+    const ctx3b = canvas3b.getContext('2d');
+    ctx3b.fillStyle = 'rgba(0, 255, 0, 1)'; // Different color
+    ctx3b.fillRect(0, 0, 100, 100);
+    
+    const data3a = ctx3a.getImageData(0, 0, 100, 100);
+    const data3b = ctx3b.getImageData(0, 0, 100, 100);
+    
+    const hash3a = hashImageData(data3a);
+    const hash3b = hashImageData(data3b);
+    
+    const different = hash3a !== hash3b;
+    addResult(
+      'Different Canvas Test',
+      different,
+      `Red canvas vs Green canvas. Hash1: ${hash3a}, Hash2: ${hash3b}. ${different ? 'DIFFERENT ✓' : 'SAME ✗'}`
+    );
+    
+    // Test 4: Same canvas with different getImageData args
+    console.log('Test 4: Different Args Test');
+    const canvas4 = document.createElement('canvas');
+    canvas4.width = 100;
+    canvas4.height = 100;
+    const ctx4 = canvas4.getContext('2d');
+    ctx4.fillStyle = 'rgba(0, 0, 255, 1)';
+    ctx4.fillRect(0, 0, 100, 100);
+    
+    const data4a = ctx4.getImageData(0, 0, 50, 50);  // Top-left quadrant
+    const data4b = ctx4.getImageData(50, 50, 50, 50); // Bottom-right quadrant
+    
+    const hash4a = hashImageData(data4a);
+    const hash4b = hashImageData(data4b);
+    
+    // These should be different because different args = different seed
+    const diffArgs = hash4a !== hash4b;
+    addResult(
+      'Different Args Test',
+      diffArgs,
+      `Different getImageData regions. Hash1: ${hash4a}, Hash2: ${hash4b}. ${diffArgs ? 'DIFFERENT ✓' : 'SAME ✗'}`
+    );
+    
+    // Test 5: toDataURL consistency
+    console.log('Test 5: toDataURL Consistency');
+    const canvas5 = document.createElement('canvas');
+    canvas5.width = 50;
+    canvas5.height = 50;
+    const ctx5 = canvas5.getContext('2d');
+    ctx5.fillStyle = 'rgba(100, 150, 200, 1)';
+    ctx5.fillRect(0, 0, 50, 50);
+    
+    const url5a = canvas5.toDataURL();
+    const url5b = canvas5.toDataURL();
+    
+    const urlConsistent = url5a === url5b;
+    addResult(
+      'toDataURL Consistency Test',
+      urlConsistent,
+      `Called toDataURL() twice. ${urlConsistent ? 'IDENTICAL ✓' : 'DIFFERENT ✗'}`
+    );
+    
+    // Test 6: Verify alpha channel preserved
+    console.log('Test 6: Alpha Channel Preservation');
+    const canvas6 = document.createElement('canvas');
+    canvas6.width = 10;
+    canvas6.height = 10;
+    const ctx6 = canvas6.getContext('2d');
+    ctx6.fillStyle = 'rgba(255, 255, 255, 255)';
+    ctx6.fillRect(0, 0, 10, 10);
+    
+    const data6 = ctx6.getImageData(0, 0, 10, 10);
+    
+    let alphaPreserved = true;
+    for (let i = 3; i < data6.data.length; i += 4) {
+      if (data6.data[i] !== 255) {
+        alphaPreserved = false;
+        break;
+      }
+    }
+    
+    addResult(
+      'Alpha Channel Preservation Test',
+      alphaPreserved,
+      `All alpha values should be 255. ${alphaPreserved ? 'PRESERVED ✓' : 'MODIFIED ✗'}`
+    );
+    
+    // Summary
+    console.log('All tests complete!');
+  </script>
+</body>
+</html>

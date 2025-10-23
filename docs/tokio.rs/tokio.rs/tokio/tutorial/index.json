@@ -1,0 +1,1102 @@
+{
+  "url": "https://tokio.rs/tokio/tutorial",
+  "title": "Tutorial | Tokio - An asynchronous Rust runtime",
+  "content": "<!DOCTYPE html><html><head><meta charset=\"utf-8\" data-next-head=\"\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" data-next-head=\"\"><title data-next-head=\"\">Tutorial | Tokio - An asynchronous Rust runtime</title><meta name=\"description\" content=\"Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.\" data-next-head=\"\"><link rel=\"alternate icon\" type=\"image/png\" href=\"/favicon-32x32.png\" data-next-head=\"\"><link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" data-next-head=\"\"><link rel=\"alternate\" type=\"application/rss+xml\" href=\"/blog/index.xml\" data-next-head=\"\"><link rel=\"preload\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" as=\"style\"><link rel=\"preload\" href=\"/_next/static/css/1018df78a05ccae4.css\" as=\"style\"><link rel=\"stylesheet\" href=\"/_next/static/css/56c6dcfe840a75e8.css\" data-n-g=\"\"><link rel=\"stylesheet\" href=\"/_next/static/css/1018df78a05ccae4.css\" data-n-p=\"\"><noscript data-n-css=\"\"></noscript><script defer=\"\" nomodule=\"\" src=\"/_next/static/chunks/polyfills-42372ed130431b0a.js\"></script><script src=\"/_next/static/chunks/webpack-f8185607c88ffb0b.js\" defer=\"\"></script><script src=\"/_next/static/chunks/framework-516982be4eea35ea.js\" defer=\"\"></script><script src=\"/_next/static/chunks/main-11f62a962ab540a8.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/_app-7e9c39878777ce10.js\" defer=\"\"></script><script src=\"/_next/static/chunks/53-8a2741c040907755.js\" defer=\"\"></script><script src=\"/_next/static/chunks/547-573b033aa0b73315.js\" defer=\"\"></script><script src=\"/_next/static/chunks/pages/%5B...slug%5D-0bd34730781e0ad8.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js\" defer=\"\"></script><script src=\"/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js\" defer=\"\"></script></head><body><link rel=\"preload\" as=\"image\" href=\"/img/tokio-horizontal.svg\"><link rel=\"preload\" as=\"image\" href=\"/img/arrow-right.svg\"><div id=\"__next\"><main class=\"__className_22ceb1\"><nav class=\"navbar is-spaced\" role=\"navigation\" aria-label=\"main navigation\"><div class=\"container\"><div class=\"navbar-brand\"><a href=\"../../index.html\" class=\"navbar-item\" data-citescrape-interactive=\"interactive-0\"><img src=\"/img/tokio-horizontal.svg\" alt=\"tokio-logo\" width=\"133\" height=\"56\"></a><a role=\"button\" class=\"navbar-burger\" aria-label=\"menu\" aria-expanded=\"false\" data-citescrape-interactive=\"interactive-1\"><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span></a></div><div class=\"navbar-menu\"><div class=\"navbar-end\"><a href=\"/tokio/tutorial\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-2\">Learn</a><a href=\"https://docs.rs/tokio\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-3\">API Docs</a><a href=\"/blog/2025-09-26-announcing-tokio-conf-cfp\" class=\"navbar-item navbar-text\" data-citescrape-interactive=\"interactive-4\">Blog</a><hr class=\"is-hidden-mobile\"><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://twitter.com/tokio_rs\" data-citescrape-interactive=\"interactive-5\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"m 1033.0757,785.67723 536.386,-610.09838 H 1442.3554 L 976.61152,705.31871 604.62327,175.57885 H 175.57884 L 738.0981,976.63931 175.57884,1616.4212 h 127.11352 l 491.83748,-559.4233 392.84686,559.4233 h 429.0444 L 1033.0445,785.67723 Z M 858.97635,983.69686 801.9814,903.9293 348.49316,269.21053 h 195.2389 l 365.97034,512.23831 56.9949,79.76754 475.7181,665.83142 H 1247.1765 L 858.97635,983.72736 Z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://github.com/tokio-rs/tokio\" data-citescrape-interactive=\"interactive-6\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a target=\"_blank\" class=\"navbar-item navbar-icon tk-social\" href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-7\"><span class=\"icon \"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></div></div></div></nav><div class=\"columns is-marginless tk-docs\"><div class=\"column is-one-quarter tk-docs-nav\"><aside class=\"menu\"><div class=\"tk-toc is-hidden-tablet\"><a href=\"#\" data-citescrape-interactive=\"interactive-8\">TABLE OF CONTENTS<span class=\"icon\"><span class=\"tk-arrow\"></span></span></a></div><div class=\"tk-menu-body\"><p class=\"menu-label\">Tokio</p><ul class=\"menu-list\"><li class=\"is-active\"><a href=\"/tokio/tutorial\" data-citescrape-interactive=\"interactive-9\">Tutorial</a><ul><ul><li class=\"is-active\"><a href=\"/tokio/tutorial\" data-citescrape-interactive=\"interactive-10\">Overview</a></li><li class=\"\"><a href=\"/tokio/tutorial/setup\" data-citescrape-interactive=\"interactive-11\">Setup</a></li><li class=\"\"><a href=\"/tokio/tutorial/hello-tokio\" data-citescrape-interactive=\"interactive-12\">Hello Tokio</a></li><li class=\"\"><a href=\"/tokio/tutorial/spawning\" data-citescrape-interactive=\"interactive-13\">Spawning</a></li><li class=\"\"><a href=\"/tokio/tutorial/shared-state\" data-citescrape-interactive=\"interactive-14\">Shared state</a></li><li class=\"\"><a href=\"/tokio/tutorial/channels\" data-citescrape-interactive=\"interactive-15\">Channels</a></li><li class=\"\"><a href=\"/tokio/tutorial/io\" data-citescrape-interactive=\"interactive-16\">I/O</a></li><li class=\"\"><a href=\"/tokio/tutorial/framing\" data-citescrape-interactive=\"interactive-17\">Framing</a></li><li class=\"\"><a href=\"/tokio/tutorial/async\" data-citescrape-interactive=\"interactive-18\">Async in depth</a></li><li class=\"\"><a href=\"/tokio/tutorial/select\" data-citescrape-interactive=\"interactive-19\">Select</a></li><li class=\"\"><a href=\"/tokio/tutorial/streams\" data-citescrape-interactive=\"interactive-20\">Streams</a></li></ul></ul></li><li class=\"\"><a href=\"/tokio/topics\" data-citescrape-interactive=\"interactive-21\">Topics</a><ul><ul><li class=\"\"><a href=\"/tokio/topics/bridging\" data-citescrape-interactive=\"interactive-22\">Bridging with sync code</a></li><li class=\"\"><a href=\"/tokio/topics/shutdown\" data-citescrape-interactive=\"interactive-23\">Graceful Shutdown</a></li><li class=\"\"><a href=\"/tokio/topics/tracing\" data-citescrape-interactive=\"interactive-24\">Getting started with Tracing</a></li><li class=\"\"><a href=\"/tokio/topics/tracing-next-steps\" data-citescrape-interactive=\"interactive-25\">Next steps with Tracing</a></li><li class=\"\"><a href=\"/tokio/topics/testing\" data-citescrape-interactive=\"interactive-26\">Unit Testing</a></li></ul></ul></li><li class=\"\"><a href=\"/tokio/glossary\" data-citescrape-interactive=\"interactive-27\">Glossary</a></li><li class=\"\"><a href=\"https://docs.rs/tokio\" data-citescrape-interactive=\"interactive-28\">API documentation</a></li></ul></div><div class=\"is-hidden-mobile\"></div></aside></div><div class=\"column is-three-quarters tk-content\"><section class=\"section content\"><div class=\"columns\"><div class=\"column is-two-thirds tk-markdown\"><h1 class=\"title \" id=\"\">Tutorial</h1><div><p>Tokio is an asynchronous runtime for the Rust programming language. It provides\nthe building blocks needed for writing networking applications. It gives the\nflexibility to target a wide range of systems, from large servers with dozens of\ncores to small embedded devices.</p>\n<p>At a high level, Tokio provides a few major components:</p>\n<ul>\n<li>A multi-threaded runtime for executing asynchronous code.</li>\n<li>An asynchronous version of the standard library.</li>\n<li>A large ecosystem of libraries.</li>\n</ul>\n<h1 id=\"tokios-role-in-your-project\">Tokio's role in your project</h1>\n<p>When you write your application in an asynchronous manner, you enable it to\nscale much better by reducing the cost of doing many things at the same time.\nHowever, asynchronous Rust code does not run on its own, so you must choose a\nruntime to execute it. The Tokio library is the most widely used runtime,\nsurpassing all other runtimes in usage combined.</p>\n<p>Additionally, Tokio provides many useful utilities. When writing asynchronous\ncode, you cannot use the ordinary blocking APIs provided by the Rust standard\nlibrary, and must instead use asynchronous versions of them. These alternate\nversions are provided by Tokio, mirroring the API of the Rust standard library\nwhere it makes sense.</p>\n<h1 id=\"advantages-of-tokio\">Advantages of Tokio</h1>\n<p>This section will outline some advantages of Tokio.</p>\n<h2 id=\"fast\">Fast</h2>\n<p>Tokio is <em>fast</em>, built on top of the Rust programming language, which itself is\nfast. This is done in the spirit of Rust with the goal that you should not be\nable to improve the performance by writing equivalent code by hand.</p>\n<p>Tokio is <em>scalable</em>, built on top of the async/await language feature, which\nitself is scalable. When dealing with networking, there's a limit to how fast\nyou can handle a connection due to latency, so the only way to scale is to\nhandle many connections at once. With the async/await language feature,\nincreasing the number of concurrent operations becomes incredibly cheap,\nallowing you to scale to a large number of concurrent tasks.</p>\n<h2 id=\"reliable\">Reliable</h2>\n<p>Tokio is built using Rust, which is a language that empowers everyone\nto build reliable and efficient software. A <a href=\"https://www.zdnet.com/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/\" data-citescrape-interactive=\"interactive-29\">number</a> of\n<a href=\"https://www.chromium.org/Home/chromium-security/memory-safety\" data-citescrape-interactive=\"interactive-30\">studies</a> have found that roughly ~70% of high severity security bugs\nare the result of memory unsafety. Using Rust eliminates this entire class of\nbugs in your applications.</p>\n<p>Tokio also focuses heavily on providing consistent behaviour with no surprises.\nTokio's major goal is to allow users to deploy predictable software that will\nperform the same day in and day out with reliable response times and no\nunpredictable latency spikes.</p>\n<h2 id=\"easy\">Easy</h2>\n<p>With Rust's async/await feature, the complexity of writing asynchronous\napplications has been lowered substantially. Paired with Tokio's utilities and\nvibrant ecosystem, writing applications is a breeze.</p>\n<p>Tokio follows the standard library's naming convention when it makes sense. This\nallows easily converting code written with only the standard library to code\nwritten with Tokio. With the strong type system of Rust, the ability to deliver\ncorrect code easily is unparalleled.</p>\n<h2 id=\"flexible\">Flexible</h2>\n<p>Tokio provides multiple variations of the runtime. Everything from a\nmulti-threaded, <a href=\"https://en.wikipedia.org/wiki/Work_stealing\" data-citescrape-interactive=\"interactive-31\">work-stealing</a> runtime to a light-weight, single-threaded\nruntime. Each of these runtimes come with many knobs to allow users to tune them\nto their needs.</p>\n<h1 id=\"when-not-to-use-tokio\">When not to use Tokio</h1>\n<p>Although Tokio is useful for many projects that need to do a lot of things\nsimultaneously, there are also some use-cases where Tokio is not a good fit.</p>\n<ul>\n<li>Speeding up CPU-bound computations by running them in parallel on several\nthreads. Tokio is designed for IO-bound applications where each individual\ntask spends most of its time waiting for IO. If the only thing your\napplication does is run computations in parallel, you should be using\n<a href=\"https://docs.rs/rayon/\" data-citescrape-interactive=\"interactive-32\">rayon</a>. That said, it is still possible to \"mix &amp; match\"\nif you need to do both. See <a href=\"https://ryhl.io/blog/async-what-is-blocking/#the-rayon-crate\" data-citescrape-interactive=\"interactive-33\">this blog post for a practical example</a>.</li>\n<li>Reading a lot of files. Although it seems like Tokio would be useful for\nprojects that simply need to read a lot of files, Tokio provides no advantage\nhere compared to an ordinary threadpool. This is because operating systems\ngenerally do not provide asynchronous file APIs.</li>\n<li>Sending a single web request. The place where Tokio gives you an advantage is\nwhen you need to do many things at the same time. If you need to use a\nlibrary intended for asynchronous Rust such as <a href=\"https://docs.rs/reqwest/\" data-citescrape-interactive=\"interactive-34\">reqwest</a>, but you don't need\nto do a lot of things at once, you should prefer the blocking version of that\nlibrary, as it will make your project simpler. Using Tokio will still work,\nof course, but provides no real advantage over the blocking API. If the\nlibrary doesn't provide a blocking API, see <a href=\"/tokio/topics/bridging\" data-citescrape-interactive=\"interactive-35\">the chapter on\nbridging with sync code</a>.</li>\n</ul>\n<h1 id=\"getting-help\">Getting Help</h1>\n<p>At any point, if you get stuck, you can always get help on <a href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-36\">Discord</a> or <a href=\"https://github.com/tokio-rs/tokio/discussions\" data-citescrape-interactive=\"interactive-37\">GitHub\ndiscussions</a>. Don't worry about asking \"beginner\" questions. We all start\nsomewhere and are happy to help.</p></div><div class=\"tk-doc-footer\"><div class=\"level\"><div class=\"level-left\"><div class=\"level-item tk-prev\"></div></div><div class=\"level-right\"><div class=\"level-item tk-next\"><a href=\"/tokio/tutorial/setup\" rel=\"next\" data-citescrape-interactive=\"interactive-38\">Setup<span class=\"tk-arrow\" style=\"margin-left:0.5rem\"><img src=\"/img/arrow-right.svg\"></span></a></div></div></div><div class=\"level\"><div class=\"level-left\"><div class=\"level-item tk-help-links\"><p>Get Help:<a href=\"https://github.com/tokio-rs/tokio/discussions\" data-citescrape-interactive=\"interactive-39\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 1792 1792\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" d=\"M896 128q209 0 385.5 103t279.5 279.5 103 385.5q0 251-146.5 451.5t-378.5 277.5q-27 5-40-7t-13-30q0-3 .5-76.5t.5-134.5q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-119-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-85-13.5q-45 113-8 204-79 87-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-39 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 88.5t.5 54.5q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103zm-477 1103q3-7-7-12-10-3-13 2-3 7 7 12 9 6 13-2zm31 34q7-5-2-16-10-9-16-3-7 5 2 16 10 10 16 3zm30 45q9-7 0-19-8-13-17-6-9 5 0 18t17 7zm42 42q8-8-4-19-12-12-20-3-9 8 4 19 12 12 20 3zm57 25q3-11-13-16-15-4-19 7t13 15q15 6 19-6zm63 5q0-13-17-11-16 0-16 11 0 13 17 11 16 0 16-11zm58-10q-2-11-18-9-16 3-14 15t18 8 14-14z\" fill=\"#fff\"></path></svg></span></a><a href=\"https://discord.gg/tokio\" data-citescrape-interactive=\"interactive-40\"><span class=\"icon is-medium\"><svg width=\"45\" height=\"45\" viewBox=\"0 0 245 240\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M104.4 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1.1-6.1-4.5-11.1-10.2-11.1zM140.9 103.9c-5.7 0-10.2 5-10.2 11.1s4.6 11.1 10.2 11.1c5.7 0 10.2-5 10.2-11.1s-4.5-11.1-10.2-11.1z\"></path><path class=\"tk-svg-path\" fill=\"#FFF\" d=\"M189.5 20h-134C44.2 20 35 29.2 35 40.6v135.2c0 11.4 9.2 20.6 20.5 20.6h113.4l-5.3-18.5 12.8 11.9 12.1 11.2 21.5 19V40.6c0-11.4-9.2-20.6-20.5-20.6zm-38.6 130.6s-3.6-4.3-6.6-8.1c13.1-3.7 18.1-11.9 18.1-11.9-4.1 2.7-8 4.6-11.5 5.9-5 2.1-9.8 3.5-14.5 4.3-9.6 1.8-18.4 1.3-25.9-.1-5.7-1.1-10.6-2.7-14.7-4.3-2.3-.9-4.8-2-7.3-3.4-.3-.2-.6-.3-.9-.5-.2-.1-.3-.2-.4-.3-1.8-1-2.8-1.7-2.8-1.7s4.8 8 17.5 11.8c-3 3.8-6.7 8.3-6.7 8.3-22.1-.7-30.5-15.2-30.5-15.2 0-32.2 14.4-58.3 14.4-58.3 14.4-10.8 28.1-10.5 28.1-10.5l1 1.2c-18 5.2-26.3 13.1-26.3 13.1s2.2-1.2 5.9-2.9c10.7-4.7 19.2-6 22.7-6.3.6-.1 1.1-.2 1.7-.2 6.1-.8 13-1 20.2-.2 9.5 1.1 19.7 3.9 30.1 9.6 0 0-7.9-7.5-24.9-12.7l1.4-1.6s13.7-.3 28.1 10.5c0 0 14.4 26.1 14.4 58.3 0 0-8.5 14.5-30.6 15.2z\"></path></svg></span></a></p></div></div><div class=\"level-right\"><div class=\"level-item tk-edit-this-page\"><a href=\"https://github.com/tokio-rs/website/edit/master/content/tokio/tutorial/index.md\" data-citescrape-interactive=\"interactive-41\">Edit this page</a></div></div></div></div></div><aside class=\"column is-one-third tk-content-summary\"><ul class=\"tk-content-summary-menu\"><li><a href=\"#\" data-citescrape-interactive=\"interactive-42\">Tutorial</a></li><li><a href=\"#tokios-role-in-your-project\" data-citescrape-interactive=\"interactive-43\">Tokio's role in your project</a></li><li><a href=\"#advantages-of-tokio\" data-citescrape-interactive=\"interactive-44\">Advantages of Tokio</a><ul><li><a href=\"#fast\" data-citescrape-interactive=\"interactive-45\">Fast</a></li><li><a href=\"#reliable\" data-citescrape-interactive=\"interactive-46\">Reliable</a></li><li><a href=\"#easy\" data-citescrape-interactive=\"interactive-47\">Easy</a></li><li><a href=\"#flexible\" data-citescrape-interactive=\"interactive-48\">Flexible</a></li></ul></li><li><a href=\"#when-not-to-use-tokio\" data-citescrape-interactive=\"interactive-49\">When not to use Tokio</a></li><li><a href=\"#getting-help\" data-citescrape-interactive=\"interactive-50\">Getting Help</a></li></ul></aside></div></section></div></div></main></div><script id=\"__NEXT_DATA__\" type=\"application/json\">{\"props\":{\"pageProps\":{\"page\":{\"key\":\"tutorial\",\"href\":\"/tokio/tutorial\",\"title\":\"Tutorial\",\"menuTitle\":\"Tutorial\",\"mdPath\":\"tokio/tutorial/index.md\",\"data\":{\"title\":\"Tutorial\",\"subtitle\":\"Overview\"},\"body\":\"\\u003cp\\u003eTokio is an asynchronous runtime for the Rust programming language. It provides\\nthe building blocks needed for writing networking applications. It gives the\\nflexibility to target a wide range of systems, from large servers with dozens of\\ncores to small embedded devices.\\u003c/p\\u003e\\n\\u003cp\\u003eAt a high level, Tokio provides a few major components:\\u003c/p\\u003e\\n\\u003cul\\u003e\\n\\u003cli\\u003eA multi-threaded runtime for executing asynchronous code.\\u003c/li\\u003e\\n\\u003cli\\u003eAn asynchronous version of the standard library.\\u003c/li\\u003e\\n\\u003cli\\u003eA large ecosystem of libraries.\\u003c/li\\u003e\\n\\u003c/ul\\u003e\\n\\u003ch1 id=\\\"tokios-role-in-your-project\\\"\\u003eTokio's role in your project\\u003c/h1\\u003e\\n\\u003cp\\u003eWhen you write your application in an asynchronous manner, you enable it to\\nscale much better by reducing the cost of doing many things at the same time.\\nHowever, asynchronous Rust code does not run on its own, so you must choose a\\nruntime to execute it. The Tokio library is the most widely used runtime,\\nsurpassing all other runtimes in usage combined.\\u003c/p\\u003e\\n\\u003cp\\u003eAdditionally, Tokio provides many useful utilities. When writing asynchronous\\ncode, you cannot use the ordinary blocking APIs provided by the Rust standard\\nlibrary, and must instead use asynchronous versions of them. These alternate\\nversions are provided by Tokio, mirroring the API of the Rust standard library\\nwhere it makes sense.\\u003c/p\\u003e\\n\\u003ch1 id=\\\"advantages-of-tokio\\\"\\u003eAdvantages of Tokio\\u003c/h1\\u003e\\n\\u003cp\\u003eThis section will outline some advantages of Tokio.\\u003c/p\\u003e\\n\\u003ch2 id=\\\"fast\\\"\\u003eFast\\u003c/h2\\u003e\\n\\u003cp\\u003eTokio is \\u003cem\\u003efast\\u003c/em\\u003e, built on top of the Rust programming language, which itself is\\nfast. This is done in the spirit of Rust with the goal that you should not be\\nable to improve the performance by writing equivalent code by hand.\\u003c/p\\u003e\\n\\u003cp\\u003eTokio is \\u003cem\\u003escalable\\u003c/em\\u003e, built on top of the async/await language feature, which\\nitself is scalable. When dealing with networking, there's a limit to how fast\\nyou can handle a connection due to latency, so the only way to scale is to\\nhandle many connections at once. With the async/await language feature,\\nincreasing the number of concurrent operations becomes incredibly cheap,\\nallowing you to scale to a large number of concurrent tasks.\\u003c/p\\u003e\\n\\u003ch2 id=\\\"reliable\\\"\\u003eReliable\\u003c/h2\\u003e\\n\\u003cp\\u003eTokio is built using Rust, which is a language that empowers everyone\\nto build reliable and efficient software. A \\u003ca href=\\\"https://www.zdnet.com/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/\\\"\\u003enumber\\u003c/a\\u003e of\\n\\u003ca href=\\\"https://www.chromium.org/Home/chromium-security/memory-safety\\\"\\u003estudies\\u003c/a\\u003e have found that roughly ~70% of high severity security bugs\\nare the result of memory unsafety. Using Rust eliminates this entire class of\\nbugs in your applications.\\u003c/p\\u003e\\n\\u003cp\\u003eTokio also focuses heavily on providing consistent behaviour with no surprises.\\nTokio's major goal is to allow users to deploy predictable software that will\\nperform the same day in and day out with reliable response times and no\\nunpredictable latency spikes.\\u003c/p\\u003e\\n\\u003ch2 id=\\\"easy\\\"\\u003eEasy\\u003c/h2\\u003e\\n\\u003cp\\u003eWith Rust's async/await feature, the complexity of writing asynchronous\\napplications has been lowered substantially. Paired with Tokio's utilities and\\nvibrant ecosystem, writing applications is a breeze.\\u003c/p\\u003e\\n\\u003cp\\u003eTokio follows the standard library's naming convention when it makes sense. This\\nallows easily converting code written with only the standard library to code\\nwritten with Tokio. With the strong type system of Rust, the ability to deliver\\ncorrect code easily is unparalleled.\\u003c/p\\u003e\\n\\u003ch2 id=\\\"flexible\\\"\\u003eFlexible\\u003c/h2\\u003e\\n\\u003cp\\u003eTokio provides multiple variations of the runtime. Everything from a\\nmulti-threaded, \\u003ca href=\\\"https://en.wikipedia.org/wiki/Work_stealing\\\"\\u003ework-stealing\\u003c/a\\u003e runtime to a light-weight, single-threaded\\nruntime. Each of these runtimes come with many knobs to allow users to tune them\\nto their needs.\\u003c/p\\u003e\\n\\u003ch1 id=\\\"when-not-to-use-tokio\\\"\\u003eWhen not to use Tokio\\u003c/h1\\u003e\\n\\u003cp\\u003eAlthough Tokio is useful for many projects that need to do a lot of things\\nsimultaneously, there are also some use-cases where Tokio is not a good fit.\\u003c/p\\u003e\\n\\u003cul\\u003e\\n\\u003cli\\u003eSpeeding up CPU-bound computations by running them in parallel on several\\nthreads. Tokio is designed for IO-bound applications where each individual\\ntask spends most of its time waiting for IO. If the only thing your\\napplication does is run computations in parallel, you should be using\\n\\u003ca href=\\\"https://docs.rs/rayon/\\\"\\u003erayon\\u003c/a\\u003e. That said, it is still possible to \\\"mix \\u0026#x26; match\\\"\\nif you need to do both. See \\u003ca href=\\\"https://ryhl.io/blog/async-what-is-blocking/#the-rayon-crate\\\"\\u003ethis blog post for a practical example\\u003c/a\\u003e.\\u003c/li\\u003e\\n\\u003cli\\u003eReading a lot of files. Although it seems like Tokio would be useful for\\nprojects that simply need to read a lot of files, Tokio provides no advantage\\nhere compared to an ordinary threadpool. This is because operating systems\\ngenerally do not provide asynchronous file APIs.\\u003c/li\\u003e\\n\\u003cli\\u003eSending a single web request. The place where Tokio gives you an advantage is\\nwhen you need to do many things at the same time. If you need to use a\\nlibrary intended for asynchronous Rust such as \\u003ca href=\\\"https://docs.rs/reqwest/\\\"\\u003ereqwest\\u003c/a\\u003e, but you don't need\\nto do a lot of things at once, you should prefer the blocking version of that\\nlibrary, as it will make your project simpler. Using Tokio will still work,\\nof course, but provides no real advantage over the blocking API. If the\\nlibrary doesn't provide a blocking API, see \\u003ca href=\\\"/tokio/topics/bridging\\\"\\u003ethe chapter on\\nbridging with sync code\\u003c/a\\u003e.\\u003c/li\\u003e\\n\\u003c/ul\\u003e\\n\\u003ch1 id=\\\"getting-help\\\"\\u003eGetting Help\\u003c/h1\\u003e\\n\\u003cp\\u003eAt any point, if you get stuck, you can always get help on \\u003ca href=\\\"https://discord.gg/tokio\\\"\\u003eDiscord\\u003c/a\\u003e or \\u003ca href=\\\"https://github.com/tokio-rs/tokio/discussions\\\"\\u003eGitHub\\ndiscussions\\u003c/a\\u003e. Don't worry about asking \\\"beginner\\\" questions. We all start\\nsomewhere and are happy to help.\\u003c/p\\u003e\",\"description\":null,\"next\":{\"title\":\"Setup\",\"href\":\"/tokio/tutorial/setup\"}},\"menu\":[{\"key\":\"tokio\",\"title\":\"Tokio\",\"nested\":[{\"page\":{\"key\":\"tutorial\",\"href\":\"/tokio/tutorial\",\"title\":\"Tutorial\",\"data\":{\"title\":\"Tutorial\",\"subtitle\":\"Overview\"}},\"nested\":[{\"page\":{\"key\":\"setup\",\"href\":\"/tokio/tutorial/setup\",\"title\":\"Setup\",\"data\":{\"title\":\"Setup\"}}},{\"page\":{\"key\":\"hello-tokio\",\"href\":\"/tokio/tutorial/hello-tokio\",\"title\":\"Hello Tokio\",\"data\":{\"title\":\"Hello Tokio\"}}},{\"page\":{\"key\":\"spawning\",\"href\":\"/tokio/tutorial/spawning\",\"title\":\"Spawning\",\"data\":{\"title\":\"Spawning\"}}},{\"page\":{\"key\":\"shared-state\",\"href\":\"/tokio/tutorial/shared-state\",\"title\":\"Shared state\",\"data\":{\"title\":\"Shared state\"}}},{\"page\":{\"key\":\"channels\",\"href\":\"/tokio/tutorial/channels\",\"title\":\"Channels\",\"data\":{\"title\":\"Channels\"}}},{\"page\":{\"key\":\"io\",\"href\":\"/tokio/tutorial/io\",\"title\":\"I/O\",\"data\":{\"title\":\"I/O\"}}},{\"page\":{\"key\":\"framing\",\"href\":\"/tokio/tutorial/framing\",\"title\":\"Framing\",\"data\":{\"title\":\"Framing\"}}},{\"page\":{\"key\":\"async\",\"href\":\"/tokio/tutorial/async\",\"title\":\"Async in depth\",\"data\":{\"title\":\"Async in depth\"}}},{\"page\":{\"key\":\"select\",\"href\":\"/tokio/tutorial/select\",\"title\":\"Select\",\"data\":{\"title\":\"Select\"}}},{\"page\":{\"key\":\"streams\",\"href\":\"/tokio/tutorial/streams\",\"title\":\"Streams\",\"data\":{\"title\":\"Streams\"}}}]},{\"page\":{\"key\":\"topics\",\"href\":\"/tokio/topics\",\"title\":\"Topics\",\"data\":{\"title\":\"Topics\"}},\"nested\":[{\"page\":{\"key\":\"bridging\",\"href\":\"/tokio/topics/bridging\",\"title\":\"Bridging with sync code\",\"data\":{\"title\":\"Bridging with sync code\"}}},{\"page\":{\"key\":\"shutdown\",\"href\":\"/tokio/topics/shutdown\",\"title\":\"Graceful Shutdown\",\"data\":{\"title\":\"Graceful Shutdown\"}}},{\"page\":{\"key\":\"tracing\",\"href\":\"/tokio/topics/tracing\",\"title\":\"Getting started with Tracing\",\"data\":{\"title\":\"Getting started with Tracing\"}}},{\"page\":{\"key\":\"tracing-next-steps\",\"href\":\"/tokio/topics/tracing-next-steps\",\"title\":\"Next steps with Tracing\",\"data\":{\"title\":\"Next steps with Tracing\"}}},{\"page\":{\"key\":\"testing\",\"href\":\"/tokio/topics/testing\",\"title\":\"Unit Testing\",\"data\":{\"title\":\"Unit Testing\"}}}]},{\"page\":{\"key\":\"glossary\",\"href\":\"/tokio/glossary\",\"title\":\"Glossary\",\"data\":{\"title\":\"Glossary\"}}},{\"page\":{\"key\":\"api\",\"title\":\"API documentation\",\"href\":\"https://docs.rs/tokio\"}}]}],\"app\":{\"blog\":{\"date\":1758844800000,\"key\":\"2025-09-26-announcing-tokio-conf-cfp\",\"href\":\"/blog/2025-09-26-announcing-tokio-conf-cfp\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"menuTitle\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"mdPath\":\"blog/2025-09-26-announcing-tokio-conf-cfp.md\",\"data\":{\"date\":\"2025-09-26\",\"title\":\"The TokioConf 2026 Call For Talk Proposals is now open\",\"description\":\"September 26, 2025\"},\"description\":\"September 26, 2025\"}}},\"__N_SSG\":true},\"page\":\"/[...slug]\",\"query\":{\"slug\":[\"tokio\",\"tutorial\"]},\"buildId\":\"saG1Arpw3ae62kf8YSloC\",\"isFallback\":false,\"gsp\":true,\"scriptLoader\":[]}</script><next-route-announcer><p aria-live=\"assertive\" id=\"__next-route-announcer__\" role=\"alert\" style=\"border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;\"></p></next-route-announcer></body></html>",
+  "metadata": {
+    "description": "Tokio is a runtime for writing reliable asynchronous applications with Rust. It provides async I/O, networking, scheduling, timers, and more.",
+    "keywords": [],
+    "author": null,
+    "published_date": null,
+    "modified_date": null,
+    "language": null,
+    "canonical_url": null,
+    "robots": null,
+    "viewport": "width=device-width, initial-scale=1",
+    "headers": {}
+  },
+  "interactive_elements": {
+    "forms": [],
+    "buttons": [],
+    "links": [
+      {
+        "href": "https://tokio.rs/",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-0\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-0",
+          "href": "/",
+          "class": "navbar-item"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Learn",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-2\"]",
+        "attributes": {
+          "href": "/tokio/tutorial",
+          "class": "navbar-item navbar-text",
+          "data-citescrape-interactive": "interactive-2"
+        }
+      },
+      {
+        "href": "https://docs.rs/tokio",
+        "text": "API Docs",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-3\"]",
+        "attributes": {
+          "class": "navbar-item navbar-text",
+          "href": "https://docs.rs/tokio",
+          "data-citescrape-interactive": "interactive-3"
+        }
+      },
+      {
+        "href": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+        "text": "Blog",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-4\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-4",
+          "href": "/blog/2025-09-26-announcing-tokio-conf-cfp",
+          "class": "navbar-item navbar-text"
+        }
+      },
+      {
+        "href": "https://twitter.com/tokio_rs",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-5\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-5",
+          "target": "_blank",
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://twitter.com/tokio_rs"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-6\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-6",
+          "class": "navbar-item navbar-icon tk-social",
+          "href": "https://github.com/tokio-rs/tokio",
+          "target": "_blank"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": "_blank",
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-7\"]",
+        "attributes": {
+          "class": "navbar-item navbar-icon tk-social",
+          "data-citescrape-interactive": "interactive-7",
+          "target": "_blank",
+          "href": "https://discord.gg/tokio"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#",
+        "text": "TABLE OF CONTENTS",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-8\"]",
+        "attributes": {
+          "href": "#",
+          "data-citescrape-interactive": "interactive-8"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Tutorial",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-9\"]",
+        "attributes": {
+          "href": "/tokio/tutorial",
+          "data-citescrape-interactive": "interactive-9"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial",
+        "text": "Overview",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-10\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-10",
+          "href": "/tokio/tutorial"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/setup",
+        "text": "Setup",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-11\"]",
+        "attributes": {
+          "href": "/tokio/tutorial/setup",
+          "data-citescrape-interactive": "interactive-11"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/hello-tokio",
+        "text": "Hello Tokio",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-12\"]",
+        "attributes": {
+          "href": "/tokio/tutorial/hello-tokio",
+          "data-citescrape-interactive": "interactive-12"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/spawning",
+        "text": "Spawning",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-13\"]",
+        "attributes": {
+          "href": "/tokio/tutorial/spawning",
+          "data-citescrape-interactive": "interactive-13"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/shared-state",
+        "text": "Shared state",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-14\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-14",
+          "href": "/tokio/tutorial/shared-state"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/channels",
+        "text": "Channels",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-15\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-15",
+          "href": "/tokio/tutorial/channels"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/io",
+        "text": "I/O",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-16\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-16",
+          "href": "/tokio/tutorial/io"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/framing",
+        "text": "Framing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-17\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-17",
+          "href": "/tokio/tutorial/framing"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/async",
+        "text": "Async in depth",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-18\"]",
+        "attributes": {
+          "href": "/tokio/tutorial/async",
+          "data-citescrape-interactive": "interactive-18"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/select",
+        "text": "Select",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-19\"]",
+        "attributes": {
+          "href": "/tokio/tutorial/select",
+          "data-citescrape-interactive": "interactive-19"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/streams",
+        "text": "Streams",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-20\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-20",
+          "href": "/tokio/tutorial/streams"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics",
+        "text": "Topics",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-21\"]",
+        "attributes": {
+          "href": "/tokio/topics",
+          "data-citescrape-interactive": "interactive-21"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/bridging",
+        "text": "Bridging with sync code",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-22\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-22",
+          "href": "/tokio/topics/bridging"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/shutdown",
+        "text": "Graceful Shutdown",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-23\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-23",
+          "href": "/tokio/topics/shutdown"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/tracing",
+        "text": "Getting started with Tracing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-24\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-24",
+          "href": "/tokio/topics/tracing"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/tracing-next-steps",
+        "text": "Next steps with Tracing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-25\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-25",
+          "href": "/tokio/topics/tracing-next-steps"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/testing",
+        "text": "Unit Testing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-26\"]",
+        "attributes": {
+          "href": "/tokio/topics/testing",
+          "data-citescrape-interactive": "interactive-26"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/glossary",
+        "text": "Glossary",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-27\"]",
+        "attributes": {
+          "href": "/tokio/glossary",
+          "data-citescrape-interactive": "interactive-27"
+        }
+      },
+      {
+        "href": "https://docs.rs/tokio",
+        "text": "API documentation",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-28\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-28",
+          "href": "https://docs.rs/tokio"
+        }
+      },
+      {
+        "href": "https://www.zdnet.com/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/",
+        "text": "number",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-29\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-29",
+          "href": "https://www.zdnet.com/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/"
+        }
+      },
+      {
+        "href": "https://www.chromium.org/Home/chromium-security/memory-safety",
+        "text": "studies",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-30\"]",
+        "attributes": {
+          "href": "https://www.chromium.org/Home/chromium-security/memory-safety",
+          "data-citescrape-interactive": "interactive-30"
+        }
+      },
+      {
+        "href": "https://en.wikipedia.org/wiki/Work_stealing",
+        "text": "work-stealing",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-31\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-31",
+          "href": "https://en.wikipedia.org/wiki/Work_stealing"
+        }
+      },
+      {
+        "href": "https://docs.rs/rayon/",
+        "text": "rayon",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-32\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-32",
+          "href": "https://docs.rs/rayon/"
+        }
+      },
+      {
+        "href": "https://ryhl.io/blog/async-what-is-blocking/#the-rayon-crate",
+        "text": "this blog post for a practical example",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-33\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-33",
+          "href": "https://ryhl.io/blog/async-what-is-blocking/#the-rayon-crate"
+        }
+      },
+      {
+        "href": "https://docs.rs/reqwest/",
+        "text": "reqwest",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-34\"]",
+        "attributes": {
+          "href": "https://docs.rs/reqwest/",
+          "data-citescrape-interactive": "interactive-34"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/topics/bridging",
+        "text": "the chapter on\nbridging with sync code",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-35\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-35",
+          "href": "/tokio/topics/bridging"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": "Discord",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-36\"]",
+        "attributes": {
+          "href": "https://discord.gg/tokio",
+          "data-citescrape-interactive": "interactive-36"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio/discussions",
+        "text": "GitHub\ndiscussions",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-37\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/tokio/discussions",
+          "data-citescrape-interactive": "interactive-37"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial/setup",
+        "text": "Setup",
+        "title": null,
+        "target": null,
+        "rel": "next",
+        "selector": "[data-citescrape-interactive=\"interactive-38\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-38",
+          "href": "/tokio/tutorial/setup",
+          "rel": "next"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/tokio/discussions",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-39\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-39",
+          "href": "https://github.com/tokio-rs/tokio/discussions"
+        }
+      },
+      {
+        "href": "https://discord.gg/tokio",
+        "text": null,
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-40\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-40",
+          "href": "https://discord.gg/tokio"
+        }
+      },
+      {
+        "href": "https://github.com/tokio-rs/website/edit/master/content/tokio/tutorial/index.md",
+        "text": "Edit this page",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-41\"]",
+        "attributes": {
+          "href": "https://github.com/tokio-rs/website/edit/master/content/tokio/tutorial/index.md",
+          "data-citescrape-interactive": "interactive-41"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#",
+        "text": "Tutorial",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-42\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-42",
+          "href": "#"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#tokios-role-in-your-project",
+        "text": "Tokio's role in your project",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-43\"]",
+        "attributes": {
+          "href": "#tokios-role-in-your-project",
+          "data-citescrape-interactive": "interactive-43"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#advantages-of-tokio",
+        "text": "Advantages of Tokio",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-44\"]",
+        "attributes": {
+          "href": "#advantages-of-tokio",
+          "data-citescrape-interactive": "interactive-44"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#fast",
+        "text": "Fast",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-45\"]",
+        "attributes": {
+          "href": "#fast",
+          "data-citescrape-interactive": "interactive-45"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#reliable",
+        "text": "Reliable",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-46\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-46",
+          "href": "#reliable"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#easy",
+        "text": "Easy",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-47\"]",
+        "attributes": {
+          "href": "#easy",
+          "data-citescrape-interactive": "interactive-47"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#flexible",
+        "text": "Flexible",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-48\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-48",
+          "href": "#flexible"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#when-not-to-use-tokio",
+        "text": "When not to use Tokio",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-49\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-49",
+          "href": "#when-not-to-use-tokio"
+        }
+      },
+      {
+        "href": "https://tokio.rs/tokio/tutorial#getting-help",
+        "text": "Getting Help",
+        "title": null,
+        "target": null,
+        "rel": null,
+        "selector": "[data-citescrape-interactive=\"interactive-50\"]",
+        "attributes": {
+          "data-citescrape-interactive": "interactive-50",
+          "href": "#getting-help"
+        }
+      }
+    ],
+    "inputs": [],
+    "clickable": [],
+    "navigation": []
+  },
+  "links": [
+    {
+      "url": "https://tokio.rs/",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial",
+      "text": "Learn",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://docs.rs/tokio",
+      "text": "API Docs",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://tokio.rs/blog/2025-09-26-announcing-tokio-conf-cfp",
+      "text": "Blog",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/blog/2025-09-26-announcing-tokio-conf-cfp"
+    },
+    {
+      "url": "https://twitter.com/tokio_rs",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio_rs"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio"
+    },
+    {
+      "url": "https://discord.gg/tokio",
+      "text": "",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#",
+      "text": "TABLE OF CONTENTS",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/setup",
+      "text": "Setup",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/setup"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/hello-tokio",
+      "text": "Hello Tokio",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/hello-tokio"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/spawning",
+      "text": "Spawning",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/spawning"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/shared-state",
+      "text": "Shared state",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/shared-state"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/channels",
+      "text": "Channels",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/channels"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/io",
+      "text": "I/O",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/io"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/framing",
+      "text": "Framing",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/framing"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/async",
+      "text": "Async in depth",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/async"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/select",
+      "text": "Select",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/select"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial/streams",
+      "text": "Streams",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial/streams"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics",
+      "text": "Topics",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics/bridging",
+      "text": "Bridging with sync code",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics/bridging"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics/shutdown",
+      "text": "Graceful Shutdown",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics/shutdown"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics/tracing",
+      "text": "Getting started with Tracing",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics/tracing"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics/tracing-next-steps",
+      "text": "Next steps with Tracing",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics/tracing-next-steps"
+    },
+    {
+      "url": "https://tokio.rs/tokio/topics/testing",
+      "text": "Unit Testing",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/topics/testing"
+    },
+    {
+      "url": "https://tokio.rs/tokio/glossary",
+      "text": "Glossary",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/glossary"
+    },
+    {
+      "url": "https://www.zdnet.com/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/",
+      "text": "number",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/article/microsoft-70-percent-of-all-security-bugs-are-memory-safety-issues/"
+    },
+    {
+      "url": "https://www.chromium.org/Home/chromium-security/memory-safety",
+      "text": "studies",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/Home/chromium-security/memory-safety"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Work_stealing",
+      "text": "work-stealing",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/wiki/Work_stealing"
+    },
+    {
+      "url": "https://docs.rs/rayon/",
+      "text": "rayon",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/rayon/"
+    },
+    {
+      "url": "https://ryhl.io/blog/async-what-is-blocking/#the-rayon-crate",
+      "text": "this blog post for a practical example",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/blog/async-what-is-blocking/"
+    },
+    {
+      "url": "https://docs.rs/reqwest/",
+      "text": "reqwest",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/reqwest/"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/discussions",
+      "text": "GitHub\ndiscussions",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/tokio/discussions"
+    },
+    {
+      "url": "https://github.com/tokio-rs/website/edit/master/content/tokio/tutorial/index.md",
+      "text": "Edit this page",
+      "title": "",
+      "rel": "",
+      "is_external": true,
+      "path": "/tokio-rs/website/edit/master/content/tokio/tutorial/index.md"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#tokios-role-in-your-project",
+      "text": "Tokio's role in your project",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#advantages-of-tokio",
+      "text": "Advantages of Tokio",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#fast",
+      "text": "Fast",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#reliable",
+      "text": "Reliable",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#easy",
+      "text": "Easy",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#flexible",
+      "text": "Flexible",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#when-not-to-use-tokio",
+      "text": "When not to use Tokio",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    },
+    {
+      "url": "https://tokio.rs/tokio/tutorial#getting-help",
+      "text": "Getting Help",
+      "title": "",
+      "rel": "",
+      "is_external": false,
+      "path": "/tokio/tutorial"
+    }
+  ],
+  "resources": {
+    "scripts": [
+      {
+        "url": "https://tokio.rs/_next/static/chunks/polyfills-42372ed130431b0a.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/webpack-f8185607c88ffb0b.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/framework-516982be4eea35ea.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/main-11f62a962ab540a8.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/_app-7e9c39878777ce10.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/53-8a2741c040907755.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/547-573b033aa0b73315.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/chunks/pages/%5B...slug%5D-0bd34730781e0ad8.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_buildManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/saG1Arpw3ae62kf8YSloC/_ssgManifest.js",
+        "inline": false,
+        "async_load": false,
+        "defer": true,
+        "content_hash": null
+      },
+      {
+        "url": null,
+        "inline": true,
+        "async_load": true,
+        "defer": false,
+        "content_hash": null
+      }
+    ],
+    "stylesheets": [
+      {
+        "url": "https://tokio.rs/_next/static/css/56c6dcfe840a75e8.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      },
+      {
+        "url": "https://tokio.rs/_next/static/css/1018df78a05ccae4.css",
+        "inline": false,
+        "media": null,
+        "content_hash": null
+      }
+    ],
+    "images": [
+      {
+        "url": "https://tokio.rs/img/tokio-horizontal.svg",
+        "alt": "tokio-logo",
+        "dimensions": [
+          133,
+          56
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      },
+      {
+        "url": "https://tokio.rs/img/arrow-right.svg",
+        "alt": null,
+        "dimensions": [
+          22,
+          22
+        ],
+        "size_bytes": null,
+        "format": "svg"
+      }
+    ],
+    "media": [],
+    "fonts": []
+  },
+  "timing": {
+    "navigation_start": 1761159295042,
+    "dom_complete": 1761159295201,
+    "load_complete": 1761159295201,
+    "first_paint": null,
+    "first_contentful_paint": null,
+    "largest_contentful_paint": null
+  },
+  "security": {
+    "https": true,
+    "hsts": false,
+    "csp": "",
+    "x_frame_options": "",
+    "permissions_policy": ""
+  },
+  "crawled_at": "2025-10-22T18:54:55.212500Z"
+}
