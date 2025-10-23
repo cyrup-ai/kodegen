@@ -1,6 +1,7 @@
 // packages/server/src/common/tool_registry.rs
 use anyhow::Result;
 use rmcp::handler::server::router::{tool::ToolRouter, prompt::PromptRouter};
+#[cfg(any(feature = "filesystem", feature = "terminal", feature = "sequential_thinking", feature = "claude_agent", feature = "citescrape", feature = "database"))]
 use std::sync::Arc;
 use std::collections::HashSet;
 use kodegen_utils::usage_tracker::UsageTracker;
@@ -33,6 +34,7 @@ where
 
 /// Register a tool that's already Arc-wrapped (for tools with cleanup tasks)
 /// Avoids creating the tool twice - uses the same Arc for both registration and cleanup
+#[cfg(feature = "sequential_thinking")]
 fn register_tool_arc<S, T>(
     tool_router: ToolRouter<S>,
     prompt_router: PromptRouter<S>,
