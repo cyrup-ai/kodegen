@@ -3,10 +3,6 @@
 //! Manages Docker container lifecycle for building packages on platforms
 //! other than the host OS.
 
-// SECURITY: Allow unsafe code in this module for Docker security features
-// Required for libc::getuid() and libc::getgid() calls to prevent container root execution
-#![allow(unsafe_code)]
-
 use super::artifacts::{find_bundle_directory, verify_artifacts};
 use super::guard::ContainerGuard;
 use super::limits::ContainerLimits;
@@ -231,13 +227,14 @@ impl ContainerBundler {
         //
         // Unix: Map container user to current host UID/GID
         //       This ensures files created in container have correct ownership
+        //       Uses users crate to avoid unsafe code and eliminate TOCTOU race conditions
         //
         // Windows: Use default container user from Dockerfile
         //          Windows container security model doesn't use UID/GID mapping
         #[cfg(unix)]
         {
-            let uid = unsafe { libc::getuid() };
-            let gid = unsafe { libc::getgid() };
+            let uid = users::get_current_uid();
+            let gid = users::get_current_gid();
             docker_args.push("--user".to_string());
             docker_args.push(format!("{}:{}", uid, gid));
         }
@@ -355,10 +352,23 @@ impl ContainerBundler {
 
         // Check exit status and stderr for OOM indicators
         if !status.success() {
+            // Check exit code 137 (SIGKILL from OOM)
+            let exit_code = status.code().unwrap_or(0);
+            let is_oom_exit_code = exit_code == 137;
+
+            // Check stderr strings for OOM indicators
             let stderr_str = stderr_lines.join("\n");
-            let is_oom = stderr_str.contains("OOMKilled") 
+            let is_oom_stderr = stderr_str.contains("OOMKilled") 
                 || stderr_str.contains("out of memory")
-                || stderr_str.contains("OutOfMemoryError");
+                || stderr_str.contains("Out of memory")  // Case variation
+                || stderr_str.contains("OutOfMemoryError")
+                || stderr_str.contains("Cannot allocate memory")
+                || stderr_str.to_lowercase().contains("oom");  // Catch all variants
+
+            // Check Docker container status (most reliable method)
+            let is_oom_status = Self::check_container_oom_status(&container_name).await.unwrap_or(false);
+
+            let is_oom = is_oom_exit_code || is_oom_stderr || is_oom_status;
 
             if is_oom {
                 // Get system memory info
@@ -366,34 +376,45 @@ impl ContainerBundler {
                 sys.refresh_memory();
                 let total_memory_gb = sys.total_memory() / 1024 / 1024 / 1024;
 
+                let mut reason = String::from("Container ran out of memory during build.\n\n");
+                
+                // Add detection method for debugging
+                if is_oom_status {
+                    reason.push_str("(Detected via Docker container status)\n");
+                } else if is_oom_exit_code {
+                    reason.push_str("(Detected via exit code 137 - SIGKILL)\n");
+                } else {
+                    reason.push_str("(Detected via error message)\n");
+                }
+
+                reason.push_str(&format!(
+                    "\nCurrent memory limit: {} (swap: {})\n\
+                     \n\
+                     The container exhausted available memory while building. This typically happens when:\n\
+                     • Building large Rust projects with many dependencies\n\
+                     • Parallel compilation uses more RAM than available\n\
+                     • Debug builds require more memory than release builds\n\
+                     \n\
+                     Solutions:\n\
+                     1. Increase memory limit:\n\
+                        cargo run -p kodegen_release -- bundle --platform {} --docker-memory 8g\n\
+                     \n\
+                     2. Build fewer platforms in parallel (run multiple times with --platform)\n\
+                     \n\
+                     3. Use release builds (they use less memory):\n\
+                        cargo run -p kodegen_release -- bundle --platform {} --release\n\
+                     \n\
+                     4. Check available system memory: {} GB total",
+                    self.limits.memory,
+                    self.limits.memory_swap,
+                    platform_str,
+                    platform_str,
+                    total_memory_gb,
+                ));
+
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                     command: format!("bundle {} in container", platform_str),
-                    reason: format!(
-                        "Container ran out of memory during build.\n\
-                         \n\
-                         Current memory limit: {} (swap: {})\n\
-                         \n\
-                         The container exhausted available memory while building. This typically happens when:\n\
-                         • Building large Rust projects with many dependencies\n\
-                         • Parallel compilation uses more RAM than available\n\
-                         • Debug builds require more memory than release builds\n\
-                         \n\
-                         Solutions:\n\
-                         1. Increase memory limit:\n\
-                            cargo run -p kodegen_release -- bundle --platform {} --docker-memory 8g\n\
-                         \n\
-                         2. Build fewer platforms in parallel (run multiple times with --platform)\n\
-                         \n\
-                         3. Use release builds (they use less memory):\n\
-                            cargo run -p kodegen_release -- bundle --platform {} --release\n\
-                         \n\
-                         4. Check available system memory: {} GB total",
-                        self.limits.memory,
-                        self.limits.memory_swap,
-                        platform_str,
-                        platform_str,
-                        total_memory_gb,
-                    ),
+                    reason,
                 }));
             } else {
                 // Generic failure with captured output
