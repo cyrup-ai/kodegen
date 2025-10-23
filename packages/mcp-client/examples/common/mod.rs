@@ -83,6 +83,8 @@ pub enum ToolCategory {
     Git,
     /// GitHub API integration (16 tools)
     Github,
+    /// Database operations (8 tools)
+    Database,
 }
 
 /// All available tool categories
@@ -101,6 +103,7 @@ pub const ALL_CATEGORIES: &[ToolCategory] = &[
     ToolCategory::Citescrape,
     ToolCategory::Git,
     ToolCategory::Github,
+    ToolCategory::Database,
 ];
 
 impl ToolCategory {
@@ -123,6 +126,7 @@ impl ToolCategory {
             Self::Citescrape => "citescrape",
             Self::Git => "git",
             Self::Github => "github",
+            Self::Database => "database",
         }
     }
 
@@ -149,6 +153,7 @@ impl ToolCategory {
             Self::Citescrape => "Web crawling and search",
             Self::Git => "Git operations",
             Self::Github => "GitHub API integration",
+            Self::Database => "Database operations",
         }
     }
 }
