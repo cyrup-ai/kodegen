@@ -131,13 +131,36 @@ where
                 })
                 .unwrap_or(10); // 10 connections default
             
+            let min_connections = config_manager
+                .get_value("db_min_connections")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(n as u32),
+                    _ => None,
+                })
+                .unwrap_or(2); // 2 connections default for responsiveness
+            
             // Build pool with PoolOptions
             PoolOptions::new()
                 .max_connections(max_connections)
+                .min_connections(min_connections)
                 .acquire_timeout(acquire_timeout)
                 .idle_timeout(Some(idle_timeout))
                 .max_lifetime(Some(max_lifetime))
                 .test_before_acquire(true) // Verify connection health
+                .after_connect(|conn, _meta| Box::pin(async move {
+                    // Simple ping to verify connection liveness
+                    // This runs on NEW connections (test_before_acquire handles reused ones)
+                    sqlx::query("SELECT 1")
+                        .fetch_one(conn)
+                        .await?;
+                    
+                    // Optional: Set application name for easier monitoring
+                    // Database-specific examples (commented out by default):
+                    // PostgreSQL: conn.execute("SET application_name = 'kodegen'").await?;
+                    // MySQL: conn.execute("SET @@session.time_zone = '+00:00'").await?;
+                    
+                    Ok(())
+                }))
                 .connect(&final_dsn)
                 .await
                 .context("Failed to connect to database")?

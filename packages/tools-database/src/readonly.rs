@@ -42,7 +42,7 @@ fn get_allowed_keywords(db_type: DatabaseType) -> &'static [&'static str] {
 /// validate_readonly_sql("DROP TABLE users", DatabaseType::Postgres)?; // Error!
 /// ```
 pub fn validate_readonly_sql(sql: &str, db_type: DatabaseType) -> Result<(), DatabaseError> {
-    let statements = split_sql_statements(sql, db_type);
+    let statements = split_sql_statements(sql, db_type)?;
     let allowed = get_allowed_keywords(db_type);
 
     for statement in statements {

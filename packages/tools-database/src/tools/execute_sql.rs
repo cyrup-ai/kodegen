@@ -476,7 +476,8 @@ impl Tool for ExecuteSQLTool {
         };
 
         // 5. Split into statements
-        let statements = split_sql_statements(&sql, db_type);
+        let statements = split_sql_statements(&sql, db_type)
+            .map_err(|e| anyhow::anyhow!("SQL parse error: {}", e))?;
 
         // 6. Execute single or multi-statement
         if statements.len() == 1 {
