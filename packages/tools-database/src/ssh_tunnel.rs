@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 /// SSH authentication method
 #[derive(Clone)]
@@ -104,9 +104,8 @@ async fn establish_ssh_session(config: SSHConfig) -> Result<Session, DatabaseErr
         sess.set_tcp_stream(std_stream);
 
         // Perform SSH handshake
-        sess.handshake().map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("SSH handshake failed: {}", e))
-        })?;
+        sess.handshake()
+            .map_err(|e| DatabaseError::SSHTunnelError(format!("SSH handshake failed: {}", e)))?;
 
         // Authenticate based on config
         match config.auth {
@@ -130,10 +129,7 @@ async fn establish_ssh_session(config: SSHConfig) -> Result<Session, DatabaseErr
                     passphrase.as_deref(),
                 )
                 .map_err(|e| {
-                    DatabaseError::SSHTunnelError(format!(
-                        "SSH key authentication failed: {}",
-                        e
-                    ))
+                    DatabaseError::SSHTunnelError(format!("SSH key authentication failed: {}", e))
                 })?;
             }
         }
@@ -148,9 +144,7 @@ async fn establish_ssh_session(config: SSHConfig) -> Result<Session, DatabaseErr
         Ok(sess)
     })
     .await
-    .map_err(|e| {
-        DatabaseError::SSHTunnelError(format!("SSH session task panicked: {}", e))
-    })??;
+    .map_err(|e| DatabaseError::SSHTunnelError(format!("SSH session task panicked: {}", e)))??;
 
     Ok(session)
 }
@@ -171,7 +165,7 @@ async fn handle_tunnel_connection(
             let session_lock = session_clone.lock().map_err(|e| {
                 DatabaseError::SSHTunnelError(format!("Failed to lock session: {}", e))
             })?;
-            
+
             session_lock
                 .channel_direct_tcpip(&target_host_clone, target_port, None)
                 .map_err(|e| {
@@ -179,9 +173,7 @@ async fn handle_tunnel_connection(
                 })
         })
         .await
-        .map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("Channel task panicked: {}", e))
-        })??
+        .map_err(|e| DatabaseError::SSHTunnelError(format!("Channel task panicked: {}", e)))??
     };
 
     // Copy data bidirectionally in blocking context
@@ -199,9 +191,9 @@ async fn handle_tunnel_connection(
         })?;
 
         // Bidirectional copy using threads
-        let stream_read = std_stream.try_clone().map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("Failed to clone stream: {}", e))
-        })?;
+        let stream_read = std_stream
+            .try_clone()
+            .map_err(|e| DatabaseError::SSHTunnelError(format!("Failed to clone stream: {}", e)))?;
         let stream_write = std_stream;
 
         // Split channel for bidirectional communication
@@ -250,9 +242,7 @@ async fn handle_tunnel_connection(
         Ok::<(), DatabaseError>(())
     })
     .await
-    .map_err(|e| {
-        DatabaseError::SSHTunnelError(format!("Tunnel copy task panicked: {}", e))
-    })??;
+    .map_err(|e| DatabaseError::SSHTunnelError(format!("Tunnel copy task panicked: {}", e)))??;
 
     Ok(())
 }
@@ -265,11 +255,9 @@ async fn start_port_forwarder(
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) -> Result<(u16, JoinHandle<()>), DatabaseError> {
     // Bind to localhost with auto-assigned port
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("Failed to bind local listener: {}", e))
-        })?;
+    let listener = TcpListener::bind("127.0.0.1:0").await.map_err(|e| {
+        DatabaseError::SSHTunnelError(format!("Failed to bind local listener: {}", e))
+    })?;
 
     let local_addr = listener.local_addr().map_err(|e| {
         DatabaseError::SSHTunnelError(format!("Failed to get local address: {}", e))

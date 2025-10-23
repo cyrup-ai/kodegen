@@ -35,6 +35,9 @@ pub struct InstallWindow {
     is_error: bool,
     is_complete: bool,
     
+    /// Auto-close timer for success screen (starts when is_complete becomes true)
+    auto_close_timer: Option<std::time::Instant>,
+    
     /// Branding assets (loaded once at startup)
     banner: Option<egui::TextureHandle>,
 }
@@ -61,6 +64,7 @@ impl InstallWindow {
             progress: 0.0,
             is_error: false,
             is_complete: false,
+            auto_close_timer: None,
             banner,
         }
     }
@@ -108,6 +112,11 @@ impl InstallWindow {
                 // Check for completion
                 if self.progress >= 1.0 && !self.is_error {
                     self.is_complete = true;
+                    
+                    // Start auto-close timer when completion detected
+                    if self.auto_close_timer.is_none() {
+                        self.auto_close_timer = Some(std::time::Instant::now());
+                    }
                 }
             }
         }
@@ -116,12 +125,29 @@ impl InstallWindow {
 }
 
 impl eframe::App for InstallWindow {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Poll for new progress updates (non-blocking)
         self.poll_progress();
         
         // Request repaint for smooth animation (60 FPS)
         ctx.request_repaint();
+        
+        // Disable close button during installation, re-enable when complete/error
+        if !self.is_complete && !self.is_error {
+            // Installation in progress - disable close button
+            ctx.send_viewport_cmd(egui::ViewportCommand::EnableButtons {
+                close: false,      // Close disabled
+                minimized: true,   // Allow minimize
+                maximize: false,   // No maximize on fixed-size window
+            });
+        } else {
+            // Installation complete or errored - re-enable close button
+            ctx.send_viewport_cmd(egui::ViewportCommand::EnableButtons {
+                close: true,       // Close enabled
+                minimized: true,
+                maximize: false,
+            });
+        }
         
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical_centered(|ui| {
@@ -148,9 +174,9 @@ impl eframe::App for InstallWindow {
                 if !self.is_complete && !self.is_error {
                     self.show_progress_panel(ui);
                 } else if self.is_error {
-                    self.show_error_panel(ui);
+                    self.show_error_panel(ui, frame);
                 } else {
-                    self.show_completion_panel(ui);
+                    self.show_completion_panel(ui, frame);
                 }
             });
         });
@@ -198,7 +224,7 @@ impl InstallWindow {
     }
     
     /// Show completion panel when installation succeeds
-    fn show_completion_panel(&self, ui: &mut egui::Ui) {
+    fn show_completion_panel(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Success icon (large, prominent)
         ui.label(egui::RichText::new("✓")
             .size(64.0)
@@ -246,11 +272,30 @@ impl InstallWindow {
             });
         });
         
-        ui.add_space(30.0);
+        ui.add_space(20.0);
         
-        // Close button (exits with success code)
+        // Auto-close timer countdown
+        if let Some(start_time) = self.auto_close_timer {
+            let elapsed = start_time.elapsed().as_secs();
+            let remaining = 3u64.saturating_sub(elapsed);
+            
+            if remaining == 0 {
+                // Timer expired - close window properly
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                return;
+            }
+            
+            // Show countdown (updates at 60 FPS thanks to ctx.request_repaint())
+            ui.label(egui::RichText::new(format!("Closing in {}...", remaining))
+                .size(12.0)
+                .color(egui::Color32::GRAY));
+            
+            ui.add_space(10.0);
+        }
+        
+        // Close button (manual override for immediate exit)
         let close_button = egui::Button::new(
-            egui::RichText::new("Close").size(16.0)
+            egui::RichText::new("Close Now").size(16.0)
         ).fill(egui::Color32::from_rgb(24, 202, 155));  // Cyan button
         
         if ui.add(close_button).clicked() {
@@ -259,7 +304,7 @@ impl InstallWindow {
     }
     
     /// Show error panel when installation fails
-    fn show_error_panel(&self, ui: &mut egui::Ui) {
+    fn show_error_panel(&self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Error icon (large, prominent)
         ui.label(egui::RichText::new("❌")
             .size(64.0)
@@ -443,10 +488,36 @@ pub async fn run_gui_installation(
         Box::new(move |cc| Ok(Box::new(InstallWindow::new(cc, rx)))),
     );
     
-    // Retrieve result after GUI closes
-    result_clone
-        .lock()
-        .ok()
-        .and_then(|mut guard| guard.take())
-        .unwrap_or_else(|| Err(anyhow::anyhow!("GUI closed without result")))
+    // Wait up to 10 seconds for result after window closes
+    // Handles race condition if user somehow closed window early despite disabled button
+    let result = tokio::time::timeout(
+        Duration::from_secs(10),
+        async {
+            loop {
+                if let Some(r) = result_clone.lock().ok().and_then(|mut g| g.take()) {
+                    return r;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        }
+    ).await;
+
+    match result {
+        Ok(install_result) => install_result,  // Got result within 10 seconds
+        Err(_timeout) => {
+            // Timeout - installation didn't complete even with 10 second grace period
+            Err(anyhow::anyhow!(
+                "Installation window closed before completion.\n\
+                 \n\
+                 The installation may have completed in the background.\n\
+                 To verify, check if the kodegend service is running:\n\
+                 \n\
+                 macOS/Linux: sudo launchctl list | grep kodegend\n\
+                 Windows:     sc query kodegend\n\
+                 \n\
+                 If the service is running, restart your MCP client (Claude Desktop/Cursor/Zed/Windsurf).\n\
+                 If not running, the installation failed - please run the installer again."
+            ))
+        }
+    }
 }

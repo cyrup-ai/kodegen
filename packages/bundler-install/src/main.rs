@@ -9,7 +9,14 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::path::Path;
 use std::collections::HashMap;
+use std::time::Duration;
 use sha2::{Sha256, Digest};
+use tokio::time::timeout;
+
+// Timeout constants for network operations
+const CHECKSUM_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30);   // Small text file
+const BINARY_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);    // 10 min for 120MB
+const CHROMIUM_INSTALL_TIMEOUT: Duration = Duration::from_secs(900);   // 15 min for Chromium
 
 /// Platform source indicator for installer behavior
 #[derive(Clone, Debug, ValueEnum)]
@@ -67,8 +74,24 @@ async fn download_checksums(version: &str) -> Result<HashMap<String, String>> {
         "https://github.com/cyrup-ai/kodegen/releases/download/{version}/checksums.txt"
     );
     
-    let response = reqwest::get(&url).await
-        .with_context(|| format!("Failed to download checksums from {url}"))?;
+    let response = match timeout(
+        CHECKSUM_DOWNLOAD_TIMEOUT,
+        reqwest::get(&url)
+    ).await {
+        Ok(result) => result.with_context(|| {
+            format!("Failed to download checksums from {url}")
+        })?,
+        Err(_) => anyhow::bail!(
+            "Timeout downloading checksums after {} seconds. \
+             Check network connection or try: KODEGEN_HTTP_TIMEOUT={} {}",
+            CHECKSUM_DOWNLOAD_TIMEOUT.as_secs(),
+            CHECKSUM_DOWNLOAD_TIMEOUT.as_secs() * 2,
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "kodegen_install".to_string())
+        ),
+    };
     
     if !response.status().is_success() {
         anyhow::bail!("Failed to download checksums (status: {})", response.status());
@@ -87,6 +110,29 @@ async fn download_checksums(version: &str) -> Result<HashMap<String, String>> {
     }
     
     Ok(checksums)
+}
+
+/// RAII guard for temporary files that automatically cleans up on drop
+struct TempFile(PathBuf);
+
+impl Drop for TempFile {
+    fn drop(&mut self) {
+        // Silently attempt to remove the file
+        // Ignore errors (file may not exist or already cleaned up)
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+impl TempFile {
+    /// Create a new temporary file guard
+    fn new(path: PathBuf) -> Self {
+        TempFile(path)
+    }
+    
+    /// Prevent cleanup on drop (for files that should persist)
+    fn persist(self) {
+        std::mem::forget(self);
+    }
 }
 
 async fn download_signed_binary() -> Result<PathBuf> {
@@ -112,8 +158,26 @@ async fn download_signed_binary() -> Result<PathBuf> {
     
     let _ = writeln!(stdout, "   Downloading from: {archive_url}");
     
-    let response = reqwest::get(&archive_url).await
-        .with_context(|| format!("Failed to request {archive_url}"))?;
+    let response = match timeout(
+        BINARY_DOWNLOAD_TIMEOUT,
+        reqwest::get(&archive_url)
+    ).await {
+        Ok(result) => result.with_context(|| {
+            format!("Failed to request {archive_url}")
+        })?,
+        Err(_) => anyhow::bail!(
+            "Timeout downloading binary after {} seconds ({} minutes). \
+             The binary is ~120MB. On slow connections, increase timeout with: \
+             KODEGEN_HTTP_TIMEOUT={} {}",
+            BINARY_DOWNLOAD_TIMEOUT.as_secs(),
+            BINARY_DOWNLOAD_TIMEOUT.as_secs() / 60,
+            BINARY_DOWNLOAD_TIMEOUT.as_secs() * 2,
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "kodegen_install".to_string())
+        ),
+    };
     
     if !response.status().is_success() {
         anyhow::bail!("Failed to download binary (status: {})", response.status());
@@ -122,9 +186,19 @@ async fn download_signed_binary() -> Result<PathBuf> {
     // Save archive to temp
     let temp_dir = std::env::temp_dir();
     let archive_path = temp_dir.join(format!("kodegend-{platform}.{ext}"));
+    let _archive_guard = TempFile::new(archive_path.clone());
     
-    let archive_bytes = response.bytes().await
-        .context("Failed to read archive bytes")?;
+    let archive_bytes = match timeout(
+        BINARY_DOWNLOAD_TIMEOUT,
+        response.bytes()
+    ).await {
+        Ok(result) => result.context("Failed to read archive bytes")?,
+        Err(_) => anyhow::bail!(
+            "Timeout reading binary archive after {} seconds. \
+             Download may have stalled. Check network stability.",
+            BINARY_DOWNLOAD_TIMEOUT.as_secs()
+        ),
+    };
     
     std::fs::write(&archive_path, &archive_bytes)
         .with_context(|| format!("Failed to write archive to {}", archive_path.display()))?;
@@ -140,7 +214,7 @@ async fn download_signed_binary() -> Result<PathBuf> {
     
     if let Some(expected_hash) = checksums.get(&archive_name) {
         if !verify_checksum(&archive_path, expected_hash)? {
-            std::fs::remove_file(&archive_path).ok();
+            // archive will be automatically cleaned up by _archive_guard on error
             anyhow::bail!("Checksum verification failed for {archive_name}");
         }
         let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
@@ -154,7 +228,12 @@ async fn download_signed_binary() -> Result<PathBuf> {
     
     // Extract binary from archive and rename to target name
     let temp_binary_path = temp_dir.join(source_binary_name);
+    let _temp_binary_guard = TempFile::new(temp_binary_path.clone());
     let binary_path = temp_dir.join(target_binary_name);
+    let binary_guard = TempFile::new(binary_path.clone());
+    
+    // Signature guard for Unix platforms - will be initialized during tar extraction
+    let mut sig_guard: Option<TempFile> = None;
     
     if cfg!(windows) {
         // Extract ZIP
@@ -186,6 +265,7 @@ async fn download_signed_binary() -> Result<PathBuf> {
         let mut found_binary = false;
         let source_sig_name = format!("{source_binary_name}.asc");
         let temp_sig_path = temp_dir.join(&source_sig_name);
+        let _temp_sig_guard = TempFile::new(temp_sig_path.clone());
         
         for entry_result in archive.entries().context("Failed to read tar entries")? {
             let mut entry = entry_result.context("Failed to read tar entry")?;
@@ -204,13 +284,14 @@ async fn download_signed_binary() -> Result<PathBuf> {
         }
         
         if !found_binary {
-            std::fs::remove_file(&archive_path).ok();
+            // All temp files will be automatically cleaned up by their TempFile guards on error
             anyhow::bail!("Binary {source_binary_name} not found in tar.gz archive");
         }
         
         // Rename signature file if it exists (Linux only)
         if temp_sig_path.exists() {
             let target_sig_path = binary_path.with_extension("asc");
+            sig_guard = Some(TempFile::new(target_sig_path.clone()));
             std::fs::rename(&temp_sig_path, &target_sig_path)
                 .with_context(|| format!("Failed to rename signature file {} to {}", temp_sig_path.display(), target_sig_path.display()))?;
         }
@@ -255,8 +336,14 @@ async fn download_signed_binary() -> Result<PathBuf> {
         }
     }
     
-    // Clean up archive
-    std::fs::remove_file(&archive_path).ok();
+    // Prevent cleanup of final binary and signature files (they should persist)
+    binary_guard.persist();
+    if let Some(guard) = sig_guard {
+        guard.persist();
+    }
+    
+    // archive_path, temp_binary_path, and temp_sig_path will be automatically cleaned up
+    // by their TempFile guards when they go out of scope
     
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(stdout, "✓ Binary ready at: {}", binary_path.display());
@@ -495,9 +582,26 @@ async fn install_chromium() -> Result<PathBuf> {
     let _ = stdout.reset();
     let _ = writeln!(stdout, "   This may take 30-60 seconds (~100MB download)");
     
-    let chromium_path = download_managed_browser()
-        .await
-        .context("Failed to download Chromium - check network connection and disk space")?;
+    let chromium_path = match timeout(
+        CHROMIUM_INSTALL_TIMEOUT,
+        download_managed_browser()
+    ).await {
+        Ok(result) => result.context(
+            "Failed to download Chromium - check network connection and disk space"
+        )?,
+        Err(_) => anyhow::bail!(
+            "Timeout installing Chromium after {} seconds ({} minutes). \
+             Chromium is ~100MB and required for citescrape functionality. \
+             Increase timeout with: KODEGEN_CHROMIUM_TIMEOUT={} {}",
+            CHROMIUM_INSTALL_TIMEOUT.as_secs(),
+            CHROMIUM_INSTALL_TIMEOUT.as_secs() / 60,
+            CHROMIUM_INSTALL_TIMEOUT.as_secs() * 2,
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "kodegen_install".to_string())
+        ),
+    };
     
     // Verify installation
     if !chromium_path.exists() {

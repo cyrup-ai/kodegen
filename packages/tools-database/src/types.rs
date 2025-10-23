@@ -73,3 +73,53 @@ pub struct SQLResult {
     /// Total number of rows returned
     pub row_count: usize,
 }
+
+/// Database type for SQL dialect-specific handling
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DatabaseType {
+    Postgres,
+    MySQL,
+    MariaDB,
+    SQLite,
+    SqlServer, // Included for future sqlx mssql support
+}
+
+impl DatabaseType {
+    /// Detect database type from connection URL scheme
+    ///
+    /// # Examples
+    /// ```
+    /// let db = DatabaseType::from_url("postgres://localhost/mydb")?;
+    /// assert_eq!(db, DatabaseType::Postgres);
+    /// ```
+    pub fn from_url(url: &str) -> Result<Self, crate::error::DatabaseError> {
+        if url.starts_with("postgres://") || url.starts_with("postgresql://") {
+            Ok(Self::Postgres)
+        } else if url.starts_with("mysql://") {
+            Ok(Self::MySQL)
+        } else if url.starts_with("mariadb://") {
+            Ok(Self::MariaDB)
+        } else if url.starts_with("sqlite://") || url.starts_with("file:") {
+            Ok(Self::SQLite)
+        } else if url.starts_with("sqlserver://") || url.starts_with("mssql://") {
+            Ok(Self::SqlServer)
+        } else {
+            Err(crate::error::DatabaseError::UnsupportedDatabase(format!(
+                "Cannot determine database type from URL: {}",
+                url
+            )))
+        }
+    }
+}
+
+impl std::fmt::Display for DatabaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Postgres => write!(f, "PostgreSQL"),
+            Self::MySQL => write!(f, "MySQL"),
+            Self::MariaDB => write!(f, "MariaDB"),
+            Self::SQLite => write!(f, "SQLite"),
+            Self::SqlServer => write!(f, "SQL Server"),
+        }
+    }
+}

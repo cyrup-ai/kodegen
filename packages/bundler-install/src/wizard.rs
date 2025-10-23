@@ -198,13 +198,13 @@ pub fn run_wizard() -> Result<InstallOptions> {
 /// 1. Explicit `--no-interaction` flag (highest priority)
 /// 2. `--gui` flag forces interactive mode (overrides auto-detection)
 /// 3. `--from-platform` specified (package manager postinst script)
-/// 4. Any other CLI flags that indicate automated installation (legacy)
+/// 4. Automation-specific flags (dry-run, uninstall)
 ///
 /// Priority reasoning:
 /// - `--no-interaction` always wins (explicit non-interactive command)
 /// - `--gui` overrides auto-detection (explicit interactive request)  
 /// - `--from-platform` implies package manager context (automated)
-/// - Legacy flags (`dry_run`, custom binary) suggest CLI usage
+/// - `--dry-run` and `--uninstall` are automation-focused operations
 pub fn is_non_interactive(cli: &crate::Cli) -> bool {
     // Priority 1: Explicit non-interactive flag always takes precedence
     if cli.no_interaction {
@@ -222,9 +222,8 @@ pub fn is_non_interactive(cli: &crate::Cli) -> bool {
         return true;
     }
     
-    // Priority 4: Legacy detection - any explicit CLI flags indicate non-interactive
-    cli.no_start 
-        || cli.dry_run 
-        || cli.uninstall
-        || cli.binary.to_str() != Some("./target/release/kodegend")
+    // Priority 4: Automation-specific flags only
+    // REMOVED: cli.no_start (affects WHAT, not HOW)
+    // REMOVED: cli.binary check (affects WHAT to install, not HOW to install)
+    cli.dry_run || cli.uninstall
 }

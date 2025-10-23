@@ -11,6 +11,7 @@ pub mod dsn;
 pub mod readonly;
 pub mod schema_queries;
 pub mod sql_limiter;
+pub mod sql_parser;
 pub mod ssh_tunnel;
 
 // Tools (implemented in later tasks)
@@ -22,4 +23,14 @@ pub use dsn::{
     rewrite_dsn_for_tunnel, validate_dsn,
 };
 pub use error::DatabaseError;
-pub use types::{ExecuteOptions, SQLResult, StoredProcedure, TableColumn, TableIndex};
+pub use readonly::validate_readonly_sql;
+pub use schema_queries::{
+    get_default_schema, get_indexes_query, get_schemas_query, get_stored_procedures_query,
+    get_table_schema_query, get_tables_query,
+};
+pub use sql_limiter::apply_row_limit;
+pub use sql_parser::{extract_first_keyword, split_sql_statements, strip_comments};
+pub use types::{
+    DatabaseType, ExecuteOptions, SQLResult, StoredProcedure, TableColumn, TableIndex,
+};
+pub use tools::ExecuteSQLTool;
