@@ -8,6 +8,7 @@ use scopeguard::defer;
 use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 use tokio::fs;
+use toml_edit;
 use crate::error::{TransactionError, Result, IoErrorExt};
 
 /// Transaction operation types
@@ -367,10 +368,45 @@ impl Transaction {
                 }
             }
             
-            Operation::PackageRenamed { path, old_name, .. } => {
-                // This would require more complex rollback logic
-                // For now, log the issue
-                tracing::warn!("Package rename rollback not implemented for {:?}", path);
+            Operation::PackageRenamed { path, old_name, new_name } => {
+                // Only rollback if file exists
+                if !path.exists() {
+                    tracing::warn!("Cannot rollback package rename - Cargo.toml not found: {:?}", path);
+                    return Ok(());
+                }
+                
+                // Read the current Cargo.toml
+                let content = fs::read_to_string(path)
+                    .await
+                    .with_path(path.clone())?;
+                
+                // Parse with toml_edit::Document
+                let mut doc = content.parse::<toml_edit::Document>()
+                    .map_err(|e| TransactionError::RollbackFailed {
+                        reason: format!("Failed to parse Cargo.toml during rollback: {}", e)
+                    })?;
+                
+                // Navigate to package.name and change it back to old_name
+                if let Some(package) = doc.get_mut("package") {
+                    if let Some(package_table) = package.as_table_mut() {
+                        if let Some(name_item) = package_table.get_mut("name") {
+                            *name_item = toml_edit::value(old_name.as_str());
+                            
+                            // Write the modified content back
+                            let modified_content = doc.to_string();
+                            fs::write(path, modified_content.as_bytes())
+                                .await
+                                .with_path(path.clone())?;
+                            
+                            tracing::info!("Rolled back package rename: {} -> {} in {:?}", 
+                                          new_name, old_name, path);
+                        } else {
+                            tracing::warn!("No 'name' field found in [package] during rollback: {:?}", path);
+                        }
+                    }
+                } else {
+                    tracing::warn!("No [package] section found during rollback: {:?}", path);
+                }
             }
         }
         

@@ -16,8 +16,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub struct StateManager {
     /// Path to state file
     state_file_path: PathBuf,
-    /// Path to backup state file
-    backup_file_path: PathBuf,
     /// Path to lock file
     lock_file_path: PathBuf,
     /// Current lock handle
@@ -29,8 +27,6 @@ pub struct StateManager {
 /// Configuration for state management
 #[derive(Debug, Clone)]
 pub struct StateConfig {
-    /// How often to create automatic backups (in operations)
-    pub backup_frequency: usize,
     /// Maximum age of state files before cleanup (in seconds)
     pub max_state_age_seconds: u64,
     /// Whether to compress state files
@@ -46,7 +42,6 @@ pub struct StateConfig {
 impl Default for StateConfig {
     fn default() -> Self {
         Self {
-            backup_frequency: 5,
             max_state_age_seconds: 86400 * 7, // 7 days
             compress_state: false,
             lock_timeout_ms: 5000, // 5 seconds
@@ -87,20 +82,16 @@ pub struct SaveStateResult {
     pub file_size_bytes: u64,
     /// Duration of save operation
     pub save_duration: Duration,
-    /// Whether backup was created
-    pub backup_created: bool,
 }
 
 impl StateManager {
     /// Create a new state manager
     pub fn new<P: AsRef<Path>>(state_file_path: P) -> Result<Self> {
         let state_file_path = state_file_path.as_ref().to_path_buf();
-        let backup_file_path = state_file_path.with_extension("backup.json");
         let lock_file_path = state_file_path.with_extension("lock");
 
         Ok(Self {
             state_file_path,
-            backup_file_path,
             lock_file_path,
             lock_handle: None,
             config: StateConfig::default(),
@@ -110,12 +101,10 @@ impl StateManager {
     /// Create a state manager with custom configuration
     pub fn with_config<P: AsRef<Path>>(state_file_path: P, config: StateConfig) -> Result<Self> {
         let state_file_path = state_file_path.as_ref().to_path_buf();
-        let backup_file_path = state_file_path.with_extension("backup.json");
         let lock_file_path = state_file_path.with_extension("lock");
 
         Ok(Self {
             state_file_path,
-            backup_file_path,
             lock_file_path,
             lock_handle: None,
             config,
@@ -139,9 +128,6 @@ impl StateManager {
             .map_err(|e| StateError::SaveFailed {
                 reason: format!("Failed to serialize state: {}", e),
             })?;
-
-        // Create backup if needed
-        let backup_created = self.maybe_create_backup(&serialized)?;
 
         // Write to temporary file first (atomic operation)
         let temp_file_path = self.state_file_path.with_extension("tmp");
@@ -180,7 +166,6 @@ impl StateManager {
             success: true,
             file_size_bytes,
             save_duration,
-            backup_created,
         })
     }
 
@@ -189,33 +174,14 @@ impl StateManager {
         // Acquire lock
         self.acquire_lock().await?;
 
-        let mut warnings = Vec::new();
-        let mut recovered_from_backup = false;
+        let warnings = Vec::new();
+        let recovered_from_backup = false;
 
-        // Try to load from main state file first
-        let state = match self.load_from_file(&self.state_file_path) {
-            Ok(state) => state,
-            Err(e) => {
-                warnings.push(format!("Failed to load main state file: {}", e));
-                
-                // Try to load from backup
-                match self.load_from_file(&self.backup_file_path) {
-                    Ok(state) => {
-                        warnings.push("Recovered state from backup file".to_string());
-                        recovered_from_backup = true;
-                        state
-                    }
-                    Err(backup_err) => {
-                        return Err(StateError::LoadFailed {
-                            reason: format!(
-                                "Failed to load from both main ({}) and backup ({}) files",
-                                e, backup_err
-                            ),
-                        }.into());
-                    }
-                }
-            }
-        };
+        // Load from main state file
+        let state = self.load_from_file(&self.state_file_path)
+            .map_err(|e| StateError::LoadFailed {
+                reason: format!("Failed to load state file: {}", e),
+            })?;
 
         // Validate loaded state
         if self.config.validate_on_load {
@@ -234,11 +200,6 @@ impl StateManager {
         self.state_file_path.exists()
     }
 
-    /// Check if backup state file exists
-    pub fn backup_exists(&self) -> bool {
-        self.backup_file_path.exists()
-    }
-
     /// Delete state files
     pub fn cleanup_state(&self) -> Result<()> {
         let mut errors = Vec::new();
@@ -247,12 +208,6 @@ impl StateManager {
         if self.state_file_path.exists()
             && let Err(e) = fs::remove_file(&self.state_file_path) {
                 errors.push(format!("Failed to remove state file: {}", e));
-            }
-
-        // Remove backup file
-        if self.backup_file_path.exists()
-            && let Err(e) = fs::remove_file(&self.backup_file_path) {
-                errors.push(format!("Failed to remove backup file: {}", e));
             }
 
         // Remove lock file
@@ -266,34 +221,6 @@ impl StateManager {
                 reason: format!("Cleanup errors: {}", errors.join("; ")),
             }.into());
         }
-
-        Ok(())
-    }
-
-    /// Create manual backup of current state
-    pub fn create_backup(&self) -> Result<()> {
-        if !self.state_file_path.exists() {
-            return Err(StateError::NotFound.into());
-        }
-
-        fs::copy(&self.state_file_path, &self.backup_file_path)
-            .map_err(|e| StateError::SaveFailed {
-                reason: format!("Failed to create backup: {}", e),
-            })?;
-
-        Ok(())
-    }
-
-    /// Restore from backup
-    pub fn restore_from_backup(&self) -> Result<()> {
-        if !self.backup_file_path.exists() {
-            return Err(StateError::NotFound.into());
-        }
-
-        fs::copy(&self.backup_file_path, &self.state_file_path)
-            .map_err(|e| StateError::LoadFailed {
-                reason: format!("Failed to restore from backup: {}", e),
-            })?;
 
         Ok(())
     }
@@ -315,28 +242,11 @@ impl StateManager {
             None
         };
 
-        let backup_info = if self.backup_file_path.exists() {
-            let metadata = fs::metadata(&self.backup_file_path)
-                .map_err(|e| StateError::LoadFailed {
-                    reason: format!("Failed to get backup file metadata: {}", e),
-                })?;
-
-            Some(FileInfo {
-                size_bytes: metadata.len(),
-                modified_at: metadata.modified().ok(),
-                created_at: metadata.created().ok(),
-            })
-        } else {
-            None
-        };
-
         let is_locked = self.lock_file_path.exists();
 
         Ok(StateFileInfo {
             state_file_path: self.state_file_path.clone(),
-            backup_file_path: self.backup_file_path.clone(),
             main_file_info: main_info,
-            backup_file_info: backup_info,
             is_locked,
         })
     }
@@ -469,17 +379,6 @@ impl StateManager {
         Ok(state)
     }
 
-    /// Create backup if needed
-    fn maybe_create_backup(&self, serialized_state: &str) -> Result<bool> {
-        // Always create backup for now (could be made configurable)
-        fs::write(&self.backup_file_path, serialized_state)
-            .map_err(|e| StateError::SaveFailed {
-                reason: format!("Failed to create backup: {}", e),
-            })?;
-
-        Ok(true)
-    }
-
     /// Acquire file lock
     async fn acquire_lock(&mut self) -> Result<()> {
         if self.lock_handle.is_some() {
@@ -577,12 +476,8 @@ impl Drop for StateManager {
 pub struct StateFileInfo {
     /// Path to main state file
     pub state_file_path: PathBuf,
-    /// Path to backup state file
-    pub backup_file_path: PathBuf,
     /// Information about main state file
     pub main_file_info: Option<FileInfo>,
-    /// Information about backup file
-    pub backup_file_info: Option<FileInfo>,
     /// Whether state is currently locked
     pub is_locked: bool,
 }
@@ -604,16 +499,9 @@ impl StateFileInfo {
         self.main_file_info.is_some()
     }
 
-    /// Check if backup exists
-    pub fn has_backup(&self) -> bool {
-        self.backup_file_info.is_some()
-    }
-
     /// Get total size of all state files
     pub fn total_size_bytes(&self) -> u64 {
-        let main_size = self.main_file_info.as_ref().map(|f| f.size_bytes).unwrap_or(0);
-        let backup_size = self.backup_file_info.as_ref().map(|f| f.size_bytes).unwrap_or(0);
-        main_size + backup_size
+        self.main_file_info.as_ref().map(|f| f.size_bytes).unwrap_or(0)
     }
 
     /// Format state info for display
@@ -621,17 +509,13 @@ impl StateFileInfo {
         let mut info = String::new();
         
         if let Some(main_info) = &self.main_file_info {
-            info.push_str(&format!("Main state: {} bytes", main_info.size_bytes));
+            info.push_str(&format!("State: {} bytes", main_info.size_bytes));
             if let Some(modified) = main_info.modified_at
                 && let Ok(elapsed) = modified.elapsed() {
                     info.push_str(&format!(" (modified {}s ago)", elapsed.as_secs()));
                 }
         } else {
-            info.push_str("No main state file");
-        }
-
-        if let Some(backup_info) = &self.backup_file_info {
-            info.push_str(&format!(", Backup: {} bytes", backup_info.size_bytes));
+            info.push_str("No state file");
         }
 
         if self.is_locked {
@@ -646,12 +530,10 @@ impl SaveStateResult {
     /// Format save result for display
     pub fn format_result(&self) -> String {
         if self.success {
-            let backup_info = if self.backup_created { " (backup created)" } else { "" };
             format!(
-                "✅ State saved: {} bytes in {:.2}s{}",
+                "✅ State saved: {} bytes in {:.2}s",
                 self.file_size_bytes,
-                self.save_duration.as_secs_f64(),
-                backup_info
+                self.save_duration.as_secs_f64()
             )
         } else {
             "❌ Failed to save state".to_string()

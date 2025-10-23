@@ -463,9 +463,6 @@ pub(super) async fn perform_release_impl(
     }
 
     // Cleanup state file after successful completion
-    if !options.no_backup {
-        state_manager.create_backup()?;
-    }
     state_manager.cleanup_state()?;
 
     // Return exit code: 1 for warnings, 0 for complete success

@@ -245,9 +245,6 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
         config.success_println(&format!("🎉 Release {} resumed and completed successfully!", release_state.target_version));
 
         // Cleanup state file after successful completion
-        if !release_state.config.additional_options.contains_key("no_backup") {
-            state_manager.create_backup()?;
-        }
         state_manager.cleanup_state()?;
 
     } else {

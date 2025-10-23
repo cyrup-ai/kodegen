@@ -89,31 +89,262 @@ fn detect_version_macos() -> Option<String> {
     None // Version key not found or malformed plist
 }
 
-/// Detect Claude Desktop version on Windows (stub for future implementation)
+/// Detect Claude Desktop version on Windows using PowerShell
 #[cfg(target_os = "windows")]
 fn detect_version_windows() -> Option<String> {
-    // TODO: Windows version detection strategies:
-    // 1. Parse app.asar (requires asar extraction library)
-    // 2. Read file properties from Claude.exe (requires winapi)
-    // 3. Check registry keys (requires winreg crate)
-    //
-    // For now, return None gracefully
-    // Windows users will see version: null in detection response
+    // Strategy 1: Query file version using PowerShell (most reliable)
+    if let Some(version) = detect_version_windows_powershell() {
+        return Some(version);
+    }
+    
+    // Strategy 2: Check LOCALAPPDATA path directly
+    if let Some(version) = detect_version_windows_file_path() {
+        return Some(version);
+    }
+    
     None
 }
 
-/// Detect Claude Desktop version on Linux (stub for future implementation)
+/// Query Claude.exe file version using PowerShell Get-Item
+#[cfg(target_os = "windows")]
+fn detect_version_windows_powershell() -> Option<String> {
+    // Build path to Claude.exe
+    let local_app_data = std::env::var("LOCALAPPDATA").ok()?;
+    let claude_exe_path = format!("{}\\Programs\\Claude\\Claude.exe", local_app_data);
+    
+    // PowerShell command to get file version
+    let ps_command = format!(
+        "(Get-Item '{}').VersionInfo.FileVersion",
+        claude_exe_path
+    );
+    
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", &ps_command])
+        .output()
+        .ok()?;
+    
+    if !output.status.success() {
+        return None;
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let version = stdout.trim();
+    
+    if version.is_empty() {
+        return None;
+    }
+    
+    Some(version.to_string())
+}
+
+/// Fallback: Check if Claude.exe exists and try to read package.json
+#[cfg(target_os = "windows")]
+fn detect_version_windows_file_path() -> Option<String> {
+    let local_app_data = std::env::var("LOCALAPPDATA").ok()?;
+    let claude_path = format!("{}\\Programs\\Claude", local_app_data);
+    
+    // Try to read package.json if it exists (some electron apps expose this)
+    let package_json_path = format!("{}\\resources\\app\\package.json", claude_path);
+    
+    if let Ok(content) = std::fs::read_to_string(&package_json_path) {
+        // Simple JSON parsing for "version": "X.Y.Z"
+        if let Some(version_pos) = content.find("\"version\"") {
+            let after_version = &content[version_pos..];
+            if let Some(colon_pos) = after_version.find(':') {
+                let after_colon = &after_version[colon_pos + 1..];
+                if let Some(quote_start) = after_colon.find('"') {
+                    let after_quote = &after_colon[quote_start + 1..];
+                    if let Some(quote_end) = after_quote.find('"') {
+                        let version = &after_quote[..quote_end];
+                        return Some(version.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Detect Claude Desktop version on Linux using multiple package managers
 #[cfg(target_os = "linux")]
 fn detect_version_linux() -> Option<String> {
-    // TODO: Linux version detection strategies:
-    // 1. Check dpkg: `dpkg -l claude-desktop`
-    // 2. Check rpm: `rpm -q claude-desktop`
-    // 3. Parse app.asar from /opt/Claude (if standard install)
-    // 4. Query snap: `snap info claude-desktop`
-    // 5. Query flatpak: `flatpak info com.anthropic.Claude`
-    //
-    // For now, return None gracefully
-    // Linux users will see version: null in detection response
+    // Strategy 1: Check dpkg (Debian/Ubuntu)
+    if let Some(version) = detect_version_linux_dpkg() {
+        return Some(version);
+    }
+    
+    // Strategy 2: Check rpm (Fedora/RHEL)
+    if let Some(version) = detect_version_linux_rpm() {
+        return Some(version);
+    }
+    
+    // Strategy 3: Check snap
+    if let Some(version) = detect_version_linux_snap() {
+        return Some(version);
+    }
+    
+    // Strategy 4: Check flatpak
+    if let Some(version) = detect_version_linux_flatpak() {
+        return Some(version);
+    }
+    
+    // Strategy 5: Check direct install path
+    if let Some(version) = detect_version_linux_direct() {
+        return Some(version);
+    }
+    
+    None
+}
+
+/// Check dpkg for claude-desktop package
+#[cfg(target_os = "linux")]
+fn detect_version_linux_dpkg() -> Option<String> {
+    let output = std::process::Command::new("dpkg")
+        .args(["-l", "claude-desktop"])
+        .output()
+        .ok()?;
+    
+    if !output.status.success() {
+        return None;
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // dpkg -l output format:
+    // ii  claude-desktop  1.2.3  amd64  Claude Desktop Application
+    // Extract version from 3rd column
+    for line in stdout.lines() {
+        if line.contains("claude-desktop") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let version = parts[2];
+                if !version.is_empty() && version != "<none>" {
+                    return Some(version.to_string());
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Check rpm for claude-desktop package
+#[cfg(target_os = "linux")]
+fn detect_version_linux_rpm() -> Option<String> {
+    let output = std::process::Command::new("rpm")
+        .args(["-q", "claude-desktop", "--queryformat", "%{VERSION}"])
+        .output()
+        .ok()?;
+    
+    if !output.status.success() {
+        return None;
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let version = stdout.trim();
+    
+    if version.is_empty() || version.contains("not installed") {
+        return None;
+    }
+    
+    Some(version.to_string())
+}
+
+/// Check snap for claude-desktop
+#[cfg(target_os = "linux")]
+fn detect_version_linux_snap() -> Option<String> {
+    let output = std::process::Command::new("snap")
+        .args(["info", "claude-desktop"])
+        .output()
+        .ok()?;
+    
+    if !output.status.success() {
+        return None;
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // snap info output:
+    // name:      claude-desktop
+    // version:   1.2.3
+    // ...
+    for line in stdout.lines() {
+        if line.starts_with("version:") {
+            let parts: Vec<&str> = line.split(':').collect();
+            if parts.len() >= 2 {
+                let version = parts[1].trim();
+                if !version.is_empty() {
+                    return Some(version.to_string());
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Check flatpak for Claude Desktop
+#[cfg(target_os = "linux")]
+fn detect_version_linux_flatpak() -> Option<String> {
+    let output = std::process::Command::new("flatpak")
+        .args(["info", "com.anthropic.Claude"])
+        .output()
+        .ok()?;
+    
+    if !output.status.success() {
+        return None;
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // flatpak info output:
+    //          ID: com.anthropic.Claude
+    //     Version: 1.2.3
+    // ...
+    for line in stdout.lines() {
+        if line.contains("Version:") {
+            let parts: Vec<&str> = line.split(':').collect();
+            if parts.len() >= 2 {
+                let version = parts[1].trim();
+                if !version.is_empty() {
+                    return Some(version.to_string());
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// Check direct installation in /opt/Claude
+#[cfg(target_os = "linux")]
+fn detect_version_linux_direct() -> Option<String> {
+    // Try to read package.json from standard install location
+    let package_json_paths = [
+        "/opt/Claude/resources/app/package.json",
+        "/opt/claude-desktop/resources/app/package.json",
+    ];
+    
+    for path in &package_json_paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            // Simple JSON parsing for "version": "X.Y.Z"
+            if let Some(version_pos) = content.find("\"version\"") {
+                let after_version = &content[version_pos..];
+                if let Some(colon_pos) = after_version.find(':') {
+                    let after_colon = &after_version[colon_pos + 1..];
+                    if let Some(quote_start) = after_colon.find('"') {
+                        let after_quote = &after_colon[quote_start + 1..];
+                        if let Some(quote_end) = after_quote.find('"') {
+                            let version = &after_quote[..quote_end];
+                            return Some(version.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     None
 }
 

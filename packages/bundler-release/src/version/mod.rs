@@ -152,7 +152,6 @@ impl VersionManager {
     pub fn synchronize_versions(&mut self) -> Result<UpdateResult> {
         let current_version = self.current_version()?;
         let update_config = UpdateConfig {
-            create_backups: true,
             update_internal_dependencies: true,
             preserve_workspace_inheritance: false, // Force synchronization
         };
@@ -166,7 +165,6 @@ impl VersionManager {
     pub fn add_explicit_dependency_versions(&mut self) -> Result<UpdateResult> {
         let current_version = self.current_version()?;
         let update_config = UpdateConfig {
-            create_backups: true,
             update_internal_dependencies: true,
             preserve_workspace_inheritance: true,
         };

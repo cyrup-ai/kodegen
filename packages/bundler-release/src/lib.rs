@@ -70,8 +70,6 @@ pub struct ReleaseConfig {
     pub max_retries: usize,
     /// Operation timeout (seconds)
     pub timeout: u64,
-    /// Skip backup creation
-    pub no_backup: bool,
     /// Create GitHub release
     pub github_release: bool,
     /// GitHub repository (owner/repo)
@@ -98,7 +96,6 @@ impl Default for ReleaseConfig {
             package_delay: 5,
             max_retries: 3,
             timeout: 300,
-            no_backup: false,
             github_release: true,  // Always create GitHub releases unless --no-github-release
             github_repo: None,
             github_draft: false,

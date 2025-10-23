@@ -23,7 +23,6 @@ pub(super) struct ReleaseOptions {
     pub no_push: bool,
     pub registry: Option<String>,
     pub package_delay: u64,
-    pub no_backup: bool,
     pub github_release: bool,
     pub github_repo: Option<String>,
     pub github_draft: bool,
@@ -73,7 +72,6 @@ pub(super) async fn execute_release(args: &Args, config: &RuntimeConfig) -> Resu
         package_delay,
         max_retries: _,
         timeout: _,
-        no_backup,
         no_github_release,
         github_repo,
         github_draft,
@@ -158,7 +156,6 @@ pub(super) async fn execute_release(args: &Args, config: &RuntimeConfig) -> Resu
             no_push: *no_push,
             registry: registry.clone(),
             package_delay: *package_delay,
-            no_backup: *no_backup,
             github_release: !no_github_release,  // Inverted: default is TRUE unless --no-github-release
             github_repo: github_repo.clone(),
             github_draft: *github_draft,

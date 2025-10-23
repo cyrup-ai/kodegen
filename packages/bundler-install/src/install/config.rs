@@ -790,7 +790,75 @@ fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Add Kodegen host entries with optimized host file modification
+/// Check if a hosts file line contains the specified IP and hostname entry
+fn check_hosts_entry(line: &str, ip: &str, hostname: &str) -> bool {
+    let trimmed = line.trim();
+    
+    // Skip comments and empty lines
+    if trimmed.starts_with('#') || trimmed.is_empty() {
+        return false;
+    }
+    
+    // Split by whitespace (handles both spaces and tabs)
+    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+    if parts.len() < 2 {
+        return false;
+    }
+    
+    // Check if IP matches and hostname matches (case insensitive for DNS)
+    parts[0] == ip && parts[1..].iter().any(|h| h.eq_ignore_ascii_case(hostname))
+}
+
+/// Remove Kodegen block from hosts file content
+fn remove_kodegen_block(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut new_lines = Vec::new();
+    let mut in_kodegen_section = false;
+
+    for line in lines {
+        if line.trim() == "# Kodegen entries" {
+            in_kodegen_section = true;
+            continue;
+        }
+        if line.trim() == "# End Kodegen entries" {
+            in_kodegen_section = false;
+            continue;
+        }
+        if !in_kodegen_section {
+            new_lines.push(line);
+        }
+    }
+
+    new_lines.join("\n")
+}
+
+/// Write file atomically using temp file + rename pattern
+fn write_hosts_file_atomic(path: &Path, content: &str) -> Result<()> {
+    use std::io::Write;
+    
+    // Create temp file in same directory as target (ensures same filesystem for atomic rename)
+    let temp_path = path.with_extension("tmp");
+    
+    // Write to temp file with explicit sync
+    {
+        let mut file = fs::File::create(&temp_path)
+            .with_context(|| format!("Failed to create temp file: {}", temp_path.display()))?;
+        
+        file.write_all(content.as_bytes())
+            .context("Failed to write to temp file")?;
+        
+        file.sync_all()
+            .context("Failed to sync temp file to disk")?;
+    }
+    
+    // Atomically rename temp to target
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("Failed to rename temp file to {}", path.display()))?;
+    
+    Ok(())
+}
+
+/// Add Kodegen host entries with lock-tight atomic modification
 fn add_kodegen_host_entries() -> Result<()> {
     let hosts_file_path = get_hosts_file_path();
 
@@ -798,33 +866,35 @@ fn add_kodegen_host_entries() -> Result<()> {
     let existing_content =
         fs::read_to_string(&hosts_file_path).context("Failed to read hosts file")?;
 
-    // Check if Kodegen entries already exist
-    if existing_content.contains("# Kodegen entries") {
-        info!("Kodegen host entries already exist, skipping");
+    // Check if the actual entry already exists (not just the marker)
+    let has_entry = existing_content.lines().any(|line| {
+        check_hosts_entry(line, "127.0.0.1", "mcp.kodegen.ai")
+    });
+
+    if has_entry {
+        info!("Entry 127.0.0.1 mcp.kodegen.ai already exists in hosts file, skipping");
         return Ok(());
     }
 
-    // Prepare Kodegen host entries
-    let kodegen_entries = vec![
-        "# Kodegen entries",
-        "127.0.0.1 mcp.kodegen.ai",
-        "# End Kodegen entries",
-    ];
+    // Remove any existing Kodegen block (handles broken/partial entries)
+    let cleaned_content = remove_kodegen_block(&existing_content);
 
-    // Append Kodegen entries to hosts file
-    let mut new_content = existing_content;
+    // Build new content with Kodegen block
+    let mut new_content = cleaned_content;
     if !new_content.ends_with('\n') {
         new_content.push('\n');
     }
     new_content.push('\n');
-    new_content.push_str(&kodegen_entries.join("\n"));
-    new_content.push('\n');
+    new_content.push_str("# Kodegen entries\n");
+    new_content.push_str("127.0.0.1 mcp.kodegen.ai\n");
+    new_content.push_str("# End Kodegen entries\n");
 
-    // Write updated hosts file
-    fs::write(&hosts_file_path, new_content).context("Failed to write hosts file")?;
+    // Write atomically (temp + rename)
+    write_hosts_file_atomic(&hosts_file_path, &new_content)
+        .context("Failed to write hosts file atomically")?;
 
     info!(
-        "Added Kodegen host entries to {}",
+        "Added Kodegen host entry to {}",
         hosts_file_path.display()
     );
     Ok(())
@@ -846,7 +916,7 @@ fn get_hosts_file_path() -> PathBuf {
     }
 }
 
-/// Remove Kodegen host entries with optimized host file cleanup
+/// Remove Kodegen host entries with atomic file modification
 pub fn remove_kodegen_host_entries() -> Result<()> {
     let hosts_file_path = get_hosts_file_path();
 
@@ -854,34 +924,18 @@ pub fn remove_kodegen_host_entries() -> Result<()> {
     let existing_content =
         fs::read_to_string(&hosts_file_path).context("Failed to read hosts file")?;
 
-    // Check if Kodegen entries exist
+    // Check if Kodegen block exists
     if !existing_content.contains("# Kodegen entries") {
         info!("No Kodegen host entries found, skipping removal");
         return Ok(());
     }
 
-    // Remove Kodegen entries
-    let lines: Vec<&str> = existing_content.lines().collect();
-    let mut new_lines = Vec::new();
-    let mut in_kodegen_section = false;
+    // Remove Kodegen block
+    let new_content = remove_kodegen_block(&existing_content);
 
-    for line in lines {
-        if line.trim() == "# Kodegen entries" {
-            in_kodegen_section = true;
-            continue;
-        }
-        if line.trim() == "# End Kodegen entries" {
-            in_kodegen_section = false;
-            continue;
-        }
-        if !in_kodegen_section {
-            new_lines.push(line);
-        }
-    }
-
-    // Write updated hosts file
-    let new_content = new_lines.join("\n");
-    fs::write(&hosts_file_path, new_content).context("Failed to write hosts file")?;
+    // Write atomically (temp + rename)
+    write_hosts_file_atomic(&hosts_file_path, &new_content)
+        .context("Failed to write hosts file atomically")?;
 
     info!(
         "Removed Kodegen host entries from {}",

@@ -49,22 +49,16 @@ fn ensure_signing_certificate() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     
-    eprintln!("\n⚠ No Developer ID certificate found!");
-    eprintln!("   Automated certificate provisioning available.");
-    eprintln!("\n   To provision a certificate automatically, run:");
-    eprintln!("   cargo run --package kodegen_sign --bin kodegen-setup -- --interactive");
-    eprintln!("\n   This will:");
-    eprintln!("   1. Prompt for your App Store Connect API credentials");
-    eprintln!("   2. Automatically request a Developer ID certificate from Apple");
-    eprintln!("   3. Import it to your keychain");
-    eprintln!("\n   For now, using ad-hoc signing for development...");
+    // CRITICAL: No certificate = BUILD FAILURE
+    // Ad-hoc signing must NEVER be allowed for releases
+    eprintln!("\n❌ FATAL: No Developer ID certificate found!");
+    eprintln!("\nRELEASE BUILD REQUIRES VALID CERTIFICATE");
+    eprintln!("\nOptions:");
+    eprintln!("  1. Set APPLE_CERTIFICATE + APPLE_CERTIFICATE_PASSWORD env vars (CI/CD)");
+    eprintln!("  2. Run: cargo run --package kodegen_sign --bin kodegen-setup -- --interactive");
+    eprintln!("\nUnsigned releases are NEVER allowed - customer trust depends on it!");
     
-    // Use ad-hoc signing as fallback
-    unsafe {
-        std::env::set_var("KODEGEN_SIGNING_IDENTITY", "-");
-    }
-    
-    Ok(())
+    Err("No valid code signing certificate available. Build cannot proceed.".into())
 }
 
 /// Sign individual executable with optimized signing
@@ -87,9 +81,7 @@ fn sign_executable(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        // If signing fails, continue anyway for development builds
-        eprintln!("Warning: Failed to sign executable: {stderr}");
-        eprintln!("Continuing with unsigned binary for development");
+        return Err(format!("FATAL: Failed to sign executable: {stderr}").into());
     }
 
     Ok(())
@@ -110,8 +102,7 @@ fn sign_app_bundle(app_path: &Path, identity: &str) -> Result<(), Box<dyn std::e
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("Warning: Failed to sign app bundle: {stderr}");
-        eprintln!("Continuing with unsigned bundle for development");
+        return Err(format!("FATAL: Failed to sign app bundle: {stderr}").into());
     }
 
     Ok(())
@@ -128,14 +119,12 @@ fn verify_signature(app_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         ])
         .output()?;
 
-    if output.status.success() {
-        println!("Helper app signature verified successfully");
-    } else {
+    if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("Warning: Signature verification failed: {stderr}");
-        eprintln!("This is expected for development builds");
+        return Err(format!("FATAL: Signature verification failed: {stderr}").into());
     }
 
+    println!("✓ Helper app signature verified successfully");
     Ok(())
 }
 /// Create entitlements file for helper app

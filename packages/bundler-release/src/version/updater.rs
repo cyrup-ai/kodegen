@@ -38,8 +38,6 @@ pub struct UpdateResult {
 /// Configuration for version update operations
 #[derive(Debug, Clone)]
 pub struct UpdateConfig {
-    /// Whether to create backups before updating
-    pub create_backups: bool,
     /// Whether to update internal dependency versions
     pub update_internal_dependencies: bool,
     /// Whether to preserve workspace inheritance where possible
@@ -56,7 +54,6 @@ struct UpdateStats {
 impl Default for UpdateConfig {
     fn default() -> Self {
         Self {
-            create_backups: true,
             update_internal_dependencies: true,
             preserve_workspace_inheritance: true,
         }
@@ -142,16 +139,11 @@ impl VersionUpdater {
     fn update_root_workspace_version(
         &mut self,
         new_version: &Version,
-        config: &UpdateConfig,
+        _config: &UpdateConfig,
         modified_files: &mut Vec<PathBuf>,
     ) -> Result<()> {
         let workspace_cargo_toml = self.workspace.root.join("Cargo.toml");
         let mut editor = TomlEditor::open(&workspace_cargo_toml)?;
-
-        // Create backup if requested
-        if config.create_backups {
-            self.backups.push(editor.create_backup());
-        }
 
         // Update workspace version
         editor.update_workspace_version(new_version)?;
@@ -171,11 +163,6 @@ impl VersionUpdater {
         stats: &mut UpdateStats,
     ) -> Result<()> {
         let mut editor = TomlEditor::open(&package_info.cargo_toml_path)?;
-
-        // Create backup if requested
-        if config.create_backups {
-            self.backups.push(editor.create_backup());
-        }
 
         let mut package_modified = false;
 

@@ -85,10 +85,6 @@ pub enum Command {
         #[arg(long, default_value = "300", value_name = "SECONDS")]
         timeout: u64,
 
-        /// Don't create backups during operation
-        #[arg(long)]
-        no_backup: bool,
-
         /// Skip GitHub release creation (releases are created by default)
         #[arg(long)]
         no_github_release: bool,
@@ -471,8 +467,6 @@ pub struct RuntimeConfig {
     pub timeout: Duration,
     /// Registry to use
     pub registry: Option<String>,
-    /// Whether to create backups
-    pub create_backups: bool,
     /// Output manager for colored terminal output
     output: super::OutputManager,
 }
@@ -498,27 +492,24 @@ impl From<&Args> for RuntimeConfig {
             VerbosityLevel::Normal
         };
 
-        let (package_delay, max_retries, timeout, registry, create_backups) = match &args.command {
+        let (package_delay, max_retries, timeout, registry) = match &args.command {
             Command::Release {
                 package_delay,
                 max_retries,
                 timeout,
                 registry,
-                no_backup,
                 ..
             } => (
                 Duration::from_secs(*package_delay),
                 *max_retries,
                 Duration::from_secs(*timeout),
                 registry.clone(),
-                !no_backup,
             ),
             _ => (
                 Duration::from_secs(15), // Default 15 seconds
                 3,                       // Default 3 retries
                 Duration::from_secs(300), // Default 5 minutes
                 None,                    // Default registry
-                true,                    // Create backups by default
             ),
         };
 
@@ -535,7 +526,6 @@ impl From<&Args> for RuntimeConfig {
             max_retries,
             timeout,
             registry,
-            create_backups,
             output,
         }
     }
