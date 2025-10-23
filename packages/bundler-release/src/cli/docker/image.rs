@@ -188,6 +188,17 @@ pub async fn ensure_image_built(
         
         match is_image_up_to_date(&image_id, &dockerfile_path, runtime_config).await {
             Ok(true) => {
+                // Check if image is too old (older than 7 days)
+                if let Ok(age_days) = get_image_age_days(&image_id).await
+                    && age_days > 7
+                {
+                    runtime_config.warn(&format!(
+                        "Docker image is {} days old - rebuilding to get base image updates",
+                        age_days
+                    ));
+                    return build_docker_image(workspace_path, runtime_config).await;
+                }
+                
                 runtime_config.verbose_println("Docker image is up-to-date");
                 return Ok(());
             }
@@ -445,4 +456,50 @@ fn humanize_duration(seconds: i64) -> String {
     };
     
     format!("{}{} {}", prefix, value, unit)
+}
+
+/// Gets the age of a Docker image in days.
+///
+/// # Arguments
+///
+/// * `image_id` - Docker image ID or tag
+///
+/// # Returns
+///
+/// * `Ok(days)` - Number of days since image was created
+/// * `Err` - Could not determine image age
+async fn get_image_age_days(image_id: &str) -> Result<i64, ReleaseError> {
+    // Get image creation timestamp from Docker
+    let inspect_output = Command::new("docker")
+        .args(["inspect", "-f", "{{.Created}}", image_id])
+        .output()
+        .await
+        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            command: format!("docker inspect {}", image_id),
+            reason: e.to_string(),
+        }))?;
+    
+    if !inspect_output.status.success() {
+        let stderr = String::from_utf8_lossy(&inspect_output.stderr);
+        return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "docker inspect".to_string(),
+            reason: format!("Failed to get image creation time: {}", stderr),
+        }));
+    }
+    
+    let created_str = String::from_utf8_lossy(&inspect_output.stdout)
+        .trim()
+        .to_string();
+    
+    // Parse Docker's RFC3339 timestamp
+    let created_time = DateTime::parse_from_rfc3339(&created_str)
+        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "parse_timestamp".to_string(),
+            reason: format!("Invalid timestamp '{}': {}", created_str, e),
+        }))?;
+    
+    let now = Utc::now();
+    let created_utc: DateTime<Utc> = created_time.into();
+    
+    Ok((now - created_utc).num_days())
 }

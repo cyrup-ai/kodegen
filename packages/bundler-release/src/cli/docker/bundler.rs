@@ -90,20 +90,29 @@ impl ContainerBundler {
             name: container_name.clone(),
         };
 
-        // SECURITY: Validate and canonicalize workspace path to resolve symlinks
+        // Resolve workspace path - try canonicalization but fall back to absolute path
+        // Docker will resolve symlinks during bind mount anyway
         let workspace_path = self.workspace_path
             .canonicalize()
+            .or_else(|_| {
+                // Canonicalize failed (likely network mount) - use absolute path
+                if self.workspace_path.is_absolute() {
+                    Ok(self.workspace_path.clone())
+                } else {
+                    std::env::current_dir()
+                        .map(|cwd| cwd.join(&self.workspace_path))
+                        .map_err(|e| std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Cannot determine current directory: {}", e)
+                        ))
+                }
+            })
             .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "validate workspace path".to_string(),
+                command: "resolve workspace path".to_string(),
                 reason: format!(
-                    "Invalid workspace path '{}': {}\n\
+                    "Cannot resolve workspace path '{}': {}\n\
                      \n\
-                     Possible causes:\n\
-                     • Path does not exist\n\
-                     • Path contains invalid symlinks\n\
-                     • Insufficient permissions to access path\n\
-                     \n\
-                     Ensure the workspace path exists and is accessible.",
+                     Ensure the path exists and is accessible.",
                     self.workspace_path.display(),
                     e
                 ),
@@ -123,19 +132,24 @@ impl ContainerBundler {
             }));
         }
 
-        // SECURITY: Verify target directory exists or can be created
+        // Ensure target directory exists (idempotent - safe to call even if exists)
         let target_dir = workspace_path.join("target");
-        if !target_dir.exists() {
-            std::fs::create_dir_all(&target_dir)
-                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                    command: "create target directory".to_string(),
-                    reason: format!(
-                        "Failed to create target directory: {}\n\
-                         This directory is required for build outputs.",
-                        e
-                    ),
-                }))?;
-        }
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "create target directory".to_string(),
+                reason: format!(
+                    "Failed to ensure target directory exists: {}\n\
+                     Path: {}\n\
+                     This directory is required for build outputs.\n\
+                     \n\
+                     Check that:\n\
+                     • You have write permissions to the workspace\n\
+                     • The filesystem is not read-only\n\
+                     • There's sufficient disk space",
+                    e,
+                    target_dir.display()
+                ),
+            }))?;
 
         // Create isolated temp target directory for this build
         let temp_target_dir = workspace_path.join(format!("target-temp-{}", build_uuid));
@@ -247,21 +261,17 @@ impl ContainerBundler {
             }))?;
 
         // Spawn background task to capture stderr for OOM detection
-        let stderr_handle = if let Some(stderr) = child.stderr.take() {
-            Some(tokio::spawn(async move {
-                let reader = BufReader::new(stderr);
-                let mut lines = reader.lines();
-                let mut captured_lines = Vec::new();
-                
-                while let Ok(Some(line)) = lines.next_line().await {
-                    captured_lines.push(line);
-                }
-                
-                captured_lines
-            }))
-        } else {
-            None
-        };
+        let stderr_handle = child.stderr.take().map(|stderr| tokio::spawn(async move {
+            let reader = BufReader::new(stderr);
+            let mut lines = reader.lines();
+            let mut captured_lines = Vec::new();
+            
+            while let Ok(Some(line)) = lines.next_line().await {
+                captured_lines.push(line);
+            }
+            
+            captured_lines
+        }));
 
         // Stream stdout in real-time (foreground task)
         if let Some(stdout) = child.stdout.take() {
@@ -557,7 +567,7 @@ impl ContainerBundler {
                 // Replace temp path prefix with final path prefix
                 path.strip_prefix(&temp_target_dir)
                     .ok()
-                    .and_then(|rel| Some(self.workspace_path.join("target").join(rel)))
+                    .map(|rel| self.workspace_path.join("target").join(rel))
                     .unwrap_or(path)
             })
             .collect::<Vec<_>>();

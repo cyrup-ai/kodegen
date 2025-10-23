@@ -141,7 +141,17 @@ impl WorkspaceInfo {
 
     /// Find the workspace root directory
     fn find_workspace_root<P: AsRef<Path>>(start_dir: P) -> Result<PathBuf> {
-        let mut current_dir = start_dir.as_ref().canonicalize()?;
+        // Try canonicalization, fall back to absolute path for network mounts
+        let mut current_dir = start_dir.as_ref()
+            .canonicalize()
+            .or_else(|_| {
+                let path = start_dir.as_ref();
+                if path.is_absolute() {
+                    Ok(path.to_path_buf())
+                } else {
+                    std::env::current_dir().map(|cwd| cwd.join(path))
+                }
+            })?;
 
         loop {
             let cargo_toml = current_dir.join("Cargo.toml");
