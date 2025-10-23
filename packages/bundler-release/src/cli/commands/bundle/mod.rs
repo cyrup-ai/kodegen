@@ -131,10 +131,10 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
         config.println("📦 Bundling cross-platform packages in container...");
 
         // Check Docker availability
-        crate::cli::docker::ContainerBundler::check_docker_available().await?;
+        crate::cli::docker::check_docker_available().await?;
 
         // Ensure builder image exists
-        crate::cli::docker::ContainerBundler::ensure_image_built(&config.workspace_path, *rebuild_image, config).await?;
+        crate::cli::docker::ensure_image_built(&config.workspace_path, *rebuild_image, config).await?;
 
         // Create container bundler with resource limits
         let limits = if let Some(memory) = docker_memory {
