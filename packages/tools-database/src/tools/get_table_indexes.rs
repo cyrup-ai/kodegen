@@ -4,13 +4,13 @@ use crate::error::DatabaseError;
 use crate::schema_queries::get_indexes_query;
 use crate::tools::helpers::resolve_schema_default;
 use crate::types::{DatabaseType, TableIndex};
-use kodegen_mcp_tool::{error::McpError, Tool};
+use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use sqlx::AnyPool;
+use serde_json::{Value, json};
+use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 
 /// Arguments for get_table_indexes tool
@@ -32,13 +32,25 @@ pub struct GetTableIndexesPromptArgs {}
 #[derive(Clone)]
 pub struct GetTableIndexesTool {
     pool: Arc<AnyPool>,
+    db_type: DatabaseType,
+    #[allow(dead_code)]
     config: Arc<ConfigManager>,
 }
 
 impl GetTableIndexesTool {
     /// Create a new GetTableIndexesTool instance
-    pub fn new(pool: Arc<AnyPool>, config: Arc<ConfigManager>) -> Self {
-        Self { pool, config }
+    pub fn new(
+        pool: Arc<AnyPool>,
+        connection_url: &str,
+        config: Arc<ConfigManager>,
+    ) -> Result<Self, McpError> {
+        let db_type = DatabaseType::from_url(connection_url)
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Invalid database URL: {}", e)))?;
+        Ok(Self {
+            pool,
+            db_type,
+            config,
+        })
     }
 }
 
@@ -65,8 +77,8 @@ impl Tool for GetTableIndexesTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Detect database type
-        let db_type = DatabaseType::from(self.pool.any_kind());
+        // Use stored database type
+        let db_type = self.db_type;
 
         // Resolve schema
         let schema = match args.schema {
@@ -90,21 +102,13 @@ impl Tool for GetTableIndexesTool {
         let indexes: Vec<TableIndex> = rows
             .iter()
             .map(|row| {
-                // Handle column_names as comma-separated string or array
-                let column_names: Vec<String> = row
-                    .try_get::<String, _>("column_names")
-                    .map(|cols_str| {
-                        cols_str
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect()
-                    })
-                    .or_else(|_| {
-                        // Try as array (PostgreSQL might return array type)
-                        row.try_get::<Vec<String>, _>("column_names")
-                    })
-                    .unwrap_or_default();
+                // Handle column_names as comma-separated string
+                let cols_str: String = row.try_get("column_names").unwrap_or_default();
+                let column_names: Vec<String> = cols_str
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
 
                 Ok(TableIndex {
                     index_name: row.try_get("index_name").unwrap_or_default(),
@@ -123,11 +127,8 @@ impl Tool for GetTableIndexesTool {
         }))
     }
 
-    fn prompt_arguments() -> Value {
-        json!({
-            "type": "object",
-            "properties": {}
-        })
+    fn prompt_arguments() -> Vec<PromptArgument> {
+        vec![]
     }
 
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {

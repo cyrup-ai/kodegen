@@ -9,6 +9,9 @@ use kodegen_utils::usage_tracker::UsageTracker;
 pub struct Managers {
     #[cfg(feature = "citescrape")]
     pub browser_manager: Option<Arc<kodegen_tools_citescrape::BrowserManager>>,
+    
+    #[cfg(feature = "database")]
+    pub tunnel_guard: std::sync::Arc<tokio::sync::Mutex<Option<kodegen_tools_database::SSHTunnel>>>,
 }
 
 impl Managers {
@@ -20,6 +23,15 @@ impl Managers {
         {
             log::warn!("Failed to shutdown browser manager: {e}");
         }
+        
+        #[cfg(feature = "database")]
+        {
+            let mut guard = self.tunnel_guard.lock().await;
+            if let Some(tunnel) = guard.take() {
+                tunnel.close().await;
+            }
+        }
+        
         Ok(())
     }
 }
@@ -41,6 +53,11 @@ pub async fn build_routers<S>(
     config_manager: &kodegen_tools_config::ConfigManager,
     usage_tracker: &UsageTracker,
     enabled_categories: &Option<HashSet<String>>,
+    database_dsn: Option<&str>,
+    #[cfg(feature = "database")]
+    ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
+    #[cfg(not(feature = "database"))]
+    ssh_config: Option<()>,
 ) -> Result<RouterSet<S>>
 where
     S: Send + Sync + 'static
@@ -67,6 +84,8 @@ where
         config_manager,
         usage_tracker,
         enabled_categories,
+        database_dsn,
+        ssh_config,
     ).await?;
     
     Ok(RouterSet {

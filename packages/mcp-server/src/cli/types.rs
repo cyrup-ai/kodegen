@@ -94,6 +94,59 @@ pub struct Cli {
     /// Useful for development to avoid waiting on retry delays
     #[arg(long)]
     pub sse_no_retry: bool,
+
+    // ============ Database Configuration ============
+    
+    /// Database connection string (DSN)
+    /// 
+    /// Format varies by database type:
+    /// - PostgreSQL: postgres://user:pass@host:5432/dbname
+    /// - MySQL: mysql://user:pass@host:3306/dbname
+    /// - SQLite: sqlite:///path/to/database.db
+    /// - SQL Server: sqlserver://user:pass@host:1433/dbname
+    /// 
+    /// If not provided, database tools will not be available.
+    #[arg(long, env = "DATABASE_DSN")]
+    pub database_dsn: Option<String>,
+    
+    /// Enable read-only mode (only SELECT/SHOW/EXPLAIN/DESCRIBE allowed)
+    /// 
+    /// When enabled, any INSERT/UPDATE/DELETE/DROP statements will be rejected.
+    /// Useful for safe database exploration by AI agents.
+    #[arg(long, env = "DATABASE_READONLY")]
+    pub database_readonly: bool,
+    
+    /// Maximum rows per SELECT query
+    /// 
+    /// Automatically applies LIMIT clause to SELECT statements to prevent
+    /// large result sets. If not set, queries can return unlimited rows.
+    #[arg(long, env = "DATABASE_MAX_ROWS")]
+    pub database_max_rows: Option<usize>,
+    
+    /// SSH tunnel host for database connection
+    /// 
+    /// When specified, creates SSH tunnel to bastion host before connecting
+    /// to database. Requires --ssh-user and either --ssh-key or --ssh-password.
+    #[arg(long, env = "SSH_HOST")]
+    pub ssh_host: Option<String>,
+    
+    /// SSH tunnel port
+    #[arg(long, env = "SSH_PORT", default_value = "22")]
+    pub ssh_port: u16,
+    
+    /// SSH username for tunnel authentication
+    #[arg(long, env = "SSH_USER")]
+    pub ssh_user: Option<String>,
+    
+    /// SSH private key path for key-based authentication
+    /// 
+    /// If both --ssh-key and --ssh-password are provided, key is preferred.
+    #[arg(long, env = "SSH_KEY")]
+    pub ssh_key: Option<std::path::PathBuf>,
+    
+    /// SSH password for password-based authentication
+    #[arg(long, env = "SSH_PASSWORD")]
+    pub ssh_password: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -214,6 +267,9 @@ pub fn available_categories() -> Vec<&'static str> {
 
         #[cfg(feature = "config")]
         "config",
+
+        #[cfg(feature = "database")]
+        "database",
     ];
 
     categories

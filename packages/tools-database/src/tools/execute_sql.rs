@@ -3,17 +3,20 @@
 //! Integrates read-only mode enforcement, row limiting, multi-statement support,
 //! and transaction wrapping for consistent database operations.
 
+use crate::{
+    DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
+    validate_readonly_sql,
+};
+use anyhow::Context;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_tools_config::ConfigManager;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use sqlx::AnyPool;
 use sqlx::{Column, Row, TypeInfo};
-use kodegen_tools_config::ConfigManager;
-use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use serde_json::{json, Value};
 use std::sync::Arc;
-use anyhow::Context;
-use crate::{validate_readonly_sql, apply_row_limit, split_sql_statements, DatabaseType, error::DatabaseError};
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -41,7 +44,7 @@ pub struct ExecuteSQLPromptArgs {
 pub struct ExecuteSQLTool {
     pool: Arc<AnyPool>,
     config: ConfigManager,
-    db_type: DatabaseType,  // Store database type for validation/limiting
+    db_type: DatabaseType, // Store database type for validation/limiting
 }
 
 impl ExecuteSQLTool {
@@ -49,12 +52,20 @@ impl ExecuteSQLTool {
     ///
     /// # Errors
     /// Returns error if connection_url cannot be parsed to determine database type
-    pub fn new(pool: Arc<AnyPool>, config: ConfigManager, connection_url: &str) -> Result<Self, McpError> {
+    pub fn new(
+        pool: Arc<AnyPool>,
+        config: ConfigManager,
+        connection_url: &str,
+    ) -> Result<Self, McpError> {
         let db_type = DatabaseType::from_url(connection_url)
             .map_err(|e| anyhow::anyhow!("Failed to determine database type: {}", e))?;
-        Ok(Self { pool, config, db_type })
+        Ok(Self {
+            pool,
+            config,
+            db_type,
+        })
     }
-    
+
     /// Get database type from stored field
     fn get_database_type(&self) -> Result<DatabaseType, McpError> {
         Ok(self.db_type)
@@ -67,16 +78,16 @@ impl ExecuteSQLTool {
             .fetch_all(&*self.pool)
             .await
             .context("SQL execution failed")?;
-        
+
         // Convert rows to JSON
         let json_rows: Result<Vec<Value>, _> = rows
             .iter()
             .map(|row| row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e)))
             .collect();
-        
+
         let json_rows = json_rows?;
         let row_count = json_rows.len();
-        
+
         Ok(json!({
             "rows": json_rows,
             "row_count": row_count
@@ -86,34 +97,35 @@ impl ExecuteSQLTool {
     /// Execute multiple SQL statements within a transaction
     async fn execute_multi(&self, statements: &[String]) -> Result<Value, McpError> {
         // Begin transaction
-        let mut tx = self.pool.begin().await
+        let mut tx = self
+            .pool
+            .begin()
+            .await
             .context("Failed to begin transaction")?;
-        
+
         let mut all_rows = Vec::new();
-        
+
         // Execute each statement in sequence
         for statement in statements {
             let rows = sqlx::query(statement)
                 .fetch_all(&mut *tx)
                 .await
                 .context("SQL execution failed. Transaction rolled back.")?;
-            
+
             // Collect rows from SELECT/WITH/EXPLAIN statements
             if !rows.is_empty() {
                 for row in &rows {
-                    let json_row = row_to_json(row)
-                        .map_err(|e| anyhow::anyhow!("{}", e))?;
+                    let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
                     all_rows.push(json_row);
                 }
             }
         }
-        
+
         // Commit transaction
-        tx.commit().await
-            .context("Failed to commit transaction")?;
-        
+        tx.commit().await.context("Failed to commit transaction")?;
+
         let row_count = all_rows.len();
-        
+
         Ok(json!({
             "rows": all_rows,
             "row_count": row_count
@@ -137,25 +149,23 @@ impl ExecuteSQLTool {
 /// - SQLite: TEXT, INTEGER, REAL, BLOB, etc.
 fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
     let mut map = serde_json::Map::new();
-    
+
     for column in row.columns() {
         let ordinal = column.ordinal();
         let name = column.name().to_string();
         let type_name = column.type_info().name();
-        
+
         // Match on database type names
         let value = match type_name {
             // Text types (most databases)
-            "TEXT" | "VARCHAR" | "CHAR" | "STRING" | "BPCHAR" => {
-                row.try_get::<Option<String>, _>(ordinal)
-                    .ok()
-                    .flatten()
-                    .map(Value::String)
-                    .unwrap_or(Value::Null)
-            }
+            "TEXT" | "VARCHAR" | "CHAR" | "STRING" | "BPCHAR" => row
+                .try_get::<Option<String>, _>(ordinal)
+                .ok()
+                .flatten()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
             // Integer types
-            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | 
-            "BIGINT" | "SMALLINT" | "MEDIUMINT" => {
+            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT" => {
                 row.try_get::<Option<i64>, _>(ordinal)
                     .ok()
                     .flatten()
@@ -163,32 +173,34 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                     .unwrap_or(Value::Null)
             }
             // Boolean types
-            "BOOLEAN" | "BOOL" | "TINYINT(1)" => {
-                row.try_get::<Option<bool>, _>(ordinal)
-                    .ok()
-                    .flatten()
-                    .map(Value::Bool)
-                    .unwrap_or(Value::Null)
-            }
+            "BOOLEAN" | "BOOL" | "TINYINT(1)" => row
+                .try_get::<Option<bool>, _>(ordinal)
+                .ok()
+                .flatten()
+                .map(Value::Bool)
+                .unwrap_or(Value::Null),
             // Float types
-            "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "NUMERIC" | "DECIMAL" => {
-                row.try_get::<Option<f64>, _>(ordinal)
-                    .ok()
-                    .flatten()
-                    .map(|v| json!(v))
-                    .unwrap_or(Value::Null)
-            }
+            "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "NUMERIC" | "DECIMAL" => row
+                .try_get::<Option<f64>, _>(ordinal)
+                .ok()
+                .flatten()
+                .map(|v| json!(v))
+                .unwrap_or(Value::Null),
             // Fallback for unsupported types
             _ => {
                 // Log warning but don't fail
-                log::warn!("Unsupported column type '{}' for column '{}'", type_name, name);
+                log::warn!(
+                    "Unsupported column type '{}' for column '{}'",
+                    type_name,
+                    name
+                );
                 json!(format!("UNSUPPORTED_TYPE: {}", type_name))
             }
         };
-        
+
         map.insert(name, value);
     }
-    
+
     Ok(Value::Object(map))
 }
 
@@ -213,45 +225,46 @@ impl Tool for ExecuteSQLTool {
     }
 
     fn read_only() -> bool {
-        false  // Can execute write operations (based on config)
+        false // Can execute write operations (based on config)
     }
 
     fn destructive() -> bool {
-        true  // Can delete/modify data
+        true // Can delete/modify data
     }
 
     fn idempotent() -> bool {
-        false  // Multiple executions have different effects
+        false // Multiple executions have different effects
     }
 
     fn open_world() -> bool {
-        true  // Network database connection
+        true // Network database connection
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // 1. Get configuration
-        let readonly = self.config.get_value("readonly")
+        let readonly = self
+            .config
+            .get_value("readonly")
             .and_then(|v| match v {
                 kodegen_tools_config::ConfigValue::Boolean(b) => Some(b),
-                _ => None
+                _ => None,
             })
             .unwrap_or(false);
-        
-        let max_rows = self.config.get_value("max_rows")
-            .and_then(|v| match v {
-                kodegen_tools_config::ConfigValue::Number(n) => Some(n as usize),
-                _ => None
-            });
-        
+
+        let max_rows = self.config.get_value("max_rows").and_then(|v| match v {
+            kodegen_tools_config::ConfigValue::Number(n) => Some(n as usize),
+            _ => None,
+        });
+
         // 2. Get database type
         let db_type = self.get_database_type()?;
-        
+
         // 3. Validate read-only mode if enabled
         if readonly {
             validate_readonly_sql(&args.sql, db_type)
                 .map_err(|e| anyhow::anyhow!("Read-only violation: {}", e))?;
         }
-        
+
         // 4. Apply row limiting if configured
         let sql = if let Some(max_rows) = max_rows {
             apply_row_limit(&args.sql, max_rows, db_type)
@@ -259,10 +272,10 @@ impl Tool for ExecuteSQLTool {
         } else {
             args.sql.clone()
         };
-        
+
         // 5. Split into statements
         let statements = split_sql_statements(&sql);
-        
+
         // 6. Execute single or multi-statement
         if statements.len() == 1 {
             self.execute_single(&statements[0]).await
@@ -275,7 +288,9 @@ impl Tool for ExecuteSQLTool {
         vec![PromptArgument {
             name: "database_type".to_string(),
             title: None,
-            description: Some("Database type to show examples for (postgres, mysql, sqlite)".to_string()),
+            description: Some(
+                "Database type to show examples for (postgres, mysql, sqlite)".to_string(),
+            ),
             required: Some(false),
         }]
     }
@@ -285,7 +300,7 @@ impl Tool for ExecuteSQLTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use execute_sql to query and modify a database?"
+                    "How do I use execute_sql to query and modify a database?",
                 ),
             },
             PromptMessage {
@@ -314,7 +329,7 @@ impl Tool for ExecuteSQLTool {
                      • Use LIMIT in SELECT queries to avoid large result sets\n\
                      • Wrap multiple statements in explicit transaction for clarity\n\
                      • Check row_count in response to verify operations\n\
-                     • Use schema tools (get_tables, get_table_schema) before querying"
+                     • Use schema tools (get_tables, get_table_schema) before querying",
                 ),
             },
         ])

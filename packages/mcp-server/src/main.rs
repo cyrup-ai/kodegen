@@ -167,10 +167,73 @@ async fn main() -> Result<()> {
             let protocol = if cli.tls_config().is_some() { "https" } else { "http" };
             log::info!("Starting SSE server on {protocol}://{addr}");
             
+            // Prepare database configuration
+            #[cfg(feature = "database")]
+            let (database_dsn, ssh_config) = if let Some(ref dsn) = cli.database_dsn {
+                // Store config values
+                config_manager.set_value("readonly", kodegen_tools_config::ConfigValue::Boolean(cli.database_readonly)).await?;
+                if let Some(max_rows) = cli.database_max_rows {
+                    config_manager.set_value("max_rows", kodegen_tools_config::ConfigValue::Number(max_rows as i64)).await?;
+                }
+                
+                // Build SSH config if requested
+                let ssh_cfg = if cli.ssh_host.is_some() {
+                    use kodegen_tools_database::{SSHConfig, TunnelConfig, SSHAuth};
+                    
+                    let ssh_host = cli.ssh_host.clone()
+                        .ok_or_else(|| anyhow::anyhow!("SSH host required"))?;
+                    let ssh_user = cli.ssh_user.clone()
+                        .ok_or_else(|| anyhow::anyhow!("SSH user required"))?;
+                    
+                    // Determine auth method
+                    let auth = if let Some(key_path) = &cli.ssh_key {
+                        SSHAuth::Key {
+                            path: key_path.clone(),
+                            passphrase: None,
+                        }
+                    } else if let Some(password) = &cli.ssh_password {
+                        SSHAuth::Password(password.clone())
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "SSH authentication required: provide --ssh-key or --ssh-password"
+                        ));
+                    };
+                    
+                    let ssh_config = SSHConfig {
+                        host: ssh_host,
+                        port: cli.ssh_port,
+                        username: ssh_user,
+                        auth,
+                    };
+                    
+                    // Extract target from DSN
+                    let target_host = kodegen_tools_database::extract_host(dsn)?;
+                    let target_port = kodegen_tools_database::extract_port(dsn)?;
+                    
+                    let tunnel_config = TunnelConfig {
+                        target_host,
+                        target_port,
+                    };
+                    
+                    Some((ssh_config, tunnel_config))
+                } else {
+                    None
+                };
+                
+                (Some(dsn.as_str()), ssh_cfg)
+            } else {
+                (None, None)
+            };
+            
+            #[cfg(not(feature = "database"))]
+            let (database_dsn, ssh_config): (Option<&str>, Option<()>) = (None, None);
+            
             let routers = common::build_routers::<sse::SseServer>(
                 &config_manager,
                 &usage_tracker,
                 &enabled_categories,
+                database_dsn,
+                ssh_config,
             ).await?;
             
             let server = sse::SseServer::new(

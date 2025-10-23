@@ -1,11 +1,11 @@
 //! ListTables tool for database table exploration
 
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 
@@ -102,11 +102,17 @@ impl Tool for ListTablesTool {
                     let db_row = sqlx::query("SELECT DATABASE() as db")
                         .fetch_one(&*self.pool)
                         .await
-                        .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get current database: {}", e)))?;
-                    
-                    let current_db: String = db_row.try_get("db")
-                        .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to extract database name: {}", e)))?;
-                    
+                        .map_err(|e| {
+                            McpError::Other(anyhow::anyhow!(
+                                "Failed to get current database: {}",
+                                e
+                            ))
+                        })?;
+
+                    let current_db: String = db_row.try_get("db").map_err(|e| {
+                        McpError::Other(anyhow::anyhow!("Failed to extract database name: {}", e))
+                    })?;
+
                     let sql = "SELECT table_name FROM information_schema.tables \
                                WHERE table_schema = ? AND table_type = 'BASE TABLE' \
                                ORDER BY table_name";
@@ -161,7 +167,7 @@ impl Tool for ListTablesTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I see what tables are available in a database?"
+                    "How do I see what tables are available in a database?",
                 ),
             },
             PromptMessage {

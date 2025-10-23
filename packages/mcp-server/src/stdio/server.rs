@@ -183,10 +183,13 @@ impl StdioProxyServer {
         shutdown_token: CancellationToken,
     ) -> Result<Self> {
         // Build routers for metadata (schemas and prompts)
+        // Note: stdio mode doesn't support database - database tools only available in SSE mode
         let routers = crate::common::build_routers::<Self>(
             &config_manager,
             &usage_tracker,
             enabled_categories,
+            None, // database_dsn
+            None, // ssh_config
         ).await?;
         
         // Connect to SSE server (daemon)

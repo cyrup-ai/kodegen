@@ -3,7 +3,7 @@
 use crate::error::DatabaseError;
 use crate::schema_queries::get_default_schema;
 use crate::types::DatabaseType;
-use sqlx::AnyPool;
+use sqlx::{AnyPool, Row};
 
 /// Resolve schema name: use provided value or query for default
 ///

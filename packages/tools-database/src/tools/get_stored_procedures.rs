@@ -4,13 +4,13 @@ use crate::error::DatabaseError;
 use crate::schema_queries::get_stored_procedures_query;
 use crate::tools::helpers::resolve_schema_default;
 use crate::types::{DatabaseType, StoredProcedure};
-use kodegen_mcp_tool::{error::McpError, Tool};
+use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use sqlx::AnyPool;
+use serde_json::{Value, json};
+use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 
 /// Arguments for get_stored_procedures tool
@@ -34,13 +34,25 @@ pub struct GetStoredProceduresPromptArgs {}
 #[derive(Clone)]
 pub struct GetStoredProceduresTool {
     pool: Arc<AnyPool>,
+    db_type: DatabaseType,
+    #[allow(dead_code)]
     config: Arc<ConfigManager>,
 }
 
 impl GetStoredProceduresTool {
     /// Create a new GetStoredProceduresTool instance
-    pub fn new(pool: Arc<AnyPool>, config: Arc<ConfigManager>) -> Self {
-        Self { pool, config }
+    pub fn new(
+        pool: Arc<AnyPool>,
+        connection_url: &str,
+        config: Arc<ConfigManager>,
+    ) -> Result<Self, McpError> {
+        let db_type = DatabaseType::from_url(connection_url)
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Invalid database URL: {}", e)))?;
+        Ok(Self {
+            pool,
+            db_type,
+            config,
+        })
     }
 }
 
@@ -67,8 +79,8 @@ impl Tool for GetStoredProceduresTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Detect database type
-        let db_type = DatabaseType::from(self.pool.any_kind());
+        // Use stored database type
+        let db_type = self.db_type;
 
         // SQLite doesn't support stored procedures
         if matches!(db_type, DatabaseType::SQLite) {
@@ -128,11 +140,8 @@ impl Tool for GetStoredProceduresTool {
         }))
     }
 
-    fn prompt_arguments() -> Value {
-        json!({
-            "type": "object",
-            "properties": {}
-        })
+    fn prompt_arguments() -> Vec<PromptArgument> {
+        vec![]
     }
 
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {

@@ -30,7 +30,8 @@ pub use schema_queries::{
 };
 pub use sql_limiter::apply_row_limit;
 pub use sql_parser::{extract_first_keyword, split_sql_statements, strip_comments};
+pub use ssh_tunnel::{establish_tunnel, SSHAuth, SSHConfig, SSHTunnel, TunnelConfig};
+pub use tools::ExecuteSQLTool;
 pub use types::{
     DatabaseType, ExecuteOptions, SQLResult, StoredProcedure, TableColumn, TableIndex,
 };
-pub use tools::ExecuteSQLTool;

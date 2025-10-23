@@ -1,11 +1,11 @@
 //! ListSchemas tool for database schema exploration
 
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 
@@ -132,7 +132,7 @@ impl Tool for ListSchemasTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I discover what databases/schemas are available to query?"
+                    "How do I discover what databases/schemas are available to query?",
                 ),
             },
             PromptMessage {

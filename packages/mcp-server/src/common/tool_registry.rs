@@ -54,6 +54,11 @@ pub async fn register_all_tools<S>(
     config_manager: &kodegen_tools_config::ConfigManager,
     usage_tracker: &UsageTracker,
     enabled_categories: &Option<HashSet<String>>,
+    database_dsn: Option<&str>,
+    #[cfg(feature = "database")]
+    ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
+    #[cfg(not(feature = "database"))]
+    ssh_config: Option<()>,
 ) -> Result<(ToolRouter<S>, PromptRouter<S>, crate::common::router_builder::Managers)>
 where
     S: Send + Sync + 'static
@@ -63,7 +68,39 @@ where
     let mut managers = crate::common::router_builder::Managers {
         #[cfg(feature = "citescrape")]
         browser_manager: None,
+        #[cfg(feature = "database")]
+        tunnel_guard: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
     };
+
+    // Initialize database connection if DSN provided
+    #[cfg(feature = "database")]
+    let mut database_pool: Option<(Arc<sqlx::AnyPool>, String)> = None;
+    
+    #[cfg(feature = "database")]
+    if let Some(dsn) = database_dsn {
+        use kodegen_tools_database::{establish_tunnel, rewrite_dsn_for_tunnel};
+        use anyhow::Context;
+        
+        let final_dsn = if let Some((ssh_cfg, tunnel_cfg)) = ssh_config {
+            // Establish tunnel
+            let tunnel = establish_tunnel(ssh_cfg, tunnel_cfg).await?;
+            let tunneled_dsn = rewrite_dsn_for_tunnel(dsn, tunnel.local_port())?;
+            *managers.tunnel_guard.lock().await = Some(tunnel);
+            log::info!("✓ SSH tunnel established for database connection");
+            tunneled_dsn
+        } else {
+            dsn.to_string()
+        };
+        
+        // Connect to database
+        let pool = sqlx::AnyPool::connect(&final_dsn).await
+            .context("Failed to connect to database")?;
+        
+        log::info!("✓ Database connected ({})", 
+            kodegen_tools_database::detect_database_type(&final_dsn)?);
+        
+        database_pool = Some((Arc::new(pool), final_dsn));
+    }
 
     // Filesystem tools
     #[cfg(feature = "filesystem")]
@@ -131,6 +168,22 @@ where
     #[cfg(feature = "config")]
     if is_category_enabled("config", enabled_categories) {
         (tool_router, prompt_router) = register_config_tools(tool_router, prompt_router, config_manager).await?;
+    }
+    
+    // Database tools
+    #[cfg(feature = "database")]
+    if is_category_enabled("database", enabled_categories) {
+        if let Some((pool, connection_url)) = database_pool {
+            (tool_router, prompt_router) = register_database_tools(
+                tool_router,
+                prompt_router,
+                pool,
+                &connection_url,
+                config_manager,
+            ).await?;
+        } else {
+            log::warn!("Database tools enabled but no database connection provided");
+        }
     }
     
     Ok((tool_router, prompt_router, managers))
@@ -463,6 +516,53 @@ where
         tool_router,
         prompt_router,
         kodegen_tools_config::SetConfigValueTool::new(config_manager.clone())
+    );
+    
+    Ok((tool_router, prompt_router))
+}
+
+#[cfg(feature = "database")]
+async fn register_database_tools<S>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+    pool: Arc<sqlx::AnyPool>,
+    connection_url: &str,
+    config_manager: &kodegen_tools_config::ConfigManager,
+) -> Result<(ToolRouter<S>, PromptRouter<S>)>
+where
+    S: Send + Sync + 'static
+{
+    log::debug!("Initializing database tools");
+    
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::ExecuteSQLTool::new(pool.clone(), config_manager.clone(), connection_url)?
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::ListSchemasTool::new(pool.clone(), connection_url)?
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::ListTablesTool::new(pool.clone(), connection_url)?
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::GetTableSchemaTool::new(pool.clone(), connection_url, Arc::new(config_manager.clone()))?
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::GetTableIndexesTool::new(pool.clone(), connection_url, Arc::new(config_manager.clone()))?
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::GetStoredProceduresTool::new(pool.clone(), connection_url, Arc::new(config_manager.clone()))?
     );
     
     Ok((tool_router, prompt_router))

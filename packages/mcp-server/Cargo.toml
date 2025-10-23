@@ -31,6 +31,7 @@ kodegen_tools_claude_agent = { path = "../tools-claude-agent", optional = true ,
 kodegen_tools_citescrape = { path = "../tools-citescrape", optional = true , version = "0.0.1" }
 kodegen_tools_git = { path = "../tools-git", optional = true , version = "0.0.1" }
 kodegen_tools_github = { path = "../tools-github", optional = true , version = "0.0.1" }
+kodegen_tools_database = { path = "../tools-database", optional = true, version = "0.0.1" }
 
 # Core packages - REQUIRED (always compiled)
 kodegen_tools_config = { path = "../tools-config" , version = "0.0.1" }
@@ -48,6 +49,9 @@ rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = 
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
 tokio-util = "0.7"
+
+# Database support (conditional)
+sqlx = { version = "0.8", features = ["runtime-tokio", "any"], optional = true }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -123,7 +127,8 @@ all = [
     "citescrape",
     "git",
     "github",
-    "config"
+    "config",
+    "database"
 ]
 
 # Individual tool categories (feature names EXACTLY match package names)
@@ -137,7 +142,8 @@ claude_agent = ["dep:kodegen_tools_claude_agent"]
 citescrape = ["dep:kodegen_tools_citescrape"]
 git = ["dep:kodegen_tools_git"]
 github = ["dep:kodegen_tools_github"]
-config = []  # Config tools (ConfigManager is always required by other tools)  
+config = []  # Config tools (ConfigManager is always required by other tools)
+database = ["dep:kodegen_tools_database", "dep:sqlx"]  
 
 # Convenience feature sets
 minimal = ["filesystem", "terminal"]
