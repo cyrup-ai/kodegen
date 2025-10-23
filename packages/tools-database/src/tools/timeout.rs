@@ -82,8 +82,32 @@ where
                     );
                     last_error = Some(sqlx_err);
                     
-                    // Exponential backoff: 100ms, 200ms, 400ms
-                    tokio::time::sleep(Duration::from_millis(100 * 2_u64.pow(attempt))).await;
+                    // Configurable exponential backoff with jitter
+                    let base_backoff_ms = config
+                        .get_value("db_retry_backoff_ms")
+                        .and_then(|v| match v {
+                            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
+                            _ => None,
+                        })
+                        .unwrap_or(500); // Default 500ms, not 100ms
+                    
+                    let max_backoff_ms = config
+                        .get_value("db_max_backoff_ms")
+                        .and_then(|v| match v {
+                            kodegen_tools_config::ConfigValue::Number(n) => Some(n as u64),
+                            _ => None,
+                        })
+                        .unwrap_or(5000); // Default 5 seconds cap
+                    
+                    // Add jitter to prevent thundering herd
+                    let jitter = rand::random::<u64>() % 100; // 0-100ms random jitter
+                    
+                    // Calculate backoff with exponential growth and cap
+                    let backoff_ms = (base_backoff_ms * 2_u64.pow(attempt))
+                        .min(max_backoff_ms)
+                        + jitter;
+                    
+                    tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                     continue;
                 } else {
                     // Non-retryable error or max retries exhausted

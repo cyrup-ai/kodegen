@@ -581,4 +581,197 @@ mod tests {
         let sql = "SELECT 1; DELETE FROM users";
         assert!(validate_readonly_sql(sql, DatabaseType::Postgres).is_err());
     }
+
+    // Attack Vector 1: CTEs with Write Operations
+    #[test]
+    fn test_blocks_cte_with_delete() {
+        let sql = "WITH deleted AS (DELETE FROM users WHERE id = 1 RETURNING *) SELECT * FROM deleted";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block DELETE in CTE");
+        assert!(result.unwrap_err().to_string().contains("DELETE"));
+    }
+
+    #[test]
+    fn test_blocks_cte_with_insert() {
+        let sql = "WITH inserted AS (INSERT INTO logs VALUES (1) RETURNING *) SELECT * FROM inserted";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block INSERT in CTE");
+        assert!(result.unwrap_err().to_string().contains("INSERT"));
+    }
+
+    #[test]
+    fn test_blocks_cte_with_update() {
+        let sql = "WITH updated AS (UPDATE users SET active = false RETURNING *) SELECT * FROM updated";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block UPDATE in CTE");
+        assert!(result.unwrap_err().to_string().contains("UPDATE"));
+    }
+
+    // Attack Vector 2: Derived Table Subqueries
+    #[test]
+    fn test_blocks_derived_table_with_update() {
+        let sql = "SELECT * FROM (UPDATE logs SET checked = true RETURNING user_id) AS updated_logs WHERE user_id > 100";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block UPDATE in derived table");
+        assert!(result.unwrap_err().to_string().contains("UPDATE"));
+    }
+
+    #[test]
+    fn test_blocks_derived_table_with_insert() {
+        let sql = "SELECT * FROM (INSERT INTO audit VALUES (NOW()) RETURNING *) AS audit_log";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block INSERT in derived table");
+        assert!(result.unwrap_err().to_string().contains("INSERT"));
+    }
+
+    #[test]
+    fn test_blocks_derived_table_with_delete() {
+        let sql = "SELECT * FROM (DELETE FROM temp WHERE created < NOW() RETURNING id) AS cleaned";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block DELETE in derived table: {:?}", result);
+    }
+
+    // Attack Vector 3: Expression Subqueries
+    #[test]
+    fn test_blocks_expression_subquery_with_insert() {
+        let sql = "SELECT * FROM users WHERE id IN (INSERT INTO audit VALUES (NOW()) RETURNING user_id)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block INSERT in WHERE subquery: {:?}", result);
+    }
+
+    #[test]
+    fn test_blocks_expression_subquery_with_delete() {
+        let sql = "SELECT * FROM orders WHERE id = (DELETE FROM temp_orders WHERE id = 1 RETURNING order_id)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block DELETE in expression subquery: {:?}", result);
+    }
+
+    #[test]
+    fn test_blocks_expression_subquery_with_update() {
+        let sql = "SELECT COUNT(*) FROM users WHERE active = (UPDATE settings SET value = 'true' RETURNING value)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block UPDATE in expression subquery: {:?}", result);
+    }
+
+    // Attack Vector 4: SetExpr Direct Writes
+    #[test]
+    fn test_blocks_setexpr_insert_in_union() {
+        let sql = "SELECT * FROM users UNION ALL (INSERT INTO logs VALUES (1, 'injected') RETURNING *)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block INSERT in UNION");
+        assert!(result.unwrap_err().to_string().contains("INSERT"));
+    }
+
+    #[test]
+    fn test_blocks_setexpr_update_in_union() {
+        let sql = "SELECT id FROM users UNION (UPDATE logs SET checked = true RETURNING id)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block UPDATE in UNION");
+        assert!(result.unwrap_err().to_string().contains("UPDATE"));
+    }
+
+    #[test]
+    fn test_blocks_setexpr_delete_in_intersect() {
+        let sql = "SELECT id FROM users INTERSECT (DELETE FROM inactive_users RETURNING id)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block DELETE in INTERSECT");
+        assert!(result.unwrap_err().to_string().contains("DELETE"));
+    }
+
+    // Additional comprehensive tests
+    #[test]
+    fn test_blocks_nested_cte_with_write() {
+        // Nested CTEs where the inner CTE has a write operation
+        let sql = "WITH outer_cte AS (WITH inner_cte AS (DELETE FROM t RETURNING *) SELECT * FROM inner_cte) SELECT * FROM outer_cte";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block nested CTE with DELETE");
+    }
+
+    #[test]
+    fn test_blocks_write_in_subquery_in_select_list() {
+        let sql = "SELECT id, (SELECT * FROM (INSERT INTO audit VALUES (1) RETURNING id)) AS audit_id FROM users";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block INSERT in SELECT list subquery");
+    }
+
+    #[test]
+    fn test_blocks_write_in_having_clause() {
+        let sql = "SELECT user_id, COUNT(*) FROM orders GROUP BY user_id HAVING COUNT(*) > (DELETE FROM temp RETURNING 1)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block DELETE in HAVING clause");
+    }
+
+    #[test]
+    fn test_allows_complex_safe_query() {
+        // Complex query with CTEs, subqueries, joins - all read-only
+        let sql = r#"
+            WITH user_stats AS (
+                SELECT user_id, COUNT(*) as order_count
+                FROM orders
+                WHERE created_at > NOW() - INTERVAL '30 days'
+                GROUP BY user_id
+            )
+            SELECT u.*, us.order_count
+            FROM users u
+            INNER JOIN user_stats us ON u.id = us.user_id
+            WHERE u.active = true
+              AND u.id IN (SELECT user_id FROM subscriptions WHERE status = 'active')
+            ORDER BY us.order_count DESC
+            LIMIT 100
+        "#;
+        assert!(validate_readonly_sql(sql, DatabaseType::Postgres).is_ok());
+    }
+
+    #[test]
+    fn test_allows_explain() {
+        let sql = "EXPLAIN SELECT * FROM users WHERE id = 1";
+        assert!(validate_readonly_sql(sql, DatabaseType::Postgres).is_ok());
+    }
+
+    #[test]
+    fn test_blocks_explain_with_write() {
+        let sql = "EXPLAIN DELETE FROM users WHERE id = 1";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block EXPLAIN with DELETE");
+    }
+
+    #[test]
+    fn test_rejects_create_table() {
+        let sql = "CREATE TABLE new_table (id INT)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block CREATE TABLE");
+        assert!(result.unwrap_err().to_string().contains("CREATE"));
+    }
+
+    #[test]
+    fn test_rejects_alter_table() {
+        let sql = "ALTER TABLE users ADD COLUMN email VARCHAR(255)";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block ALTER TABLE");
+        assert!(result.unwrap_err().to_string().contains("ALTER"));
+    }
+
+    #[test]
+    fn test_rejects_truncate() {
+        let sql = "TRUNCATE TABLE logs";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block TRUNCATE");
+        assert!(result.unwrap_err().to_string().contains("TRUNCATE"));
+    }
+
+    #[test]
+    fn test_rejects_grant() {
+        let sql = "GRANT SELECT ON users TO public";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block GRANT");
+        assert!(result.unwrap_err().to_string().contains("GRANT"));
+    }
+
+    #[test]
+    fn test_rejects_revoke() {
+        let sql = "REVOKE SELECT ON users FROM public";
+        let result = validate_readonly_sql(sql, DatabaseType::Postgres);
+        assert!(result.is_err(), "Should block REVOKE");
+        assert!(result.unwrap_err().to_string().contains("REVOKE"));
+    }
 }

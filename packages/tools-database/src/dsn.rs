@@ -4,7 +4,7 @@
 //! database connection strings (DSNs) across multiple database types.
 
 use anyhow::{Context, Result, bail};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
@@ -114,9 +114,9 @@ impl DSNInfo {
     /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
     ///
     /// // WRONG: This won't compile!
-    /// // log::info!("DSN: {}", secret_dsn);  // ❌ Error: Secret<String> doesn't implement Display
+    /// // log::info!("DSN: {}", secret_dsn);  // ❌ Error: SecretString doesn't implement Display
     /// ```
-    pub fn to_connection_string(&self) -> Secret<String> {
+    pub fn to_connection_string(&self) -> SecretString {
         let mut dsn = format!("{}://", self.protocol);
 
         // Add auth if present
@@ -150,7 +150,7 @@ impl DSNInfo {
             dsn.push_str(&params.join("&"));
         }
 
-        Secret::new(dsn)
+        SecretString::from(dsn)
     }
 
     /// Deprecated: Use `to_connection_string()` instead.
@@ -158,7 +158,7 @@ impl DSNInfo {
     /// This method is kept for backward compatibility but will be removed in a future version.
     #[deprecated(
         since = "0.1.0",
-        note = "Use `to_connection_string()` which returns `Secret<String>` for better security"
+        note = "Use `to_connection_string()` which returns `SecretString` for better security"
     )]
     pub fn to_dsn(&self) -> String {
         self.to_connection_string().expose_secret().to_string()
@@ -348,10 +348,11 @@ pub fn validate_dsn(dsn: &str) -> Result<String> {
 /// Takes original DSN pointing to remote host and rewrites it to
 /// connect to localhost:tunnel_port, preserving all other components.
 ///
-/// # Security Note
+/// # Security
 ///
-/// The returned DSN contains the original plaintext password.
-/// Only use the result for immediate database connections.
+/// Returns `SecretString` to prevent accidental password exposure in logs.
+/// Use `.expose_secret()` only when passing to database connection APIs.
+///
 /// For logging tunnel setup, use:
 /// ```rust
 /// let info = parse_dsn(dsn)?;
@@ -359,12 +360,17 @@ pub fn validate_dsn(dsn: &str) -> Result<String> {
 /// ```
 ///
 /// # Example
-/// ```
+/// ```rust
 /// let original = "postgres://user:pass@remote.db.com:5432/mydb?sslmode=require";
 /// let rewritten = rewrite_dsn_for_tunnel(original, 54321)?;
-/// // Result: "postgres://user:pass@127.0.0.1:54321/mydb?sslmode=require"
+/// 
+/// // Use for connection (explicit exposure required)
+/// let pool = AnyPool::connect(rewritten.expose_secret()).await?;
+/// 
+/// // WRONG: This won't compile!
+/// // log::info!("DSN: {}", rewritten);  // ❌ SecretString doesn't implement Display
 /// ```
-pub fn rewrite_dsn_for_tunnel(dsn: &str, tunnel_port: u16) -> Result<String> {
+pub fn rewrite_dsn_for_tunnel(dsn: &str, tunnel_port: u16) -> Result<SecretString> {
     let mut info = parse_dsn(dsn).context("Failed to parse DSN for tunnel rewriting")?;
 
     // SQLite doesn't support tunneling (no network connection)
@@ -376,8 +382,8 @@ pub fn rewrite_dsn_for_tunnel(dsn: &str, tunnel_port: u16) -> Result<String> {
     info.hostname = "127.0.0.1".to_string();
     info.port = Some(tunnel_port);
 
-    // Reconstruct DSN with new connection details
-    Ok(info.to_dsn())
+    // Return Secret-wrapped DSN
+    Ok(info.to_connection_string())
 }
 
 /// Extract hostname from DSN

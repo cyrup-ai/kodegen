@@ -323,33 +323,104 @@ impl Bundler {
     }
 }
 
-/// Calculates SHA256 checksum of a file.
+/// Calculates SHA256 checksum of a file or directory.
 ///
-/// Reads the file in 8KB chunks and computes the SHA-256 hash, returning
-/// the hex-encoded digest string.
+/// For files: Reads in 8KB chunks and computes the SHA-256 hash.
+/// For directories: Recursively hashes all files in deterministic order.
 ///
 /// # Arguments
 ///
-/// * `path` - Path to file to hash
+/// * `path` - Path to file or directory to hash
 ///
 /// # Returns
 ///
 /// * `Ok(String)` - Hex-encoded SHA-256 hash (64 characters)
-/// * `Err` - If file cannot be read
+/// * `Err` - If path cannot be read or is neither file nor directory
 fn calculate_sha256(path: &std::path::Path) -> Result<String> {
     use sha2::{Sha256, Digest};
     use std::io::Read;
     
-    let mut file = std::fs::File::open(path)
+    let metadata = std::fs::metadata(path)
         .map_err(crate::bundler::Error::IoError)?;
+    
+    if metadata.is_file() {
+        // Hash a single file
+        let mut file = std::fs::File::open(path)
+            .map_err(crate::bundler::Error::IoError)?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 8192];
+        
+        loop {
+            let n = file.read(&mut buffer)
+                .map_err(crate::bundler::Error::IoError)?;
+            if n == 0 { break; }
+            hasher.update(&buffer[..n]);
+        }
+        
+        Ok(format!("{:x}", hasher.finalize()))
+    } else if metadata.is_dir() {
+        // Hash directory tree (e.g., macOS .app bundles)
+        calculate_directory_sha256(path)
+    } else {
+        bail!("Path is neither file nor directory: {}", path.display())
+    }
+}
+
+/// Calculates SHA256 checksum of a directory tree.
+///
+/// Recursively traverses the directory, hashing each file's path and content
+/// in sorted order to ensure deterministic results. This is used for macOS
+/// .app bundles which are directories, not single files.
+///
+/// # Algorithm
+///
+/// 1. Recursively collect all files using walkdir
+/// 2. Sort paths lexicographically for deterministic order
+/// 3. For each file: hash(relative_path + file_content)
+/// 4. Return final combined hash
+///
+/// # Arguments
+///
+/// * `dir_path` - Path to directory to hash
+///
+/// # Returns
+///
+/// * `Ok(String)` - Hex-encoded SHA-256 hash of entire directory tree
+/// * `Err` - If directory cannot be traversed
+fn calculate_directory_sha256(dir_path: &std::path::Path) -> Result<String> {
+    use sha2::{Sha256, Digest};
+    use std::io::Read;
+    
+    // Collect all files recursively
+    let mut entries: Vec<_> = walkdir::WalkDir::new(dir_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .collect();
+    
+    // Sort by path for deterministic ordering
+    entries.sort_by_key(|e| e.path().to_path_buf());
+    
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
     
-    loop {
-        let n = file.read(&mut buffer)
-            .map_err(crate::bundler::Error::IoError)?;
-        if n == 0 { break; }
-        hasher.update(&buffer[..n]);
+    for entry in entries {
+        // Include relative path in hash (preserves directory structure)
+        if let Ok(rel_path) = entry.path().strip_prefix(dir_path) {
+            hasher.update(rel_path.to_string_lossy().as_bytes());
+        }
+        
+        // Hash file content
+        if let Ok(mut file) = std::fs::File::open(entry.path()) {
+            loop {
+                match file.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(n) => hasher.update(&buffer[..n]),
+                    Err(_) => break, // Skip unreadable files
+                }
+            }
+        }
     }
     
     Ok(format!("{:x}", hasher.finalize()))

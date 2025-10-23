@@ -40,21 +40,47 @@ docker-compose down
 
 ## Schema Overview
 
-Universal schema with 2 tables modeling employee management:
+Universal schema with 5 tables modeling employee and project management:
 
-**departments** (3 records):
+**departments** (5 records):
 - id (primary key)
 - name (unique, varchar)
 - budget (decimal)
+- created_at (timestamp)
 
-**employees** (6 records):
+**employees** (15 records):
 - id (primary key)
 - name (varchar)
 - email (unique, varchar)
 - department_id (foreign key to departments)
 - salary (decimal)
+- hire_date (date) - NOT NULL
 - active (boolean/tinyint)
-- INDEX on name
+- INDEXes on department_id and name
+
+**projects** (8 records):
+- id (primary key)
+- name (varchar)
+- department_id (foreign key to departments)
+- start_date (date)
+- end_date (date, nullable)
+- status (varchar: 'active', 'completed')
+- INDEXes on department_id and (status, start_date, end_date)
+
+**employee_projects** (20 records - junction table):
+- employee_id (foreign key to employees, composite primary key)
+- project_id (foreign key to projects, composite primary key)
+- role (varchar)
+- assigned_at (timestamp)
+
+**audit_log** (10 records):
+- id (primary key)
+- table_name (varchar)
+- record_id (integer)
+- action (varchar: 'INSERT', 'UPDATE', 'DELETE')
+- changed_at (timestamp)
+- changed_by (varchar)
+- INDEXes on (table_name, record_id) and changed_at
 
 **Stored Procedures** (PostgreSQL/MySQL/MariaDB only):
 - `get_department_employee_count(dept_id)` - Count active employees in department

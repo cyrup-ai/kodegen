@@ -133,7 +133,7 @@ where
     
     #[cfg(feature = "database")]
     if let Some(dsn) = _database_dsn {
-        use kodegen_tools_database::{establish_tunnel, rewrite_dsn_for_tunnel};
+        use kodegen_tools_database::{establish_tunnel, rewrite_dsn_for_tunnel, ExposeSecret, SecretString};
         use anyhow::Context;
         use sqlx::pool::PoolOptions;
         use std::time::Duration;
@@ -146,7 +146,7 @@ where
             log::info!("✓ SSH tunnel established for database connection");
             tunneled_dsn
         } else {
-            dsn.to_string()
+            SecretString::from(dsn.to_string())
         };
         
         // Extract min_connections BEFORE pool block for warmup access
@@ -215,7 +215,7 @@ where
                     
                     Ok(())
                 }))
-                .connect(&final_dsn)
+                .connect(final_dsn.expose_secret())
                 .await
                 .context("Failed to connect to database")?
         };
@@ -224,9 +224,9 @@ where
         warmup_pool(&pool, min_connections).await?;
         
         log::info!("✓ Database connected ({})", 
-            kodegen_tools_database::detect_database_type(&final_dsn)?);
+            kodegen_tools_database::detect_database_type(final_dsn.expose_secret())?);
         
-        database_pool = Some((Arc::new(pool), final_dsn));
+        database_pool = Some((Arc::new(pool), final_dsn.expose_secret().to_string()));
     }
 
     // Filesystem tools

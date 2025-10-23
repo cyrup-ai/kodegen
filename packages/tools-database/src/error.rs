@@ -59,17 +59,38 @@ pub enum DatabaseError {
 impl From<DatabaseError> for McpError {
     fn from(err: DatabaseError) -> Self {
         match err {
-            DatabaseError::ReadOnlyViolation(msg) => McpError::ReadOnlyViolation(msg),
-            DatabaseError::SchemaNotFound(msg) | DatabaseError::TableNotFound(msg) => {
-                McpError::ResourceNotFound(msg)
+            DatabaseError::ConnectionError(msg) => {
+                McpError::Network(format!("[DB Connection] {}", msg))
+            }
+            DatabaseError::QueryError(msg) => {
+                McpError::Other(anyhow::anyhow!("[DB Query] {}", msg))
+            }
+            DatabaseError::SchemaNotFound(msg) => {
+                McpError::ResourceNotFound(format!("[Schema] {}", msg))
+            }
+            DatabaseError::TableNotFound(msg) => {
+                McpError::ResourceNotFound(format!("[Table] {}", msg))
+            }
+            DatabaseError::ReadOnlyViolation(msg) => {
+                McpError::ReadOnlyViolation(format!("[DB] {}", msg))
+            }
+            DatabaseError::SSHTunnelError(msg) => {
+                McpError::Network(format!("[SSH Tunnel] {}", msg))
+            }
+            DatabaseError::UnsupportedDatabase(msg) => {
+                McpError::InvalidArguments(format!("[Unsupported DB] {}", msg))
+            }
+            DatabaseError::FeatureNotSupported(msg) => {
+                McpError::InvalidArguments(format!("[Feature Not Supported] {}", msg))
             }
             DatabaseError::Sqlx(sqlx_err) => convert_sqlx_error(sqlx_err),
-            DatabaseError::Ssh(ssh_err) => McpError::Network(format!("SSH error: {}", ssh_err)),
+            DatabaseError::Ssh(ssh_err) => {
+                McpError::Network(format!("[SSH] {}", ssh_err))
+            }
             DatabaseError::UrlParse(url_err) => {
-                McpError::InvalidArguments(format!("Invalid URL: {}", url_err))
+                McpError::InvalidArguments(format!("[URL Parse] {}", url_err))
             }
             DatabaseError::Io(io_err) => McpError::Io(io_err),
-            _ => McpError::Other(anyhow::Error::new(err)),
         }
     }
 }

@@ -23,7 +23,7 @@ kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
 kodegen_tools_config = { path = "../tools-config", version = "0.0.1" }
 
 # Security - secret value wrapper for passwords/credentials
-secrecy = "0.8"
+secrecy = "0.10"
 
 # Database (async, multi-database support)
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "any"] }
@@ -56,6 +56,7 @@ regex = "1"
 lazy-regex = "3.4"
 base64 = "0.22"
 sqlparser = "0.55"
+rand = "0.9"
 
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 

@@ -1,22 +1,50 @@
-//! Database tools example - demonstrates all 7 database tools across 4 database types
+//! Database tools example - demonstrates all 7 database tools
 //!
-//! This example follows the pattern from filesystem.rs and shows how to:
-//! - Connect to databases via connection strings
+//! This example shows how to:
+//! - Connect to a database server via connection pool
 //! - List schemas and tables
 //! - Introspect table structure (columns, indexes)
 //! - Execute SQL queries
 //! - Monitor connection pool health
 //! - Query stored procedures (PostgreSQL/MySQL only)
+//!
+//! # Prerequisites
+//!
+//! This example requires a running PostgreSQL database:
+//!
+//! ```bash
+//! cd packages/tools-database
+//! docker-compose up -d
+//! ```
+//!
+//! The Docker setup provides a test database with sample data:
+//! - 5 tables: departments, employees, projects, employee_projects, audit_log
+//! - Pre-loaded with test data
+//! - Stored procedure: get_department_employee_count(dept_id)
+//!
+//! # Architecture
+//!
+//! Database tools maintain a connection pool at the server level.
+//! The server is started with `--database-dsn` flag pointing to ONE database.
+//! All tools then operate against that pre-configured connection pool.
+//!
+//! This design enables:
+//! - Connection pooling and reuse
+//! - Prepared statement caching
+//! - Transaction management
+//! - Health monitoring
 
 mod common;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use kodegen_mcp_client::tools;
 use serde_json::json;
+use std::time::Duration;
+use tokio::process::Command;
 use tracing::info;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter("info")
@@ -24,9 +52,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting database tools example");
 
-    // Connect to kodegen server with database category
-    let (conn, mut server) = common::connect_to_server_with_categories(
-        Some(vec![common::ToolCategory::Database])
+    // Connect to kodegen server with database DSN
+    let (conn, mut server) = connect_to_database_server(
+        "postgres://testuser:testpass@localhost:5432/testdb"
     ).await?;
 
     // Wrap client with logging
@@ -47,11 +75,54 @@ async fn main() -> anyhow::Result<()> {
     result
 }
 
-async fn run_database_example(client: &common::LoggingClient) -> anyhow::Result<()> {
+/// Connect to kodegen server with database connection pool
+///
+/// Spawns the server with `--database-dsn` flag to establish a connection pool.
+/// The server will pre-configure database tools with this connection.
+async fn connect_to_database_server(
+    database_dsn: &str,
+) -> Result<(kodegen_mcp_client::KodegenConnection, common::ServerHandle)> {
+    let workspace_root = common::find_workspace_root()
+        .context("Failed to find workspace root")?;
+
+    // Spawn SSE server with database connection
+    let mut cmd = Command::new("cargo");
+    cmd.current_dir(workspace_root);
+    cmd.args([
+        "run", "--package", "kodegen", "--bin", "kodegen", "--",
+        "--sse", "127.0.0.1:18080",
+        "--tools", "database",
+        "--database-dsn", database_dsn,
+    ]);
+
+    // Clean up any stale servers
+    common::cleanup_port(18080).await.ok();
+
+    eprintln!("🚀 Starting SSE server with database connection...");
+
+    let child = cmd.spawn()
+        .context("Failed to spawn SSE server")?;
+
+    let server_handle = common::ServerHandle::new(child);
+
+    // Wait for server to be ready
+    eprintln!("⏳ Waiting for server and database connection...");
+    let (_client, connection) = common::connect_with_retry(
+        "http://127.0.0.1:18080/sse",
+        Duration::from_secs(90),
+        Duration::from_millis(500),
+    )
+    .await
+    .context("Failed to connect to SSE server")?;
+
+    Ok((connection, server_handle))
+}
+
+async fn run_database_example(client: &common::LoggingClient) -> Result<()> {
     info!("\n{:=<70}", "");
     info!(" DATABASE TOOLS EXAMPLE");
     info!("{:=<70}\n", "");
-    info!("This example demonstrates all 7 database tools across 4 database types:");
+    info!("This example demonstrates all 7 database tools:");
     info!("  1. list_schemas - Discover available databases/schemas");
     info!("  2. list_tables - List tables in a schema");
     info!("  3. get_table_schema - Inspect table columns");
@@ -59,39 +130,28 @@ async fn run_database_example(client: &common::LoggingClient) -> anyhow::Result<
     info!("  5. execute_sql (SELECT) - Query data");
     info!("  6. execute_sql (JOIN) - Complex multi-table queries");
     info!("  7. get_pool_stats - Monitor connection health");
-    info!("  8. get_stored_procedures - List functions/procedures (PostgreSQL/MySQL only)");
+    info!("  8. get_stored_procedures - List functions/procedures");
     info!("");
 
-    // Test all 4 database types
-    for db_type in &["postgres", "mysql", "mariadb", "sqlite"] {
-        info!("\n{:=<70}", "");
-        info!(" Testing {}", db_type.to_uppercase());
-        info!("{:=<70}", "");
-        match test_database_tools(client, db_type).await {
-            Ok(_) => info!("✅ All tests passed for {}\n", db_type),
-            Err(e) => {
-                tracing::error!("❌ Tests failed for {}: {}\n", db_type, e);
-                return Err(e);
-            }
-        }
-    }
+    test_database_tools(client).await?;
 
     info!("\n{:=<70}", "");
     info!(" ALL TESTS COMPLETE");
     info!("{:=<70}", "");
-    info!("✅ Successfully demonstrated all 7 database tools across 4 database types");
+    info!("✅ Successfully demonstrated all 7 database tools");
     Ok(())
 }
 
-async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> anyhow::Result<()> {
-    let dsn = get_dsn(db_type);
-    info!("Connecting to: {}", dsn);
+async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
+    info!("\n{:=<70}", "");
+    info!(" Testing PostgreSQL Database");
+    info!("{:=<70}", "");
     
     // Tool 1: LIST_SCHEMAS
     info!("\n[1/8] Testing list_schemas...");
     client.call_tool(
         tools::LIST_SCHEMAS,
-        json!({ "dsn": dsn })
+        json!({})
     )
     .await
     .context("list_schemas failed")?;
@@ -101,7 +161,7 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     info!("\n[2/8] Testing list_tables...");
     client.call_tool(
         tools::LIST_TABLES,
-        json!({ "dsn": dsn })
+        json!({})
     )
     .await
     .context("list_tables failed")?;
@@ -111,7 +171,7 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     info!("\n[3/8] Testing get_table_schema on 'employees' table...");
     client.call_tool(
         tools::GET_TABLE_SCHEMA,
-        json!({ "dsn": dsn, "table_name": "employees" })
+        json!({ "table_name": "employees" })
     )
     .await
     .context("get_table_schema failed")?;
@@ -121,7 +181,7 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     info!("\n[4/8] Testing get_table_indexes on 'employees' table...");
     client.call_tool(
         tools::GET_TABLE_INDEXES,
-        json!({ "dsn": dsn, "table_name": "employees" })
+        json!({ "table_name": "employees" })
     )
     .await
     .context("get_table_indexes failed")?;
@@ -132,7 +192,6 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     client.call_tool(
         tools::EXECUTE_SQL,
         json!({ 
-            "dsn": dsn,
             "sql": "SELECT * FROM departments LIMIT 3"
         })
     )
@@ -145,7 +204,6 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     client.call_tool(
         tools::EXECUTE_SQL,
         json!({ 
-            "dsn": dsn,
             "sql": "SELECT e.name, e.email, d.name as department \
                     FROM employees e \
                     JOIN departments d ON e.department_id = d.id \
@@ -160,41 +218,21 @@ async fn test_database_tools(client: &common::LoggingClient, db_type: &str) -> a
     info!("\n[7/8] Testing get_pool_stats...");
     client.call_tool(
         tools::GET_POOL_STATS,
-        json!({ "dsn": dsn })
+        json!({})
     )
     .await
     .context("get_pool_stats failed")?;
     info!("✅ get_pool_stats completed");
     
-    // Tool 8: GET_STORED_PROCEDURES (skip for SQLite - not supported)
-    if db_type != "sqlite" {
-        info!("\n[8/8] Testing get_stored_procedures...");
-        client.call_tool(
-            tools::GET_STORED_PROCEDURES,
-            json!({ "dsn": dsn })
-        )
-        .await
-        .context("get_stored_procedures failed")?;
-        info!("✅ get_stored_procedures completed");
-    } else {
-        info!("\n[8/8] Skipping get_stored_procedures (SQLite does not support stored procedures)");
-    }
+    // Tool 8: GET_STORED_PROCEDURES
+    info!("\n[8/8] Testing get_stored_procedures...");
+    client.call_tool(
+        tools::GET_STORED_PROCEDURES,
+        json!({})
+    )
+    .await
+    .context("get_stored_procedures failed")?;
+    info!("✅ get_stored_procedures completed");
     
     Ok(())
-}
-
-
-fn get_dsn(db_type: &str) -> String {
-    match db_type {
-        "postgres" => "postgres://testuser:testpass@localhost:5432/testdb".to_string(),
-        "mysql" => "mysql://testuser:testpass@localhost:3306/testdb".to_string(),
-        "mariadb" => "mysql://testuser:testpass@localhost:3307/testdb".to_string(),
-        _ => {  // "sqlite" and any other case
-            // For SQLite, use a temporary file instead of :memory:
-            // This allows connection pooling to work correctly
-            let temp_dir = std::env::temp_dir();
-            let db_path = temp_dir.join("kodegen_test.db");
-            format!("sqlite://{}", db_path.display())
-        }
-    }
 }

@@ -18,6 +18,9 @@ pub mod ssh_tunnel;
 // Tools (implemented in later tasks)
 pub mod tools;
 
+// Re-export secrecy types for consumers
+pub use secrecy::{ExposeSecret, SecretString};
+
 // Re-exports
 pub use dsn::{
     DSNInfo, detect_database_type, extract_database, extract_host, extract_port, parse_dsn,

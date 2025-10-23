@@ -392,21 +392,26 @@ impl TempKeychain {
         if let Ok(ca_output) = g2_ca_result
             && ca_output.status.success() && !ca_output.stdout.is_empty()
         {
-            let _ = Command::new("security")
+            // Properly handle stdin piping with explicit flush and close
+            if let Ok(mut child) = Command::new("security")
                 .arg("import")
                 .arg("-")
                 .args(["-k", &keychain_path.to_string_lossy(), "-A"])
                 .stdin(std::process::Stdio::piped())
                 .spawn()
-                .and_then(|mut child| {
+            {
+                if let Some(mut stdin) = child.stdin.take() {
                     use std::io::Write;
-                    if let Some(mut stdin) = child.stdin.take() {
-                        let _ = stdin.write_all(&ca_output.stdout);
-                        // Explicitly drop/close stdin before waiting
-                        drop(stdin);
-                    }
-                    child.wait()
-                });
+                    // Write CA certificate data to stdin
+                    let _ = stdin.write_all(&ca_output.stdout);
+                    // Explicitly flush to ensure data is sent
+                    let _ = stdin.flush();
+                    // Drop stdin to close the pipe before waiting
+                    drop(stdin);
+                }
+                // Wait for security command to complete
+                let _ = child.wait();
+            }
         }
         
         // Import certificate
