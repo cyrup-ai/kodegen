@@ -115,7 +115,7 @@ cyrup_termcolor = "2.0"
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"                # User ID retrieval for Docker security
+users = "0.11"              # Safe user/group ID retrieval for Docker security
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ar = "0.9"                  # AR archive for .deb

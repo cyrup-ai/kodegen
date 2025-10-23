@@ -50,6 +50,24 @@ impl ContainerBundler {
         }
     }
 
+    /// Check if container was killed by OOM via Docker inspect API
+    async fn check_container_oom_status(container_name: &str) -> Result<bool, std::io::Error> {
+        let output = Command::new("docker")
+            .args(["inspect", container_name, "--format", "{{.State.OOMKilled}}"])
+            .output()
+            .await?;
+        
+        if !output.status.success() {
+            return Ok(false);  // Container doesn't exist or inspect failed
+        }
+        
+        let oom_killed = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_lowercase();
+        
+        Ok(oom_killed == "true")
+    }
+
     /// Bundles a single platform in a Docker container.
     ///
     /// Runs the bundle command inside the container, which builds binaries
@@ -158,21 +176,7 @@ impl ContainerBundler {
                 reason: format!("Failed to create {}: {}", temp_target_dir.display(), e),
             }))?;
 
-        // SECURITY: Get current user ID to map into container (prevents root execution)
-        // This ensures files created in container have correct ownership
-        #[cfg(unix)]
-        let user_mapping = {
-            let uid = unsafe { libc::getuid() };
-            let gid = unsafe { libc::getgid() };
-            format!("{}:{}", uid, gid)
-        };
 
-        #[cfg(not(unix))]
-        let user_mapping = {
-            // Windows containers run with different security model
-            // Use default container user (builder from Dockerfile)
-            String::new()
-        };
 
         // SECURITY: Build secure mount arguments
         // Mount workspace as read-only (prevents source code modification)
@@ -223,12 +227,22 @@ impl ContainerBundler {
             "/workspace".to_string(),
         ];
 
-        // SECURITY: Add user mapping on Unix systems (prevents running as root)
+        // User mapping for file ownership
+        //
+        // Unix: Map container user to current host UID/GID
+        //       This ensures files created in container have correct ownership
+        //
+        // Windows: Use default container user from Dockerfile
+        //          Windows container security model doesn't use UID/GID mapping
         #[cfg(unix)]
-        if !user_mapping.is_empty() {
+        {
+            let uid = unsafe { libc::getuid() };
+            let gid = unsafe { libc::getgid() };
             docker_args.push("--user".to_string());
-            docker_args.push(user_mapping);
+            docker_args.push(format!("{}:{}", uid, gid));
         }
+
+        // Note: No --user flag on Windows (uses Dockerfile USER)
 
         // Add image and cargo command
         docker_args.push(self.image_name.clone());
