@@ -2,14 +2,17 @@
 
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::types::DatabaseType;
+use crate::tools::timeout::execute_with_timeout;
 
 // =============================================================================
 // Args Structs
@@ -37,6 +40,7 @@ pub struct ListTablesPromptArgs {}
 pub struct ListTablesTool {
     pool: Arc<AnyPool>,
     db_type: DatabaseType,
+    config: ConfigManager,
 }
 
 impl ListTablesTool {
@@ -44,10 +48,10 @@ impl ListTablesTool {
     ///
     /// # Errors
     /// Returns error if connection_url cannot be parsed to determine database type
-    pub fn new(pool: Arc<AnyPool>, connection_url: &str) -> Result<Self, McpError> {
+    pub fn new(pool: Arc<AnyPool>, connection_url: &str, config: ConfigManager) -> Result<Self, McpError> {
         let db_type = DatabaseType::from_url(connection_url)
             .map_err(|e| McpError::Other(anyhow::anyhow!("Invalid database URL: {}", e)))?;
-        Ok(Self { pool, db_type })
+        Ok(Self { pool, db_type, config })
     }
 }
 
@@ -98,16 +102,15 @@ impl Tool for ListTablesTool {
                     (sql, vec![schema.clone()], schema)
                 } else {
                     // Use DATABASE() to get current database
-                    // First, query for current database name
-                    let db_row = sqlx::query("SELECT DATABASE() as db")
-                        .fetch_one(&*self.pool)
-                        .await
-                        .map_err(|e| {
-                            McpError::Other(anyhow::anyhow!(
-                                "Failed to get current database: {}",
-                                e
-                            ))
-                        })?;
+                    // First, query for current database name with timeout
+                    let db_row = execute_with_timeout(
+                        &self.config,
+                        "db_metadata_query_timeout_secs",
+                        Duration::from_secs(10),
+                        sqlx::query("SELECT DATABASE() as db").fetch_one(&*self.pool),
+                        "Getting current database name",
+                    )
+                    .await?;
 
                     let current_db: String = db_row.try_get("db").map_err(|e| {
                         McpError::Other(anyhow::anyhow!("Failed to extract database name: {}", e))
@@ -134,16 +137,20 @@ impl Tool for ListTablesTool {
             }
         };
 
-        // Execute query with parameters
+        // Execute query with parameters and timeout
         let mut query = sqlx::query(sql);
         for param in &params {
             query = query.bind(param);
         }
 
-        let rows = query
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to fetch tables: {}", e)))?;
+        let rows = execute_with_timeout(
+            &self.config,
+            "db_metadata_query_timeout_secs",
+            Duration::from_secs(10), // 10s default for metadata
+            query.fetch_all(&*self.pool),
+            "Listing tables",
+        )
+        .await?;
 
         // Extract table names
         let tables: Vec<String> = rows

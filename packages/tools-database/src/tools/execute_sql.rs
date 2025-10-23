@@ -75,11 +75,15 @@ impl ExecuteSQLTool {
 
     /// Execute a single SQL statement
     async fn execute_single(&self, sql: &str) -> Result<Value, McpError> {
-        // Execute query
-        let rows = sqlx::query(sql)
-            .fetch_all(&*self.pool)
-            .await
-            .context("SQL execution failed")?;
+        // Execute query with timeout
+        let rows = execute_with_timeout(
+            &self.config,
+            "db_query_timeout_secs",
+            Duration::from_secs(60), // 60s default for data queries
+            sqlx::query(sql).fetch_all(&*self.pool),
+            &format!("Executing SQL: {}", sql.chars().take(50).collect::<String>()),
+        )
+        .await?;
 
         // Convert rows to JSON
         let json_rows: Result<Vec<Value>, _> = rows
@@ -99,12 +103,30 @@ impl ExecuteSQLTool {
     /// Execute multiple SQL statements within a transaction
     /// Returns partial results if execution fails partway through
     async fn execute_multi_transactional(&self, statements: &[String]) -> Result<Value, McpError> {
-        let mut tx = self.pool.begin().await.context("Failed to begin transaction")?;
+        // Begin transaction with timeout
+        let mut tx = execute_with_timeout(
+            &self.config,
+            "db_query_timeout_secs",
+            Duration::from_secs(30),
+            self.pool.begin(),
+            "Starting transaction",
+        )
+        .await?;
         let mut all_rows = Vec::new();
         let mut executed_statements = 0;
 
         for (index, statement) in statements.iter().enumerate() {
-            match sqlx::query(statement).fetch_all(&mut *tx).await {
+            // Execute each statement with timeout
+            let rows_result = execute_with_timeout(
+                &self.config,
+                "db_query_timeout_secs",
+                Duration::from_secs(60),
+                sqlx::query(statement).fetch_all(&mut *tx),
+                &format!("Executing: {}", statement.chars().take(50).collect::<String>()),
+            )
+            .await;
+
+            match rows_result {
                 Ok(rows) => {
                     executed_statements += 1;
                     if !rows.is_empty() {
@@ -135,8 +157,15 @@ impl ExecuteSQLTool {
             }
         }
 
-        // Commit transaction
-        tx.commit().await.context("Failed to commit transaction")?;
+        // Commit transaction with timeout
+        execute_with_timeout(
+            &self.config,
+            "db_query_timeout_secs",
+            Duration::from_secs(30),
+            tx.commit(),
+            "Committing transaction",
+        )
+        .await?;
 
         Ok(json!({
             "rows": all_rows,
@@ -154,7 +183,17 @@ impl ExecuteSQLTool {
         let mut executed_statements = 0;
 
         for (index, statement) in statements.iter().enumerate() {
-            match sqlx::query(statement).fetch_all(&*self.pool).await {
+            // Execute each statement with timeout
+            let rows_result = execute_with_timeout(
+                &self.config,
+                "db_query_timeout_secs",
+                Duration::from_secs(60),
+                sqlx::query(statement).fetch_all(&*self.pool),
+                &format!("Executing: {}", statement.chars().take(50).collect::<String>()),
+            )
+            .await;
+
+            match rows_result {
                 Ok(rows) => {
                     executed_statements += 1;
                     if !rows.is_empty() {

@@ -144,13 +144,18 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
 /// - `is_nullable` (String - "YES" or "NO")
 /// - `column_default` (Option<String>)
 ///
-/// ## ⚠️ SECURITY WARNING - SQLite PRAGMA
+/// ## ⚠️ SECURITY - SQLite PRAGMA Validation
 ///
-/// SQLite PRAGMA commands do NOT support parameterized queries. Table names are
-/// interpolated directly into the query string. The calling code (ExecuteSQL tool)
-/// MUST validate table names before calling this function to prevent SQL injection.
+/// SQLite PRAGMA commands do NOT support parameterized queries. Table names must be
+/// interpolated directly into the query string.
 ///
-/// Only allow: alphanumeric characters, underscores, and validate against table list first.
+/// **VALIDATION**: All calling code MUST use `validate::validate_sqlite_identifier()`
+/// before calling this function. See:
+/// - [`packages/tools-database/src/tools/get_table_schema.rs`](../tools/get_table_schema.rs)
+/// - [`packages/tools-database/src/tools/get_table_indexes.rs`](../tools/get_table_indexes.rs)
+///
+/// Validation is implemented at the tool boundary (where user input enters) rather than
+/// in this utility function to keep query generation pure and error handling clear.
 ///
 /// ## SQLite PRAGMA Return Values
 ///
