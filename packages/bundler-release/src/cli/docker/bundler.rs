@@ -101,8 +101,7 @@ impl ContainerBundler {
                 } else {
                     std::env::current_dir()
                         .map(|cwd| cwd.join(&self.workspace_path))
-                        .map_err(|e| std::io::Error::new(
-                            std::io::ErrorKind::Other,
+                        .map_err(|e| std::io::Error::other(
                             format!("Cannot determine current directory: {}", e)
                         ))
                 }
