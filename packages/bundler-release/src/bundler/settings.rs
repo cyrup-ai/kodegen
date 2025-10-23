@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::Arch;
+/// use kodegen_bundler_release::bundler::Arch;
 ///
 /// let arch = Arch::X86_64;
 /// println!("Target architecture: {:?}", arch);
@@ -52,7 +52,7 @@ pub enum Arch {
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::PackageSettings;
+/// use kodegen_bundler_release::bundler::PackageSettings;
 ///
 /// let settings = PackageSettings {
 ///     product_name: "MyApp".into(),
@@ -957,7 +957,7 @@ pub struct BundleSettings {
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::BundleBinary;
+/// use kodegen_bundler_release::bundler::BundleBinary;
 ///
 /// let main_binary = BundleBinary::new("myapp".into(), true);
 /// let helper = BundleBinary::new("myapp-helper".into(), false);
@@ -1043,9 +1043,9 @@ impl BundleBinary {
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::{Settings, SettingsBuilder, PackageSettings};
+/// use kodegen_bundler_release::bundler::{Settings, SettingsBuilder, PackageSettings};
 ///
-/// # fn example() -> kodegen_release::bundler::Result<()> {
+/// # fn example() -> kodegen_bundler_release::bundler::Result<()> {
 /// let settings = SettingsBuilder::new()
 ///     .project_out_directory("target/release")
 ///     .package_settings(PackageSettings {
@@ -1202,9 +1202,9 @@ impl Settings {
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::{SettingsBuilder, PackageSettings, BundleBinary};
+/// use kodegen_bundler_release::bundler::{SettingsBuilder, PackageSettings, BundleBinary};
 ///
-/// # fn example() -> kodegen_release::bundler::Result<()> {
+/// # fn example() -> kodegen_bundler_release::bundler::Result<()> {
 /// let settings = SettingsBuilder::new()
 ///     .project_out_directory("target/release")
 ///     .package_settings(PackageSettings {

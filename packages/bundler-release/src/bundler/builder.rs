@@ -15,9 +15,9 @@
 //! # Example
 //!
 //! ```no_run
-//! use kodegen_release::bundler::{Bundler, SettingsBuilder, PackageSettings};
+//! use kodegen_bundler_release::bundler::{Bundler, SettingsBuilder, PackageSettings};
 //!
-//! # fn example() -> kodegen_release::bundler::Result<()> {
+//! # fn example() -> kodegen_bundler_release::bundler::Result<()> {
 //! let settings = SettingsBuilder::new()
 //!     .project_out_directory("target/release")
 //!     .package_settings(PackageSettings {
@@ -56,9 +56,9 @@ use crate::bail;
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::{Bundler, Settings, PackageType};
+/// use kodegen_bundler_release::bundler::{Bundler, Settings, PackageType};
 ///
-/// # fn example(settings: Settings) -> kodegen_release::bundler::Result<()> {
+/// # fn example(settings: Settings) -> kodegen_bundler_release::bundler::Result<()> {
 /// // Create bundler
 /// let bundler = Bundler::new(settings)?;
 ///
@@ -99,9 +99,9 @@ impl Bundler {
     /// # Examples
     ///
     /// ```no_run
-    /// use kodegen_release::bundler::{Bundler, Settings};
+    /// use kodegen_bundler_release::bundler::{Bundler, Settings};
     ///
-    /// # fn example(settings: Settings) -> kodegen_release::bundler::Result<()> {
+    /// # fn example(settings: Settings) -> kodegen_bundler_release::bundler::Result<()> {
     /// let bundler = Bundler::new(settings)?;
     /// # Ok(())
     /// # }
@@ -173,9 +173,9 @@ impl Bundler {
     /// # Examples
     ///
     /// ```no_run
-    /// use kodegen_release::bundler::Bundler;
+    /// use kodegen_bundler_release::bundler::Bundler;
     ///
-    /// # fn example(bundler: Bundler) -> kodegen_release::bundler::Result<()> {
+    /// # fn example(bundler: Bundler) -> kodegen_bundler_release::bundler::Result<()> {
     /// let artifacts = bundler.bundle()?;
     /// println!("Created {} packages", artifacts.len());
     /// # Ok(())
@@ -207,9 +207,9 @@ impl Bundler {
     /// # Examples
     ///
     /// ```no_run
-    /// use kodegen_release::bundler::{Bundler, PackageType};
+    /// use kodegen_bundler_release::bundler::{Bundler, PackageType};
     ///
-    /// # fn example(bundler: Bundler) -> kodegen_release::bundler::Result<()> {
+    /// # fn example(bundler: Bundler) -> kodegen_bundler_release::bundler::Result<()> {
     /// // Create only Debian and AppImage packages
     /// let artifacts = bundler.bundle_types(&[
     ///     PackageType::Deb,

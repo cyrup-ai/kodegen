@@ -544,9 +544,6 @@ impl ReleaseManager {
         );
         state.save_state(&release_state).await?;
 
-        if !config.no_backup {
-            state.create_backup()?;
-        }
         state.cleanup_state()?;
 
         Ok(ReleaseResult {

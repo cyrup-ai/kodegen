@@ -491,7 +491,7 @@ pub fn restart_tool(_: ()) -> FnResult<String> {
     match os {
         "macos" => {
             // Try to restart Claude Desktop on macOS
-            std::process::Command::new("osascript")
+            Ok(std::process::Command::new("osascript")
                 .args(&[
                     "-e", "tell application \"Claude\" to quit",
                     "-e", "delay 2",
@@ -499,7 +499,7 @@ pub fn restart_tool(_: ()) -> FnResult<String> {
                 ])
                 .output()
                 .map(|_| "Claude Desktop restarted".to_string())
-                .map_err(|e| Error::msg(format!("Failed to restart: {}", e)))
+                .map_err(|e| Error::msg(format!("Failed to restart: {}", e)))?)
         }
         "windows" => {
             // Try to restart Claude Desktop on Windows
@@ -513,11 +513,11 @@ pub fn restart_tool(_: ()) -> FnResult<String> {
             std::thread::sleep(std::time::Duration::from_secs(2));
             
             // Try to start it again
-            std::process::Command::new("cmd")
+            Ok(std::process::Command::new("cmd")
                 .args(&["/C", "start", "", "Claude"])
                 .output()
                 .map(|_| "Claude Desktop restarted".to_string())
-                .map_err(|e| Error::msg(format!("Failed to restart: {}", e)))
+                .map_err(|e| Error::msg(format!("Failed to restart: {}", e)))?)
         }
         _ => {
             // Linux - harder to restart generically

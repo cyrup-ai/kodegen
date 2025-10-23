@@ -45,7 +45,7 @@ use std::fmt;
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::PackageType;
+/// use kodegen_bundler_release::bundler::PackageType;
 ///
 /// // Get all package types for current platform
 /// let types = PackageType::all_for_current_platform();
@@ -146,7 +146,7 @@ impl PackageType {
     /// # Examples
     ///
     /// ```no_run
-    /// use kodegen_release::bundler::PackageType;
+    /// use kodegen_bundler_release::bundler::PackageType;
     ///
     /// let types = PackageType::all_for_current_platform();
     /// println!("Available package types: {:?}", types);

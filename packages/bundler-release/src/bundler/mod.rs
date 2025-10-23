@@ -27,10 +27,10 @@
 //!
 //! # Integration
 //!
-//! The bundler integrates with the release workflow in `kodegen_release`:
+//! The bundler integrates with the release workflow in `kodegen_bundler_release`:
 //!
 //! ```no_run
-//! use kodegen_release::bundler::{Bundler, SettingsBuilder};
+//! use kodegen_bundler_release::bundler::{Bundler, SettingsBuilder};
 //!
 //! let settings = SettingsBuilder::new()
 //!     .project_out_directory("target/release")
@@ -102,9 +102,9 @@ pub use settings::{
 /// # Examples
 ///
 /// ```no_run
-/// use kodegen_release::bundler::{Bundler, Settings, SettingsBuilder, PackageSettings};
+/// use kodegen_bundler_release::bundler::{Bundler, Settings, SettingsBuilder, PackageSettings};
 ///
-/// # fn example() -> kodegen_release::bundler::Result<()> {
+/// # fn example() -> kodegen_bundler_release::bundler::Result<()> {
 /// # let settings = SettingsBuilder::new()
 /// #     .project_out_directory("target/release")
 /// #     .package_settings(PackageSettings::default())

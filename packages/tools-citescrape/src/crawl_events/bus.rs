@@ -16,7 +16,7 @@ use super::streaming::FilteredReceiver;
 use super::types::{BatchPublishResult, CrawlEvent};
 
 /// Event bus for publishing and subscribing to crawl events
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CrawlEventBus {
     sender: broadcast::Sender<CrawlEvent>,
     config: Arc<EventBusConfig>,
@@ -27,6 +27,8 @@ pub struct CrawlEventBus {
     send_lock: Arc<Mutex<()>>,
     /// Tracks consecutive publish timeout failures for circuit breaker
     consecutive_timeouts: Arc<AtomicUsize>,
+    /// Reference count for tracking CrawlEventBus instances (for proper Drop semantics)
+    num_instances: Arc<AtomicUsize>,
 }
 
 impl CrawlEventBus {
@@ -56,6 +58,7 @@ impl CrawlEventBus {
         let capacity_notify = Arc::new(Notify::new());
         let send_lock = Arc::new(Mutex::new(()));
         let consecutive_timeouts = Arc::new(AtomicUsize::new(0));
+        let num_instances = Arc::new(AtomicUsize::new(1));
         Self {
             sender,
             config: Arc::new(config),
@@ -65,6 +68,7 @@ impl CrawlEventBus {
             capacity_notify,
             send_lock,
             consecutive_timeouts,
+            num_instances,
         }
     }
 
@@ -595,12 +599,33 @@ impl Default for CrawlEventBus {
     }
 }
 
+impl Clone for CrawlEventBus {
+    fn clone(&self) -> Self {
+        // Increment instance count (follows tokio's broadcast::Sender pattern)
+        self.num_instances.fetch_add(1, Ordering::Relaxed);
+        Self {
+            sender: self.sender.clone(),
+            config: self.config.clone(),
+            metrics: self.metrics.clone(),
+            shutdown: self.shutdown.clone(),
+            shutdown_flag: self.shutdown_flag.clone(),
+            capacity_notify: self.capacity_notify.clone(),
+            send_lock: self.send_lock.clone(),
+            consecutive_timeouts: self.consecutive_timeouts.clone(),
+            num_instances: self.num_instances.clone(),
+        }
+    }
+}
+
 impl Drop for CrawlEventBus {
     fn drop(&mut self) {
-        // Ensure shutdown is signaled when bus is dropped
-        // This is a safety net for cases where shutdown() wasn't called explicitly
-        self.shutdown_flag.store(true, Ordering::SeqCst);
-        self.shutdown.notify_waiters();
-        log::trace!("Event bus dropped, shutdown signal sent");
+        // Only shutdown when the LAST instance is dropped (follows tokio's pattern)
+        // fetch_sub returns the value BEFORE decrementing
+        if 1 == self.num_instances.fetch_sub(1, Ordering::AcqRel) {
+            // This was the last instance - trigger shutdown
+            self.shutdown_flag.store(true, Ordering::SeqCst);
+            self.shutdown.notify_waiters();
+            log::trace!("Event bus dropped (last instance), shutdown signal sent");
+        }
     }
 }

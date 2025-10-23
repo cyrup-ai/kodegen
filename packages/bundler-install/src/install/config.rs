@@ -931,7 +931,12 @@ pub fn remove_kodegen_host_entries() -> Result<()> {
     }
 
     // Remove Kodegen block
-    let new_content = remove_kodegen_block(&existing_content);
+    let mut new_content = remove_kodegen_block(&existing_content);
+    
+    // Ensure file ends with newline (POSIX standard)
+    if !new_content.is_empty() && !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
 
     // Write atomically (temp + rename)
     write_hosts_file_atomic(&hosts_file_path, &new_content)

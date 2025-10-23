@@ -184,6 +184,7 @@ impl GitHubReleaseManager {
                 asset_name: filename.to_string(),
                 label: Some(create_artifact_label(filename)),
                 content: Bytes::from(content),
+                replace_existing: false, // Safer default - fails if asset exists
             };
 
             // Upload via GitHub client
