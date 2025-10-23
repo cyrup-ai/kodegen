@@ -16,6 +16,8 @@ use serde::de::DeserializeOwned;
 /// Default SSE server URL for examples
 ///
 /// Examples automatically spawn an SSE server and connect to this URL.
+// APPROVED BY DAVID MAPLE on 2025-10-23: Shared library code used by multiple examples
+#[allow(dead_code)]
 const DEFAULT_SSE_URL: &str = "http://127.0.0.1:18080/sse";
 
 /// Cached workspace root to avoid repeated cargo metadata executions
@@ -23,7 +25,7 @@ static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 static WORKSPACE_ROOT_INIT: StdMutex<()> = StdMutex::new(());
 
 /// Find the workspace root by querying cargo metadata
-fn find_workspace_root() -> Result<&'static PathBuf> {
+pub fn find_workspace_root() -> Result<&'static PathBuf> {
     if let Some(root) = WORKSPACE_ROOT.get() {
         return Ok(root);
     }
@@ -170,7 +172,7 @@ pub struct ServerHandle {
 
 impl ServerHandle {
     /// Create a new server handle
-    fn new(child: Child) -> Self {
+    pub fn new(child: Child) -> Self {
         Self {
             child: Some(child),
         }
@@ -241,7 +243,7 @@ impl Drop for ServerHandle {
 ///
 /// Uses macOS `lsof` to find processes, then kills them with `kill -9`.
 /// Ignores errors (idempotent - safe to call even if port is free).
-async fn cleanup_port(port: u16) -> Result<()> {
+pub async fn cleanup_port(port: u16) -> Result<()> {
     eprintln!("🧹 Checking for processes on port {port}...");
 
     // Find PIDs using the port
@@ -272,7 +274,7 @@ async fn cleanup_port(port: u16) -> Result<()> {
 ///
 /// Polls server readiness until connection succeeds or timeout expires.
 /// Uses fixed retry interval (not exponential) since we're waiting for compilation.
-async fn connect_with_retry(
+pub async fn connect_with_retry(
     url: &str,
     total_timeout: std::time::Duration,
     retry_interval: std::time::Duration,
@@ -338,6 +340,8 @@ async fn connect_with_retry(
 /// # Errors
 ///
 /// Returns error if the server fails to spawn or connection fails.
+// APPROVED BY DAVID MAPLE on 2025-10-23: Shared library code used by multiple examples
+#[allow(dead_code)]
 pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCategory>>) -> Result<(KodegenConnection, ServerHandle)> {
     let workspace_root = find_workspace_root()
         .context("Failed to find workspace root")?;

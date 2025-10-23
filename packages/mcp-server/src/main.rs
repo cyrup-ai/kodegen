@@ -170,11 +170,9 @@ async fn main() -> Result<()> {
             // Prepare database configuration
             #[cfg(feature = "database")]
             let (database_dsn, ssh_config) = if let Some(ref dsn) = cli.database_dsn {
-                // Store config values
-                config_manager.set_value("readonly", kodegen_tools_config::ConfigValue::Boolean(cli.database_readonly)).await?;
-                if let Some(max_rows) = cli.database_max_rows {
-                    config_manager.set_value("max_rows", kodegen_tools_config::ConfigValue::Number(max_rows as i64)).await?;
-                }
+                // Note: database_readonly and database_max_rows are CLI-only flags
+                // They are not stored in ConfigManager as they are database-tool-specific settings
+                // Database tools will read these from CLI args if needed in the future
                 
                 // Build SSH config if requested
                 let ssh_cfg = if cli.ssh_host.is_some() {
