@@ -16,6 +16,7 @@ use crate::error::{CliError, ReleaseError};
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use uuid::Uuid;
 
@@ -79,24 +80,17 @@ impl ContainerBundler {
             platform_str
         ));
 
-        // Clean old artifacts BEFORE running container to prevent stale/corrupted files
-        let bundle_dir = self.workspace_path
-            .join("target")
-            .join("release")
-            .join("bundle")
-            .join(platform_str.to_lowercase());
+        // Generate UUID for both container name AND temp directory
+        let build_uuid = Uuid::new_v4();
+        let container_name = format!("kodegen-bundle-{}", build_uuid);
 
-        if bundle_dir.exists() {
-            runtime_config.indent(&format!("  Cleaning old {} artifacts...", platform_str));
-            std::fs::remove_dir_all(&bundle_dir)
-                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                    command: "clean old artifacts".to_string(),
-                    reason: format!("Failed to remove {}: {}", bundle_dir.display(), e),
-                }))?;
-        }
-
-        // Generate unique container name for tracking and cleanup
-        let container_name = format!("kodegen-bundle-{}", Uuid::new_v4());
+        // Create isolated temp target directory for this build
+        let temp_target_dir = workspace_path.join(format!("target-temp-{}", build_uuid));
+        std::fs::create_dir_all(&temp_target_dir)
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "create temporary target directory".to_string(),
+                reason: format!("Failed to create {}: {}", temp_target_dir.display(), e),
+            }))?;
 
         // Create RAII guard to ensure cleanup on failure
         // Guard will automatically call `docker rm -f` when dropped (on error or panic)
@@ -171,14 +165,15 @@ impl ContainerBundler {
         // Mount workspace as read-only (prevents source code modification)
         let workspace_mount = format!("{}:/workspace:ro", workspace_path.display());
 
-        // Mount target/ as read-write (required for build outputs)
-        let target_mount = format!("{}:/workspace/target:rw", target_dir.display());
+        // SECURITY: Mount TEMP target directory as read-write (isolates concurrent builds)
+        let target_mount = format!("{}:/workspace/target:rw", temp_target_dir.display());
 
         // Build docker arguments with security constraints
         let mut docker_args = vec![
             "run".to_string(),
             "--name".to_string(),
             container_name.clone(),
+            "--rm".to_string(),
             
             // SECURITY: Prevent privilege escalation in container
             "--security-opt".to_string(),
@@ -437,9 +432,10 @@ impl ContainerBundler {
         // Verify artifacts are valid before declaring success
         verify_artifacts(&artifacts, runtime_config)?;
 
-        // Success! Disarm the guard to skip cleanup (container will auto-cleanup via Docker)
-        // We remove guard responsibility because container succeeded and Docker will clean it up
-        std::mem::forget(_guard);
+        // Container cleanup strategy:
+        // - Normal exit: --rm flag auto-removes container when process exits
+        // - Abnormal termination: Guard Drop removes container (SIGKILL, panic, etc.)
+        // - Guard running on already-removed container is harmless (errors ignored)
 
         Ok(artifacts)
     }
