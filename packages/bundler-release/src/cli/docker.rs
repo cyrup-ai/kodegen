@@ -98,7 +98,7 @@ impl ContainerLimits {
         
         // Calculate memory limit (50% of total, min 2GB, max 8GB)
         let total_ram_gb = sys.total_memory() / 1024 / 1024 / 1024;
-        let memory_gb = ((total_ram_gb / 2).max(2)).min(8);
+        let memory_gb = (total_ram_gb / 2).clamp(2, 8);
         let swap_gb = memory_gb + 2;
         
         // Calculate CPU limit (50% of cores, minimum 2)
@@ -154,9 +154,11 @@ struct ContainerGuard {
 impl Drop for ContainerGuard {
     fn drop(&mut self) {
         // Best-effort cleanup - ignore errors as we're already in error/cleanup path
-        let _ = Command::new("docker")
-            .args(["rm", "-f", &self.name])
-            .output();
+        std::mem::drop(
+            Command::new("docker")
+                .args(["rm", "-f", &self.name])
+                .output()
+        );
         // Note: This runs `docker rm -f <container-name>` which:
         // - Forcefully removes the container (even if running)
         // - Doesn't fail if container doesn't exist
@@ -176,16 +178,6 @@ pub struct ContainerBundler {
 }
 
 impl ContainerBundler {
-    /// Creates a new container bundler with default resource limits.
-    ///
-    /// # Arguments
-    ///
-    /// * `workspace_path` - Path to the workspace root (will be mounted in container)
-    #[allow(dead_code)]
-    pub fn new(workspace_path: PathBuf) -> Self {
-        Self::with_limits(workspace_path, ContainerLimits::default())
-    }
-    
     /// Creates a container bundler with custom resource limits.
     ///
     /// # Arguments
@@ -346,7 +338,7 @@ impl ContainerBundler {
 
         let image_id = String::from_utf8_lossy(&check_output.stdout).trim().to_string();
         
-        if !image_id.is_empty() {
+        if !image_id.is_empty() && image_id.len() >= 12 {
             // Image exists - check if it's up-to-date
             runtime_config.verbose_println(&format!(
                 "Found existing Docker image: {}",
@@ -1065,12 +1057,11 @@ fn find_bundle_directory(
         }))?;
         
         let path = entry.path();
-        if path.is_dir() {
-            if let Some(dir_name) = path.file_name() {
-                if dir_name.to_string_lossy().eq_ignore_ascii_case(platform_str) {
-                    return Ok(path);
-                }
-            }
+        if path.is_dir()
+            && let Some(dir_name) = path.file_name()
+            && dir_name.to_string_lossy().eq_ignore_ascii_case(platform_str)
+        {
+            return Ok(path);
         }
     }
     
