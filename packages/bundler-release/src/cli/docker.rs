@@ -28,6 +28,7 @@ use chrono::{DateTime, Utc};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::time::timeout;
 use uuid::Uuid;
@@ -752,121 +753,50 @@ impl ContainerBundler {
             docker_args.push("--release".to_string());
         }
 
-        // Execute container with timeout
-        let run_result = timeout(
+        // Spawn with piped stdout for streaming
+        let mut child = Command::new("docker")
+            .args(&docker_args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: format!("docker run {}", docker_args.join(" ")),
+                reason: e.to_string(),
+            }))?;
+
+        // Stream stdout line-by-line
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+            
+            while let Ok(Some(line)) = lines.next_line().await {
+                runtime_config.indent(&line);
+            }
+        }
+
+        // Wait with timeout
+        let status = tokio::time::timeout(
             DOCKER_RUN_TIMEOUT,
-            Command::new("docker")
-                .args(&docker_args)
-                .output()
-        ).await;
+            child.wait()
+        ).await
+            .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: format!("bundle {} in container", platform_str),
+                reason: format!(
+                    "Docker bundling timed out after {} minutes",
+                    DOCKER_RUN_TIMEOUT.as_secs() / 60
+                ),
+            }))?
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: format!("docker run {}", docker_args.join(" ")),
+                reason: e.to_string(),
+            }))?;
 
-        let output = match run_result {
-            Ok(Ok(output)) => output,
-            Ok(Err(e)) => {
-                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
-                    command: format!("docker run {}", docker_args.join(" ")),
-                    reason: format!("Failed to execute docker run: {}", e),
-                }));
-            }
-            Err(_) => {
-                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
-                    command: format!("bundle {} in container", platform_str),
-                    reason: format!(
-                        "Docker bundling timed out after {} minutes.\n\
-                         \n\
-                         Container was running:\n\
-                         {}\n\
-                         \n\
-                         This usually means:\n\
-                         • Cargo build is taking longer than expected\n\
-                         • Network issues downloading dependencies\n\
-                         • Container is stuck waiting for input\n\
-                         \n\
-                         Try:\n\
-                         • Check container status: docker ps\n\
-                         • View logs: docker logs <container-id>\n\
-                         • Run with --no-build to skip compilation",
-                        DOCKER_RUN_TIMEOUT.as_secs() / 60,
-                        docker_args.join(" ")
-                    ),
-                }));
-            }
-        };
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            
-            // Check for OOM (Out Of Memory) error
-            if stderr.contains("OOMKilled") || stderr.contains("out of memory") || stderr.contains("OutOfMemoryError") {
-                use sysinfo::System;
-                let mut sys = System::new_all();
-                sys.refresh_memory();
-                let total_memory_gb = sys.total_memory() / 1024 / 1024 / 1024;
-                
-                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
-                    command: format!("bundle {} in container", platform_str),
-                    reason: format!(
-                        "Container ran out of memory during build.\n\
-                         \n\
-                         Current memory limit: {} (swap: {})\n\
-                         \n\
-                         The container exhausted available memory while building. This typically happens when:\n\
-                         • Building large Rust projects with many dependencies\n\
-                         • Parallel compilation uses more RAM than available\n\
-                         • Debug builds require more memory than release builds\n\
-                         \n\
-                         Solutions:\n\
-                         1. Increase memory limit:\n\
-                            cargo run -p kodegen_release -- bundle --platform {} --docker-memory 8g\n\
-                         \n\
-                         2. Build fewer platforms in parallel (run multiple times with --platform)\n\
-                         \n\
-                         3. Use release builds (they use less memory):\n\
-                            cargo run -p kodegen_release -- bundle --platform {} --release\n\
-                         \n\
-                         4. Check available system memory: {} GB total",
-                        self.limits.memory,
-                        self.limits.memory_swap,
-                        platform_str,
-                        platform_str,
-                        total_memory_gb,
-                    ),
-                }));
-            }
-            
-            // Check for common Docker errors with pattern matching
-            let help_text = if stderr.contains("permission denied") || stderr.contains("Permission denied") {
-                "\n\nℹ  Tip: Docker permission issue. Run:\n   \
-                 sudo usermod -aG docker $USER\n   \
-                 Then log out and log back in."
-            } else if stderr.contains("Cannot connect to the Docker daemon") {
-                "\n\nℹ  Tip: Docker daemon not accessible:\n   \
-                 • Ensure Docker Desktop/daemon is running\n   \
-                 • Check: docker ps"
-            } else if stderr.contains("no space left on device") || stderr.contains("No space left on device") {
-                "\n\nℹ  Tip: Disk space exhausted. Clean up:\n   \
-                 docker system prune -a --volumes"
-            } else if stderr.contains("manifest unknown") || stderr.contains("not found") {
-                "\n\nℹ  Tip: Docker image may not be built. Run:\n   \
-                 docker images | grep kodegen-release-builder"
-            } else {
-                ""
-            };
-            
+        if !status.success() {
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                 command: format!("bundle {} in container", platform_str),
                 reason: format!(
-                    "Container bundling failed with exit code: {}\n\
-                     \n\
-                     Stderr:\n{}\n\
-                     \n\
-                     Stdout:\n{}\
-                     {}",
-                    output.status.code().unwrap_or(-1),
-                    stderr,
-                    stdout,
-                    help_text
+                    "Container bundling failed with exit code: {}",
+                    status.code().unwrap_or(-1)
                 ),
             }));
         }
