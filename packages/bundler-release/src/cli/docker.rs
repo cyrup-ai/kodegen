@@ -154,11 +154,11 @@ struct ContainerGuard {
 impl Drop for ContainerGuard {
     fn drop(&mut self) {
         // Best-effort cleanup - ignore errors as we're already in error/cleanup path
-        std::mem::drop(
-            Command::new("docker")
-                .args(["rm", "-f", &self.name])
-                .output()
-        );
+        // Use std::process::Command (synchronous) instead of tokio::process::Command
+        // because Drop is a synchronous method and cannot await futures
+        let _ = std::process::Command::new("docker")
+            .args(["rm", "-f", &self.name])
+            .output();
         // Note: This runs `docker rm -f <container-name>` which:
         // - Forcefully removes the container (even if running)
         // - Doesn't fail if container doesn't exist
@@ -486,78 +486,59 @@ async fn build_docker_image(
         BUILDER_IMAGE_NAME
     ));
     
-    let build_result = timeout(
+    // Spawn with piped stdout for streaming
+    let mut child = Command::new("docker")
+        .args([
+            "build",
+            "--pull",
+            "-t",
+            BUILDER_IMAGE_NAME,
+            "-f",
+            "Dockerfile",
+            ".",
+        ])
+        .current_dir(&dockerfile_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "docker build".to_string(),
+            reason: e.to_string(),
+        }))?;
+
+    // Stream stdout line-by-line
+    if let Some(stdout) = child.stdout.take() {
+        let reader = BufReader::new(stdout);
+        let mut lines = reader.lines();
+        
+        while let Ok(Some(line)) = lines.next_line().await {
+            runtime_config.indent(&line);
+        }
+    }
+
+    // Wait with timeout
+    let status = tokio::time::timeout(
         DOCKER_BUILD_TIMEOUT,
-        Command::new("docker")
-            .args([
-                "build",
-                "--pull",  // Always pull latest base image
-                "-t",
-                BUILDER_IMAGE_NAME,
-                "-f",
-                "Dockerfile",
-                ".",
-            ])
-            .current_dir(&dockerfile_dir)
-            .output()
-    ).await;
+        child.wait()
+    ).await
+        .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "docker build".to_string(),
+            reason: format!(
+                "Docker build timed out after {} minutes",
+                DOCKER_BUILD_TIMEOUT.as_secs() / 60
+            ),
+        }))?
+        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "docker build".to_string(),
+            reason: e.to_string(),
+        }))?;
 
-    let build_output = match build_result {
-        Ok(Ok(output)) => output,
-        Ok(Err(e)) => {
-            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "docker build".to_string(),
-                reason: format!("Failed to execute docker build: {}", e),
-            }));
-        }
-        Err(_) => {
-            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "docker build".to_string(),
-                reason: format!(
-                    "Docker build timed out after {} minutes.\n\
-                     \n\
-                     This usually means:\n\
-                     • Network issues downloading base images\n\
-                     • apt-get update is stuck\n\
-                     • Build step is hanging\n\
-                     \n\
-                     Check Docker logs: docker ps -a | head -2",
-                    DOCKER_BUILD_TIMEOUT.as_secs() / 60
-                ),
-            }));
-        }
-    };
-
-    if !build_output.status.success() {
-        let stderr = String::from_utf8_lossy(&build_output.stderr);
-        let stdout = String::from_utf8_lossy(&build_output.stdout);
-        
-        // Provide helpful error context
-        let help_text = if stderr.contains("permission denied") || stderr.contains("Permission denied") {
-            "\n\nℹ  Tip: Add your user to the docker group:\n   \
-             sudo usermod -aG docker $USER\n   \
-             Then log out and back in."
-        } else if stderr.contains("Cannot connect to the Docker daemon") {
-            "\n\nℹ  Tip: Ensure Docker daemon is running:\n   \
-             • macOS/Windows: Start Docker Desktop\n   \
-             • Linux: sudo systemctl start docker"
-        } else if stderr.contains("no space left on device") {
-            "\n\nℹ  Tip: Clean up Docker resources:\n   \
-             docker system prune -a --volumes"
-        } else {
-            ""
-        };
-        
+    if !status.success() {
         return Err(ReleaseError::Cli(CliError::ExecutionFailed {
             command: "docker build".to_string(),
             reason: format!(
-                "Failed to build Docker image:\n\
-                 \n\
-                 Stderr:\n{}\n\
-                 \n\
-                 Stdout:\n{}\
-                 {}",
-                stderr, stdout, help_text
+                "Build failed with exit code: {}",
+                status.code().unwrap_or(-1)
             ),
         }));
     }
