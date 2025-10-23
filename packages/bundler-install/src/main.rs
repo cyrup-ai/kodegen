@@ -1,6 +1,8 @@
 mod config;
 mod install;
 mod wizard;
+#[cfg(feature = "gui")]
+mod gui;
 
 use clap::{Parser, ValueEnum};
 use anyhow::{Context, Result};
@@ -505,7 +507,7 @@ async fn install_chromium() -> Result<PathBuf> {
     Ok(chromium_path)
 }
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(name = "kodegen-install")]
 #[command(version, about = "Install kodegen daemon as a system service")]
 struct Cli {
@@ -555,6 +557,45 @@ struct Cli {
     pub no_interaction: bool,
 }
 
+/// Determine if GUI mode should be used based on CLI flags and platform
+#[cfg(feature = "gui")]
+fn should_use_gui(cli: &Cli) -> bool {
+    // Explicit GUI flag has highest priority
+    if cli.gui {
+        return true;
+    }
+    
+    // Platform sources that expect GUI (graphical installers)
+    if let Some(ref platform) = cli.from_platform {
+        match platform {
+            PlatformSource::Dmg | PlatformSource::Pkg => true,  // macOS installers
+            PlatformSource::Msi | PlatformSource::Nsis => true, // Windows installers
+            _ => false,  // Deb/Rpm are headless (package manager postinst)
+        }
+    } else {
+        false  // No platform indicator = CLI wizard mode
+    }
+}
+
+/// Run installation in GUI mode
+#[cfg(feature = "gui")]
+async fn run_gui_mode(cli: &Cli) -> Result<()> {
+    // Delegate to GUI module's run_gui_installation (implemented in SUBTASK 5)
+    let result = gui::run_gui_installation(cli).await?;
+    
+    // Log completion to stdout for CI/logging integration
+    use std::io::Write;
+    use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+    
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
+    let _ = writeln!(stdout, "\n✅ Installation completed successfully");
+    let _ = stdout.reset();
+    let _ = writeln!(stdout, "   Data directory: {}", result.data_dir.display());
+    
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::Builder::from_default_env()
@@ -578,6 +619,12 @@ async fn main() -> Result<()> {
 
     if cli.uninstall {
         return run_uninstall(&cli).await;
+    }
+
+    // Check if GUI mode should be used
+    #[cfg(feature = "gui")]
+    if should_use_gui(&cli) {
+        return run_gui_mode(&cli).await;
     }
 
     // Check if running in non-interactive mode (CLI flags provided)

@@ -307,14 +307,9 @@ fn get_upstream_info(
         };
 
         // Calculate ahead/behind counts
-        match calculate_ahead_behind(repo, local_commit_id, upstream_ref) {
-            Ok(counts) => counts,
-            Err(_) => {
-                // If calculation fails (e.g., no merge base), return None for counts
-                // but still return the upstream ref name
-                (None, None)
-            }
-        }
+        // If calculation fails (e.g., no merge base), return None for counts
+        // but still return the upstream ref name
+        calculate_ahead_behind(repo, local_commit_id, upstream_ref).unwrap_or_default()
     } else {
         // No upstream configured
         (None, None)

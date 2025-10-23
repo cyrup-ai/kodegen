@@ -17,7 +17,6 @@ use tokio::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 use crate::install::core::InstallProgress;
-use crate::wizard::InstallationResult;
 
 /// Installation window state
 pub struct InstallWindow {
@@ -30,9 +29,6 @@ pub struct InstallWindow {
     progress: f32,           // 0.0 to 1.0
     is_error: bool,
     is_complete: bool,
-    
-    /// Installation result (populated on completion)
-    result: Option<InstallationResult>,
     
     /// Branding assets (loaded once at startup)
     banner: Option<egui::TextureHandle>,
@@ -60,7 +56,6 @@ impl InstallWindow {
             progress: 0.0,
             is_error: false,
             is_complete: false,
-            result: None,
             banner,
         }
     }
@@ -307,4 +302,122 @@ impl InstallWindow {
             }
         });
     }
+}
+
+/// Run GUI installation with progress window
+pub async fn run_gui_installation(
+    cli: &crate::Cli,
+) -> anyhow::Result<crate::wizard::InstallationResult> {
+    use tokio::sync::oneshot;
+    use std::io::Write;
+    use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+    
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
+    let _ = writeln!(stdout, "🎨 Launching GUI installer...");
+    let _ = stdout.reset();
+    
+    // Create progress channel (unbounded = never blocks background thread)
+    let (tx, rx) = mpsc::unbounded_channel::<InstallProgress>();
+    
+    // Create result channel (oneshot = single result value)
+    let (result_tx, mut result_rx) = oneshot::channel();
+    
+    // Spawn installation in background tokio task
+    let cli_clone = cli.clone();
+    tokio::spawn(async move {
+        // Get binary paths using existing helper
+        let (_kodegen_path, kodegend_path) = match crate::get_bundled_binaries(cli_clone.from_platform.clone()).await {
+            Ok(paths) => paths,
+            Err(e) => {
+                let _ = tx.send(InstallProgress::error(
+                    "binary_fetch".to_string(),
+                    format!("Failed to locate binaries: {}", e),
+                ));
+                let _ = result_tx.send(Err(e));
+                return;
+            }
+        };
+        
+        // Get config path (platform-specific)
+        let config_path = match dirs::config_dir() {
+            Some(dir) => dir.join("kodegen").join("config.toml"),
+            None => {
+                let err = anyhow::anyhow!("Could not determine config directory");
+                let _ = tx.send(InstallProgress::error(
+                    "config".to_string(),
+                    format!("{}", err),
+                ));
+                let _ = result_tx.send(Err(err));
+                return;
+            }
+        };
+        
+        // Run daemon installation (function already accepts progress channel!)
+        let auto_start = !cli_clone.no_start;
+        let install_result = crate::install::config::install_kodegen_daemon(
+            kodegend_path,
+            config_path,
+            auto_start,
+            Some(tx.clone()),  // Progress updates flow through this channel
+        ).await;
+        
+        // Send completion progress (100%)
+        if install_result.is_ok() {
+            let _ = tx.send(InstallProgress::complete(
+                "complete".to_string(),
+                "Installation finished successfully".to_string(),
+            ));
+        }
+        
+        // Send final result to main thread
+        let _ = result_tx.send(install_result);
+    });
+    
+    // Store result in Arc<Mutex<>> so GUI can access it
+    let result_container = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let result_clone = result_container.clone();
+    
+    // Spawn result polling task
+    tokio::spawn(async move {
+        let result = loop {
+            match result_rx.try_recv() {
+                Ok(res) => break res,
+                Err(oneshot::error::TryRecvError::Empty) => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+                Err(oneshot::error::TryRecvError::Closed) => {
+                    break Err(anyhow::anyhow!("Installation channel closed unexpectedly"));
+                }
+            }
+        };
+        
+        // Store result for main thread to retrieve
+        if let Ok(mut container) = result_container.lock() {
+            *container = Some(result);
+        }
+    });
+    
+    // Configure GUI window (runs on main thread)
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([600.0, 450.0])
+            .with_resizable(false)
+            .with_title("Kodegen Installation"),
+        ..Default::default()
+    };
+    
+    // Run GUI (blocking until window closes)
+    let _ = eframe::run_native(
+        "kodegen_install",
+        native_options,
+        Box::new(move |cc| Ok(Box::new(InstallWindow::new(cc, rx)))),
+    );
+    
+    // Retrieve result after GUI closes
+    result_clone
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.take())
+        .unwrap_or_else(|| Err(anyhow::anyhow!("GUI closed without result")))
 }

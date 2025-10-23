@@ -37,9 +37,25 @@ pub enum DatabaseError {
     /// Feature not supported for this database
     #[error("Feature not supported: {0}")]
     FeatureNotSupported(String),
+
+    /// sqlx database error
+    #[error("Database error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+
+    /// SSH connection error
+    #[error("SSH error: {0}")]
+    Ssh(#[from] ssh2::Error),
+
+    /// URL parsing error
+    #[error("Invalid URL: {0}")]
+    UrlParse(#[from] url::ParseError),
+
+    /// IO error
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
-/// Convert DatabaseError to McpError via anyhow
+/// Convert DatabaseError to McpError
 impl From<DatabaseError> for McpError {
     fn from(err: DatabaseError) -> Self {
         match err {
@@ -47,75 +63,51 @@ impl From<DatabaseError> for McpError {
             DatabaseError::SchemaNotFound(msg) | DatabaseError::TableNotFound(msg) => {
                 McpError::ResourceNotFound(msg)
             }
+            DatabaseError::Sqlx(sqlx_err) => convert_sqlx_error(sqlx_err),
+            DatabaseError::Ssh(ssh_err) => McpError::Network(format!("SSH error: {}", ssh_err)),
+            DatabaseError::UrlParse(url_err) => {
+                McpError::InvalidArguments(format!("Invalid URL: {}", url_err))
+            }
+            DatabaseError::Io(io_err) => McpError::Io(io_err),
             _ => McpError::Other(anyhow::Error::new(err)),
         }
     }
 }
 
-/// Convert sqlx errors to McpError
-impl From<sqlx::Error> for McpError {
-    fn from(err: sqlx::Error) -> Self {
-        match err {
-            sqlx::Error::Configuration(msg) => {
-                McpError::InvalidArguments(format!("Database configuration error: {}", msg))
-            }
-            sqlx::Error::Database(db_err) => {
-                McpError::Other(anyhow::anyhow!("Database error: {}", db_err))
-            }
-            sqlx::Error::Io(io_err) => McpError::Io(io_err),
-            sqlx::Error::Tls(tls_err) => {
-                McpError::Network(format!("TLS error: {}", tls_err))
-            }
-            sqlx::Error::Protocol(msg) => {
-                McpError::Network(format!("Protocol error: {}", msg))
-            }
-            sqlx::Error::RowNotFound => {
-                McpError::ResourceNotFound("No rows returned by query".to_string())
-            }
-            sqlx::Error::TypeNotFound { type_name } => {
-                McpError::InvalidArguments(format!("Type not found: {}", type_name))
-            }
-            sqlx::Error::ColumnIndexOutOfBounds { index, len } => {
-                McpError::InvalidArguments(format!(
-                    "Column index {} out of bounds (len: {})",
-                    index, len
-                ))
-            }
-            sqlx::Error::ColumnNotFound(col) => {
-                McpError::InvalidArguments(format!("Column not found: {}", col))
-            }
-            sqlx::Error::ColumnDecode { index, source } => McpError::Other(anyhow::anyhow!(
-                "Failed to decode column {}: {}",
-                index,
-                source
-            )),
-            sqlx::Error::Decode(err) => {
-                McpError::Other(anyhow::anyhow!("Decode error: {}", err))
-            }
-            sqlx::Error::PoolTimedOut => {
-                McpError::Network("Connection pool timed out".to_string())
-            }
-            sqlx::Error::PoolClosed => {
-                McpError::Network("Connection pool closed".to_string())
-            }
-            sqlx::Error::WorkerCrashed => {
-                McpError::Other(anyhow::anyhow!("Database worker crashed"))
-            }
-            _ => McpError::Other(anyhow::anyhow!("Database error: {}", err)),
+/// Convert sqlx errors to McpError with detailed error handling
+fn convert_sqlx_error(err: sqlx::Error) -> McpError {
+    match err {
+        sqlx::Error::Configuration(msg) => {
+            McpError::InvalidArguments(format!("Database configuration error: {}", msg))
         }
-    }
-}
-
-/// Convert SSH errors to McpError
-impl From<ssh2::Error> for McpError {
-    fn from(err: ssh2::Error) -> Self {
-        McpError::Network(format!("SSH error: {}", err))
-    }
-}
-
-/// Convert URL parse errors to McpError
-impl From<url::ParseError> for McpError {
-    fn from(err: url::ParseError) -> Self {
-        McpError::InvalidArguments(format!("Invalid URL: {}", err))
+        sqlx::Error::Database(db_err) => {
+            McpError::Other(anyhow::anyhow!("Database error: {}", db_err))
+        }
+        sqlx::Error::Io(io_err) => McpError::Io(io_err),
+        sqlx::Error::Tls(tls_err) => McpError::Network(format!("TLS error: {}", tls_err)),
+        sqlx::Error::Protocol(msg) => McpError::Network(format!("Protocol error: {}", msg)),
+        sqlx::Error::RowNotFound => {
+            McpError::ResourceNotFound("No rows returned by query".to_string())
+        }
+        sqlx::Error::TypeNotFound { type_name } => {
+            McpError::InvalidArguments(format!("Type not found: {}", type_name))
+        }
+        sqlx::Error::ColumnIndexOutOfBounds { index, len } => McpError::InvalidArguments(format!(
+            "Column index {} out of bounds (len: {})",
+            index, len
+        )),
+        sqlx::Error::ColumnNotFound(col) => {
+            McpError::InvalidArguments(format!("Column not found: {}", col))
+        }
+        sqlx::Error::ColumnDecode { index, source } => McpError::Other(anyhow::anyhow!(
+            "Failed to decode column {}: {}",
+            index,
+            source
+        )),
+        sqlx::Error::Decode(err) => McpError::Other(anyhow::anyhow!("Decode error: {}", err)),
+        sqlx::Error::PoolTimedOut => McpError::Network("Connection pool timed out".to_string()),
+        sqlx::Error::PoolClosed => McpError::Network("Connection pool closed".to_string()),
+        sqlx::Error::WorkerCrashed => McpError::Other(anyhow::anyhow!("Database worker crashed")),
+        _ => McpError::Other(anyhow::anyhow!("Database error: {}", err)),
     }
 }

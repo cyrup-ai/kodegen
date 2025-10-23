@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 pub struct TableColumn {
     /// Column name
     pub column_name: String,
-    
+
     /// Data type (e.g., "VARCHAR", "INTEGER", "TEXT")
     pub data_type: String,
-    
+
     /// Whether column accepts NULL values ("YES" or "NO")
     pub is_nullable: String,
-    
+
     /// Default value expression (if any)
     pub column_default: Option<String>,
 }
@@ -24,13 +24,13 @@ pub struct TableColumn {
 pub struct TableIndex {
     /// Index name
     pub index_name: String,
-    
+
     /// Columns included in the index
     pub column_names: Vec<String>,
-    
+
     /// Whether index enforces uniqueness
     pub is_unique: bool,
-    
+
     /// Whether this is the primary key index
     pub is_primary: bool,
 }
@@ -40,19 +40,19 @@ pub struct TableIndex {
 pub struct StoredProcedure {
     /// Procedure or function name
     pub procedure_name: String,
-    
+
     /// Type (e.g., "PROCEDURE", "FUNCTION")
     pub procedure_type: String,
-    
+
     /// Programming language (e.g., "SQL", "PLPGSQL", "PLSQL")
     pub language: Option<String>,
-    
+
     /// Parameter list definition
     pub parameter_list: Option<String>,
-    
+
     /// Return type (for functions)
     pub return_type: Option<String>,
-    
+
     /// Full procedure/function definition
     pub definition: Option<String>,
 }
@@ -69,7 +69,7 @@ pub struct ExecuteOptions {
 pub struct SQLResult {
     /// Result rows as JSON values
     pub rows: Vec<serde_json::Value>,
-    
+
     /// Total number of rows returned
     pub row_count: usize,
 }

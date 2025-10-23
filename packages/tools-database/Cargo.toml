@@ -53,8 +53,9 @@ postgres = ["sqlx/postgres"]
 mysql = ["sqlx/mysql"]
 mariadb = ["sqlx/mysql"]
 sqlite = ["sqlx/sqlite"]
-sqlserver = ["sqlx/mssql"]
-all = ["postgres", "mysql", "mariadb", "sqlite", "sqlserver"]
+# Note: sqlx 0.8 does not support SQL Server (mssql feature removed)
+# sqlserver support may be added in future sqlx versions
+all = ["postgres", "mysql", "mariadb", "sqlite"]
 
 [lib]
 name = "kodegen_tools_database"
