@@ -69,12 +69,11 @@ pub fn validate_sqlite_identifier(name: &str) -> Result<(), DatabaseError> {
     }
     
     // Rule 4: Check doesn't start with digit
-    if let Some(first_char) = name.chars().next() {
-        if first_char.is_ascii_digit() {
-            return Err(DatabaseError::QueryError(
-                format!("Identifier cannot start with digit: '{}'", name)
-            ));
-        }
+    if let Some(first_char) = name.chars().next()
+        && first_char.is_ascii_digit() {
+        return Err(DatabaseError::QueryError(
+            format!("Identifier cannot start with digit: '{}'", name)
+        ));
     }
     
     // Rule 5: Check not a SQL keyword (defense-in-depth)

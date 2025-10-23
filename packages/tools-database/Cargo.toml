@@ -50,6 +50,7 @@ thiserror = "1"
 # Utilities
 url = "2"
 regex = "1"
+lazy-regex = "3.4"
 base64 = "0.22"
 sqlparser = "0.55"
 

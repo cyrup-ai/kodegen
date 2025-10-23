@@ -2,19 +2,13 @@
 
 use crate::error::DatabaseError;
 use crate::types::DatabaseType;
-use regex::Regex;
-use std::sync::LazyLock;
+use lazy_regex::{regex, Lazy, Regex};
 
-// Compile regexes once at startup using LazyLock (Rust 1.80+)
-static LIMIT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bLIMIT\s+(\d+)").unwrap());
-
-static TOP_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?").unwrap());
-
-static SELECT_TOP_REPLACE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?").unwrap());
-
-static SELECT_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bSELECT\b").unwrap());
+// Compile-time validated regexes
+static LIMIT_REGEX: &Lazy<Regex> = regex!(r"(?i)\bLIMIT\s+(\d+)");
+static TOP_REGEX: &Lazy<Regex> = regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
+static SELECT_TOP_REPLACE: &Lazy<Regex> = regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
+static SELECT_WORD: &Lazy<Regex> = regex!(r"(?i)\bSELECT\b");
 
 /// Apply row limit to SELECT queries only
 ///

@@ -26,3 +26,6 @@ pub use get_table_indexes::*;
 
 pub mod get_stored_procedures;
 pub use get_stored_procedures::*;
+
+pub mod get_pool_stats;
+pub use get_pool_stats::GetPoolStatsTool;

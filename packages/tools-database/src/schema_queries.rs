@@ -304,15 +304,15 @@ pub fn get_indexes_query(
             (sql, vec![schema.to_string(), table.to_string()])
         }
         DatabaseType::MySQL | DatabaseType::MariaDB => {
-            // Reference: tmp/dbhub/src/connectors/mysql/index.ts:189-238
-            let sql = "SELECT \
+            // Query returns distinct indexes without column aggregation
+            // Columns will be fetched per-index in the tool implementation
+            // to avoid GROUP_CONCAT 1024-byte truncation limit
+            let sql = "SELECT DISTINCT \
                            index_name, \
-                           GROUP_CONCAT(column_name ORDER BY seq_in_index) as column_names, \
                            NOT non_unique as is_unique, \
                            index_name = 'PRIMARY' as is_primary \
                        FROM information_schema.statistics \
                        WHERE table_schema = ? AND table_name = ? \
-                       GROUP BY index_name, non_unique \
                        ORDER BY index_name"
                 .to_string();
             (sql, vec![schema.to_string(), table.to_string()])
@@ -338,6 +338,53 @@ pub fn get_indexes_query(
                        GROUP BY i.name, i.is_unique, i.is_primary_key \
                        ORDER BY i.name".to_string();
             (sql, vec![schema.to_string(), table.to_string()])
+        }
+    }
+}
+
+/// Returns SQL to get columns for a specific index + parameters
+///
+/// This is used for MySQL/MariaDB to avoid GROUP_CONCAT truncation.
+/// Called once per index after getting the index list.
+///
+/// ## Example
+///
+/// ```rust
+/// use kodegen_tools_database::types::DatabaseType;
+/// use kodegen_tools_database::schema_queries::get_index_columns_query;
+///
+/// let (sql, params) = get_index_columns_query(
+///     DatabaseType::MySQL,
+///     "public",
+///     "users",
+///     "idx_user_email"
+/// );
+/// // Returns: ("SELECT column_name FROM information_schema.statistics 
+/// //            WHERE table_schema = ? AND table_name = ? AND index_name = ? 
+/// //            ORDER BY seq_in_index", ["public", "users", "idx_user_email"])
+/// ```
+pub fn get_index_columns_query(
+    db_type: DatabaseType,
+    schema: &str,
+    table: &str,
+    index_name: &str,
+) -> (String, Vec<String>) {
+    match db_type {
+        DatabaseType::MySQL | DatabaseType::MariaDB => {
+            let sql = "SELECT column_name \
+                       FROM information_schema.statistics \
+                       WHERE table_schema = ? AND table_name = ? AND index_name = ? \
+                       ORDER BY seq_in_index"
+                .to_string();
+            (sql, vec![
+                schema.to_string(),
+                table.to_string(),
+                index_name.to_string(),
+            ])
+        }
+        _ => {
+            // Other databases don't need this (they use array aggregation)
+            (String::new(), vec![])
         }
     }
 }

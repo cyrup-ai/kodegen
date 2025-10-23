@@ -48,7 +48,12 @@ impl std::fmt::Debug for DSNInfo {
     }
 }
 
-// Display implementation that shows safe connection string (password masked)
+/// Display implementation returns safe DSN string with password masked.
+///
+/// Outputs format: `protocol://username:***@hostname:port/database?params`
+///
+/// This is the safe representation for logging, display, and error messages.
+/// For programmatic access to safe DSN, use [`DSNInfo::to_safe_dsn()`].
 impl std::fmt::Display for DSNInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}://", self.protocol)?;
@@ -80,7 +85,36 @@ impl std::fmt::Display for DSNInfo {
 }
 
 impl DSNInfo {
-    /// Reconstruct DSN string from components
+    /// Reconstruct DSN string from components WITH plaintext password.
+    ///
+    /// # Security Warning
+    ///
+    /// The returned string contains the plaintext password (if present).
+    /// Only use the result for:
+    /// - Direct database connections via `sqlx::AnyPool::connect()`
+    /// - Secure credential storage (encrypted vaults)
+    ///
+    /// **DO NOT:**
+    /// - Log the result
+    /// - Display to users  
+    /// - Include in error messages
+    /// - Store in plaintext config files
+    /// - Send over unencrypted channels
+    ///
+    /// For safe display/logging, use [`to_safe_dsn()`] instead.
+    ///
+    /// # Example
+    /// ```rust
+    /// // CORRECT: Direct connection
+    /// let pool = AnyPool::connect(&dsn_info.to_dsn()).await?;
+    ///
+    /// // CORRECT: Logging (safe)
+    /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
+    ///
+    /// // WRONG: Logging (exposes password!)
+    /// log::info!("Connected to {}", dsn_info.to_dsn());  // ⚠️ DON'T DO THIS
+    /// ```
+    #[must_use = "This DSN contains plaintext password - only use for database connections"]
     pub fn to_dsn(&self) -> String {
         let mut dsn = format!("{}://", self.protocol);
 
@@ -116,6 +150,36 @@ impl DSNInfo {
         }
 
         dsn
+    }
+
+    /// Reconstruct DSN string WITHOUT password (safe for display/logging)
+    ///
+    /// Returns a connection string with the password masked as "***".
+    /// Use this method when:
+    /// - Logging connection attempts
+    /// - Displaying DSN to users
+    /// - Including DSN in error messages
+    /// - Exporting configuration (non-sensitive)
+    ///
+    /// # Example
+    /// ```
+    /// let info = DSNInfo {
+    ///     protocol: "postgres".to_string(),
+    ///     username: Some("myuser".to_string()),
+    ///     password: Some("secret123".to_string()),
+    ///     hostname: "db.example.com".to_string(),
+    ///     port: Some(5432),
+    ///     database: "mydb".to_string(),
+    ///     query_params: HashMap::new(),
+    /// };
+    /// 
+    /// assert_eq!(
+    ///     info.to_safe_dsn(),
+    ///     "postgres://myuser:***@db.example.com:5432/mydb"
+    /// );
+    /// ```
+    pub fn to_safe_dsn(&self) -> String {
+        format!("{}", self)
     }
 }
 
@@ -271,6 +335,16 @@ pub fn validate_dsn(dsn: &str) -> Result<String> {
 ///
 /// Takes original DSN pointing to remote host and rewrites it to
 /// connect to localhost:tunnel_port, preserving all other components.
+///
+/// # Security Note
+///
+/// The returned DSN contains the original plaintext password.
+/// Only use the result for immediate database connections.
+/// For logging tunnel setup, use:
+/// ```rust
+/// let info = parse_dsn(dsn)?;
+/// log::info!("Tunneling to {}", info.to_safe_dsn());
+/// ```
 ///
 /// # Example
 /// ```

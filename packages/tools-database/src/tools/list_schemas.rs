@@ -110,11 +110,17 @@ impl Tool for ListSchemasTool {
         };
 
         // Execute query with timeout (metadata queries should be fast)
+        let pool = self.pool.clone();
+        let sql_owned = sql.to_string();
         let rows = execute_with_timeout(
             &self.config,
             "db_metadata_query_timeout_secs",
             Duration::from_secs(10), // 10s default for metadata
-            sqlx::query(sql).fetch_all(&*self.pool),
+            || {
+                let pool = pool.clone();
+                let sql = sql_owned.clone();
+                async move { sqlx::query(&sql).fetch_all(&*pool).await }
+            },
             "Listing database schemas",
         )
         .await?;

@@ -103,11 +103,15 @@ impl Tool for ListTablesTool {
                 } else {
                     // Use DATABASE() to get current database
                     // First, query for current database name with timeout
+                    let pool = self.pool.clone();
                     let db_row = execute_with_timeout(
                         &self.config,
                         "db_metadata_query_timeout_secs",
                         Duration::from_secs(10),
-                        sqlx::query("SELECT DATABASE() as db").fetch_one(&*self.pool),
+                        || {
+                            let pool = pool.clone();
+                            async move { sqlx::query("SELECT DATABASE() as db").fetch_one(&*pool).await }
+                        },
                         "Getting current database name",
                     )
                     .await?;
@@ -138,16 +142,25 @@ impl Tool for ListTablesTool {
         };
 
         // Execute query with parameters and timeout
-        let mut query = sqlx::query(sql);
-        for param in &params {
-            query = query.bind(param);
-        }
-
+        let pool = self.pool.clone();
+        let sql_owned = sql.to_string();
+        let params_owned = params.clone();
         let rows = execute_with_timeout(
             &self.config,
             "db_metadata_query_timeout_secs",
             Duration::from_secs(10), // 10s default for metadata
-            query.fetch_all(&*self.pool),
+            || {
+                let pool = pool.clone();
+                let sql = sql_owned.clone();
+                let params = params_owned.clone();
+                async move {
+                    let mut query = sqlx::query(&sql);
+                    for param in &params {
+                        query = query.bind(param);
+                    }
+                    query.fetch_all(&*pool).await
+                }
+            },
             "Listing tables",
         )
         .await?;

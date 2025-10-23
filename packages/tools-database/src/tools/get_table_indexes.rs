@@ -1,7 +1,6 @@
 //! Get table indexes tool
 
-use crate::error::DatabaseError;
-use crate::schema_queries::get_indexes_query;
+use crate::schema_queries::{get_indexes_query, get_index_columns_query};
 use crate::tools::helpers::resolve_schema_default;
 use crate::tools::timeout::execute_with_timeout;
 use crate::types::{DatabaseType, TableIndex};
@@ -96,39 +95,106 @@ impl Tool for GetTableIndexesTool {
         let (query, params) = get_indexes_query(db_type, &schema, &args.table);
 
         // Execute with parameters and timeout
-        let mut q = sqlx::query(&query);
-        for param in &params {
-            q = q.bind(param);
-        }
+        let pool = self.pool.clone();
+        let query_owned = query.clone();
+        let params_owned = params.clone();
         let rows = execute_with_timeout(
             &self.config,
             "db_metadata_query_timeout_secs",
             Duration::from_secs(10), // 10s default for metadata
-            q.fetch_all(&*self.pool),
+            || {
+                let pool = pool.clone();
+                let query = query_owned.clone();
+                let params = params_owned.clone();
+                async move {
+                    let mut q = sqlx::query(&query);
+                    for param in &params {
+                        q = q.bind(param);
+                    }
+                    q.fetch_all(&*pool).await
+                }
+            },
             "Getting table indexes",
         )
         .await?;
 
         // Parse into TableIndex structs
-        let indexes: Vec<TableIndex> = rows
-            .iter()
-            .map(|row| {
-                // Handle column_names as comma-separated string
-                let cols_str: String = row.try_get("column_names").unwrap_or_default();
-                let column_names: Vec<String> = cols_str
-                    .split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
+        let mut indexes = Vec::new();
 
-                Ok(TableIndex {
-                    index_name: row.try_get("index_name").unwrap_or_default(),
-                    column_names,
-                    is_unique: row.try_get("is_unique").unwrap_or(false),
-                    is_primary: row.try_get("is_primary").unwrap_or(false),
-                })
-            })
-            .collect::<Result<Vec<_>, DatabaseError>>()?;
+        match db_type {
+            DatabaseType::MySQL | DatabaseType::MariaDB => {
+                // MySQL: Two-step approach to avoid GROUP_CONCAT truncation
+                for row in rows.iter() {
+                    let index_name: String = row.try_get("index_name").unwrap_or_default();
+                    let is_unique: bool = row.try_get("is_unique").unwrap_or(false);
+                    let is_primary: bool = row.try_get("is_primary").unwrap_or(false);
+
+                    // Fetch columns for this specific index
+                    let (col_query, col_params) = get_index_columns_query(
+                        db_type,
+                        &schema,
+                        &args.table,
+                        &index_name,
+                    );
+
+                    let pool_col = self.pool.clone();
+                    let col_query_owned = col_query.clone();
+                    let col_params_owned = col_params.clone();
+                    let index_name_clone = index_name.clone();
+                    let col_rows = execute_with_timeout(
+                        &self.config,
+                        "db_metadata_query_timeout_secs",
+                        Duration::from_secs(10),
+                        || {
+                            let pool = pool_col.clone();
+                            let query = col_query_owned.clone();
+                            let params = col_params_owned.clone();
+                            async move {
+                                let mut q = sqlx::query(&query);
+                                for param in &params {
+                                    q = q.bind(param);
+                                }
+                                q.fetch_all(&*pool).await
+                            }
+                        },
+                        &format!("Getting columns for index '{}'", index_name_clone),
+                    )
+                    .await?;
+
+                    // Extract column names
+                    let column_names: Vec<String> = col_rows
+                        .iter()
+                        .map(|r| r.try_get("column_name").unwrap_or_default())
+                        .collect();
+
+                    indexes.push(TableIndex {
+                        index_name,
+                        column_names,
+                        is_unique,
+                        is_primary,
+                    });
+                }
+            }
+            _ => {
+                // PostgreSQL, SQLite, SQL Server: Use original single-query approach
+                // (PostgreSQL uses array_agg, no truncation issue)
+                for row in rows.iter() {
+                    let cols_str: String = row.try_get("column_names").unwrap_or_default();
+                    let column_names: Vec<String> = cols_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+
+                    indexes.push(TableIndex {
+                        index_name: row.try_get("index_name").unwrap_or_default(),
+                        column_names,
+                        is_unique: row.try_get("is_unique").unwrap_or(false),
+                        is_primary: row.try_get("is_primary").unwrap_or(false),
+                    });
+                }
+            }
+        }
 
         Ok(json!({
             "table": args.table,

@@ -75,11 +75,17 @@ impl ExecuteSQLTool {
     /// Execute a single SQL statement
     async fn execute_single(&self, sql: &str) -> Result<Value, McpError> {
         // Execute query with timeout
+        let pool = self.pool.clone();
+        let sql_owned = sql.to_string();
         let rows = execute_with_timeout(
             &self.config,
             "db_query_timeout_secs",
             Duration::from_secs(60), // 60s default for data queries
-            sqlx::query(sql).fetch_all(&*self.pool),
+            || {
+                let pool = pool.clone();
+                let sql = sql_owned.clone();
+                async move { sqlx::query(&sql).fetch_all(&*pool).await }
+            },
             &format!("Executing SQL: {}", sql.chars().take(50).collect::<String>()),
         )
         .await?;
@@ -103,11 +109,15 @@ impl ExecuteSQLTool {
     /// Returns partial results if execution fails partway through
     async fn execute_multi_transactional(&self, statements: &[String]) -> Result<Value, McpError> {
         // Begin transaction with timeout
+        let pool = self.pool.clone();
         let mut tx = execute_with_timeout(
             &self.config,
             "db_query_timeout_secs",
             Duration::from_secs(30),
-            self.pool.begin(),
+            || {
+                let pool = pool.clone();
+                async move { pool.begin().await }
+            },
             "Starting transaction",
         )
         .await?;
@@ -115,15 +125,23 @@ impl ExecuteSQLTool {
         let mut executed_statements = 0;
 
         for (index, statement) in statements.iter().enumerate() {
-            // Execute each statement with timeout
-            let rows_result = execute_with_timeout(
-                &self.config,
-                "db_query_timeout_secs",
-                Duration::from_secs(60),
-                sqlx::query(statement).fetch_all(&mut *tx),
-                &format!("Executing: {}", statement.chars().take(50).collect::<String>()),
-            )
-            .await;
+            // Execute each statement with timeout (no retry - statements within transactions are atomic)
+            let timeout_duration = self.config
+                .get_value("db_query_timeout_secs")
+                .and_then(|v| match v {
+                    kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                    _ => None,
+                })
+                .unwrap_or(Duration::from_secs(60));
+            
+            let rows_result = match tokio::time::timeout(
+                timeout_duration,
+                sqlx::query(statement).fetch_all(&mut *tx)
+            ).await {
+                Ok(Ok(rows)) => Ok(rows),
+                Ok(Err(e)) => Err(e),
+                Err(_) => Err(sqlx::Error::PoolTimedOut),
+            };
 
             match rows_result {
                 Ok(rows) => {
@@ -156,15 +174,20 @@ impl ExecuteSQLTool {
             }
         }
 
-        // Commit transaction with timeout
-        execute_with_timeout(
-            &self.config,
-            "db_query_timeout_secs",
-            Duration::from_secs(30),
-            tx.commit(),
-            "Committing transaction",
-        )
-        .await?;
+        // Commit transaction with timeout (no retry - transaction commit is atomic)
+        let timeout_duration = self.config
+            .get_value("db_query_timeout_secs")
+            .and_then(|v| match v {
+                kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                _ => None,
+            })
+            .unwrap_or(Duration::from_secs(30));
+        
+        match tokio::time::timeout(timeout_duration, tx.commit()).await {
+            Ok(Ok(_)) => {},
+            Ok(Err(e)) => return Err(DatabaseError::QueryError(format!("Transaction commit failed: {}", e)).into()),
+            Err(_) => return Err(DatabaseError::QueryError("Transaction commit timed out".to_string()).into()),
+        }
 
         Ok(json!({
             "rows": all_rows,
@@ -183,11 +206,17 @@ impl ExecuteSQLTool {
 
         for (index, statement) in statements.iter().enumerate() {
             // Execute each statement with timeout
+            let pool = self.pool.clone();
+            let statement_owned = statement.clone();
             let rows_result = execute_with_timeout(
                 &self.config,
                 "db_query_timeout_secs",
                 Duration::from_secs(60),
-                sqlx::query(statement).fetch_all(&*self.pool),
+                || {
+                    let pool = pool.clone();
+                    let stmt = statement_owned.clone();
+                    async move { sqlx::query(&stmt).fetch_all(&*pool).await }
+                },
                 &format!("Executing: {}", statement.chars().take(50).collect::<String>()),
             )
             .await;

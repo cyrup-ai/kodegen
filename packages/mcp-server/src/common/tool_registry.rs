@@ -634,6 +634,11 @@ where
         prompt_router,
         kodegen_tools_database::tools::GetStoredProceduresTool::new(pool.clone(), connection_url, Arc::new(config_manager.clone()))?
     );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_database::tools::GetPoolStatsTool::new(pool.clone(), connection_url)?
+    );
     
     Ok((tool_router, prompt_router))
 }

@@ -100,15 +100,25 @@ impl Tool for GetTableSchemaTool {
         let (query, params) = get_table_schema_query(db_type, &schema, &args.table);
 
         // Execute with parameters and timeout
-        let mut q = sqlx::query(&query);
-        for param in &params {
-            q = q.bind(param);
-        }
+        let pool = self.pool.clone();
+        let query_owned = query.clone();
+        let params_owned = params.clone();
         let rows = execute_with_timeout(
             &self.config,
             "db_metadata_query_timeout_secs",
             Duration::from_secs(10), // 10s default for metadata
-            q.fetch_all(&*self.pool),
+            || {
+                let pool = pool.clone();
+                let query = query_owned.clone();
+                let params = params_owned.clone();
+                async move {
+                    let mut q = sqlx::query(&query);
+                    for param in &params {
+                        q = q.bind(param);
+                    }
+                    q.fetch_all(&*pool).await
+                }
+            },
             "Getting table schema",
         )
         .await?;
