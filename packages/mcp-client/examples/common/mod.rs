@@ -546,8 +546,8 @@ mod tests {
 
     #[test]
     fn test_all_categories_constant_is_complete() {
-        // Verify ALL_CATEGORIES contains all 10 expected categories
-        assert_eq!(ALL_CATEGORIES.len(), 10, "Expected 10 tool categories");
+        // Verify ALL_CATEGORIES contains all 11 expected categories
+        assert_eq!(ALL_CATEGORIES.len(), 11, "Expected 11 tool categories");
 
         // Verify each expected variant is present
         assert!(ALL_CATEGORIES.contains(&ToolCategory::Filesystem));
@@ -560,5 +560,6 @@ mod tests {
         assert!(ALL_CATEGORIES.contains(&ToolCategory::Citescrape));
         assert!(ALL_CATEGORIES.contains(&ToolCategory::Git));
         assert!(ALL_CATEGORIES.contains(&ToolCategory::Github));
+        assert!(ALL_CATEGORIES.contains(&ToolCategory::Database));
     }
 }

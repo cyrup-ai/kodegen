@@ -1,6 +1,7 @@
 //! SQL query result limiting to prevent excessive data transfer
 
 use crate::error::DatabaseError;
+use crate::sql_parser::extract_first_keyword;
 use crate::types::DatabaseType;
 use lazy_regex::{lazy_regex, Lazy, Regex};
 
@@ -36,10 +37,9 @@ pub fn apply_row_limit(
     max_rows: usize,
     db_type: DatabaseType,
 ) -> Result<String, DatabaseError> {
-    let trimmed = sql.trim();
-
-    // Only apply to SELECT queries
-    if !trimmed.to_lowercase().starts_with("select") {
+    // Only apply to SELECT queries (strip comments first to detect keyword)
+    let keyword = extract_first_keyword(sql, db_type)?;
+    if keyword != "select" {
         return Ok(sql.to_string());
     }
 
