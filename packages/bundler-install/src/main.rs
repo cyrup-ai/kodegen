@@ -32,18 +32,18 @@ pub enum PlatformSource {
     Nsis,
 }
 
-fn detect_platform_arch() -> String {
+fn detect_platform_arch() -> Result<String> {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
-    
-    match (os, arch) {
+
+    Ok(match (os, arch) {
         ("macos", "x86_64") => "x86_64-apple-darwin",
         ("macos", "aarch64") => "aarch64-apple-darwin",
         ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
         ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
         ("windows", "x86_64") => "x86_64-pc-windows-msvc",
-        _ => panic!("Unsupported platform: {os}-{arch}"),
-    }.to_string()
+        _ => return Err(anyhow::anyhow!("Unsupported platform: {os}-{arch}")),
+    }.to_string())
 }
 
 fn verify_checksum(file_path: &Path, expected_hash: &str) -> Result<bool> {
@@ -91,7 +91,7 @@ async fn download_signed_binary() -> Result<PathBuf> {
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
     
-    let platform = detect_platform_arch();
+    let platform = detect_platform_arch()?;
     
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));

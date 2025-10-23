@@ -87,7 +87,7 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => Ok(f(value)),
                     Some(Err(err)) => Err(err),
-                    None => panic!("Stream ended without producing a value"),
+                    None => unreachable!("StreamVariant has no constructor and should never be used"),
                 }
             }),
         }
@@ -113,7 +113,7 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => Ok(value),
                     Some(Err(err)) => Err(f(err)),
-                    None => panic!("Stream ended without producing a value"),
+                    None => unreachable!("StreamVariant has no constructor and should never be used"),
                 }
             }),
         }
@@ -140,7 +140,7 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => f(value).await,
                     Some(Err(err)) => Err(err),
-                    None => panic!("Stream ended without producing a value"),
+                    None => unreachable!("StreamVariant has no constructor and should never be used"),
                 }
             }),
         }
@@ -659,10 +659,15 @@ impl InstallContext {
             .stderr(std::process::Stdio::null())
             .status();
 
-        if sudo_check.is_err() || !sudo_check.unwrap().success() {
-            return Err(anyhow::anyhow!(
-                "sudo not found - please run as root or install sudo"
-            ));
+        match sudo_check {
+            Ok(status) if status.success() => {
+                // sudo is available and command succeeded
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "sudo not found - please run as root or install sudo"
+                ));
+            }
         }
 
         eprintln!("   Executing: sudo {:?} {:?}", exe_path, &args[1..]);

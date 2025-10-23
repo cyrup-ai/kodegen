@@ -12,6 +12,7 @@ members = [
     "packages/tools-citescrape",
     "packages/tools-claude-agent",
     "packages/tools-config",
+    "packages/tools-database",
     "packages/tools-filesystem",
     "packages/tools-git",
     "packages/tools-github",

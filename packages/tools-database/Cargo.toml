@@ -1,0 +1,61 @@
+[package]
+name = "kodegen_tools_database"
+version.workspace = true
+edition = "2024"
+description = "KODEGEN.ᴀɪ: Database query and schema exploration MCP tools for AI agents."
+license = "Apache-2.0 OR MIT"
+authors = ["KODEGEN.ᴀɪ"]
+homepage = "https://kodegen.ai"
+repository = "https://github.com/cyrup-ai/kodegen"
+readme = "../../README.md"
+categories = ["development-tools", "database", "api-bindings"]
+keywords = [
+    "mcp",
+    "database",
+    "sql",
+    "agent",
+    "claude"
+]
+
+[dependencies]
+# Core kodegen
+kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
+kodegen_tools_config = { path = "../tools-config", version = "0.0.1" }
+
+# Database (async, multi-database support)
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "any"] }
+
+# SSH tunneling
+ssh2 = "0.9"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = { version = "0.8", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Utilities
+url = "2"
+regex = "1"
+
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
+
+[features]
+default = ["postgres", "mysql", "sqlite"]
+postgres = ["sqlx/postgres"]
+mysql = ["sqlx/mysql"]
+mariadb = ["sqlx/mysql"]
+sqlite = ["sqlx/sqlite"]
+sqlserver = ["sqlx/mssql"]
+all = ["postgres", "mysql", "mariadb", "sqlite", "sqlserver"]
+
+[lib]
+name = "kodegen_tools_database"
+path = "src/lib.rs"

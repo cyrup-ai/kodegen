@@ -371,23 +371,23 @@ pub async fn checkout(repo: RepoHandle, opts: CheckoutOpts) -> GitResult<()> {
         if let Some(old_idx) = old_index {
             use gix::bstr::ByteSlice;
             use std::collections::HashSet;
-            
+
             // Build set of paths in new index
             let new_paths: HashSet<Vec<u8>> = index
                 .entries()
                 .iter()
                 .map(|e| e.path(&index).to_vec())
                 .collect();
-            
+
             // Find paths in old index but not in new index
             for old_entry in old_idx.entries() {
                 let old_path_bytes = old_entry.path(&old_idx);
-                
+
                 if !new_paths.contains(old_path_bytes) {
                     // This file should be removed
                     if let Ok(path_str) = std::str::from_utf8(old_path_bytes.as_bytes()) {
                         let file_path = worktree_path.join(path_str);
-                        
+
                         // Only remove if it exists and is a file (not directory)
                         if file_path.exists() && file_path.is_file() {
                             // Ignore errors during cleanup - file may already be gone

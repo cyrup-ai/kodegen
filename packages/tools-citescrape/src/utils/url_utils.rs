@@ -85,8 +85,16 @@ pub async fn ensure_domain_gitignore(mirror_path: &Path, output_dir: &Path) -> R
     let domain_dir = output_dir.join(domain);
     let gitignore_path = domain_dir.join(".gitignore");
     
-    // Check if .gitignore already exists (idempotent)
-    if tokio::fs::try_exists(&gitignore_path).await.unwrap_or(false) {
+    // FIX #1: Ensure domain directory exists first (idempotent)
+    tokio::fs::create_dir_all(&domain_dir)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create domain directory: {e}"))?;
+    
+    // FIX #2: Check if .gitignore exists, propagate errors instead of swallowing
+    if tokio::fs::try_exists(&gitignore_path)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to check .gitignore existence: {e}"))? 
+    {
         return Ok(());
     }
     

@@ -39,6 +39,12 @@ libc = "0.2"
 sha2 = "0.10"
 hex = "0.4"
 
+# GUI dependencies (optional, feature-gated)
+eframe = { version = "0.31", optional = true }
+egui = { version = "0.31", optional = true }
+image = { version = "0.25", optional = true }
+opener = { version = "0.7", optional = true }
+
 # Archive extraction (for binary downloads)
 zip = { version = "6.0", default-features = false, features = ["deflate"] }
 flate2 = "1.1"
@@ -81,3 +87,8 @@ rayon = "1.11.0"
 fastrand = "2.3.0"
 sha2 = "0.10"
 hex = "0.4"
+
+
+[features]
+default = ["gui"]
+gui = ["eframe", "egui", "image", "opener"]
