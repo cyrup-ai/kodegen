@@ -6005,6 +6005,7 @@ dependencies = [
  "kodegen_bundler_sign",
  "kodegen_tools_git",
  "kodegen_tools_github",
+ "libc",
  "log",
  "md5",
  "num_cpus",

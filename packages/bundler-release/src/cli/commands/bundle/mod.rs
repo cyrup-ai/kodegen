@@ -166,7 +166,7 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
 
         // Bundle each platform in container
         for platform in container_platforms {
-            let paths = container.bundle_platform(platform, !*no_build, *release, config)?;
+            let paths = container.bundle_platform(platform, !*no_build, *release, config).await?;
 
             // Convert paths to BundledArtifact
             let size = paths.iter().fold(0u64, |acc, p| {

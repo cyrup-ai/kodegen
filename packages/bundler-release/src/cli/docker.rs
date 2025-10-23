@@ -18,10 +18,13 @@
 //! - RPM/DEB tools (for creating Linux packages)
 //! - linuxdeploy (for creating AppImages)
 
+// SECURITY: Allow unsafe code in this module for Docker security features
+// Required for libc::getuid() and libc::getgid() calls to prevent container root execution
+#![allow(unsafe_code)]
+
 use crate::bundler::PackageType;
 use crate::error::{CliError, ReleaseError};
 use chrono::{DateTime, Utc};
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -312,10 +315,16 @@ impl ContainerBundler {
         }
         
         // Check if image exists
-        let check_output = Command::new("docker")
-            .args(["images", "-q", BUILDER_IMAGE_NAME])
-            .output()
-            .await
+        let check_output = timeout(
+            Duration::from_secs(10),  // Image check should be fast
+            Command::new("docker")
+                .args(["images", "-q", BUILDER_IMAGE_NAME])
+                .output()
+        ).await
+            .map_err(|_| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "docker images".to_string(),
+                reason: "Docker image check timed out after 10 seconds".to_string(),
+            }))?
             .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "docker images".to_string(),
                 reason: e.to_string(),
@@ -471,23 +480,47 @@ async fn build_docker_image(
         BUILDER_IMAGE_NAME
     ));
     
-    let build_output = Command::new("docker")
-        .args([
-            "build",
-            "--pull",  // Always pull latest base image
-            "-t",
-            BUILDER_IMAGE_NAME,
-            "-f",
-            "Dockerfile",
-            ".",
-        ])
-        .current_dir(&dockerfile_dir)
-        .output()
-        .await
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "docker build".to_string(),
-            reason: e.to_string(),
-        }))?;
+    let build_result = timeout(
+        DOCKER_BUILD_TIMEOUT,
+        Command::new("docker")
+            .args([
+                "build",
+                "--pull",  // Always pull latest base image
+                "-t",
+                BUILDER_IMAGE_NAME,
+                "-f",
+                "Dockerfile",
+                ".",
+            ])
+            .current_dir(&dockerfile_dir)
+            .output()
+    ).await;
+
+    let build_output = match build_result {
+        Ok(Ok(output)) => output,
+        Ok(Err(e)) => {
+            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "docker build".to_string(),
+                reason: format!("Failed to execute docker build: {}", e),
+            }));
+        }
+        Err(_) => {
+            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "docker build".to_string(),
+                reason: format!(
+                    "Docker build timed out after {} minutes.\n\
+                     \n\
+                     This usually means:\n\
+                     • Network issues downloading base images\n\
+                     • apt-get update is stuck\n\
+                     • Build step is hanging\n\
+                     \n\
+                     Check Docker logs: docker ps -a | head -2",
+                    DOCKER_BUILD_TIMEOUT.as_secs() / 60
+                ),
+            }));
+        }
+    };
 
     if !build_output.status.success() {
         let stderr = String::from_utf8_lossy(&build_output.stderr);
@@ -557,7 +590,7 @@ impl ContainerBundler {
     ///
     /// * `Ok(Vec<PathBuf>)` - Paths to created artifacts
     /// * `Err` - Container execution failed
-    pub fn bundle_platform(
+    pub async fn bundle_platform(
         &self,
         platform: PackageType,
         build: bool,
@@ -596,13 +629,89 @@ impl ContainerBundler {
             name: container_name.clone(),
         };
 
-        // Build docker run command with owned strings for clear ownership
-        let mount_arg = format!("{}:/workspace", self.workspace_path.display());
-        
+        // SECURITY: Validate and canonicalize workspace path to resolve symlinks
+        let workspace_path = self.workspace_path
+            .canonicalize()
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "validate workspace path".to_string(),
+                reason: format!(
+                    "Invalid workspace path '{}': {}\n\
+                     \n\
+                     Possible causes:\n\
+                     • Path does not exist\n\
+                     • Path contains invalid symlinks\n\
+                     • Insufficient permissions to access path\n\
+                     \n\
+                     Ensure the workspace path exists and is accessible.",
+                    self.workspace_path.display(),
+                    e
+                ),
+            }))?;
+
+        // SECURITY: Verify it's actually a directory, not a file
+        if !workspace_path.is_dir() {
+            return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "validate workspace".to_string(),
+                reason: format!(
+                    "Workspace path is not a directory: {}\n\
+                     \n\
+                     The bundle command requires a valid Cargo workspace directory.\n\
+                     Check that the path points to a directory containing Cargo.toml.",
+                    workspace_path.display()
+                ),
+            }));
+        }
+
+        // SECURITY: Verify target directory exists or can be created
+        let target_dir = workspace_path.join("target");
+        if !target_dir.exists() {
+            std::fs::create_dir_all(&target_dir)
+                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "create target directory".to_string(),
+                    reason: format!(
+                        "Failed to create target directory: {}\n\
+                         This directory is required for build outputs.",
+                        e
+                    ),
+                }))?;
+        }
+
+        // SECURITY: Get current user ID to map into container (prevents root execution)
+        // This ensures files created in container have correct ownership
+        #[cfg(unix)]
+        let user_mapping = {
+            let uid = unsafe { libc::getuid() };
+            let gid = unsafe { libc::getgid() };
+            format!("{}:{}", uid, gid)
+        };
+
+        #[cfg(not(unix))]
+        let user_mapping = {
+            // Windows containers run with different security model
+            // Use default container user (builder from Dockerfile)
+            String::new()
+        };
+
+        // SECURITY: Build secure mount arguments
+        // Mount workspace as read-only (prevents source code modification)
+        let workspace_mount = format!("{}:/workspace:ro", workspace_path.display());
+
+        // Mount target/ as read-write (required for build outputs)
+        let target_mount = format!("{}:/workspace/target:rw", target_dir.display());
+
+        // Build docker arguments with security constraints
         let mut docker_args = vec![
             "run".to_string(),
             "--name".to_string(),
             container_name.clone(),
+            
+            // SECURITY: Prevent privilege escalation in container
+            "--security-opt".to_string(),
+            "no-new-privileges".to_string(),
+            
+            // SECURITY: Drop all capabilities (container doesn't need special privileges)
+            "--cap-drop".to_string(),
+            "ALL".to_string(),
             
             // Memory limits
             "--memory".to_string(),
@@ -618,23 +727,36 @@ impl ContainerBundler {
             "--pids-limit".to_string(),
             self.limits.pids_limit.to_string(),
             
-            // Mount and working directory
+            // SECURITY: Mount workspace read-only
             "-v".to_string(),
-            mount_arg,
+            workspace_mount,
+            
+            // SECURITY: Mount target/ read-write for build outputs
+            "-v".to_string(),
+            target_mount,
+            
+            // Set working directory
             "-w".to_string(),
             "/workspace".to_string(),
-            
-            // Image and command
-            self.image_name.clone(),
-            "cargo".to_string(),
-            "run".to_string(),
-            "-p".to_string(),
-            "kodegen_release".to_string(),
-            "--".to_string(),
-            "bundle".to_string(),
-            "--platform".to_string(),
-            platform_str.to_string(),
         ];
+
+        // SECURITY: Add user mapping on Unix systems (prevents running as root)
+        #[cfg(unix)]
+        if !user_mapping.is_empty() {
+            docker_args.push("--user".to_string());
+            docker_args.push(user_mapping);
+        }
+
+        // Add image and cargo command
+        docker_args.push(self.image_name.clone());
+        docker_args.push("cargo".to_string());
+        docker_args.push("run".to_string());
+        docker_args.push("-p".to_string());
+        docker_args.push("kodegen_release".to_string());
+        docker_args.push("--".to_string());
+        docker_args.push("bundle".to_string());
+        docker_args.push("--platform".to_string());
+        docker_args.push(platform_str.to_string());
 
         if build {
             docker_args.push("--build".to_string());
@@ -643,30 +765,46 @@ impl ContainerBundler {
             docker_args.push("--release".to_string());
         }
 
-        // Execute container with streaming output
-        let mut child = std::process::Command::new("docker")
-            .args(&docker_args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: format!("docker run {}", docker_args.join(" ")),
-                reason: e.to_string(),
-            }))?;
-        
-        // Stream stdout in real-time
-        if let Some(stdout) = child.stdout.take() {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().filter_map(Result::ok) {
-                runtime_config.indent(&line);
+        // Execute container with timeout
+        let run_result = timeout(
+            DOCKER_RUN_TIMEOUT,
+            Command::new("docker")
+                .args(&docker_args)
+                .output()
+        ).await;
+
+        let output = match run_result {
+            Ok(Ok(output)) => output,
+            Ok(Err(e)) => {
+                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: format!("docker run {}", docker_args.join(" ")),
+                    reason: format!("Failed to execute docker run: {}", e),
+                }));
             }
-        }
-        
-        let output = child.wait_with_output()
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: format!("docker run {}", docker_args.join(" ")),
-                reason: e.to_string(),
-            }))?;
+            Err(_) => {
+                return Err(ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: format!("bundle {} in container", platform_str),
+                    reason: format!(
+                        "Docker bundling timed out after {} minutes.\n\
+                         \n\
+                         Container was running:\n\
+                         {}\n\
+                         \n\
+                         This usually means:\n\
+                         • Cargo build is taking longer than expected\n\
+                         • Network issues downloading dependencies\n\
+                         • Container is stuck waiting for input\n\
+                         \n\
+                         Try:\n\
+                         • Check container status: docker ps\n\
+                         • View logs: docker logs <container-id>\n\
+                         • Run with --no-build to skip compilation",
+                        DOCKER_RUN_TIMEOUT.as_secs() / 60,
+                        docker_args.join(" ")
+                    ),
+                }));
+            }
+        };
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -736,24 +874,40 @@ impl ContainerBundler {
         // Find created artifacts using case-insensitive directory search
         let bundle_dir = find_bundle_directory(&self.workspace_path, platform_str)?;
 
-        // Collect artifact paths
+        // Collect artifact paths with proper error handling
+        runtime_config.verbose_println(&format!("Scanning for artifacts in: {}", bundle_dir.display()));
+
+        let entries = std::fs::read_dir(&bundle_dir)
+            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "read bundle directory".to_string(),
+                reason: format!("Failed to read {}: {}", bundle_dir.display(), e),
+            }))?;
+
         let mut artifacts = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(&bundle_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    artifacts.push(path);
-                }
+        for entry in entries {
+            let entry = entry.map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "read directory entry".to_string(),
+                reason: format!("Failed to read entry in {}: {}", bundle_dir.display(), e),
+            }))?;
+            
+            let path = entry.path();
+            runtime_config.verbose_println(&format!("  Found: {}", path.display()));
+            
+            if path.is_file() {
+                artifacts.push(path);
+            } else if path.is_dir() {
+                runtime_config.verbose_println(&format!("  Skipping directory: {}", path.display()));
             }
         }
 
+        runtime_config.verbose_println(&format!("Collected {} artifact(s)", artifacts.len()));
+
         if artifacts.is_empty() {
             // Show what we found instead of just saying "nothing found"
-            let dir_contents = std::fs::read_dir(&bundle_dir)
-                .ok()
-                .and_then(|entries| {
+            let dir_contents = match std::fs::read_dir(&bundle_dir) {
+                Ok(entries) => {
                     let items: Vec<_> = entries
-                        .flatten()
+                        .flatten()  // OK here since it's just diagnostic info
                         .map(|e| {
                             let path = e.path();
                             let name = path.file_name()
@@ -775,7 +929,11 @@ impl ContainerBundler {
                     } else {
                         Some(items.join("\n"))
                     }
-                });
+                }
+                Err(e) => {
+                    Some(format!("[Cannot read directory: {}]", e))
+                }
+            };
             
             let reason = match dir_contents {
                 Some(contents) => format!(
@@ -983,21 +1141,74 @@ pub fn split_platforms_by_host(
     (native, containerized)
 }
 
+/// Checks if Wine is available for building Windows packages on Linux.
+///
+/// Returns true if `wine --version` executes successfully, false otherwise.
+/// This enables runtime detection instead of compile-time assumptions.
+///
+/// # Examples
+///
+/// On Linux with Wine installed:
+/// ```no_run
+/// assert_eq!(has_wine(), true);
+/// ```
+///
+/// On Linux without Wine or non-Linux systems:
+/// ```no_run
+/// assert_eq!(has_wine(), false);
+/// ```
+#[cfg(target_os = "linux")]
+fn has_wine() -> bool {
+    std::process::Command::new("wine")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Wine is not available on non-Linux platforms.
+#[cfg(not(target_os = "linux"))]
+fn has_wine() -> bool {
+    false
+}
+
 /// Checks if a platform can be built natively on the current host OS.
+///
+/// Uses runtime OS detection via `std::env::consts::OS` instead of compile-time
+/// cfg attributes. This enables dynamic capability checking (e.g., Wine availability).
+///
+/// # Platform Support
+///
+/// - **macOS**: MacOsBundle, Dmg (native only, cannot be built in containers)
+/// - **Linux**: Deb, Rpm, AppImage (always native)
+/// - **Linux + Wine**: Nsis, WindowsMsi (requires Wine at runtime)
+/// - **Windows**: Nsis, WindowsMsi (native)
+/// - **All others**: Require Docker container
+///
+/// # Returns
+///
+/// - `true` - Platform can be built natively on current OS
+/// - `false` - Platform requires Docker container
 fn is_native_platform(platform: PackageType) -> bool {
-    match platform {
-        #[cfg(target_os = "macos")]
-        PackageType::MacOsBundle | PackageType::Dmg => true,
+    use PackageType::*;
+    
+    match (std::env::consts::OS, platform) {
+        // macOS native packages (cannot be built in Linux containers)
+        ("macos", MacOsBundle | Dmg) => true,
         
-        #[cfg(target_os = "linux")]
-        PackageType::Deb | PackageType::Rpm | PackageType::AppImage => true,
+        // Linux native packages
+        ("linux", Deb | Rpm | AppImage) => true,
         
-        #[cfg(target_os = "linux")]
-        PackageType::Nsis | PackageType::WindowsMsi => true, // Linux can build Windows via Wine
+        // Linux with Wine can build Windows packages
+        // Runtime check ensures Wine is actually installed
+        ("linux", Nsis | WindowsMsi) => has_wine(),
         
-        #[cfg(target_os = "windows")]
-        PackageType::Nsis | PackageType::WindowsMsi => true,
+        // Windows native packages
+        ("windows", Nsis | WindowsMsi) => true,
         
+        // Everything else needs Docker
         _ => false,
     }
 }
