@@ -5,10 +5,10 @@
 use crate::error::{CliError, ReleaseError};
 use std::path::{Path, PathBuf};
 
-/// Finds the bundle directory for a platform, handling case-insensitive matching.
+/// Finds the bundle directory for a platform.
 ///
-/// This function searches for the bundle directory case-insensitively to handle
-/// differences in how bundlers create directory names across platforms.
+/// Uses exact match with lowercase directory name, which matches all known bundlers.
+/// All bundlers (cargo-bundle) use lowercase directory names: "deb", "rpm", "appimage", etc.
 ///
 /// # Arguments
 ///
@@ -35,43 +35,26 @@ pub fn find_bundle_directory(
         }));
     }
     
-    // Try exact match first (most common)
-    let exact_match = bundle_base.join(platform_str.to_lowercase());
-    if exact_match.exists() {
-        return Ok(exact_match);
+    // All bundlers use lowercase directory names
+    let bundle_dir = bundle_base.join(platform_str.to_lowercase());
+    
+    if bundle_dir.exists() && bundle_dir.is_dir() {
+        Ok(bundle_dir)
+    } else {
+        Err(ReleaseError::Cli(CliError::ExecutionFailed {
+            command: "find bundle directory".to_string(),
+            reason: format!(
+                "Bundle directory not found: {}\n\
+                 \n\
+                 Expected path: {}\n\
+                 \n\
+                 This usually means the bundle command did not create any artifacts.\n\
+                 Check the build output above for errors.",
+                platform_str,
+                bundle_dir.display()
+            ),
+        }))
     }
-    
-    // Search for case-insensitive match
-    let entries = std::fs::read_dir(&bundle_base)
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "read bundle directory".to_string(),
-            reason: format!("Failed to read {}: {}", bundle_base.display(), e),
-        }))?;
-    
-    for entry in entries {
-        let entry = entry.map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "read directory entry".to_string(),
-            reason: format!("Failed to read entry in {}: {}", bundle_base.display(), e),
-        }))?;
-        
-        let path = entry.path();
-        if path.is_dir()
-            && let Some(dir_name) = path.file_name()
-            && dir_name.to_string_lossy().eq_ignore_ascii_case(platform_str)
-        {
-            return Ok(path);
-        }
-    }
-    
-    // Not found
-    Err(ReleaseError::Cli(CliError::ExecutionFailed {
-        command: "find bundle directory".to_string(),
-        reason: format!(
-            "Bundle directory not found for platform '{}' in {}",
-            platform_str,
-            bundle_base.display()
-        ),
-    }))
 }
 
 /// Verifies that artifacts are complete and not corrupted.

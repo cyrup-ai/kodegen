@@ -4,6 +4,9 @@
 
 use crate::bundler::PackageType;
 
+#[cfg(target_os = "linux")]
+use std::sync::OnceLock;
+
 /// Splits package types into native (run locally) vs containerized (run in Docker).
 ///
 /// Based on the current host OS, determines which platforms can be built natively
@@ -59,14 +62,22 @@ pub fn split_platforms_by_host(
 /// ```
 #[cfg(target_os = "linux")]
 fn has_wine() -> bool {
-    use std::process::Stdio;
-    std::process::Command::new("wine")
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    /// Cached result of Wine availability check.
+    ///
+    /// This static is initialized once on first access and reused thereafter,
+    /// avoiding repeated process spawns for `wine --version` checks.
+    static WINE_AVAILABLE: OnceLock<bool> = OnceLock::new();
+    
+    *WINE_AVAILABLE.get_or_init(|| {
+        use std::process::Stdio;
+        std::process::Command::new("wine")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    })
 }
 
 /// Wine is not available on non-Linux platforms.
