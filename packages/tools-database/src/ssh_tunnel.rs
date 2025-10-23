@@ -7,9 +7,8 @@
 use crate::error::DatabaseError;
 use ssh2::Session;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::{timeout, Duration};
 
@@ -199,10 +198,8 @@ async fn handle_tunnel_connection(
         let stream_write = std_stream;
 
         // Split channel for bidirectional communication
-        // We need to clone the channel for both directions
-        let mut channel_read = channel.try_clone().map_err(|e| {
-            DatabaseError::SSHTunnelError(format!("Failed to clone channel: {}", e))
-        })?;
+        // Clone the channel for both directions (ssh2::Channel is Clone)
+        let mut channel_read = channel.clone();
         let mut channel_write = channel;
 
         // Stream -> Channel

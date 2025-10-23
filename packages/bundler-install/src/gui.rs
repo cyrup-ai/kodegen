@@ -14,9 +14,14 @@
 
 use eframe::egui;
 use tokio::sync::mpsc;
+use tokio::time::timeout;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::install::core::InstallProgress;
+
+/// Timeout for installation completion (matches fluent_voice.rs git clone timeout)
+const INSTALL_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes
 
 /// Installation window state
 pub struct InstallWindow {
@@ -249,7 +254,7 @@ impl InstallWindow {
         ).fill(egui::Color32::from_rgb(24, 202, 155));  // Cyan button
         
         if ui.add(close_button).clicked() {
-            std::process::exit(0);  // Success exit code
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
     
@@ -298,7 +303,7 @@ impl InstallWindow {
             ).fill(egui::Color32::from_rgb(255, 100, 100));  // Red (destructive action)
             
             if ui.add(close_button).clicked() {
-                std::process::exit(1);  // Error exit code
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });
     }
@@ -378,23 +383,47 @@ pub async fn run_gui_installation(
     let result_container = std::sync::Arc::new(std::sync::Mutex::new(None));
     let result_clone = result_container.clone();
     
-    // Spawn result polling task
+    // Spawn result polling task with timeout protection
     tokio::spawn(async move {
-        let result = loop {
-            match result_rx.try_recv() {
-                Ok(res) => break res,
-                Err(oneshot::error::TryRecvError::Empty) => {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        // Wrap polling loop with timeout (matches fluent_voice.rs pattern)
+        let result = timeout(
+            INSTALL_TIMEOUT,
+            async {
+                loop {
+                    match result_rx.try_recv() {
+                        Ok(res) => break res,
+                        Err(oneshot::error::TryRecvError::Empty) => {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                        }
+                        Err(oneshot::error::TryRecvError::Closed) => {
+                            break Err(anyhow::anyhow!("Installation channel closed unexpectedly"));
+                        }
+                    }
                 }
-                Err(oneshot::error::TryRecvError::Closed) => {
-                    break Err(anyhow::anyhow!("Installation channel closed unexpectedly"));
-                }
+            }
+        ).await;
+        
+        // Handle timeout vs operation result (double-Result unwrap)
+        let final_result = match result {
+            Ok(res) => res,  // Installation completed (success or failure)
+            Err(_) => {
+                // Timeout elapsed - installation hung
+                Err(anyhow::anyhow!(
+                    "Installation timed out after {} seconds. \
+                     This may indicate a network issue or system problem.\n\n\
+                     Please check:\n\
+                     • Network connection is active\n\
+                     • ~100MB free disk space for Chromium\n\
+                     • Firewall allows GitHub/Chrome downloads\n\
+                     • System disk is not full",
+                    INSTALL_TIMEOUT.as_secs()
+                ))
             }
         };
         
-        // Store result for main thread to retrieve
+        // Store result (including timeout error) for main thread to retrieve
         if let Ok(mut container) = result_container.lock() {
-            *container = Some(result);
+            *container = Some(final_result);
         }
     });
     
