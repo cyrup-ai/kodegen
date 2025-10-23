@@ -29,7 +29,7 @@ pub fn worktree_add(repo: RepoHandle, opts: WorktreeAddOpts) -> AsyncTask<GitRes
 
 fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<PathBuf> {
     // Phase 1: Validation
-    
+
     // 1. Check worktree path doesn't exist (unless force)
     if opts.path.exists() && !opts.force {
         return Err(GitError::WorktreeAlreadyExists(opts.path.clone()));
@@ -44,7 +44,7 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
                 "Failed to resolve committish '{committish_ref}': {e}"
             ))
         })?;
-    
+
     let commit_id = parsed.single().ok_or_else(|| {
         GitError::InvalidInput(format!(
             "Committish '{committish_ref}' does not resolve to a single commit"
@@ -63,14 +63,11 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| {
-            GitError::InvalidWorktreeName(format!(
-                "Invalid worktree path: {}",
-                opts.path.display()
-            ))
+            GitError::InvalidWorktreeName(format!("Invalid worktree path: {}", opts.path.display()))
         })?;
 
     // Phase 2: Create worktree git directory structure
-    
+
     let worktree_git_dir = repo.common_dir().join("worktrees").join(worktree_name);
 
     // Ensure parent worktrees directory exists (idempotent, safe to call multiple times)
@@ -96,20 +93,26 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
             std::fs::remove_dir_all(&opts.path).map_err(|e| {
                 GitError::Io(std::io::Error::new(
                     e.kind(),
-                    format!("Failed to remove existing directory at {} (force mode): {}", 
-                            opts.path.display(), e)
+                    format!(
+                        "Failed to remove existing directory at {} (force mode): {}",
+                        opts.path.display(),
+                        e
+                    ),
                 ))
             })?;
         }
-        
+
         // Also remove admin directory if it exists from previous failed attempt
         // This is the KEY FIX - force mode now cleans up admin directory too
         if worktree_git_dir.exists() {
             std::fs::remove_dir_all(&worktree_git_dir).map_err(|e| {
                 GitError::Io(std::io::Error::new(
                     e.kind(),
-                    format!("Failed to remove existing worktree admin directory at {} (force mode): {}", 
-                            worktree_git_dir.display(), e)
+                    format!(
+                        "Failed to remove existing worktree admin directory at {} (force mode): {}",
+                        worktree_git_dir.display(),
+                        e
+                    ),
                 ))
             })?;
         }
@@ -130,7 +133,7 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
     // Atomically create worktree git directory (prevents TOCTOU race condition)
     // Using create_dir (not create_dir_all) ensures atomic check-and-create
     match std::fs::create_dir(&worktree_git_dir) {
-        Ok(()) => {}, // Successfully created
+        Ok(()) => {} // Successfully created
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             cleanup();
             return Err(GitError::InvalidInput(format!(
@@ -173,7 +176,11 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
         cleanup();
         return Err(GitError::Io(std::io::Error::new(
             e.kind(),
-            format!("Failed to write gitdir file at {}: {}", gitdir_file.display(), e),
+            format!(
+                "Failed to write gitdir file at {}: {}",
+                gitdir_file.display(),
+                e
+            ),
         )));
     }
 
@@ -214,7 +221,7 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
     }
 
     // Phase 4: Open worktree repository
-    
+
     let worktree_repo = match gix::open(&opts.path) {
         Ok(r) => r,
         Err(e) => {
@@ -224,7 +231,7 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
     };
 
     // Phase 5: Checkout files
-    
+
     // Get commit and tree
     let commit = match worktree_repo.find_object(commit_id) {
         Ok(obj) => match obj.try_into_commit() {
@@ -253,18 +260,22 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
         Ok(idx) => idx,
         Err(e) => {
             cleanup();
-            return Err(GitError::Gix(format!("Failed to create index from tree: {e}").into()));
+            return Err(GitError::Gix(
+                format!("Failed to create index from tree: {e}").into(),
+            ));
         }
     };
 
     // Configure checkout options
-    let mut checkout_opts = match worktree_repo.checkout_options(
-        gix::worktree::stack::state::attributes::Source::WorktreeThenIdMapping,
-    ) {
+    let mut checkout_opts = match worktree_repo
+        .checkout_options(gix::worktree::stack::state::attributes::Source::WorktreeThenIdMapping)
+    {
         Ok(opts) => opts,
         Err(e) => {
             cleanup();
-            return Err(GitError::Gix(format!("Failed to create checkout options: {e}").into()));
+            return Err(GitError::Gix(
+                format!("Failed to create checkout options: {e}").into(),
+            ));
         }
     };
 
@@ -276,7 +287,9 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
         Ok(odb) => odb,
         Err(e) => {
             cleanup();
-            return Err(GitError::Gix(format!("Failed to access object database: {e}").into()));
+            return Err(GitError::Gix(
+                format!("Failed to access object database: {e}").into(),
+            ));
         }
     };
 
@@ -292,7 +305,9 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
         Ok(o) => o,
         Err(e) => {
             cleanup();
-            return Err(GitError::Gix(format!("Checkout operation failed: {e}").into()));
+            return Err(GitError::Gix(
+                format!("Checkout operation failed: {e}").into(),
+            ));
         }
     };
 
@@ -313,9 +328,7 @@ fn worktree_add_impl(repo: gix::Repository, opts: WorktreeAddOpts) -> GitResult<
     // Write index with proper locking and checksum
     if let Err(e) = index.write(gix::index::write::Options::default()) {
         cleanup();
-        return Err(GitError::Gix(
-            format!("Failed to write index: {e}").into(),
-        ));
+        return Err(GitError::Gix(format!("Failed to write index: {e}").into()));
     }
 
     // Phase 6: Return result

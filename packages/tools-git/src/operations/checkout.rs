@@ -6,8 +6,8 @@
 use std::sync::atomic::AtomicBool;
 
 use gix::bstr::ByteSlice;
-use gix::refs::transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog};
 use gix::refs::Target;
+use gix::refs::transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog};
 
 use crate::{GitError, GitResult, RepoHandle};
 
@@ -32,7 +32,7 @@ impl CheckoutOpts {
 
     /// Enable force checkout (overwrite local changes).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn force(mut self, yes: bool) -> Self {
         self.force = yes;
         self
@@ -67,9 +67,7 @@ fn checkout_files(
     let parsed = repo
         .rev_parse(reference.as_bytes().as_bstr())
         .map_err(|e| {
-            GitError::InvalidInput(format!(
-                "Failed to resolve reference '{reference}': {e}"
-            ))
+            GitError::InvalidInput(format!("Failed to resolve reference '{reference}': {e}"))
         })?;
 
     let object_id = parsed.single().ok_or_else(|| {
@@ -91,9 +89,9 @@ fn checkout_files(
             ))
         })?;
 
-    let tree = commit.tree().map_err(|e| {
-        GitError::Gix(format!("Failed to get tree from commit: {e}").into())
-    })?;
+    let tree = commit
+        .tree()
+        .map_err(|e| GitError::Gix(format!("Failed to get tree from commit: {e}").into()))?;
 
     // Step 3: Get worktree path
     let worktree = repo.worktree().ok_or_else(|| {
@@ -109,9 +107,12 @@ fn checkout_files(
     // Step 5: Process each file path
     for path in paths {
         // Lookup entry in tree
-        let entry = tree.lookup_entry_by_path(&path)
+        let entry = tree
+            .lookup_entry_by_path(&path)
             .map_err(|e| GitError::Gix(format!("Failed to lookup path in tree: {e}").into()))?
-            .ok_or_else(|| GitError::InvalidInput(format!("Path not found in tree: {}", path.display())))?;
+            .ok_or_else(|| {
+                GitError::InvalidInput(format!("Path not found in tree: {}", path.display()))
+            })?;
 
         // Only handle files, not directories
         if entry.mode().is_tree() {
@@ -122,9 +123,9 @@ fn checkout_files(
         }
 
         // Get blob object
-        let object = entry.object().map_err(|e| {
-            GitError::Gix(format!("Failed to read object: {e}").into())
-        })?;
+        let object = entry
+            .object()
+            .map_err(|e| GitError::Gix(format!("Failed to read object: {e}").into()))?;
 
         let blob_data = &object.data;
 
@@ -142,7 +143,7 @@ fn checkout_files(
                     ),
                 ))
             })?;
-            
+
             if current_content != *blob_data {
                 return Err(GitError::Gix(
                     format!(
@@ -162,9 +163,9 @@ fn checkout_files(
 
         // Update index entry
         use gix::index::entry::{Flags, Mode, Stat};
-        
+
         let gix_metadata = gix::index::fs::Metadata::from_path_no_follow(&full_path)?;
-        
+
         let mode = if gix_metadata.is_executable() {
             Mode::FILE_EXECUTABLE
         } else {
@@ -172,12 +173,17 @@ fn checkout_files(
         };
 
         let stat = Stat::from_fs(&gix_metadata).map_err(|e| {
-            GitError::InvalidInput(format!("Failed to create stat for {}: {}", path.display(), e))
+            GitError::InvalidInput(format!(
+                "Failed to create stat for {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         // Convert path to gix format
-        let path_bytes = gix::path::os_str_into_bstr(path.as_os_str())
-            .map_err(|_| GitError::InvalidInput(format!("Invalid UTF-8 in path: {}", path.display())))?;
+        let path_bytes = gix::path::os_str_into_bstr(path.as_os_str()).map_err(|_| {
+            GitError::InvalidInput(format!("Invalid UTF-8 in path: {}", path.display()))
+        })?;
 
         // Add/update the index entry
         index.dangerously_push_entry(
@@ -194,11 +200,9 @@ fn checkout_files(
 
     // Step 7: Write index to disk with proper locking and checksum
     use gix::index::write::Options;
-    index.write(Options::default()).map_err(|e| {
-        GitError::Gix(
-            format!("Failed to write index: {e}").into(),
-        )
-    })?;
+    index
+        .write(Options::default())
+        .map_err(|e| GitError::Gix(format!("Failed to write index: {e}").into()))?;
 
     Ok(())
 }
@@ -220,7 +224,7 @@ fn checkout_files(
 /// - Commit SHAs (e.g., "abc123") → Detached HEAD
 pub async fn checkout(repo: RepoHandle, opts: CheckoutOpts) -> GitResult<()> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let CheckoutOpts { reference, force, paths } = opts;
 

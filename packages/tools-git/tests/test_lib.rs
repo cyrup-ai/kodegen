@@ -1,8 +1,8 @@
 //! Tests for library root module.
 
+use kodegen_tools_git::GitError;
 use kodegen_tools_git::git::log::LogOpts;
 use kodegen_tools_git::git::open::RepositoryInfo;
-use kodegen_tools_git::GitError;
 use std::path::PathBuf;
 
 #[test]

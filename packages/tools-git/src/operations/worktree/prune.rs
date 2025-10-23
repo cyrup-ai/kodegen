@@ -24,10 +24,10 @@ pub fn worktree_prune(repo: RepoHandle) -> AsyncTask<GitResult<Vec<String>>> {
 
 fn worktree_prune_impl(repo: gix::Repository) -> GitResult<Vec<String>> {
     let mut pruned = Vec::new();
-    
+
     // Step 1: Get all linked worktrees
     let worktrees = repo.worktrees().map_err(GitError::Io)?;
-    
+
     // Step 2: Check each worktree for validity
     for proxy in worktrees {
         let should_prune = match proxy.base() {
@@ -42,11 +42,11 @@ fn worktree_prune_impl(repo: gix::Repository) -> GitResult<Vec<String>> {
                 true
             }
         };
-        
+
         if should_prune {
             let git_dir = proxy.git_dir().to_path_buf();
             let name = proxy.id().to_str().unwrap_or("<unknown>").to_string();
-            
+
             // Remove stale worktree admin directory (best effort)
             match std::fs::remove_dir_all(&git_dir) {
                 Ok(()) => {
@@ -54,12 +54,16 @@ fn worktree_prune_impl(repo: gix::Repository) -> GitResult<Vec<String>> {
                 }
                 Err(e) => {
                     // Log warning but continue pruning others
-                    eprintln!("Warning: Failed to prune worktree '{}' at {}: {}", 
-                              name, git_dir.display(), e);
+                    eprintln!(
+                        "Warning: Failed to prune worktree '{}' at {}: {}",
+                        name,
+                        git_dir.display(),
+                        e
+                    );
                 }
             }
         }
     }
-    
+
     Ok(pruned)
 }

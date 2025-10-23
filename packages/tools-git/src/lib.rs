@@ -12,49 +12,36 @@ use thiserror::Error;
 
 // Module declarations
 pub mod operations;
-pub mod tools;
 pub mod runtime;
+pub mod tools;
 
 // Re-export runtime types
 pub use runtime::{AsyncStream, AsyncTask, EmitterBuilder};
 
 // Re-export Git operations
 pub use operations::{
-    add, branch, checkout, check_remote_branch_exists, check_remote_tag_exists, clone_repo, 
-    commit, create_tag, current_branch, delete_branch, delete_remote_branch, delete_remote_tag, 
-    delete_tag, discover_repo, fetch, head_commit, init_bare_repo, init_repo, is_clean, 
-    is_detached, is_repository, list_branches, list_remotes, list_tags, list_worktrees, log, 
-    merge, open_repo, probe_repository, push, push_current_branch, push_tags, remote_exists,
+    AddOpts, BranchInfo, BranchOpts, CheckoutOpts, CloneOpts, CommitOpts, FetchOpts, LogOpts,
+    MergeOpts, MergeOutcome, PushOpts, PushResult, RemoteInfo, RepositoryInfo, ResetMode,
+    ResetOpts, Signature, TagInfo, TagOpts, WorktreeAddOpts, WorktreeInfo, WorktreeLockOpts,
+    WorktreeRemoveOpts, add, branch, check_remote_branch_exists, check_remote_tag_exists, checkout,
+    clone_repo, commit, create_tag, current_branch, delete_branch, delete_remote_branch,
+    delete_remote_tag, delete_tag, discover_repo, fetch, head_commit, init_bare_repo, init_repo,
+    is_clean, is_detached, is_repository, list_branches, list_remotes, list_tags, list_worktrees,
+    log, merge, open_repo, probe_repository, push, push_current_branch, push_tags, remote_exists,
     rename_branch, reset, reset_hard, reset_mixed, reset_soft, tag_exists, worktree_add,
-    worktree_lock, worktree_prune, worktree_remove, worktree_unlock, AddOpts, BranchInfo,
-    BranchOpts, CheckoutOpts, CloneOpts, CommitOpts, FetchOpts, LogOpts, MergeOpts,
-    MergeOutcome, PushOpts, PushResult, RemoteInfo, RepositoryInfo, ResetMode, ResetOpts,
-    Signature, TagInfo, TagOpts, WorktreeAddOpts, WorktreeInfo, WorktreeLockOpts,
-    WorktreeRemoveOpts,
+    worktree_lock, worktree_prune, worktree_remove, worktree_unlock,
 };
 
 // Re-export MCP tools
 pub use tools::{
-    GitInitTool, GitInitArgs,
-    GitOpenTool, GitOpenArgs,
-    GitCloneTool, GitCloneArgs,
-    GitDiscoverTool, GitDiscoverArgs,
-    GitBranchCreateTool, GitBranchCreateArgs,
-    GitBranchDeleteTool, GitBranchDeleteArgs,
-    GitBranchListTool, GitBranchListArgs,
-    GitBranchRenameTool, GitBranchRenameArgs,
-    GitCommitTool, GitCommitArgs,
-    GitLogTool, GitLogArgs,
-    GitAddTool, GitAddArgs,
-    GitCheckoutTool, GitCheckoutArgs,
-    GitFetchTool, GitFetchArgs,
-    GitMergeTool, GitMergeArgs,
-    GitWorktreeAddTool, GitWorktreeAddArgs,
-    GitWorktreeRemoveTool, GitWorktreeRemoveArgs,
-    GitWorktreeListTool, GitWorktreeListArgs,
-    GitWorktreeLockTool, GitWorktreeLockArgs,
-    GitWorktreeUnlockTool, GitWorktreeUnlockArgs,
-    GitWorktreePruneTool, GitWorktreePruneArgs,
+    GitAddArgs, GitAddTool, GitBranchCreateArgs, GitBranchCreateTool, GitBranchDeleteArgs,
+    GitBranchDeleteTool, GitBranchListArgs, GitBranchListTool, GitBranchRenameArgs,
+    GitBranchRenameTool, GitCheckoutArgs, GitCheckoutTool, GitCloneArgs, GitCloneTool,
+    GitCommitArgs, GitCommitTool, GitDiscoverArgs, GitDiscoverTool, GitFetchArgs, GitFetchTool,
+    GitInitArgs, GitInitTool, GitLogArgs, GitLogTool, GitMergeArgs, GitMergeTool, GitOpenArgs,
+    GitOpenTool, GitWorktreeAddArgs, GitWorktreeAddTool, GitWorktreeListArgs, GitWorktreeListTool,
+    GitWorktreeLockArgs, GitWorktreeLockTool, GitWorktreePruneArgs, GitWorktreePruneTool,
+    GitWorktreeRemoveArgs, GitWorktreeRemoveTool, GitWorktreeUnlockArgs, GitWorktreeUnlockTool,
 };
 
 /// Error types for `GitGix` operations

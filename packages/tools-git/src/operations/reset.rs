@@ -39,12 +39,10 @@ fn validate_reset_preconditions(
     // Check 1: For hard reset, ensure repository has worktree
     if opts.mode == ResetMode::Hard {
         repo.worktree().ok_or_else(|| {
-            GitError::InvalidInput(
-                "Cannot perform hard reset on bare repository".to_string()
-            )
+            GitError::InvalidInput("Cannot perform hard reset on bare repository".to_string())
         })?;
     }
-    
+
     // Check 2: Verify index is writable
     let index_path = repo.index_path();
     if index_path.exists() {
@@ -52,11 +50,9 @@ fn validate_reset_preconditions(
         std::fs::OpenOptions::new()
             .write(true)
             .open(&index_path)
-            .map_err(|e| GitError::InvalidInput(
-                format!("Index file is not writable: {e}")
-            ))?;
+            .map_err(|e| GitError::InvalidInput(format!("Index file is not writable: {e}")))?;
     }
-    
+
     Ok(())
 }
 
@@ -88,104 +84,106 @@ fn validate_reset_preconditions(
 /// ```
 pub async fn reset(repo: &RepoHandle, opts: ResetOpts) -> GitResult<()> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         // Helper to check cancellation
         let check_cancelled = || -> GitResult<()> {
             if let Some(ref token) = opts.cancel_token
-                && token.load(Ordering::Relaxed) {
-                    return Err(GitError::Aborted);
-                }
+                && token.load(Ordering::Relaxed)
+            {
+                return Err(GitError::Aborted);
+            }
             Ok(())
         };
-        
+
         // Resolve target commit
         let target_id = repo_clone
             .rev_parse_single(opts.target.as_bytes().as_bstr())
             .map_err(|e| GitError::Parse(format!("Invalid target '{}': {}", opts.target, e)))?;
-        
+
         // Get target commit
         let target_commit = repo_clone
             .find_object(target_id)
             .map_err(|e| GitError::Gix(Box::new(e)))?
             .try_into_commit()
             .map_err(|_| GitError::Parse("Target is not a commit".to_string()))?;
-        
+
         // Phase 1: Validation (fail fast before any changes)
         validate_reset_preconditions(&repo_clone, &opts, &target_commit)?;
-        
+
         // Check cancellation before starting
         check_cancelled()?;
-        
+
         // Phase 2: Save original state for error messages
         let original_head = repo_clone
             .head()
             .ok()
             .and_then(|mut h| h.try_peel_to_id().ok().flatten())
             .map(|id| id.to_string());
-        
+
         // Phase 3: Execute in SAFE order (risky → safe)
-        
+
         // Step 1: Reset working directory FIRST (most likely to fail)
         if opts.mode == ResetMode::Hard {
             check_cancelled()?;
-            
-            reset_working_directory(&repo_clone, &target_commit, None, opts.cancel_token.as_ref())
-                .map_err(|e| {
-                    GitError::InvalidInput(format!(
-                        "Reset failed: Could not update working directory: {}. \
+
+            reset_working_directory(
+                &repo_clone,
+                &target_commit,
+                None,
+                opts.cancel_token.as_ref(),
+            )
+            .map_err(|e| {
+                GitError::InvalidInput(format!(
+                    "Reset failed: Could not update working directory: {}. \
                          Repository is unchanged. HEAD is still at {}.",
-                        e,
-                        original_head
-                            .as_deref()
-                            .unwrap_or("unknown")
-                    ))
-                })?;
+                    e,
+                    original_head.as_deref().unwrap_or("unknown")
+                ))
+            })?;
         }
-        
+
         // Step 2: Reset index SECOND (can fail, but worktree already consistent)
         if opts.mode == ResetMode::Mixed || opts.mode == ResetMode::Hard {
             check_cancelled()?;
-            
-            reset_index(&repo_clone, &target_commit)
-                .map_err(|e| {
-                    let state_msg = if opts.mode == ResetMode::Hard {
-                        "Working directory was updated but index write failed. \
+
+            reset_index(&repo_clone, &target_commit).map_err(|e| {
+                let state_msg = if opts.mode == ResetMode::Hard {
+                    "Working directory was updated but index write failed. \
                          Repository is in an inconsistent state. \
                          Run 'git status' to see current state."
-                    } else {
-                        "Index write failed. Repository is unchanged."
-                    };
-                    
-                    GitError::InvalidInput(format!(
-                        "Reset failed: Could not update index: {e}. {state_msg}"
-                    ))
-                })?;
-        }
-        
-        // Step 3: Move HEAD LAST (least likely to fail)
-        check_cancelled()?;
-        
-        reset_head(&repo_clone, target_id.into(), &opts.target)
-            .map_err(|e| {
-                let state_msg = match opts.mode {
-                    ResetMode::Soft => "Repository is unchanged.",
-                    ResetMode::Mixed => {
-                        "Index was updated but HEAD was not moved. \
-                         Run 'git status' - you should see all changes as staged."
-                    }
-                    ResetMode::Hard => {
-                        "Working directory and index were updated but HEAD was not moved. \
-                         Run 'git status' - you should see all changes as staged. \
-                         This is a valid state but not what reset intended."
-                    }
+                } else {
+                    "Index write failed. Repository is unchanged."
                 };
-                
+
                 GitError::InvalidInput(format!(
-                    "Reset failed: Could not update HEAD: {e}. {state_msg}"
+                    "Reset failed: Could not update index: {e}. {state_msg}"
                 ))
             })?;
-        
+        }
+
+        // Step 3: Move HEAD LAST (least likely to fail)
+        check_cancelled()?;
+
+        reset_head(&repo_clone, target_id.into(), &opts.target).map_err(|e| {
+            let state_msg = match opts.mode {
+                ResetMode::Soft => "Repository is unchanged.",
+                ResetMode::Mixed => {
+                    "Index was updated but HEAD was not moved. \
+                         Run 'git status' - you should see all changes as staged."
+                }
+                ResetMode::Hard => {
+                    "Working directory and index were updated but HEAD was not moved. \
+                         Run 'git status' - you should see all changes as staged. \
+                         This is a valid state but not what reset intended."
+                }
+            };
+
+            GitError::InvalidInput(format!(
+                "Reset failed: Could not update HEAD: {e}. {state_msg}"
+            ))
+        })?;
+
         Ok(())
     })
     .await
@@ -193,16 +191,21 @@ pub async fn reset(repo: &RepoHandle, opts: ResetOpts) -> GitResult<()> {
 }
 
 /// Reset HEAD to a specific commit
-fn reset_head(repo: &gix::Repository, target_id: gix::hash::ObjectId, target_ref: &str) -> GitResult<()> {
-    let head = repo
-        .head()
-        .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+fn reset_head(
+    repo: &gix::Repository,
+    target_id: gix::hash::ObjectId,
+    target_ref: &str,
+) -> GitResult<()> {
+    let head = repo.head().map_err(|e| GitError::Gix(Box::new(e)))?;
+
     // Check if HEAD is symbolic (on a branch) to determine deref behavior
     // For symbolic refs (HEAD -> refs/heads/main), we update the branch reference
     // For direct refs (detached HEAD), we update HEAD directly
-    let is_symbolic = matches!(head.kind, gix::head::Kind::Symbolic(_) | gix::head::Kind::Unborn(_));
-    
+    let is_symbolic = matches!(
+        head.kind,
+        gix::head::Kind::Symbolic(_) | gix::head::Kind::Unborn(_)
+    );
+
     if is_symbolic {
         // Symbolic HEAD: Update the branch reference that HEAD points to
         // This uses edit_reference which handles reflog creation automatically
@@ -210,10 +213,10 @@ fn reset_head(repo: &gix::Repository, target_id: gix::hash::ObjectId, target_ref
         let head_name = head.name().as_bstr();
         let ref_name = gix::refs::FullName::try_from(head_name.as_bstr())
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
-        use gix::refs::transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog};
+
         use gix::refs::Target;
-        
+        use gix::refs::transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog};
+
         repo.edit_reference(RefEdit {
             change: Change::Update {
                 log: LogChange {
@@ -232,7 +235,7 @@ fn reset_head(repo: &gix::Repository, target_id: gix::hash::ObjectId, target_ref
         // Detached HEAD: Update HEAD directly
         // Use high-level reference API which handles reflog automatically
         use gix::refs::transaction::PreviousValue;
-        
+
         repo.reference(
             "HEAD",
             target_id,
@@ -241,7 +244,7 @@ fn reset_head(repo: &gix::Repository, target_id: gix::hash::ObjectId, target_ref
         )
         .map_err(|e| GitError::Gix(Box::new(e)))?;
     }
-    
+
     Ok(())
 }
 
@@ -251,7 +254,7 @@ fn reset_index(repo: &gix::Repository, target_commit: &gix::Commit) -> GitResult
     let tree_id = target_commit
         .tree_id()
         .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     // Step 2: Create new index from target tree
     // This uses gix_index::State::from_tree internally
     // See: packages/git/tmp/gitoxide/gix-index/src/init.rs:48-64
@@ -265,7 +268,7 @@ fn reset_index(repo: &gix::Repository, target_commit: &gix::Commit) -> GitResult
     new_index
         .write(Options::default())
         .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     Ok(())
 }
 
@@ -277,50 +280,46 @@ fn reset_working_directory(
     cancel_token: Option<&Arc<AtomicBool>>,
 ) -> GitResult<()> {
     use std::sync::atomic::AtomicBool;
-    
+
     // Step 1: Get tree ID from target commit
     let tree_id = target_commit
         .tree_id()
         .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     // Step 2: Create index from target tree
     let mut index = repo
         .index_from_tree(&tree_id)
         .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     // Step 3: Get worktree path (fail if bare repository)
-    let worktree = repo
-        .worktree()
-        .ok_or_else(|| GitError::InvalidInput(
-            "Cannot reset working directory in bare repository".to_string()
-        ))?;
+    let worktree = repo.worktree().ok_or_else(|| {
+        GitError::InvalidInput("Cannot reset working directory in bare repository".to_string())
+    })?;
     let worktree_path = worktree.base().to_owned();
-    
+
     // Step 4: Configure checkout options for force overwrite
     let mut checkout_opts = repo
-        .checkout_options(
-            gix::worktree::stack::state::attributes::Source::WorktreeThenIdMapping,
-        )
+        .checkout_options(gix::worktree::stack::state::attributes::Source::WorktreeThenIdMapping)
         .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     // Force overwrite all files (this is --hard reset behavior)
     checkout_opts.overwrite_existing = true;
     checkout_opts.destination_is_initially_empty = false;
-    
+
     // Step 5: Perform the actual file checkout
     // Accept progress parameter or use Discard
     let progress_ref: &dyn gix::progress::Progress = match progress {
         Some(p) => p,
         None => &gix::progress::Discard,
     };
-    
+
     // Use caller's token or create a default false one
     let default_token = AtomicBool::new(false);
     let cancel_ref: &AtomicBool = match cancel_token {
         Some(token) => token.as_ref(),
         None => &default_token,
     };
-    
+
     let outcome = gix::worktree::state::checkout(
         &mut index,
         &worktree_path,
@@ -334,22 +333,26 @@ fn reset_working_directory(
         checkout_opts,
     )
     .map_err(|e| GitError::Gix(Box::new(e)))?;
-    
+
     // Check if cancelled after checkout
     if let Some(token) = cancel_token
-        && token.load(Ordering::Relaxed) {
-            return Err(GitError::Aborted);
-        }
-    
+        && token.load(Ordering::Relaxed)
+    {
+        return Err(GitError::Aborted);
+    }
+
     // Step 6: Check for errors
     if !outcome.errors.is_empty() {
-        // Collect error details for helpful error message  
+        // Collect error details for helpful error message
         let error_details: Vec<String> = outcome
             .errors
             .iter()
             .take(10) // Show first 10 to avoid overwhelming output
             .map(|err| {
-                let path_str = std::str::from_utf8(err.path.as_ref()).map_or_else(|_| format!("{:?}", err.path), std::string::ToString::to_string);
+                let path_str = std::str::from_utf8(err.path.as_ref()).map_or_else(
+                    |_| format!("{:?}", err.path),
+                    std::string::ToString::to_string,
+                );
                 format!("{}: {}", path_str, err.error)
             })
             .collect();
@@ -370,7 +373,7 @@ fn reset_working_directory(
 
         return Err(GitError::Gix(error_summary.into()));
     }
-    
+
     Ok(())
 }
 

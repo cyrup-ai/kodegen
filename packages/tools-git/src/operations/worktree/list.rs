@@ -31,18 +31,22 @@ pub fn list_worktrees(repo: RepoHandle) -> AsyncTask<GitResult<Vec<WorktreeInfo>
         let is_bare = repo.is_bare();
 
         // Get main worktree (if not bare)
-        if !is_bare
-            && let Some(main_worktree) = repo.worktree()
-        {
+        if !is_bare && let Some(main_worktree) = repo.worktree() {
             let git_dir = repo.git_dir().to_path_buf();
             let path = main_worktree.base().to_path_buf();
 
             // Read HEAD information for main worktree (best effort)
-            let (head_commit, head_branch, is_detached) = if let Ok(info) = read_head_info(&git_dir, &repo) { info } else {
-                // HEAD file missing/corrupted - provide partial info
-                eprintln!("Warning: Failed to read HEAD for main worktree at {}", git_dir.display());
-                (None, None, false)
-            };
+            let (head_commit, head_branch, is_detached) =
+                if let Ok(info) = read_head_info(&git_dir, &repo) {
+                    info
+                } else {
+                    // HEAD file missing/corrupted - provide partial info
+                    eprintln!(
+                        "Warning: Failed to read HEAD for main worktree at {}",
+                        git_dir.display()
+                    );
+                    (None, None, false)
+                };
 
             let main_info = WorktreeInfo {
                 path,
@@ -60,9 +64,7 @@ pub fn list_worktrees(repo: RepoHandle) -> AsyncTask<GitResult<Vec<WorktreeInfo>
         }
 
         // Get linked worktrees
-        let linked_worktrees = repo
-            .worktrees()
-            .map_err(crate::GitError::Io)?;
+        let linked_worktrees = repo.worktrees().map_err(crate::GitError::Io)?;
 
         for proxy in linked_worktrees {
             // Get worktree path
@@ -70,11 +72,17 @@ pub fn list_worktrees(repo: RepoHandle) -> AsyncTask<GitResult<Vec<WorktreeInfo>
             let git_dir = proxy.git_dir().to_path_buf();
 
             // Read HEAD information for this worktree (best effort)
-            let (head_commit, head_branch, is_detached) = if let Ok(info) = read_head_info(&git_dir, &repo) { info } else {
-                // HEAD file missing/corrupted - provide partial info
-                eprintln!("Warning: Failed to read HEAD for worktree at {}", path.display());
-                (None, None, false)
-            };
+            let (head_commit, head_branch, is_detached) =
+                if let Ok(info) = read_head_info(&git_dir, &repo) {
+                    info
+                } else {
+                    // HEAD file missing/corrupted - provide partial info
+                    eprintln!(
+                        "Warning: Failed to read HEAD for worktree at {}",
+                        path.display()
+                    );
+                    (None, None, false)
+                };
 
             // Get lock status
             let is_locked = proxy.is_locked();

@@ -1,7 +1,7 @@
 //! Tests for git merge operation.
 
-use kodegen_tools_git::git::merge::{MergeOpts, MergeOutcome};
 use kodegen_tools_git::CommitId;
+use kodegen_tools_git::git::merge::{MergeOpts, MergeOutcome};
 
 #[test]
 fn test_merge_outcome_equality() {

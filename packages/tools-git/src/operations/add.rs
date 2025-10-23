@@ -47,7 +47,7 @@ impl AddOpts {
 
     /// Enable update-only mode (only add already tracked files).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn update_only(mut self, yes: bool) -> Self {
         self.update_only = yes;
         self
@@ -55,7 +55,7 @@ impl AddOpts {
 
     /// Force add files even if they're in .gitignore.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn force(mut self, yes: bool) -> Self {
         self.force = yes;
         self
@@ -179,17 +179,14 @@ fn expand_paths(paths: &[PathBuf], repo_path: &Path) -> GitResult<Vec<PathBuf>> 
             }
         } else if full_path.is_dir() {
             // Directory: recursively collect all files (skip .git directory)
-            for entry in WalkDir::new(&full_path)
-                .into_iter()
-                .filter_entry(|e| {
-                    // Skip .git directory to avoid walking internal git files
-                    if e.file_type().is_dir() {
-                        e.file_name() != ".git"
-                    } else {
-                        true
-                    }
-                })
-            {
+            for entry in WalkDir::new(&full_path).into_iter().filter_entry(|e| {
+                // Skip .git directory to avoid walking internal git files
+                if e.file_type().is_dir() {
+                    e.file_name() != ".git"
+                } else {
+                    true
+                }
+            }) {
                 let entry = entry.map_err(|e| GitError::Io(e.into()))?;
                 if entry.file_type().is_file() {
                     result.push(entry.path().to_path_buf());
@@ -282,7 +279,7 @@ fn process_single_file(
 /// Execute add operation with the given options.
 pub async fn add(repo: RepoHandle, opts: AddOpts) -> GitResult<()> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let AddOpts {
             paths,
@@ -315,20 +312,23 @@ pub async fn add(repo: RepoHandle, opts: AddOpts) -> GitResult<()> {
         }
 
         // Open mutable index (create empty one if it doesn't exist)
-        let mut index = if let Ok(idx) = repo_clone.open_index() { idx } else {
+        let mut index = if let Ok(idx) = repo_clone.open_index() {
+            idx
+        } else {
             // Index doesn't exist yet (freshly initialized repo)
             // Create an empty index
             let index_path = repo_clone.index_path();
             let object_hash = repo_clone.object_hash();
-            let mut new_index = gix::index::File::from_state(
-                gix::index::State::new(object_hash),
-                index_path,
-            );
+            let mut new_index =
+                gix::index::File::from_state(gix::index::State::new(object_hash), index_path);
             // Write the empty index to disk
-            new_index.write(gix::index::write::Options::default())
+            new_index
+                .write(gix::index::write::Options::default())
                 .map_err(|e| GitError::Gix(e.into()))?;
             // Re-open it
-            repo_clone.open_index().map_err(|e| GitError::Gix(e.into()))?
+            repo_clone
+                .open_index()
+                .map_err(|e| GitError::Gix(e.into()))?
         };
 
         // Setup .gitignore checking if not forcing

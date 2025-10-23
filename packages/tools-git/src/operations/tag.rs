@@ -65,10 +65,10 @@ pub struct TagInfo {
 /// ```
 pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let tag_ref_name = format!("refs/tags/{}", opts.name);
-        
+
         // Resolve target commit
         let target = if let Some(ref target_str) = opts.target {
             repo_clone
@@ -77,30 +77,37 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
                 .into()
         } else {
             // Default to HEAD
-            let mut head = repo_clone
-                .head()
-                .map_err(|e| GitError::Gix(Box::new(e)))?;
+            let mut head = repo_clone.head().map_err(|e| GitError::Gix(Box::new(e)))?;
             head.try_peel_to_id()
                 .map_err(|e| GitError::Gix(Box::new(e)))?
-                .ok_or_else(|| GitError::InvalidInput("HEAD does not point to a commit".to_string()))?
+                .ok_or_else(|| {
+                    GitError::InvalidInput("HEAD does not point to a commit".to_string())
+                })?
                 .detach()
         };
-        
+
         // Check if tag exists
         if !opts.force
-            && repo_clone.refs.find(tag_ref_name.as_bytes().as_bstr()).is_ok() {
-                return Err(GitError::InvalidInput(format!("Tag '{}' already exists", opts.name)));
-            }
-        
+            && repo_clone
+                .refs
+                .find(tag_ref_name.as_bytes().as_bstr())
+                .is_ok()
+        {
+            return Err(GitError::InvalidInput(format!(
+                "Tag '{}' already exists",
+                opts.name
+            )));
+        }
+
         // Create tag reference
         let is_annotated = opts.message.is_some();
-        
+
         // For lightweight tags, use transaction
         if is_annotated {
             // For annotated tags, create tag object
             let message = opts.message.as_deref().unwrap_or("");
             let signature = get_signature(&repo_clone)?;
-            
+
             use gix::bstr::ByteSlice;
             let time_str = signature.time.to_string();
             let sig_ref = gix::actor::SignatureRef {
@@ -108,7 +115,7 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
                 email: signature.email.as_bstr(),
                 time: &time_str,
             };
-            
+
             repo_clone
                 .tag(
                     &opts.name,
@@ -126,7 +133,7 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
         } else {
             let ref_name = gix::refs::FullName::try_from(tag_ref_name.as_bytes().as_bstr())
                 .map_err(|e| GitError::Gix(Box::new(e)))?;
-            
+
             let edit = gix::refs::transaction::RefEdit {
                 change: gix::refs::transaction::Change::Update {
                     log: gix::refs::transaction::LogChange::default(),
@@ -140,12 +147,12 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
                 name: ref_name,
                 deref: false,
             };
-            
+
             repo_clone
                 .refs
                 .transaction()
                 .prepare(
-                    vec![edit], 
+                    vec![edit],
                     gix::lock::acquire::Fail::Immediately,
                     gix::lock::acquire::Fail::Immediately,
                 )
@@ -153,18 +160,17 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
                 .commit(None)
                 .map_err(|e| GitError::Gix(Box::new(e)))?;
         }
-        
+
         // Get tag info
         let commit = repo_clone
             .find_object(target)
             .map_err(|e| GitError::Gix(Box::new(e)))?
             .try_into_commit()
             .map_err(|_| GitError::Parse("Target is not a commit".to_string()))?;
-        
+
         let commit_time = commit.time().map_err(|e| GitError::Gix(Box::new(e)))?;
-        let timestamp = DateTime::from_timestamp(commit_time.seconds, 0)
-            .unwrap_or_else(Utc::now);
-        
+        let timestamp = DateTime::from_timestamp(commit_time.seconds, 0).unwrap_or_else(Utc::now);
+
         Ok(TagInfo {
             name: opts.name,
             message: opts.message,
@@ -200,20 +206,20 @@ pub async fn create_tag(repo: &RepoHandle, opts: TagOpts) -> GitResult<TagInfo> 
 pub async fn delete_tag(repo: &RepoHandle, tag_name: &str) -> GitResult<()> {
     let repo_clone = repo.clone_inner();
     let tag_name = tag_name.to_string();
-    
+
     tokio::task::spawn_blocking(move || {
         let tag_ref_name = format!("refs/tags/{tag_name}");
-        
+
         // Check if tag exists
         repo_clone
             .refs
             .find(tag_ref_name.as_bytes().as_bstr())
             .map_err(|_| GitError::ReferenceNotFound(tag_name.clone()))?;
-        
+
         // Delete the tag using transaction
         let ref_name = gix::refs::FullName::try_from(tag_ref_name.as_bytes().as_bstr())
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         let edit = gix::refs::transaction::RefEdit {
             change: gix::refs::transaction::Change::Delete {
                 expected: gix::refs::transaction::PreviousValue::Any,
@@ -222,7 +228,7 @@ pub async fn delete_tag(repo: &RepoHandle, tag_name: &str) -> GitResult<()> {
             name: ref_name,
             deref: false,
         };
-        
+
         repo_clone
             .refs
             .transaction()
@@ -234,7 +240,7 @@ pub async fn delete_tag(repo: &RepoHandle, tag_name: &str) -> GitResult<()> {
             .map_err(|e| GitError::Gix(Box::new(e)))?
             .commit(None)
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         Ok(())
     })
     .await
@@ -268,10 +274,13 @@ pub async fn delete_tag(repo: &RepoHandle, tag_name: &str) -> GitResult<()> {
 pub async fn tag_exists(repo: &RepoHandle, tag_name: &str) -> GitResult<bool> {
     let repo_clone = repo.clone_inner();
     let tag_name = tag_name.to_string();
-    
+
     tokio::task::spawn_blocking(move || {
         let tag_ref_name = format!("refs/tags/{tag_name}");
-        Ok(repo_clone.refs.find(tag_ref_name.as_bytes().as_bstr()).is_ok())
+        Ok(repo_clone
+            .refs
+            .find(tag_ref_name.as_bytes().as_bstr())
+            .is_ok())
     })
     .await
     .map_err(|e| GitError::Gix(Box::new(e)))?
@@ -303,10 +312,10 @@ pub async fn tag_exists(repo: &RepoHandle, tag_name: &str) -> GitResult<bool> {
 /// ```
 pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let mut tags = Vec::new();
-        
+
         // Iterate over all tag references
         let refs_platform = repo_clone
             .references()
@@ -314,36 +323,37 @@ pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
         let tag_refs = refs_platform
             .prefixed("refs/tags/")
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         for reference in tag_refs {
             let mut reference = reference.map_err(GitError::Gix)?;
-            
+
             let name = reference.name().as_bstr();
             if !name.starts_with(b"refs/tags/") {
                 continue;
             }
-            
+
             let tag_name = name
                 .strip_prefix(b"refs/tags/")
                 .and_then(|n| std::str::from_utf8(n).ok())
                 .ok_or_else(|| GitError::Parse("Invalid tag name".to_string()))?
                 .to_string();
-            
+
             // Get target
             let target_id = reference
                 .peel_to_id()
                 .map_err(|e| GitError::Gix(Box::new(e)))?;
-            
+
             // Try to get tag object for annotated tags
-            let (message, is_annotated, timestamp) = if let Ok(obj) = repo_clone.find_object(target_id) {
+            let (message, is_annotated, timestamp) = if let Ok(obj) =
+                repo_clone.find_object(target_id)
+            {
                 if let Ok(tag_obj) = obj.try_into_tag() {
                     let tag_ref = tag_obj.decode().ok();
                     let msg = tag_ref.as_ref().map(|t| t.message.to_string());
                     let ts = if let Some(ref tag) = tag_ref {
                         if let Some(tagger) = &tag.tagger {
                             if let Ok(time) = tagger.time() {
-                                DateTime::from_timestamp(time.seconds, 0)
-                                    .unwrap_or_else(Utc::now)
+                                DateTime::from_timestamp(time.seconds, 0).unwrap_or_else(Utc::now)
                             } else {
                                 Utc::now()
                             }
@@ -356,9 +366,11 @@ pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
                     (msg, true, ts)
                 } else if let Ok(obj2) = repo_clone.find_object(target_id) {
                     if let Ok(commit) = obj2.try_into_commit() {
-                        let ts = commit.time().ok().unwrap_or_else(gix::date::Time::now_local_or_utc);
-                        let ts = DateTime::from_timestamp(ts.seconds, 0)
-                            .unwrap_or_else(Utc::now);
+                        let ts = commit
+                            .time()
+                            .ok()
+                            .unwrap_or_else(gix::date::Time::now_local_or_utc);
+                        let ts = DateTime::from_timestamp(ts.seconds, 0).unwrap_or_else(Utc::now);
                         (None, false, ts)
                     } else {
                         (None, false, Utc::now())
@@ -369,7 +381,7 @@ pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
             } else {
                 (None, false, Utc::now())
             };
-            
+
             tags.push(TagInfo {
                 name: tag_name,
                 message,
@@ -378,7 +390,7 @@ pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
                 is_annotated,
             });
         }
-        
+
         Ok(tags)
     })
     .await
@@ -388,15 +400,15 @@ pub async fn list_tags(repo: &RepoHandle) -> GitResult<Vec<TagInfo>> {
 /// Helper function to get signature from repository config
 fn get_signature(repo: &gix::Repository) -> GitResult<gix::actor::Signature> {
     let config = repo.config_snapshot();
-    
+
     let name = config
         .string("user.name")
         .ok_or_else(|| GitError::InvalidInput("Git user.name not configured".to_string()))?;
-    
+
     let email = config
         .string("user.email")
         .ok_or_else(|| GitError::InvalidInput("Git user.email not configured".to_string()))?;
-    
+
     Ok(gix::actor::Signature {
         name: name.into_owned(),
         email: email.into_owned(),

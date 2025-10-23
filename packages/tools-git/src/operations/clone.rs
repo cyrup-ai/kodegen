@@ -41,7 +41,7 @@ impl CloneOpts {
 
     /// Set shallow clone depth.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn shallow(mut self, depth: u32) -> Self {
         self.shallow = Some(depth);
         self
@@ -56,7 +56,7 @@ impl CloneOpts {
 
     /// Set bare repository flag.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn bare(mut self, yes: bool) -> Self {
         self.bare = yes;
         self
@@ -64,7 +64,7 @@ impl CloneOpts {
 }
 
 /// Execute clone operation with the given options.
-#[must_use] 
+#[must_use]
 pub fn clone_repo(opts: CloneOpts) -> AsyncTask<GitResult<RepoHandle>> {
     AsyncTask::spawn(move || {
         let CloneOpts {

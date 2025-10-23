@@ -37,7 +37,7 @@ fn worktree_lock_impl(repo: gix::Repository, opts: WorktreeLockOpts) -> GitResul
     // Check if already locked
     if proxy.is_locked() {
         return Err(GitError::WorktreeLocked(
-            proxy.id().to_str().unwrap_or("<unknown>").to_string()
+            proxy.id().to_str().unwrap_or("<unknown>").to_string(),
         ));
     }
 
@@ -45,11 +45,16 @@ fn worktree_lock_impl(repo: gix::Repository, opts: WorktreeLockOpts) -> GitResul
     let lock_file = proxy.git_dir().join("locked");
     let content = opts.reason.unwrap_or_default();
 
-    std::fs::write(&lock_file, content)
-        .map_err(|e| GitError::Io(std::io::Error::new(
+    std::fs::write(&lock_file, content).map_err(|e| {
+        GitError::Io(std::io::Error::new(
             e.kind(),
-            format!("Failed to create lock file at {}: {}", lock_file.display(), e)
-        )))?;
+            format!(
+                "Failed to create lock file at {}: {}",
+                lock_file.display(),
+                e
+            ),
+        ))
+    })?;
 
     Ok(())
 }
@@ -76,19 +81,25 @@ fn worktree_unlock_impl(repo: gix::Repository, path: PathBuf) -> GitResult<()> {
 
     // Check if locked
     if !proxy.is_locked() {
-        return Err(GitError::InvalidInput(
-            format!("Worktree at '{}' is not locked", path.display())
-        ));
+        return Err(GitError::InvalidInput(format!(
+            "Worktree at '{}' is not locked",
+            path.display()
+        )));
     }
 
     // Remove lock file
     let lock_file = proxy.git_dir().join("locked");
 
-    std::fs::remove_file(&lock_file)
-        .map_err(|e| GitError::Io(std::io::Error::new(
+    std::fs::remove_file(&lock_file).map_err(|e| {
+        GitError::Io(std::io::Error::new(
             e.kind(),
-            format!("Failed to remove lock file at {}: {}", lock_file.display(), e)
-        )))?;
+            format!(
+                "Failed to remove lock file at {}: {}",
+                lock_file.display(),
+                e
+            ),
+        ))
+    })?;
 
     Ok(())
 }

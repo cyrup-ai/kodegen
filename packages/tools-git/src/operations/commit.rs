@@ -81,28 +81,28 @@ impl CommitOpts {
     }
 
     /// Enable amend mode (modify the last commit).
-    #[must_use] 
+    #[must_use]
     pub fn amend(mut self, yes: bool) -> Self {
         self.amend = yes;
         self
     }
 
     /// Enable all mode (commit all tracked files automatically).
-    #[must_use] 
+    #[must_use]
     pub fn all(mut self, yes: bool) -> Self {
         self.all = yes;
         self
     }
 
     /// Set the author signature.
-    #[must_use] 
+    #[must_use]
     pub fn author(mut self, sig: Signature) -> Self {
         self.author = Some(sig);
         self
     }
 
     /// Set the committer signature.
-    #[must_use] 
+    #[must_use]
     pub fn committer(mut self, sig: Signature) -> Self {
         self.committer = Some(sig);
         self
@@ -112,7 +112,7 @@ impl CommitOpts {
 /// Execute commit operation with the given options.
 pub async fn commit(repo: RepoHandle, opts: CommitOpts) -> GitResult<CommitId> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let CommitOpts {
             message,
@@ -129,7 +129,9 @@ pub async fn commit(repo: RepoHandle, opts: CommitOpts) -> GitResult<CommitId> {
         }
 
         // Get current index
-        let index = repo_clone.open_index().map_err(|e| GitError::Gix(e.into()))?;
+        let index = repo_clone
+            .open_index()
+            .map_err(|e| GitError::Gix(e.into()))?;
 
         // Handle --all option: stage all modified tracked files
         let index = if all {
@@ -220,7 +222,9 @@ pub async fn commit(repo: RepoHandle, opts: CommitOpts) -> GitResult<CommitId> {
             }
 
             // Re-open index for tree building
-            repo_clone.open_index().map_err(|e| GitError::Gix(e.into()))?
+            repo_clone
+                .open_index()
+                .map_err(|e| GitError::Gix(e.into()))?
         } else {
             index
         };
@@ -254,7 +258,8 @@ pub async fn commit(repo: RepoHandle, opts: CommitOpts) -> GitResult<CommitId> {
         // Write all tree objects and get root tree ID
         let tree_id = editor
             .write(|tree| {
-                repo_clone.write_object(tree)
+                repo_clone
+                    .write_object(tree)
                     .map(gix::Id::detach)
                     .map_err(|e| GitError::Gix(Box::new(e)))
             })

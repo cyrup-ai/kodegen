@@ -23,7 +23,7 @@ pub struct LogOpts {
 impl LogOpts {
     /// Create new log options.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             max_count: None,
@@ -35,7 +35,7 @@ impl LogOpts {
 
     /// Set maximum number of commits to return.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn max_count(mut self, count: usize) -> Self {
         self.max_count = Some(count);
         self
@@ -43,7 +43,7 @@ impl LogOpts {
 
     /// Set start date filter (only commits after this date).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
@@ -51,7 +51,7 @@ impl LogOpts {
 
     /// Set end date filter (only commits before this date).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn until(mut self, until: DateTime<Utc>) -> Self {
         self.until = Some(until);
         self
@@ -139,10 +139,13 @@ pub fn log(repo: RepoHandle, opts: LogOpts) -> AsyncStream<GitResult<CommitInfo>
 
                             let commit_time = {
                                 use chrono::TimeZone;
-                                if let Some(t) = Utc.timestamp_opt(time.seconds, 0).single() { t } else {
-                                    let _ = tx.send(Err(GitError::InvalidInput(
-                                        format!("Invalid timestamp {} for commit {}", time.seconds, info.id)
-                                    )));
+                                if let Some(t) = Utc.timestamp_opt(time.seconds, 0).single() {
+                                    t
+                                } else {
+                                    let _ = tx.send(Err(GitError::InvalidInput(format!(
+                                        "Invalid timestamp {} for commit {}",
+                                        time.seconds, info.id
+                                    ))));
                                     continue;
                                 }
                             };

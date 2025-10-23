@@ -40,25 +40,32 @@ use super::types::REFS_HEADS_PREFIX;
 /// // Rename with force (overwrites existing)
 /// rename_branch(repo, "old".to_string(), "new".to_string(), true).await?;
 /// ```
-pub fn rename_branch(repo: RepoHandle, old_name: String, new_name: String, force: bool) -> AsyncTask<GitResult<()>> {
+pub fn rename_branch(
+    repo: RepoHandle,
+    old_name: String,
+    new_name: String,
+    force: bool,
+) -> AsyncTask<GitResult<()>> {
     let repo = repo.clone_inner();
     AsyncTask::spawn(move || {
         // Validate new branch name
         if !is_valid_branch_name(&new_name) {
-            return Err(GitError::InvalidInput(
-                format!("Invalid branch name: '{new_name}'")
-            ));
+            return Err(GitError::InvalidInput(format!(
+                "Invalid branch name: '{new_name}'"
+            )));
         }
 
         let old_ref = format!("{REFS_HEADS_PREFIX}{old_name}");
         let new_ref = format!("{REFS_HEADS_PREFIX}{new_name}");
 
         // Get old branch and its target OID
-        let old_branch = repo.find_reference(&old_ref)
+        let old_branch = repo
+            .find_reference(&old_ref)
             .map_err(|_| GitError::BranchNotFound(old_name.clone()))?;
 
         // IMPORTANT: into_fully_peeled_id() CONSUMES the reference!
-        let target_oid = old_branch.into_fully_peeled_id()
+        let target_oid = old_branch
+            .into_fully_peeled_id()
             .map_err(|e| GitError::Gix(e.into()))?;
 
         // Check if renaming current branch
@@ -74,9 +81,9 @@ pub fn rename_branch(repo: RepoHandle, old_name: String, new_name: String, force
 
         // Check if new branch already exists
         if repo.find_reference(&new_ref).is_ok() && !force {
-            return Err(GitError::InvalidInput(
-                format!("Branch '{new_name}' already exists. Use force=true to overwrite.")
-            ));
+            return Err(GitError::InvalidInput(format!(
+                "Branch '{new_name}' already exists. Use force=true to overwrite."
+            )));
         }
 
         // Create new reference pointing to same commit
@@ -84,22 +91,24 @@ pub fn rename_branch(repo: RepoHandle, old_name: String, new_name: String, force
             new_ref.as_str(),
             target_oid,
             PreviousValue::Any,
-            format!("branch: renamed {old_name} to {new_name}")
-        ).map_err(|e| GitError::Gix(e.into()))?;
+            format!("branch: renamed {old_name} to {new_name}"),
+        )
+        .map_err(|e| GitError::Gix(e.into()))?;
 
         // Find old reference again (consumed by into_fully_peeled_id)
-        let old_branch = repo.find_reference(&old_ref)
+        let old_branch = repo
+            .find_reference(&old_ref)
             .map_err(|e| GitError::Gix(e.into()))?;
 
         // Delete old reference
-        old_branch.delete()
-            .map_err(|e| GitError::Gix(e.into()))?;
+        old_branch.delete().map_err(|e| GitError::Gix(e.into()))?;
 
         // Update HEAD if renaming current branch
         if is_current_branch {
-            let head_name: FullName = "HEAD".try_into()
-                .map_err(|e| GitError::Gix(Box::new(e)))?;
-            let new_full: FullName = new_ref.as_str().try_into()
+            let head_name: FullName = "HEAD".try_into().map_err(|e| GitError::Gix(Box::new(e)))?;
+            let new_full: FullName = new_ref
+                .as_str()
+                .try_into()
                 .map_err(|e| GitError::Gix(Box::new(e)))?;
 
             repo.edit_reference(RefEdit {
@@ -114,7 +123,8 @@ pub fn rename_branch(repo: RepoHandle, old_name: String, new_name: String, force
                 },
                 name: head_name,
                 deref: false,
-            }).map_err(|e| GitError::Gix(e.into()))?;
+            })
+            .map_err(|e| GitError::Gix(e.into()))?;
         }
 
         Ok(())

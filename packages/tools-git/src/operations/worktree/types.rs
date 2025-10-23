@@ -75,7 +75,7 @@ impl WorktreeAddOpts {
 
     /// Enable force mode (overwrite existing path).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn force(mut self, enabled: bool) -> Self {
         self.force = enabled;
         self
@@ -83,7 +83,7 @@ impl WorktreeAddOpts {
 
     /// Create worktree with detached HEAD.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn detach(mut self, enabled: bool) -> Self {
         self.detach = enabled;
         self
@@ -152,7 +152,7 @@ impl WorktreeRemoveOpts {
 
     /// Enable force mode (remove even if locked).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn force(mut self, enabled: bool) -> Self {
         self.force = enabled;
         self

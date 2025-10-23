@@ -33,16 +33,13 @@ pub fn list_branches(repo: RepoHandle) -> AsyncTask<GitResult<Vec<String>>> {
         let mut branches = Vec::new();
 
         // Get reference platform and local branches iterator
-        let refs = repo.references()
-            .map_err(|e| GitError::Gix(e.into()))?;
+        let refs = repo.references().map_err(|e| GitError::Gix(e.into()))?;
 
-        let iter = refs.local_branches()
-            .map_err(|e| GitError::Gix(e.into()))?;
+        let iter = refs.local_branches().map_err(|e| GitError::Gix(e.into()))?;
 
         // Iterate over all local branches
         for reference_result in iter {
-            let reference = reference_result
-                .map_err(GitError::Gix)?;
+            let reference = reference_result.map_err(GitError::Gix)?;
 
             // Get reference name as BStr
             let name_bytes = reference.name().as_bstr();

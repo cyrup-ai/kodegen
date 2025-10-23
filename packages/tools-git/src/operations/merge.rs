@@ -47,7 +47,7 @@ impl MergeOpts {
 
     /// Force a merge commit even if fast-forward is possible.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn no_ff(mut self, yes: bool) -> Self {
         self.no_ff = yes;
         self
@@ -55,7 +55,7 @@ impl MergeOpts {
 
     /// Squash commits from the merged branch into a single commit.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn squash(mut self, yes: bool) -> Self {
         self.squash = yes;
         self
@@ -63,7 +63,7 @@ impl MergeOpts {
 
     /// Whether to create a commit automatically (default: true).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn commit(mut self, yes: bool) -> Self {
         self.commit = yes;
         self
@@ -73,7 +73,7 @@ impl MergeOpts {
 /// Execute merge operation with the given options.
 pub async fn merge(repo: RepoHandle, opts: MergeOpts) -> GitResult<MergeOutcome> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let MergeOpts {
             theirs,
@@ -84,9 +84,9 @@ pub async fn merge(repo: RepoHandle, opts: MergeOpts) -> GitResult<MergeOutcome>
 
         // Resolve the target reference
         use gix::bstr::ByteSlice;
-        let parsed = repo_clone.rev_parse(theirs.as_bytes().as_bstr()).map_err(|e| {
-            GitError::InvalidInput(format!("Invalid merge target '{theirs}': {e}"))
-        })?;
+        let parsed = repo_clone
+            .rev_parse(theirs.as_bytes().as_bstr())
+            .map_err(|e| GitError::InvalidInput(format!("Invalid merge target '{theirs}': {e}")))?;
 
         let their_commit_id = parsed
             .single()
@@ -165,9 +165,9 @@ pub async fn merge(repo: RepoHandle, opts: MergeOpts) -> GitResult<MergeOutcome>
 /// - HEAD reference update fails
 fn fast_forward_merge(repo: &gix::Repository, target_commit: CommitId) -> GitResult<()> {
     // Step 1: Validate repository has a working tree
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| GitError::InvalidInput("Cannot fast-forward merge in bare repository".to_string()))?;
+    let workdir = repo.workdir().ok_or_else(|| {
+        GitError::InvalidInput("Cannot fast-forward merge in bare repository".to_string())
+    })?;
 
     // Step 2: Get target commit and its tree
     let commit = repo

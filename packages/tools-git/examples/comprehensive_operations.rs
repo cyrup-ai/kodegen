@@ -21,7 +21,10 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 /// Type alias for scenario function signature
-type ScenarioFn = fn(&TestRepository) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ScenarioStats>> + '_>>;
+type ScenarioFn =
+    fn(
+        &TestRepository,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ScenarioStats>> + '_>>;
 
 /// Statistics from running a test scenario
 #[derive(Debug, Clone)]
@@ -36,7 +39,8 @@ impl ScenarioStats {
     fn new() -> Self {
         Self {
             operations_count: 0,
-            files_created: 0,            index_verifications: 0,
+            files_created: 0,
+            index_verifications: 0,
             duration: Duration::ZERO,
         }
     }
@@ -84,7 +88,7 @@ impl TestRepository {
             .current_dir(&path)
             .output()
             .context("Failed to configure git user.name")?;
-        
+
         std::process::Command::new("git")
             .args(["config", "user.email", "test@example.com"])
             .current_dir(&path)
@@ -100,7 +104,7 @@ impl TestRepository {
         // Create initial commit to initialize index
         // This is necessary because gix::init() doesn't create the index file
         test_repo.create_file(".gitignore", b"# Git ignore file\n")?;
-        
+
         git::add(
             repo.clone(),
             AddOpts {
@@ -180,10 +184,7 @@ async fn verify_index_integrity(repo: &RepoHandle) -> Result<IndexStats> {
     let repo_clone = repo.clone();
 
     tokio::task::spawn_blocking(move || {
-        let index = repo_clone
-            .raw()
-            .index()
-            .context("Failed to open index")?;
+        let index = repo_clone.raw().index().context("Failed to open index")?;
 
         // Check if index has a valid checksum
         let checksum_valid = index.checksum().is_some();
@@ -275,10 +276,7 @@ impl PerformanceTracker {
 
         println!("[PERF] =====================================");
         println!("[PERF] Total time: {:.3}s", total.as_secs_f64());
-        println!(
-            "[PERF] Average:    {:.3}ms",
-            avg.as_secs_f64() * 1000.0
-        );
+        println!("[PERF] Average:    {:.3}ms", avg.as_secs_f64() * 1000.0);
 
         if let Some((slowest_name, slowest_duration)) = self.slowest() {
             println!(
@@ -379,7 +377,10 @@ async fn scenario_commit(repo: &TestRepository) -> Result<ScenarioStats> {
     // Create and stage files
     repo.create_file("README.md", b"# Test Project\n\nThis is a test.\n")?;
     repo.create_file("LICENSE", b"MIT License\n\nCopyright 2025\n")?;
-    repo.create_file("src/lib.rs", b"pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n")?;
+    repo.create_file(
+        "src/lib.rs",
+        b"pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+    )?;
     stats.files_created = 3;
 
     git::add(
@@ -420,8 +421,14 @@ async fn scenario_commit(repo: &TestRepository) -> Result<ScenarioStats> {
     );
 
     // Modify files and commit again
-    repo.create_file("README.md", b"# Test Project\n\nUpdated readme.\n\n## Features\n")?;
-    repo.create_file("CHANGELOG.md", b"# Changelog\n\n## v0.1.0\n- Initial release\n")?;
+    repo.create_file(
+        "README.md",
+        b"# Test Project\n\nUpdated readme.\n\n## Features\n",
+    )?;
+    repo.create_file(
+        "CHANGELOG.md",
+        b"# Changelog\n\n## v0.1.0\n- Initial release\n",
+    )?;
     stats.files_created += 1;
 
     git::add(
@@ -764,14 +771,20 @@ async fn scenario_worktree(repo: &TestRepository) -> Result<ScenarioStats> {
     stats.operations_count += 1;
 
     // Add a worktree
-    let worktree_path = repo.path.parent()
+    let worktree_path = repo
+        .path
+        .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?
         .join("worktree_branch");
 
     // Clean up worktree path if it exists from previous run
     if worktree_path.exists() {
-        std::fs::remove_dir_all(&worktree_path)
-            .with_context(|| format!("Failed to cleanup old worktree: {}", worktree_path.display()))?;
+        std::fs::remove_dir_all(&worktree_path).with_context(|| {
+            format!(
+                "Failed to cleanup old worktree: {}",
+                worktree_path.display()
+            )
+        })?;
     }
 
     println!(
@@ -799,13 +812,17 @@ async fn scenario_worktree(repo: &TestRepository) -> Result<ScenarioStats> {
     }
 
     // Worktree index is at <main_repo>/.git/worktrees/<name>/index
-    let worktree_name = worktree_path.file_name()
+    let worktree_name = worktree_path
+        .file_name()
         .ok_or_else(|| anyhow::anyhow!("Invalid worktree path"))?;
     let worktree_admin_dir = repo.path.join(".git/worktrees").join(worktree_name);
     let worktree_index = worktree_admin_dir.join("index");
-    
+
     if !worktree_index.exists() {
-        anyhow::bail!("Worktree index was not created at {}", worktree_index.display());
+        anyhow::bail!(
+            "Worktree index was not created at {}",
+            worktree_index.display()
+        );
     }
 
     println!("[WORKTREE] ✓ Worktree created with index");
@@ -830,14 +847,17 @@ async fn scenario_open_repo(repo: &TestRepository) -> Result<ScenarioStats> {
     // Get the repository path
     let repo_path = repo.path.clone();
 
-    println!("[OPEN_REPO] Testing opening existing repository at: {}", repo_path.display());
+    println!(
+        "[OPEN_REPO] Testing opening existing repository at: {}",
+        repo_path.display()
+    );
 
     // Open the existing repository using git::open_repo
     // This tests the correct error handling pattern for AsyncTask<GitResult<RepoHandle>>
     let opened_repo = git::open_repo(&repo_path)
-        .await                                      // Result<Result<RepoHandle, GitError>, RecvError>
-        .map_err(|e| anyhow::anyhow!("Channel error during open_repo: {e}"))?  // Handle RecvError (outer Result)
-        .context("Failed to open repository")?;     // Handle GitError (inner Result)
+        .await // Result<Result<RepoHandle, GitError>, RecvError>
+        .map_err(|e| anyhow::anyhow!("Channel error during open_repo: {e}"))? // Handle RecvError (outer Result)
+        .context("Failed to open repository")?; // Handle GitError (inner Result)
     stats.operations_count += 1;
 
     println!("[OPEN_REPO] ✓ Successfully opened repository");
@@ -851,11 +871,11 @@ async fn scenario_open_repo(repo: &TestRepository) -> Result<ScenarioStats> {
     // Test opening non-existent repository (should fail gracefully)
     let bad_path = PathBuf::from("/tmp/nonexistent_git_repo_12345");
     println!("[OPEN_REPO] Testing error handling with non-existent path...");
-    
+
     let result = git::open_repo(&bad_path)
         .await
         .map_err(|e| anyhow::anyhow!("Channel error: {e}"));
-    
+
     match result {
         Ok(Err(git_error)) => {
             println!("[OPEN_REPO] ✓ Correctly returned GitError for invalid path: {git_error}");
@@ -889,7 +909,10 @@ async fn scenario_complex_workflow(repo: &TestRepository) -> Result<ScenarioStat
 
     // Create main branch with baseline
     repo.create_file("app/main.rs", b"fn main() {\n    println!(\"v1.0\");\n}\n")?;
-    repo.create_file("app/lib.rs", b"pub fn version() -> &'static str { \"1.0\" }\n")?;
+    repo.create_file(
+        "app/lib.rs",
+        b"pub fn version() -> &'static str { \"1.0\" }\n",
+    )?;
     stats.files_created += 2;
 
     git::add(
@@ -997,7 +1020,10 @@ async fn scenario_complex_workflow(repo: &TestRepository) -> Result<ScenarioStat
     repo.verify_index().await?;
     stats.index_verifications += 1;
 
-    repo.create_file("app/main.rs", b"fn main() {\n    println!(\"v1.5 - stable\");\n}\n")?;
+    repo.create_file(
+        "app/main.rs",
+        b"fn main() {\n    println!(\"v1.5 - stable\");\n}\n",
+    )?;
     stats.files_created += 1;
 
     git::add(
@@ -1083,7 +1109,9 @@ async fn main() -> Result<()> {
         ("RESET", |r| Box::pin(scenario_reset(r))),
         ("CHECKOUT", |r| Box::pin(scenario_checkout(r))),
         ("WORKTREE", |r| Box::pin(scenario_worktree(r))),
-        ("COMPLEX_WORKFLOW", |r| Box::pin(scenario_complex_workflow(r))),
+        ("COMPLEX_WORKFLOW", |r| {
+            Box::pin(scenario_complex_workflow(r))
+        }),
     ];
 
     let mut total_stats = ScenarioStats::new();
@@ -1134,7 +1162,10 @@ async fn main() -> Result<()> {
     println!("Scenarios completed:     {scenario_count}");
     println!("Total operations:        {}", total_stats.operations_count);
     println!("Files created:           {}", total_stats.files_created);
-    println!("Index verifications:     {}", total_stats.index_verifications);
+    println!(
+        "Index verifications:     {}",
+        total_stats.index_verifications
+    );
     println!(
         "Total scenario time:     {:.3}s",
         total_stats.duration.as_secs_f64()

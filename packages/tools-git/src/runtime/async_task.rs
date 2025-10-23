@@ -31,7 +31,7 @@ where
 {
     /// Create from oneshot receiver (for advanced use).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(rx: oneshot::Receiver<T>) -> Self {
         Self { rx }
     }
@@ -91,7 +91,7 @@ pub struct AsyncStream<T> {
 impl<T> AsyncStream<T> {
     /// Create from unbounded receiver.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(rx: mpsc::UnboundedReceiver<T>) -> Self {
         Self { rx }
     }
@@ -99,7 +99,7 @@ impl<T> AsyncStream<T> {
     /// Create from a vector (for testing/simple cases).
     ///
     /// Internally spawns a task to send items through channel.
-    #[must_use] 
+    #[must_use]
     pub fn from_vec(items: Vec<T>) -> Self
     where
         T: Send + 'static,
@@ -145,7 +145,7 @@ where
     /// Create a new emitter builder with a future factory.
     ///
     /// The factory returns a pinned future that produces Result<Vec<T>, E>.
-    #[must_use] 
+    #[must_use]
     pub fn new(future_factory: FutureFactory<T, E>) -> Self {
         Self { future_factory }
     }

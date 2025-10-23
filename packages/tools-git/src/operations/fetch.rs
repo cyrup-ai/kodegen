@@ -38,7 +38,7 @@ impl FetchOpts {
     }
 
     /// Enable pruning of remote-tracking branches.
-    #[must_use] 
+    #[must_use]
     pub fn prune(mut self, yes: bool) -> Self {
         self.prune = yes;
         self
@@ -58,7 +58,7 @@ impl Default for FetchOpts {
 /// Execute fetch operation with the given options.
 pub async fn fetch(repo: RepoHandle, opts: FetchOpts) -> GitResult<()> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let FetchOpts {
             remote,
@@ -92,9 +92,7 @@ pub async fn fetch(repo: RepoHandle, opts: FetchOpts) -> GitResult<()> {
                         gix::refspec::parse::Operation::Fetch,
                     )
                     .map(|r| r.to_owned())
-                    .map_err(|e| {
-                        GitError::InvalidInput(format!("Invalid refspec '{spec}': {e}"))
-                    })
+                    .map_err(|e| GitError::InvalidInput(format!("Invalid refspec '{spec}': {e}")))
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
@@ -149,7 +147,9 @@ fn prune_stale_refs(
             };
 
             // Only process refs/heads/* (branches)
-            full_ref_name.strip_prefix(b"refs/heads/").map(|branch_name| branch_name.to_str_lossy().into_owned())
+            full_ref_name
+                .strip_prefix(b"refs/heads/")
+                .map(|branch_name| branch_name.to_str_lossy().into_owned())
         })
         .collect();
 

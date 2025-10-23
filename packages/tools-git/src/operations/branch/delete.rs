@@ -46,18 +46,18 @@ pub fn delete_branch(repo: RepoHandle, name: String, _force: bool) -> AsyncTask<
             && let Ok(current_branch) = head_name.as_bstr().to_str()
             && current_branch == branch_ref
         {
-            return Err(GitError::InvalidInput(
-                format!("Cannot delete current branch '{name}'")
-            ));
+            return Err(GitError::InvalidInput(format!(
+                "Cannot delete current branch '{name}'"
+            )));
         }
 
         // Find the branch reference
-        let branch = repo.find_reference(&branch_ref)
+        let branch = repo
+            .find_reference(&branch_ref)
             .map_err(|_| GitError::BranchNotFound(name.clone()))?;
 
         // Delete the reference (creates reflog entry automatically)
-        branch.delete()
-            .map_err(|e| GitError::Gix(e.into()))?;
+        branch.delete().map_err(|e| GitError::Gix(e.into()))?;
 
         Ok(())
     })

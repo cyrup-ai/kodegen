@@ -56,12 +56,13 @@ pub struct RemoteInfo {
 /// ```
 pub async fn is_clean(repo: &RepoHandle) -> GitResult<bool> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         // Use is_dirty() which is the proper API for checking if repo has changes
-        let is_dirty = repo_clone.is_dirty()
+        let is_dirty = repo_clone
+            .is_dirty()
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         Ok(!is_dirty)
     })
     .await
@@ -92,26 +93,29 @@ pub async fn is_clean(repo: &RepoHandle) -> GitResult<bool> {
 /// ```
 pub async fn current_branch(repo: &RepoHandle) -> GitResult<BranchInfo> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
-        let mut head = repo_clone
-            .head()
-            .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+        let mut head = repo_clone.head().map_err(|e| GitError::Gix(Box::new(e)))?;
+
         let branch_name = head
             .referent_name()
-            .and_then(|name| name.shorten().to_str().ok().map(std::string::ToString::to_string))
+            .and_then(|name| {
+                name.shorten()
+                    .to_str()
+                    .ok()
+                    .map(std::string::ToString::to_string)
+            })
             .unwrap_or_else(|| "detached HEAD".to_string());
-        
+
         let commit = head
             .peel_to_commit()
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         let commit_hash = commit.id().to_string();
-        
+
         // Try to get upstream information
         let (upstream, ahead_count, behind_count) = get_upstream_info(&repo_clone, &mut head)?;
-        
+
         Ok(BranchInfo {
             name: branch_name,
             is_current: true,
@@ -145,7 +149,7 @@ fn calculate_ahead_behind(
     upstream_ref: &str,
 ) -> GitResult<(Option<usize>, Option<usize>)> {
     use gix::bstr::ByteSlice;
-    
+
     // Convert upstream ref string to full reference path
     // e.g., "origin/main" -> "refs/remotes/origin/main"
     let upstream_ref_path = if upstream_ref.starts_with("refs/") {
@@ -153,44 +157,46 @@ fn calculate_ahead_behind(
     } else {
         format!("refs/remotes/{upstream_ref}")
     };
-    
+
     // Try to find the upstream reference
-    let mut upstream_reference = match repo.try_find_reference(upstream_ref_path.as_bytes().as_bstr()) {
-        Ok(Some(r)) => r,
-        Ok(None) => return Ok((None, None)), // Upstream doesn't exist
-        Err(e) => return Err(GitError::Gix(Box::new(e))),
-    };
-    
+    let mut upstream_reference =
+        match repo.try_find_reference(upstream_ref_path.as_bytes().as_bstr()) {
+            Ok(Some(r)) => r,
+            Ok(None) => return Ok((None, None)), // Upstream doesn't exist
+            Err(e) => return Err(GitError::Gix(Box::new(e))),
+        };
+
     // Get the upstream commit ID
     let upstream_commit_id = match upstream_reference.peel_to_id() {
         Ok(id) => id.detach(),
         Err(e) => return Err(GitError::Gix(Box::new(e))),
     };
-    
+
     // If both commits are the same, return (0, 0)
     if local_commit_id == upstream_commit_id {
         return Ok((Some(0), Some(0)));
     }
-    
+
     // Find merge base (common ancestor)
     // Create a graph for merge base calculation
     let mut graph = repo.revision_graph(None);
-    
-    let merge_base_id = match repo.merge_base_with_graph(local_commit_id, upstream_commit_id, &mut graph) {
-        Ok(base_id) => base_id.detach(),
-        Err(e) => {
-            // If no merge base found (completely diverged histories), 
-            // we can't calculate ahead/behind in a meaningful way
-            return Err(GitError::Gix(Box::new(e)));
-        }
-    };
-    
+
+    let merge_base_id =
+        match repo.merge_base_with_graph(local_commit_id, upstream_commit_id, &mut graph) {
+            Ok(base_id) => base_id.detach(),
+            Err(e) => {
+                // If no merge base found (completely diverged histories),
+                // we can't calculate ahead/behind in a meaningful way
+                return Err(GitError::Gix(Box::new(e)));
+            }
+        };
+
     // Count commits ahead (from merge_base to local_commit_id)
     let ahead_count = count_commits_between(repo, merge_base_id, local_commit_id)?;
-    
+
     // Count commits behind (from merge_base to upstream_commit_id)
     let behind_count = count_commits_between(repo, merge_base_id, upstream_commit_id)?;
-    
+
     Ok((Some(ahead_count), Some(behind_count)))
 }
 
@@ -214,47 +220,43 @@ fn count_commits_between(
     if from == to {
         return Ok(0);
     }
-    
-    // Walk the commit graph from 'to' back to 'from'
-    let mut count = 0;
-    let mut commit = match repo.find_object(to) {
-        Ok(obj) => match obj.try_into_commit() {
-            Ok(c) => c,
+
+    // Collect all commits reachable from 'from' (the merge base)
+    let mut from_commits = std::collections::HashSet::new();
+
+    let from_walker = repo
+        .rev_walk([from])
+        .all()
+        .map_err(|e| GitError::Gix(Box::new(e)))?;
+
+    for commit_result in from_walker {
+        match commit_result {
+            Ok(info) => {
+                from_commits.insert(info.id);
+            }
             Err(e) => return Err(GitError::Gix(Box::new(e))),
-        },
-        Err(e) => return Err(GitError::Gix(Box::new(e))),
-    };
-    
-    loop {
-        let current_id = commit.id();
-        
-        // Stop if we've reached the merge base
-        if current_id == from {
-            break;
         }
-        
-        count += 1;
-        
-        // Get parent commits
-        let parents: Vec<_> = commit.parent_ids().collect();
-        
-        if parents.is_empty() {
-            // Reached a root commit without finding 'from'
-            // This shouldn't happen if merge_base was calculated correctly
-            break;
-        }
-        
-        // Follow the first parent (main line of history)
-        let parent_id = parents[0];
-        commit = match repo.find_object(parent_id) {
-            Ok(obj) => match obj.try_into_commit() {
-                Ok(c) => c,
-                Err(e) => return Err(GitError::Gix(Box::new(e))),
-            },
-            Err(e) => return Err(GitError::Gix(Box::new(e))),
-        };
     }
-    
+
+    // Count commits reachable from 'to' that are NOT in from_commits
+    let mut count = 0;
+
+    let to_walker = repo
+        .rev_walk([to])
+        .all()
+        .map_err(|e| GitError::Gix(Box::new(e)))?;
+
+    for commit_result in to_walker {
+        match commit_result {
+            Ok(info) => {
+                if !from_commits.contains(&info.id) {
+                    count += 1;
+                }
+            }
+            Err(e) => return Err(GitError::Gix(Box::new(e))),
+        }
+    }
+
     Ok(count)
 }
 
@@ -266,28 +268,32 @@ fn get_upstream_info(
     // Try to get upstream branch
     let upstream = if let Some(branch_ref) = head.referent_name() {
         let branch_name = branch_ref.shorten();
-        
+
         // Look for branch.{name}.remote and branch.{name}.merge in config
         let config = repo.config_snapshot();
         let branch_section = format!("branch.{branch_name}");
-        
+
         let remote_name = config
             .string(format!("{branch_section}.remote"))
             .map(|s| s.to_string());
-        
+
         let merge_ref = config
             .string(format!("{branch_section}.merge"))
             .map(|s| s.to_string());
-        
+
         if let (Some(remote), Some(merge)) = (remote_name, merge_ref) {
-            Some(format!("{}/{}", remote, merge.trim_start_matches("refs/heads/")))
+            Some(format!(
+                "{}/{}",
+                remote,
+                merge.trim_start_matches("refs/heads/")
+            ))
         } else {
             None
         }
     } else {
         None
     };
-    
+
     // Calculate ahead/behind counts if upstream exists
     let (ahead_count, behind_count) = if let Some(ref upstream_ref) = upstream {
         // Get the local commit ID from HEAD
@@ -299,7 +305,7 @@ fn get_upstream_info(
                 return Ok((upstream, None, None));
             }
         };
-        
+
         // Calculate ahead/behind counts
         match calculate_ahead_behind(repo, local_commit_id, upstream_ref) {
             Ok(counts) => counts,
@@ -313,7 +319,7 @@ fn get_upstream_info(
         // No upstream configured
         (None, None)
     };
-    
+
     Ok((upstream, ahead_count, behind_count))
 }
 
@@ -343,18 +349,20 @@ fn get_upstream_info(
 /// ```
 pub async fn list_remotes(repo: &RepoHandle) -> GitResult<Vec<RemoteInfo>> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
         let mut remotes = Vec::new();
-        
+
         for remote_name in repo_clone.remote_names() {
             if let Ok(remote) = repo_clone.find_remote(remote_name.as_ref()) {
                 let fetch_url = remote
-                    .url(gix::remote::Direction::Fetch).map_or_else(|| "unknown".to_string(), std::string::ToString::to_string);
-                
+                    .url(gix::remote::Direction::Fetch)
+                    .map_or_else(|| "unknown".to_string(), std::string::ToString::to_string);
+
                 let push_url = remote
-                    .url(gix::remote::Direction::Push).map_or_else(|| fetch_url.clone(), std::string::ToString::to_string);
-                
+                    .url(gix::remote::Direction::Push)
+                    .map_or_else(|| fetch_url.clone(), std::string::ToString::to_string);
+
                 remotes.push(RemoteInfo {
                     name: remote_name.to_string(),
                     fetch_url,
@@ -362,7 +370,7 @@ pub async fn list_remotes(repo: &RepoHandle) -> GitResult<Vec<RemoteInfo>> {
                 });
             }
         }
-        
+
         Ok(remotes)
     })
     .await
@@ -396,10 +404,12 @@ pub async fn list_remotes(repo: &RepoHandle) -> GitResult<Vec<RemoteInfo>> {
 pub async fn remote_exists(repo: &RepoHandle, remote_name: &str) -> GitResult<bool> {
     let repo_clone = repo.clone_inner();
     let remote_name = remote_name.to_string();
-    
+
     tokio::task::spawn_blocking(move || {
         use gix::bstr::ByteSlice;
-        Ok(repo_clone.find_remote(remote_name.as_bytes().as_bstr()).is_ok())
+        Ok(repo_clone
+            .find_remote(remote_name.as_bytes().as_bstr())
+            .is_ok())
     })
     .await
     .map_err(|e| GitError::Gix(Box::new(e)))?
@@ -429,16 +439,14 @@ pub async fn remote_exists(repo: &RepoHandle, remote_name: &str) -> GitResult<bo
 /// ```
 pub async fn head_commit(repo: &RepoHandle) -> GitResult<String> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
-        let mut head = repo_clone
-            .head()
-            .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+        let mut head = repo_clone.head().map_err(|e| GitError::Gix(Box::new(e)))?;
+
         let commit = head
             .peel_to_commit()
             .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+
         Ok(commit.id().to_string())
     })
     .await
@@ -470,12 +478,10 @@ pub async fn head_commit(repo: &RepoHandle) -> GitResult<String> {
 /// ```
 pub async fn is_detached(repo: &RepoHandle) -> GitResult<bool> {
     let repo_clone = repo.clone_inner();
-    
+
     tokio::task::spawn_blocking(move || {
-        let head = repo_clone
-            .head()
-            .map_err(|e| GitError::Gix(Box::new(e)))?;
-        
+        let head = repo_clone.head().map_err(|e| GitError::Gix(Box::new(e)))?;
+
         Ok(head.referent_name().is_none())
     })
     .await

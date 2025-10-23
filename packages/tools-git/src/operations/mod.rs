@@ -18,26 +18,29 @@ pub mod tag;
 pub mod worktree;
 
 // Re-export operation functions
-pub use add::{add, AddOpts};
-pub use branch::{branch, delete_branch, list_branches, rename_branch, BranchOpts};
-pub use checkout::{checkout, CheckoutOpts};
-pub use clone::{clone_repo, CloneOpts};
-pub use commit::{commit, CommitOpts, Signature};
-pub use fetch::{fetch, FetchOpts};
-pub use log::{log, LogOpts};
-pub use merge::{merge, MergeOpts, MergeOutcome};
+pub use add::{AddOpts, add};
+pub use branch::{BranchOpts, branch, delete_branch, list_branches, rename_branch};
+pub use checkout::{CheckoutOpts, checkout};
+pub use clone::{CloneOpts, clone_repo};
+pub use commit::{CommitOpts, Signature, commit};
+pub use fetch::{FetchOpts, fetch};
+pub use log::{LogOpts, log};
+pub use merge::{MergeOpts, MergeOutcome, merge};
 pub use open::{
-    discover_repo, init_bare_repo, init_repo, is_repository, open_repo, probe_repository,
-    RepositoryInfo,
+    RepositoryInfo, discover_repo, init_bare_repo, init_repo, is_repository, open_repo,
+    probe_repository,
 };
 pub use push::{
-    check_remote_branch_exists, check_remote_tag_exists, delete_remote_branch, 
-    delete_remote_tag, push, push_current_branch, push_tags, PushOpts, PushResult
+    PushOpts, PushResult, check_remote_branch_exists, check_remote_tag_exists,
+    delete_remote_branch, delete_remote_tag, push, push_current_branch, push_tags,
 };
-pub use reset::{reset, reset_hard, reset_mixed, reset_soft, ResetMode, ResetOpts};
-pub use status::{current_branch, head_commit, is_clean, is_detached, list_remotes, remote_exists, BranchInfo, RemoteInfo};
-pub use tag::{create_tag, delete_tag, list_tags, tag_exists, TagInfo, TagOpts};
+pub use reset::{ResetMode, ResetOpts, reset, reset_hard, reset_mixed, reset_soft};
+pub use status::{
+    BranchInfo, RemoteInfo, current_branch, head_commit, is_clean, is_detached, list_remotes,
+    remote_exists,
+};
+pub use tag::{TagInfo, TagOpts, create_tag, delete_tag, list_tags, tag_exists};
 pub use worktree::{
-    list_worktrees, worktree_add, worktree_lock, worktree_prune, worktree_remove,
-    worktree_unlock, WorktreeAddOpts, WorktreeInfo, WorktreeLockOpts, WorktreeRemoveOpts,
+    WorktreeAddOpts, WorktreeInfo, WorktreeLockOpts, WorktreeRemoveOpts, list_worktrees,
+    worktree_add, worktree_lock, worktree_prune, worktree_remove, worktree_unlock,
 };

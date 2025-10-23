@@ -1,8 +1,8 @@
 //! Tests for git repository open and initialization operations.
 
 use kodegen_tools_git::git::open::{
-    discover_repo, init_bare_repo, init_repo, is_repository, open_repo, probe_repository,
-    RepositoryInfo,
+    RepositoryInfo, discover_repo, init_bare_repo, init_repo, is_repository, open_repo,
+    probe_repository,
 };
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -16,7 +16,9 @@ async fn test_is_repository_false() {
 
 #[tokio::test]
 async fn test_is_repository_nonexistent() {
-    let result = is_repository("/nonexistent/path/that/does/not/exist").await.unwrap();
+    let result = is_repository("/nonexistent/path/that/does/not/exist")
+        .await
+        .unwrap();
     assert!(!result);
 }
 

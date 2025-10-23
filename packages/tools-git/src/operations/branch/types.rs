@@ -37,7 +37,7 @@ impl BranchOpts {
 
     /// Enable force mode (overwrite existing branch).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn force(mut self, enabled: bool) -> Self {
         self.force = enabled;
         self
@@ -45,7 +45,7 @@ impl BranchOpts {
 
     /// Checkout the branch after creation.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn checkout(mut self, enabled: bool) -> Self {
         self.checkout = enabled;
         self
@@ -53,7 +53,7 @@ impl BranchOpts {
 
     /// Set up tracking relationship with upstream branch.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn track(mut self, enabled: bool) -> Self {
         self.track = enabled;
         self

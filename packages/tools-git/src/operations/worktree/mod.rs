@@ -3,20 +3,20 @@
 //! This module provides worktree management functionality including creation,
 //! listing, locking, and removal of worktrees using the gix (Gitoxide) library.
 
-mod types;
+mod add;
 mod helpers;
 mod list;
-mod add;
 mod lock;
-mod remove;
 mod prune;
+mod remove;
+mod types;
 
 // Re-export public types
-pub use types::{WorktreeInfo, WorktreeAddOpts, WorktreeLockOpts, WorktreeRemoveOpts};
+pub use types::{WorktreeAddOpts, WorktreeInfo, WorktreeLockOpts, WorktreeRemoveOpts};
 
 // Re-export public functions
-pub use list::list_worktrees;
 pub use add::worktree_add;
+pub use list::list_worktrees;
 pub use lock::{worktree_lock, worktree_unlock};
-pub use remove::worktree_remove;
 pub use prune::worktree_prune;
+pub use remove::worktree_remove;
