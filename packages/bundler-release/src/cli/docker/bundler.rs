@@ -395,7 +395,7 @@ impl ContainerBundler {
         runtime_config.indent(&format!("✓ Created {} package", platform_str));
 
         // Find created artifacts using case-insensitive directory search
-        let bundle_dir = find_bundle_directory(&self.workspace_path, platform_str)?;
+        let bundle_dir = find_bundle_directory(&temp_target_dir, platform_str)?;
 
         // Collect artifact paths with proper error handling
         runtime_config.verbose_println(&format!("Scanning for artifacts in: {}", bundle_dir.display()));
