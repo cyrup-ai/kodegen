@@ -49,6 +49,59 @@ where
     (tool_router, prompt_router)
 }
 
+/// Warm up connection pool by pre-establishing min_connections
+async fn warmup_pool(pool: &sqlx::AnyPool, min_connections: u32) -> Result<()> {
+    use std::time::{Duration, Instant};
+    
+    let start = Instant::now();
+    
+    // Acquire min_connections concurrently to force establishment
+    let mut handles = Vec::new();
+    for i in 0..min_connections {
+        let pool_clone = pool.clone();
+        let handle = tokio::spawn(async move {
+            sqlx::query("SELECT 1")
+                .fetch_one(&pool_clone)
+                .await
+                .map_err(|e| anyhow::anyhow!("Warmup connection {} failed: {}", i + 1, e))
+        });
+        handles.push(handle);
+    }
+    
+    // Wait for all warmup queries to complete
+    let mut success_count = 0;
+    for (i, handle) in handles.into_iter().enumerate() {
+        match handle.await {
+            Ok(Ok(_)) => success_count += 1,
+            Ok(Err(e)) => log::warn!("Connection {} warmup failed: {}", i + 1, e),
+            Err(e) => log::warn!("Connection {} warmup task panicked: {}", i + 1, e),
+        }
+    }
+    
+    let elapsed = start.elapsed();
+    
+    if success_count > 0 {
+        log::info!(
+            "✓ Connection pool warmed up: {}/{} connections ready ({:?})", 
+            success_count, min_connections, elapsed
+        );
+        
+        if elapsed > Duration::from_secs(2) {
+            log::warn!(
+                "Pool warmup was slow ({:?}), queries may have experienced high latency", 
+                elapsed
+            );
+        }
+        
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!(
+            "Pool warmup failed: 0/{} connections established", 
+            min_connections
+        ))
+    }
+}
+
 /// Register all available tools with the routers
 pub async fn register_all_tools<S>(
     mut tool_router: ToolRouter<S>,
@@ -96,6 +149,15 @@ where
             dsn.to_string()
         };
         
+        // Extract min_connections BEFORE pool block for warmup access
+        let min_connections = config_manager
+            .get_value("db_min_connections")
+            .and_then(|v| match v {
+                kodegen_tools_config::ConfigValue::Number(n) => Some(n as u32),
+                _ => None,
+            })
+            .unwrap_or(2); // 2 connections default for responsiveness
+        
         // Connect to database with timeout configuration
         let pool = {
             // Get timeout configuration from ConfigManager
@@ -131,14 +193,6 @@ where
                 })
                 .unwrap_or(10); // 10 connections default
             
-            let min_connections = config_manager
-                .get_value("db_min_connections")
-                .and_then(|v| match v {
-                    kodegen_tools_config::ConfigValue::Number(n) => Some(n as u32),
-                    _ => None,
-                })
-                .unwrap_or(2); // 2 connections default for responsiveness
-            
             // Build pool with PoolOptions
             PoolOptions::new()
                 .max_connections(max_connections)
@@ -165,6 +219,9 @@ where
                 .await
                 .context("Failed to connect to database")?
         };
+        
+        // Warmup: Force synchronous connection establishment
+        warmup_pool(&pool, min_connections).await?;
         
         log::info!("✓ Database connected ({})", 
             kodegen_tools_database::detect_database_type(&final_dsn)?);
