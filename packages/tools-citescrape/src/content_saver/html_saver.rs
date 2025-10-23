@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::page_extractor::schema::ResourceInfo;
-use crate::utils::get_mirror_path;
+use crate::utils::{ensure_domain_gitignore, get_mirror_path};
 
 use super::compression::save_compressed_file;
 
@@ -17,6 +17,9 @@ pub async fn save_html_content(
 
     // get_mirror_path is async, await it
     let path = get_mirror_path(&url, &output_dir, "index.html").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    ensure_domain_gitignore(&path, &output_dir).await?;
 
     // inline_all_resources is async
     let inline_result = crate::inline_css::inline_all_resources(
@@ -71,6 +74,9 @@ pub async fn save_html_content_with_resources(
 
     // Get mirror path first (async)
     let path = get_mirror_path(&url, &output_dir, "index.html").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    ensure_domain_gitignore(&path, &output_dir).await?;
     
     // Then inline resources (async)
     let config = crate::inline_css::InlineConfig::default();

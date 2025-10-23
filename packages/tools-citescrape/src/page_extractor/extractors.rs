@@ -146,6 +146,9 @@ pub async fn capture_screenshot(page: Page, url: &str, output_dir: &std::path::P
 
     // Get mirror path (async)
     let path = crate::utils::get_mirror_path(&url, &output_dir, "index.png").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    crate::utils::ensure_domain_gitignore(&path, &output_dir).await?;
 
     tokio::fs::create_dir_all(
         path.parent()

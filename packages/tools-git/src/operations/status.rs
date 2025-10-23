@@ -110,7 +110,7 @@ pub async fn current_branch(repo: &RepoHandle) -> GitResult<BranchInfo> {
         let commit_hash = commit.id().to_string();
         
         // Try to get upstream information
-        let (upstream, ahead_count, behind_count) = get_upstream_info(&repo_clone, &head)?;
+        let (upstream, ahead_count, behind_count) = get_upstream_info(&repo_clone, &mut head)?;
         
         Ok(BranchInfo {
             name: branch_name,
@@ -125,10 +125,143 @@ pub async fn current_branch(repo: &RepoHandle) -> GitResult<BranchInfo> {
     .map_err(|e| GitError::Gix(Box::new(e)))?
 }
 
+/// Calculate ahead/behind commit counts between local and upstream branches
+///
+/// # Arguments
+///
+/// * `repo` - Repository handle
+/// * `local_commit_id` - Object ID of the local branch HEAD
+/// * `upstream_ref` - Upstream reference string (e.g., "origin/main")
+///
+/// # Returns
+///
+/// Returns a tuple of (ahead_count, behind_count) where:
+/// - Both are `None` if upstream doesn't exist
+/// - Both are `Some(0)` if branches point to the same commit
+/// - Otherwise, contains actual commit counts
+fn calculate_ahead_behind(
+    repo: &gix::Repository,
+    local_commit_id: gix::ObjectId,
+    upstream_ref: &str,
+) -> GitResult<(Option<usize>, Option<usize>)> {
+    use gix::bstr::ByteSlice;
+    
+    // Convert upstream ref string to full reference path
+    // e.g., "origin/main" -> "refs/remotes/origin/main"
+    let upstream_ref_path = if upstream_ref.starts_with("refs/") {
+        upstream_ref.to_string()
+    } else {
+        format!("refs/remotes/{upstream_ref}")
+    };
+    
+    // Try to find the upstream reference
+    let mut upstream_reference = match repo.try_find_reference(upstream_ref_path.as_bytes().as_bstr()) {
+        Ok(Some(r)) => r,
+        Ok(None) => return Ok((None, None)), // Upstream doesn't exist
+        Err(e) => return Err(GitError::Gix(Box::new(e))),
+    };
+    
+    // Get the upstream commit ID
+    let upstream_commit_id = match upstream_reference.peel_to_id() {
+        Ok(id) => id.detach(),
+        Err(e) => return Err(GitError::Gix(Box::new(e))),
+    };
+    
+    // If both commits are the same, return (0, 0)
+    if local_commit_id == upstream_commit_id {
+        return Ok((Some(0), Some(0)));
+    }
+    
+    // Find merge base (common ancestor)
+    // Create a graph for merge base calculation
+    let mut graph = repo.revision_graph(None);
+    
+    let merge_base_id = match repo.merge_base_with_graph(local_commit_id, upstream_commit_id, &mut graph) {
+        Ok(base_id) => base_id.detach(),
+        Err(e) => {
+            // If no merge base found (completely diverged histories), 
+            // we can't calculate ahead/behind in a meaningful way
+            return Err(GitError::Gix(Box::new(e)));
+        }
+    };
+    
+    // Count commits ahead (from merge_base to local_commit_id)
+    let ahead_count = count_commits_between(repo, merge_base_id, local_commit_id)?;
+    
+    // Count commits behind (from merge_base to upstream_commit_id)
+    let behind_count = count_commits_between(repo, merge_base_id, upstream_commit_id)?;
+    
+    Ok((Some(ahead_count), Some(behind_count)))
+}
+
+/// Count commits between two points in the commit graph
+///
+/// # Arguments
+///
+/// * `repo` - Repository handle
+/// * `from` - Starting commit (exclusive)
+/// * `to` - Ending commit (inclusive)
+///
+/// # Returns
+///
+/// Returns the number of commits between `from` and `to`
+fn count_commits_between(
+    repo: &gix::Repository,
+    from: gix::ObjectId,
+    to: gix::ObjectId,
+) -> GitResult<usize> {
+    // If from and to are the same, there are 0 commits between them
+    if from == to {
+        return Ok(0);
+    }
+    
+    // Walk the commit graph from 'to' back to 'from'
+    let mut count = 0;
+    let mut commit = match repo.find_object(to) {
+        Ok(obj) => match obj.try_into_commit() {
+            Ok(c) => c,
+            Err(e) => return Err(GitError::Gix(Box::new(e))),
+        },
+        Err(e) => return Err(GitError::Gix(Box::new(e))),
+    };
+    
+    loop {
+        let current_id = commit.id();
+        
+        // Stop if we've reached the merge base
+        if current_id == from {
+            break;
+        }
+        
+        count += 1;
+        
+        // Get parent commits
+        let parents: Vec<_> = commit.parent_ids().collect();
+        
+        if parents.is_empty() {
+            // Reached a root commit without finding 'from'
+            // This shouldn't happen if merge_base was calculated correctly
+            break;
+        }
+        
+        // Follow the first parent (main line of history)
+        let parent_id = parents[0];
+        commit = match repo.find_object(parent_id) {
+            Ok(obj) => match obj.try_into_commit() {
+                Ok(c) => c,
+                Err(e) => return Err(GitError::Gix(Box::new(e))),
+            },
+            Err(e) => return Err(GitError::Gix(Box::new(e))),
+        };
+    }
+    
+    Ok(count)
+}
+
 /// Get upstream tracking information for a branch
 fn get_upstream_info(
     repo: &gix::Repository,
-    head: &gix::Head,
+    head: &mut gix::Head,
 ) -> GitResult<(Option<String>, Option<usize>, Option<usize>)> {
     // Try to get upstream branch
     let upstream = if let Some(branch_ref) = head.referent_name() {
@@ -155,10 +288,31 @@ fn get_upstream_info(
         None
     };
     
-    // For now, we don't calculate ahead/behind counts
-    // This would require walking the commit graph which is complex
-    let ahead_count = None;
-    let behind_count = None;
+    // Calculate ahead/behind counts if upstream exists
+    let (ahead_count, behind_count) = if let Some(ref upstream_ref) = upstream {
+        // Get the local commit ID from HEAD
+        let local_commit_id = match head.peel_to_commit() {
+            Ok(commit) => commit.id().detach(),
+            Err(_) => {
+                // If we can't get the commit (e.g., detached HEAD with invalid ref),
+                // return None for counts
+                return Ok((upstream, None, None));
+            }
+        };
+        
+        // Calculate ahead/behind counts
+        match calculate_ahead_behind(repo, local_commit_id, upstream_ref) {
+            Ok(counts) => counts,
+            Err(_) => {
+                // If calculation fails (e.g., no merge base), return None for counts
+                // but still return the upstream ref name
+                (None, None)
+            }
+        }
+    } else {
+        // No upstream configured
+        (None, None)
+    };
     
     Ok((upstream, ahead_count, behind_count))
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::search::IndexingSender;
 use crate::search::MessagePriority;
-use crate::utils::get_mirror_path;
+use crate::utils::{ensure_domain_gitignore, get_mirror_path};
 
 use super::compression::save_compressed_file;
 
@@ -29,6 +29,9 @@ pub async fn save_markdown_content(
     compress: bool,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.md").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    ensure_domain_gitignore(&path, &output_dir).await?;
 
     // Ensure parent directory exists
     tokio::fs::create_dir_all(

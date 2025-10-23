@@ -628,8 +628,10 @@ async fn import_certificate_macos(cert_path: &Path) -> Result<()> {
         &combined_pem
     };
 
-    // Write certificate-only file to temp location
-    let temp_cert = std::env::temp_dir().join("kodegen_mcp_cert.crt");
+    // Write certificate-only file to temp location (use PID for uniqueness)
+    let temp_cert = std::env::temp_dir().join(
+        format!("kodegen_mcp_cert_{}.crt", std::process::id())
+    );
     tokio::fs::write(&temp_cert, cert_only)
         .await
         .context("Failed to write temp certificate")?;
@@ -718,8 +720,10 @@ async fn import_certificate_windows(cert_path: &Path) -> Result<()> {
         &combined_pem
     };
 
-    // Write certificate-only file to temp location
-    let temp_cert = std::env::temp_dir().join("kodegen_mcp_cert.crt");
+    // Write certificate-only file to temp location (use PID for uniqueness)
+    let temp_cert = std::env::temp_dir().join(
+        format!("kodegen_mcp_cert_{}.crt", std::process::id())
+    );
     tokio::fs::write(&temp_cert, cert_only)
         .await
         .context("Failed to write temp certificate")?;

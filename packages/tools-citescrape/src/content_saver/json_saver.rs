@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::utils::get_mirror_path;
+use crate::utils::{ensure_domain_gitignore, get_mirror_path};
 
 use super::compression::save_compressed_file;
 
@@ -11,6 +11,9 @@ pub async fn save_json_data(
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.json").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    ensure_domain_gitignore(&path, &output_dir).await?;
 
     // JSON serialization (keep spawn_blocking - CPU intensive)
     let json_str = tokio::task::spawn_blocking(move || serde_json::to_string_pretty(&data))
@@ -37,6 +40,9 @@ pub async fn save_page_data(
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.json").await?;
+    
+    // Ensure .gitignore exists in domain directory
+    ensure_domain_gitignore(&path, &output_dir).await?;
 
     // PageData serialization (keep spawn_blocking - CPU intensive)
     let json_content =

@@ -57,3 +57,47 @@ pub fn is_valid_url(url: &str) -> bool {
         Err(_) => false,
     }
 }
+
+/// Ensure a .gitignore file exists in the domain directory
+///
+/// Creates a .gitignore file with `*` and `!.gitignore` patterns to exclude
+/// all crawled content from version control while keeping the directory structure visible.
+///
+/// # Arguments
+///
+/// * `mirror_path` - Full path to a file in the domain (e.g., `output_dir/domain.com/path/file`)
+/// * `output_dir` - Base output directory
+///
+/// # Returns
+///
+/// * `Result<()>` - Success or error
+pub async fn ensure_domain_gitignore(mirror_path: &Path, output_dir: &Path) -> Result<()> {
+    // Extract domain directory: strip output_dir, take first component
+    let relative_path = mirror_path
+        .strip_prefix(output_dir)
+        .map_err(|e| anyhow::anyhow!("Failed to strip output_dir prefix: {e}"))?;
+    
+    let domain = relative_path
+        .components()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Path has no domain component"))?;
+    
+    let domain_dir = output_dir.join(domain);
+    let gitignore_path = domain_dir.join(".gitignore");
+    
+    // Check if .gitignore already exists (idempotent)
+    if tokio::fs::try_exists(&gitignore_path).await.unwrap_or(false) {
+        return Ok(());
+    }
+    
+    // Create .gitignore with ignore all except self pattern
+    let gitignore_content = "*\n!.gitignore\n";
+    
+    tokio::fs::write(&gitignore_path, gitignore_content)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to write .gitignore: {e}"))?;
+    
+    log::debug!("Created .gitignore in {}", domain_dir.display());
+    
+    Ok(())
+}
