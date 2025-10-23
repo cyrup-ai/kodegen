@@ -2,13 +2,13 @@
 
 use crate::error::DatabaseError;
 use crate::types::DatabaseType;
-use lazy_regex::{regex, Lazy, Regex};
+use lazy_regex::{lazy_regex, Lazy, Regex};
 
 // Compile-time validated regexes
-static LIMIT_REGEX: &Lazy<Regex> = regex!(r"(?i)\bLIMIT\s+(\d+)");
-static TOP_REGEX: &Lazy<Regex> = regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
-static SELECT_TOP_REPLACE: &Lazy<Regex> = regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
-static SELECT_WORD: &Lazy<Regex> = regex!(r"(?i)\bSELECT\b");
+static LIMIT_REGEX: Lazy<Regex> = lazy_regex!(r"(?i)\bLIMIT\s+(\d+)");
+static TOP_REGEX: Lazy<Regex> = lazy_regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
+static SELECT_TOP_REPLACE: Lazy<Regex> = lazy_regex!(r"(?i)\bSELECT\s+TOP\s+\(?\d+\)?");
+static SELECT_WORD: Lazy<Regex> = lazy_regex!(r"(?i)\bSELECT\b");
 
 /// Apply row limit to SELECT queries only
 ///
