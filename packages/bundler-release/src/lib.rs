@@ -24,7 +24,9 @@
 //! cyrup_release resume         # Resume interrupted release
 //! ```
 
-#![forbid(unsafe_code)]
+// SECURITY: Use deny instead of forbid to allow cli/docker.rs to use unsafe code
+// for libc::getuid() and libc::getgid() calls (required for Docker container security)
+#![deny(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
 
