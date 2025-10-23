@@ -116,6 +116,11 @@ struct Cli {
     #[cfg(target_os = "macos")]
     #[arg(long, requires = "sign", default_value = "true")]
     hardened_runtime: bool,
+    
+    /// Diagnose notarization setup
+    #[cfg(target_os = "macos")]
+    #[arg(long, conflicts_with_all = ["show", "interactive", "build_helper", "config", "notarize", "sign"])]
+    diagnose_notarization: bool,
 }
 
 fn main() -> Result<()> {
@@ -132,6 +137,11 @@ fn main() -> Result<()> {
     #[cfg(target_os = "macos")]
     if cli.build_helper {
         return build_and_upload_helper(&cli.output_dir, cli.upload, cli.github_token);
+    }
+    
+    #[cfg(target_os = "macos")]
+    if cli.diagnose_notarization {
+        return macos::diagnose_notarization_setup().map_err(Into::into);
     }
     
     #[cfg(target_os = "macos")]

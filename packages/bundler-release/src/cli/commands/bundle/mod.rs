@@ -26,6 +26,7 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
     let Command::Bundle {
         no_build,
         release,
+        rebuild_image,
         current_platform_only,
         platform,
         upload,
@@ -33,6 +34,10 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
         version,
         target,
         github_repo,
+        docker_memory,
+        docker_memory_swap,
+        docker_cpus,
+        docker_pids_limit,
     } = &args.command else {
         unreachable!("execute_bundle called with non-Bundle command");
     };
@@ -126,13 +131,38 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
         config.println("📦 Bundling cross-platform packages in container...");
 
         // Check Docker availability
-        crate::cli::docker::ContainerBundler::check_docker_available()?;
+        crate::cli::docker::ContainerBundler::check_docker_available().await?;
 
         // Ensure builder image exists
-        crate::cli::docker::ContainerBundler::ensure_image_built(&config.workspace_path, config)?;
+        crate::cli::docker::ContainerBundler::ensure_image_built(&config.workspace_path, *rebuild_image, config).await?;
 
-        // Create container bundler
-        let container = crate::cli::docker::ContainerBundler::new(config.workspace_path.clone());
+        // Create container bundler with resource limits
+        let limits = if let Some(memory) = docker_memory {
+            // User provided explicit limits
+            crate::cli::docker::ContainerLimits::from_cli(
+                memory.clone(),
+                docker_memory_swap.clone(),
+                docker_cpus.clone(),
+                *docker_pids_limit,
+            )
+        } else {
+            // Auto-detect safe limits
+            crate::cli::docker::ContainerLimits::default()
+        };
+
+        let container = crate::cli::docker::ContainerBundler::with_limits(
+            config.workspace_path.clone(),
+            limits
+        );
+
+        // Log resource limits for transparency
+        config.verbose_println(&format!(
+            "Docker resource limits: {} memory, {} swap, {} CPUs, {} max processes",
+            container.limits.memory,
+            container.limits.memory_swap,
+            container.limits.cpus,
+            container.limits.pids_limit
+        ));
 
         // Bundle each platform in container
         for platform in container_platforms {

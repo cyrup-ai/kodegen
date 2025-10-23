@@ -24,14 +24,39 @@ async fn main() {
                 && output.status.success()
             {
                 let env_output = String::from_utf8_lossy(&output.stdout);
+                
                 // Parse and set environment variables
+                // This needs to handle multi-line values (e.g., APPLE_API_KEY_CONTENT with embedded newlines)
+                let mut current_key: Option<String> = None;
+                let mut current_value = String::new();
+                
                 for line in env_output.lines() {
+                    // Check if this line starts a new key=value pair
                     if let Some((key, value)) = line.split_once('=') {
-                        // SAFETY: We're setting environment variables from ~/.zshrc
-                        // This is necessary for code signing to access APPLE_CERTIFICATE env vars
-                        unsafe {
-                            std::env::set_var(key, value);
+                        // First, save the previous key-value pair if any
+                        if let Some(prev_key) = current_key.take() {
+                            unsafe {
+                                std::env::set_var(prev_key, current_value.trim_end());
+                            }
+                            current_value.clear();
                         }
+                        
+                        // Start accumulating the new key-value pair
+                        current_key = Some(key.to_string());
+                        current_value.push_str(value);
+                    } else {
+                        // This is a continuation line of a multi-line value
+                        if current_key.is_some() {
+                            current_value.push('\n');
+                            current_value.push_str(line);
+                        }
+                    }
+                }
+                
+                // Don't forget the last key-value pair
+                if let Some(key) = current_key {
+                    unsafe {
+                        std::env::set_var(key, current_value.trim_end());
                     }
                 }
             }

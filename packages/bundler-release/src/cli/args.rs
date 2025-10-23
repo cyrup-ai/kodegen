@@ -136,6 +136,10 @@ pub enum Command {
         #[arg(short, long, default_value = "true")]
         release: bool,
 
+        /// Force rebuild of Docker image even if it exists
+        #[arg(long)]
+        rebuild_image: bool,
+
         /// Only bundle for current platform (default: all platforms)
         #[arg(long)]
         current_platform_only: bool,
@@ -163,6 +167,28 @@ pub enum Command {
         /// GitHub repository (format: owner/repo)
         #[arg(long, requires = "upload")]
         github_repo: Option<String>,
+        
+        // === Docker Resource Limits ===
+        
+        /// Maximum memory for Docker containers (e.g., "4g", "2048m")
+        /// Default: Auto-detected (50% of system RAM, min 2GB, max 8GB)
+        #[arg(long, value_name = "SIZE")]
+        docker_memory: Option<String>,
+        
+        /// Maximum memory + swap for Docker containers (e.g., "6g", "3072m")
+        /// Default: docker_memory + 2GB
+        #[arg(long, value_name = "SIZE")]
+        docker_memory_swap: Option<String>,
+        
+        /// Maximum CPUs for Docker containers (e.g., "2", "1.5")
+        /// Default: Auto-detected (50% of system CPUs, minimum 2)
+        #[arg(long, value_name = "COUNT")]
+        docker_cpus: Option<String>,
+        
+        /// Maximum processes in Docker containers
+        /// Prevents fork bombs and runaway process creation
+        #[arg(long, default_value = "1000", value_name = "COUNT")]
+        docker_pids_limit: u32,
     },
 
     /// Rollback a failed or completed release

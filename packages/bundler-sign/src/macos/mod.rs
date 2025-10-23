@@ -48,4 +48,4 @@ pub mod notarization;
 // Re-export public API
 pub use setup::{show_config, interactive_setup, setup_from_config, ensure_api_key_file};
 pub use keychain::{TempKeychain, sign_with_entitlements};
-pub use notarization::{notarize, NotarizationAuth};
+pub use notarization::{notarize, NotarizationAuth, diagnose_notarization_setup};

@@ -4,6 +4,7 @@
 //! poll for completion, and staple notarization tickets.
 
 use crate::error::{Result, SetupError};
+use super::validation::validate_p8_file;
 use serde::Deserialize;
 use std::io::Write;
 use std::path::Path;
@@ -49,6 +50,18 @@ impl NotarizationAuth {
                             "APPLE_API_KEY_PATH not set and AuthKey_{key_id}.p8 not found in standard locations"
                         )))
                 })?;
+            
+            // Validate key file before use
+            validate_p8_file(&key_path).map_err(|e| {
+                SetupError::InvalidConfig(format!(
+                    "Invalid API key file:\n{}\n\n\
+                     Key ID: {}\n\
+                     Path: {}\n\n\
+                     Download your API key from:\n\
+                     https://appstoreconnect.apple.com/access/api",
+                    e, key_id, key_path.display()
+                ))
+            })?;
             
             return Ok(Self::ApiKey {
                 key_id,
@@ -209,9 +222,56 @@ pub fn notarize(
         )))?;
     
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        
+        // Parse common errors and provide helpful context
+        let help_text = if stderr.contains("invalidPEMDocument") {
+            // Belt-and-suspenders check: re-validate key file
+            if let NotarizationAuth::ApiKey { key_path, .. } = auth {
+                if !key_path.exists() {
+                    format!(
+                        "\n\nThe API key file disappeared: {}\n\
+                         The file existed during setup but is now missing.\n\
+                         Check if it was deleted or moved.",
+                        key_path.display()
+                    )
+                } else {
+                    format!(
+                        "\n\nThe API key file appears to be invalid: {}\n\n\
+                         Troubleshooting:\n\
+                         1. Verify file is a valid .p8 key from App Store Connect\n\
+                         2. Check file is not corrupted: cat {}\n\
+                         3. Re-download key from: https://appstoreconnect.apple.com/access/api\n\
+                         4. Ensure file contains:\n\
+                            -----BEGIN PRIVATE KEY-----\n\
+                            ...\n\
+                            -----END PRIVATE KEY-----",
+                        key_path.display(),
+                        key_path.display()
+                    )
+                }
+            } else {
+                String::new()
+            }
+        } else if stderr.contains("UNAUTHORIZED") || stderr.contains("401") {
+            "\n\nAuthentication failed. Check:\n\
+             1. APPLE_API_KEY matches your key ID\n\
+             2. APPLE_API_ISSUER matches your issuer ID\n\
+             3. API key has 'Developer' role in App Store Connect\n\
+             4. Key hasn't been revoked".to_string()
+        } else if stderr.contains("FORBIDDEN") || stderr.contains("403") {
+            "\n\nPermission denied. Verify:\n\
+             1. Your App Store Connect account has notarization access\n\
+             2. API key has correct permissions (Admin or Developer role)\n\
+             3. Team ID is correct".to_string()
+        } else {
+            String::new()
+        };
+        
         return Err(SetupError::CommandExecution(format!(
-            "Notarization submission failed:\n{}",
-            String::from_utf8_lossy(&output.stderr)
+            "Notarization submission failed:\n{}\n{}",
+            stderr,
+            help_text
         )));
     }
     
@@ -312,4 +372,63 @@ fn find_p8_key(key_id: &str) -> Option<std::path::PathBuf> {
     }
     
     None
+}
+
+/// Diagnose notarization setup
+///
+/// Validates credentials and dependencies without attempting notarization.
+/// Useful for troubleshooting setup issues.
+pub fn diagnose_notarization_setup() -> Result<()> {
+    println!("🔍 Diagnosing notarization setup...\n");
+    
+    // Check for credentials
+    match NotarizationAuth::from_env() {
+        Ok(NotarizationAuth::ApiKey { key_id, issuer_id, key_path }) => {
+            println!("✓ API Key authentication configured");
+            println!("  Key ID: {}", key_id);
+            println!("  Issuer: {}", issuer_id);
+            println!("  Key path: {}", key_path.display());
+            
+            // Re-validate to show current status
+            match validate_p8_file(&key_path) {
+                Ok(()) => println!("  ✓ Key file is valid"),
+                Err(e) => {
+                    println!("  ✗ Key file validation failed:\n{}", e);
+                    return Err(e);
+                }
+            }
+        }
+        Ok(NotarizationAuth::AppleId { apple_id, team_id, .. }) => {
+            println!("✓ Apple ID authentication configured");
+            println!("  Apple ID: {}", apple_id);
+            println!("  Team ID: {}", team_id);
+            println!("  ⚠️  Consider switching to API Key (more reliable)");
+        }
+        Err(e) => {
+            println!("✗ No notarization credentials found");
+            return Err(e);
+        }
+    }
+    
+    // Check xcrun notarytool
+    let xcrun_check = Command::new("xcrun")
+        .args(["notarytool", "--version"])
+        .output();
+    
+    match xcrun_check {
+        Ok(output) if output.status.success() => {
+            println!("\n✓ xcrun notarytool is available");
+        }
+        _ => {
+            println!("\n✗ xcrun notarytool not found");
+            println!("  Install Xcode Command Line Tools:");
+            println!("  xcode-select --install");
+            return Err(SetupError::MissingDependency(
+                "xcrun notarytool not available".to_string()
+            ));
+        }
+    }
+    
+    println!("\n✅ Notarization setup looks good!");
+    Ok(())
 }
