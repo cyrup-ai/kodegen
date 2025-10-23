@@ -102,6 +102,7 @@ md5 = "0.8"                 # Checksums
 sha1 = "0.10"               # SHA-1 hashing
 sha2 = "0.10"               # SHA-256 hashing
 walkdir = "2.5"             # Directory traversal
+wait-timeout = "0.2"        # Process timeout for cleanup
 hex = "0.4"                 # Hex encoding
 glob = "0.3"                # Pattern matching
 zip = "6.0"                 # Archive creation errors

@@ -59,6 +59,31 @@ impl ContainerLimits {
         }
     }
     
+    /// Parse memory string like "4g", "4096m", "4G", "2048M" to megabytes.
+    fn parse_memory_to_mb(memory: &str) -> Result<u64, String> {
+        let memory = memory.trim().to_lowercase();
+        
+        if let Some(stripped) = memory.strip_suffix("gb") {
+            let val: u64 = stripped.parse()
+                .map_err(|_| format!("Invalid memory value: {}", memory))?;
+            Ok(val * 1024)
+        } else if let Some(stripped) = memory.strip_suffix("g") {
+            let val: u64 = stripped.parse()
+                .map_err(|_| format!("Invalid memory value: {}", memory))?;
+            Ok(val * 1024)
+        } else if let Some(stripped) = memory.strip_suffix("mb") {
+            stripped.parse()
+                .map_err(|_| format!("Invalid memory value: {}", memory))
+        } else if let Some(stripped) = memory.strip_suffix("m") {
+            stripped.parse()
+                .map_err(|_| format!("Invalid memory value: {}", memory))
+        } else {
+            // No unit - assume megabytes
+            memory.parse()
+                .map_err(|_| format!("Invalid memory value: {}", memory))
+        }
+    }
+    
     /// Creates limits from CLI arguments.
     ///
     /// Validates that memory_swap >= memory.
@@ -67,24 +92,203 @@ impl ContainerLimits {
         memory_swap: Option<String>,
         cpus: Option<String>,
         pids_limit: u32,
-    ) -> Self {
-        let memory_swap = memory_swap.unwrap_or_else(|| {
+    ) -> Result<Self, String> {
+        let memory_mb = Self::parse_memory_to_mb(&memory)?;
+        
+        let memory_swap = if let Some(swap) = memory_swap {
+            let swap_mb = Self::parse_memory_to_mb(&swap)?;
+            
+            // Validate: swap must be >= memory
+            if swap_mb < memory_mb {
+                return Err(format!(
+                    "Memory swap ({} MB) must be >= memory ({} MB)",
+                    swap_mb, memory_mb
+                ));
+            }
+            
+            format!("{}m", swap_mb)
+        } else {
             // Default: memory + 2GB
-            let mem_gb: u32 = memory
-                .trim_end_matches('g')
-                .trim_end_matches('m')
-                .parse()
-                .unwrap_or(4);
-            format!("{}g", mem_gb + 2)
-        });
+            format!("{}m", memory_mb + 2048)
+        };
         
         let cpus = cpus.unwrap_or_else(|| num_cpus::get().to_string());
         
-        Self {
-            memory,
+        Ok(Self {
+            memory,  // Keep original format for Docker
             memory_swap,
             cpus,
             pids_limit,
-        }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_parse_memory_lowercase_g() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4g"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_uppercase_g() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4G"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_lowercase_gb() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4gb"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_uppercase_gb() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4GB"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_lowercase_m() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4096m"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_uppercase_m() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4096M"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_lowercase_mb() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4096mb"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_uppercase_mb() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("4096MB"), Ok(4096));
+    }
+    
+    #[test]
+    fn test_parse_memory_no_unit() {
+        // No unit = assume megabytes
+        assert_eq!(ContainerLimits::parse_memory_to_mb("2048"), Ok(2048));
+    }
+    
+    #[test]
+    fn test_parse_memory_invalid_text() {
+        assert!(ContainerLimits::parse_memory_to_mb("invalid").is_err());
+    }
+    
+    #[test]
+    fn test_parse_memory_invalid_unit() {
+        assert!(ContainerLimits::parse_memory_to_mb("4x").is_err());
+    }
+    
+    #[test]
+    fn test_parse_memory_with_spaces() {
+        assert_eq!(ContainerLimits::parse_memory_to_mb("  4g  "), Ok(4096));
+    }
+    
+    #[test]
+    fn test_from_cli_default_swap() {
+        let result = ContainerLimits::from_cli(
+            "4g".to_string(),
+            None,
+            None,
+            1000,
+        );
+        assert!(result.is_ok());
+        let limits = result.unwrap();
+        // 4GB + 2GB = 6GB = 6144MB
+        assert_eq!(limits.memory_swap, "6144m");
+    }
+    
+    #[test]
+    fn test_from_cli_correct_unit_conversion_for_megabytes() {
+        // This is the critical test case from the bug report
+        // "4096m" should be treated as 4GB, so default swap = 4GB + 2GB = 6GB = 6144MB
+        let result = ContainerLimits::from_cli(
+            "4096m".to_string(),
+            None,
+            None,
+            1000,
+        );
+        assert!(result.is_ok());
+        let limits = result.unwrap();
+        assert_eq!(limits.memory_swap, "6144m");
+        // NOT "4098g" as the bug would have produced!
+    }
+    
+    #[test]
+    fn test_from_cli_swap_validation_success() {
+        // Swap >= memory should succeed
+        let result = ContainerLimits::from_cli(
+            "4g".to_string(),
+            Some("6g".to_string()),
+            None,
+            1000,
+        );
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_from_cli_swap_validation_failure() {
+        // Swap < memory should fail
+        let result = ContainerLimits::from_cli(
+            "8g".to_string(),
+            Some("4g".to_string()),
+            None,
+            1000,
+        );
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("must be >="));
+    }
+    
+    #[test]
+    fn test_from_cli_swap_equal_to_memory() {
+        // Swap == memory should succeed
+        let result = ContainerLimits::from_cli(
+            "4g".to_string(),
+            Some("4g".to_string()),
+            None,
+            1000,
+        );
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_from_cli_preserves_original_memory_format() {
+        // Should keep original memory format for Docker
+        let result = ContainerLimits::from_cli(
+            "4g".to_string(),
+            Some("6g".to_string()),
+            None,
+            1000,
+        );
+        assert!(result.is_ok());
+        let limits = result.unwrap();
+        assert_eq!(limits.memory, "4g");
+    }
+    
+    #[test]
+    fn test_from_cli_invalid_memory_format() {
+        let result = ContainerLimits::from_cli(
+            "invalid".to_string(),
+            None,
+            None,
+            1000,
+        );
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_from_cli_invalid_swap_format() {
+        let result = ContainerLimits::from_cli(
+            "4g".to_string(),
+            Some("invalid".to_string()),
+            None,
+            1000,
+        );
+        assert!(result.is_err());
     }
 }

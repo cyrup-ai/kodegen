@@ -144,7 +144,7 @@ pub(super) async fn execute_bundle(args: &Args, config: &RuntimeConfig) -> Resul
                 docker_memory_swap.clone(),
                 docker_cpus.clone(),
                 *docker_pids_limit,
-            )
+            ).map_err(|e| anyhow::anyhow!("Invalid memory limits: {}", e))?
         } else {
             // Auto-detect safe limits
             crate::cli::docker::ContainerLimits::default()
