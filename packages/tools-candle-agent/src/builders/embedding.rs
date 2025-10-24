@@ -104,7 +104,7 @@ mod tests {
         
         // Should either succeed or fail with a clear error
         match result {
-            Ok(ref embedding) => {
+            Ok(embedding) => {
                 assert!(!embedding.document.is_empty());
                 assert!(embedding.as_vec().is_some());
             }
@@ -124,7 +124,7 @@ mod tests {
             .await;
         
         match result {
-            Ok(ref embedding) => {
+            Ok(embedding) => {
                 assert_eq!(embedding.document, "Hello world");
             }
             Err(e) => {

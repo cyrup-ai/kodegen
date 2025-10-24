@@ -752,8 +752,8 @@ where
 {
     log::debug!("Initializing browser tools");
     
-    // Create shared browser manager (lazy-loads Chrome on first use)
-    let browser_manager = Arc::new(kodegen_tools_browser::BrowserManager::new());
+    // Get global browser manager singleton (lazy-loads Chrome on first use)
+    let browser_manager = kodegen_tools_browser::BrowserManager::global();
     
     // Register all 7 available tools
     let (tool_router, prompt_router) = register_tool(

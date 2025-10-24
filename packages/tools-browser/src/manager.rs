@@ -21,11 +21,14 @@
 //! Reference: packages/tools-citescrape/src/web_search/manager.rs
 
 use anyhow::Result;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::{Mutex, OnceCell};
 use tracing::info;
 
 use crate::browser::{BrowserWrapper, launch_browser};
+
+// Global singleton instance
+static GLOBAL_MANAGER: OnceLock<Arc<BrowserManager>> = OnceLock::new();
 
 /// Singleton manager for browser instances
 ///
@@ -49,11 +52,39 @@ pub struct BrowserManager {
 }
 
 impl BrowserManager {
-    /// Create a new BrowserManager (no browser launched yet)
+    /// Get the global singleton BrowserManager instance
+    ///
+    /// This ensures only one browser instance runs process-wide.
+    /// All tools should use this method instead of creating their own managers.
+    ///
+    /// # Thread Safety
+    /// Uses `OnceLock` for atomic initialization - safe to call from multiple threads.
+    /// First caller initializes, concurrent callers block until initialization completes.
+    ///
+    /// # Performance
+    /// - First call: ~50ns (creates BrowserManager struct)
+    /// - Subsequent calls: ~5ns (atomic pointer load)
+    /// - Browser launch still lazy on first `get_or_launch()` call (~2-3s)
+    ///
+    /// # Example
+    /// ```rust
+    /// let manager = BrowserManager::global();
+    /// let browser_arc = manager.get_or_launch().await?;
+    /// ```
+    #[must_use]
+    pub fn global() -> Arc<BrowserManager> {
+        GLOBAL_MANAGER
+            .get_or_init(|| Arc::new(BrowserManager::new()))
+            .clone()
+    }
+
+    /// Create a new BrowserManager (private - use global() instead)
     ///
     /// Browser will be lazy-loaded on first `get_or_launch()` call.
-    #[must_use]
-    pub fn new() -> Self {
+    /// 
+    /// This is now private to prevent accidental creation of multiple managers.
+    /// External code should use `BrowserManager::global()`.
+    fn new() -> Self {
         Self {
             browser: Arc::new(OnceCell::new()),
         }
@@ -82,7 +113,7 @@ impl BrowserManager {
     ///
     /// # Example
     /// ```rust
-    /// let manager = BrowserManager::new();
+    /// let manager = BrowserManager::global();
     /// let browser_arc = manager.get_or_launch().await?;
     /// let browser_guard = browser_arc.lock().await;
     /// if let Some(wrapper) = browser_guard.as_ref() {
