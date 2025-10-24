@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use kalosm::language::*;
-use kalosm_llama::Llama;
+// NEW - Workspace LLM infrastructure
+use kodegen_candle_agent::prelude::*;
+use tokio_stream::StreamExt;  // For stream.next().await
+
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
-
-// For vision/segmentation
-use image;
-use kalosm::vision;
 
 use crate::agent::{
     prompts::{AgentMessagePrompt, SystemPrompt},
@@ -23,15 +21,16 @@ use crate::utils::AgentState;
 pub struct Agent {
     task: String,
     add_infos: String,
-    use_vision: bool,
-    llm: Llama,
     browser: Arc<BrowserContext>,
     controller: Controller,
     system_prompt: SystemPrompt,
     agent_prompt: AgentMessagePrompt,
     max_actions_per_step: usize,
     agent_state: Arc<Mutex<AgentState>>,
-    tool_calling_method: String,
+    // NEW: LLM config (no instance needed - built on-demand)
+    temperature: f64,
+    max_tokens: u64,
+    // Keep channels
     command_channel: mpsc::Sender<AgentCommand>,
     response_channel: mpsc::Receiver<AgentResponse>,
 }
@@ -55,15 +54,15 @@ impl Agent {
     pub fn new(
         task: &str,
         add_infos: &str,
-        use_vision: bool,
-        llm: Llama,
         browser: Arc<BrowserContext>,
         controller: Controller,
         system_prompt: SystemPrompt,
         agent_prompt: AgentMessagePrompt,
         max_actions_per_step: usize,
         agent_state: Arc<Mutex<AgentState>>,
-        tool_calling_method: &str,
+        // NEW parameters
+        temperature: f64,
+        max_tokens: u64,
     ) -> AgentResult<Self> {
         // Create channels for command passing
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
@@ -72,15 +71,14 @@ impl Agent {
         let agent = Self {
             task: task.to_string(),
             add_infos: add_infos.to_string(),
-            use_vision: use_vision,
-            llm,
             browser,
             controller,
             system_prompt,
             agent_prompt,
             max_actions_per_step,
             agent_state,
-            tool_calling_method: tool_calling_method.to_string(),
+            temperature,    // ✅ NEW
+            max_tokens,     // ✅ NEW
             command_channel: cmd_tx,
             response_channel: resp_rx,
         };
@@ -272,64 +270,12 @@ impl Agent {
                     .as_ref()
                     .map(|bytes| base64::encode(bytes));
 
-                // === SEGMENT ANYTHING INTEGRATION ===
-                // If we have screenshot data, run segmentation using Kalosm vision API
-                let (segmentation_result, bounding_boxes) = if let Some(ref bytes) = screenshot_data {
-                    // Load image from bytes using the image crate
-                    let img = match image::load_from_memory(bytes) {
-                        Ok(img) => img,
-                        Err(e) => {
-                            error!("Failed to load screenshot as image: {}", e);
-                            // Continue without segmentation
-                            return Err(AgentError::UnexpectedError(format!("Failed to load screenshot as image: {}", e)));
-                        }
-                    };
-
-                    // Initialize the Segment Anything model
-                    let model = match kalosm::vision::SegmentAnything::builder().build() {
-                        Ok(model) => model,
-                        Err(e) => {
-                            error!("Failed to initialize Segment Anything model: {}", e);
-                            return Err(AgentError::UnexpectedError(format!("Failed to initialize Segment Anything model: {}", e)));
-                        }
-                    };
-
-                    // Segment the center of the image as a demonstration
-                    let x = img.width() / 2;
-                    let y = img.height() / 4;
-                    let settings = kalosm::vision::SegmentAnythingInferenceSettings::new(img.clone()).add_goal_point(x, y);
-
-                    match model.segment_from_points(settings) {
-                        Ok(segmentation) => {
-                            // Extract bounding boxes and labels for each region
-                            let mut boxes = Vec::new();
-                            for (i, region) in segmentation.regions().enumerate() {
-                                let bbox = region.bounding_box();
-                                // bounding_box() returns (x, y, width, height)
-                                boxes.push(VisualElementBox {
-                                    label: format!("region_{}", i + 1),
-                                    x: bbox.0,
-                                    y: bbox.1,
-                                    width: bbox.2,
-                                    height: bbox.3,
-                                });
-                            }
-                            (Some(segmentation), Some(boxes))
-                        }
-                        Err(e) => {
-                            error!("Segmentation failed: {}", e);
-                            (None, None)
-                        }
-                    }
-                } else {
-                    (None, None)
-                };
-                // === END SEGMENT ANYTHING INTEGRATION ===
-
-                // Store the segmentation_result and bounding_boxes for use in subsequent steps (OCR, prompt construction, etc.)
-
-                // The bounding_boxes variable now contains a Vec<VisualElementBox> for all detected regions.
-                // This will be used in subsequent steps (OCR, prompt construction, etc.).
+                // === VISION CODE REMOVED ===
+                // No segmentation with candle-agent yet
+                // When vision is added to kodegen_candle_agent, re-enable:
+                // - Segment Anything integration
+                // - VisualElementBox generation
+                // - bounding_boxes field
 
                 // Get page title and URL
                 let title = page.title().await.unwrap_or_else(|_| "Untitled".into());

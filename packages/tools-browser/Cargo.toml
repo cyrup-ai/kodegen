@@ -55,4 +55,30 @@ rand = "0.9.2"
 # Clipboard support (used by controller)
 arboard = "3.4"
 
+# LLM infrastructure (workspace package)
+kodegen_candle_agent = { path = "../tools-candle-agent", version = "0.1.0", optional = true }
+
+# MCP client for calling existing tools (HOT PATH!)
+kodegen_mcp_client = { path = "../mcp-client", version = "0.0.1", optional = true }
+
+# Time/date (required by deep_research.rs, agent/mod.rs)
+chrono = { version = "0.4", features = ["serde"], optional = true }
+
+# URL encoding (required by deep_research.rs:77)
+urlencoding = { version = "2.1", optional = true }
+
+# YAML config parsing
+serde_yaml = "0.9"
+
+# Plugin system (required by pdk.rs:1)
+extism-pdk = { version = "1.0", optional = true }
+
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
+
+[features]
+default = ["basic"]
+basic = []
+agent = ["kodegen_candle_agent", "kodegen_mcp_client", "chrono"]
+research = ["agent", "urlencoding"]
+pdk = ["extism-pdk"]
+full = ["agent", "research", "pdk"]

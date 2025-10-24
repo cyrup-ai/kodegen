@@ -511,7 +511,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         let mut has_entries = false;
         loop {
             let peeked = self.scanner.peek_line_indent()?;
-            if peeked < n + 1 {
+            if peeked < (n + 1) as usize {
                 break;
             }
             let this_indent = peeked;
@@ -540,7 +540,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         let token_pos = self.scanner.mark();
         let token = self.scanner.peek_token()?;
         let key_yaml = match &token.1 {
-            TokenType::QuestionMark => {
+            TokenType::Key => {
                 // Explicit key entry
                 self.scanner.fetch_token(); // consume ?
                 let ky = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
@@ -562,7 +562,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         };
         // Common value parsing after key and colon
         self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
-        let value_pos = self.scanner.mark();
+        let _value_pos = self.scanner.mark();
         let value_indent = self.scanner.peek_line_indent()?;
         let value_yaml = if value_indent > key_indent {
             self.context.push_context(YamlContext::BlockIn, value_indent as i32);

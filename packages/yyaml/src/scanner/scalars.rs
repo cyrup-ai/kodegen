@@ -376,6 +376,11 @@ pub fn scan_block_scalar<T: Iterator<Item = char>>(
             break;
         }
 
+        // Indent is sufficient - now consume it
+        for _ in 0..line_indent {
+            state.consume_char()?;
+        }
+
         // Check for blank line or EOF
         match state.peek_char() {
             Ok('\n') | Ok('\r') => {
@@ -571,21 +576,6 @@ fn peek_indentation_at_position<T: Iterator<Item = char>>(
     count
 }
 
-/// Count indentation at current position
-#[inline]
-fn count_indentation<T: Iterator<Item = char>>(
-    state: &mut ScannerState<T>,
-) -> Result<usize, ScanError> {
-    let mut count = 0;
-
-    while matches!(state.peek_char(), Ok(' ')) {
-        state.consume_char()?;
-        count += 1;
-    }
-
-    Ok(count)
-}
-
 /// Consume a line break (handling \r\n as single break)
 #[inline]
 fn consume_line_break<T: Iterator<Item = char>>(
@@ -675,7 +665,7 @@ pub fn apply_block_scalar_folding(
 /// Peek at indentation at current position without consuming characters
 #[inline]
 fn peek_line_indent_at_current<T: Iterator<Item = char>>(
-    state: &ScannerState<T>,
+    state: &mut ScannerState<T>,
 ) -> Result<usize, ScanError> {
     let mut count = 0;
     while let Some(' ') = state.peek_char_at(count) {
