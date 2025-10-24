@@ -166,7 +166,14 @@ pub async fn download_managed_browser() -> Result<PathBuf> {
 
     // Create cache directory for downloaded browser
     let cache_dir = dirs::cache_dir()
-        .unwrap_or_else(|| PathBuf::from("./.cache"))
+        .unwrap_or_else(|| {
+            let fallback = std::env::temp_dir().join(".cache");
+            warn!(
+                "Could not determine system cache directory, using temp directory fallback: {}",
+                fallback.display()
+            );
+            fallback
+        })
         .join("enigo/chromium");
 
     std::fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;

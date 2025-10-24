@@ -118,10 +118,16 @@ impl Tool for BrowserTypeTextTool {
 
         // Clear existing text if requested
         if args.clear {
-            // Select all (Ctrl+A) and delete
-            element.press_key("Control").await.ok(); // Ignore errors (may not be needed)
-            element.press_key("a").await.ok();
-            element.press_key("Backspace").await.ok();
+            element
+                .call_js_fn("function() { this.value = ''; }", false)
+                .await
+                .map_err(|e| {
+                    McpError::Other(anyhow::anyhow!(
+                        "Failed to clear field '{}': {}",
+                        args.selector,
+                        e
+                    ))
+                })?;
         }
 
         // Type text

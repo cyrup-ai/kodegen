@@ -144,7 +144,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     /// Execute a single state transition
     pub fn execute_state(&mut self) -> Result<(), ScanError> {
-        println!("StateMachine: executing state {:?}", self.state);
         match self.state {
             State::StreamStart => self.handle_stream_start(),
             State::DirectiveHeader => self.handle_directive_header(),
@@ -899,10 +898,28 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             if !matches!(token.1, TokenType::BlockEntry) {
                 return Err(ScanError::new(token.0, "Expected - for sequence entry"));
             }
-            let value_indent = entry_indent + 1;
-            self.context.push_context(YamlContext::BlockIn, value_indent);
-            self.scanner.process_structural_separation(&mut self.context, value_indent as i32)?;
-            self.handle_block_node()?;
+            self.scanner.process_structural_separation(&mut self.context, entry_indent as i32)?;
+            let next_token = self.scanner.peek_token()?;
+            match next_token.1 {
+                TokenType::Scalar(_, _) | TokenType::FlowSequenceStart | TokenType::FlowMappingStart | TokenType::Key => {
+                    // Compact
+                    self.handle_block_node()?;
+                }
+                _ => {
+                    // Not compact
+                    let value_indent = self.scanner.peek_line_indent()?;
+                    if value_indent > entry_indent {
+                        self.context.push_context(YamlContext::BlockIn, value_indent);
+                        self.handle_block_node()?;
+                        self.context.pop_context();
+                    } else {
+                        if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
+                            items.push(Yaml::Null);
+                        }
+                        continue;
+                    }
+                }
+            }
             let value = if let Some(builder) = self.ast_stack.pop() {
                 self.finalize_builder(builder)
             } else {
@@ -911,7 +928,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
                 items.push(value);
             }
-            self.context.pop_context();
         }
         self.context.pop_context();
         Ok(())
