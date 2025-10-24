@@ -9450,6 +9450,7 @@ dependencies = [
  "futures",
  "kodegen_candle_agent",
  "kodegen_mcp_tool",
+ "lazy_static",
  "log",
  "lru 0.16.2",
  "regex",

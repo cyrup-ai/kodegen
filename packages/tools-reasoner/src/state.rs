@@ -23,37 +23,35 @@ impl StateManager {
     }
 
     pub async fn get_node(&self, id: &str) -> Option<ThoughtNode> {
-        // Check cache first
-        let mut cache = self.cache.lock().await;
-        if let Some(node) = cache.get(id) {
-            return Some(node.clone());
+        // Fast path: cache-only check (no storage lock)
+        {
+            let cache = self.cache.lock().await;
+            if let Some(node) = cache.get(id) {
+                return Some(node.clone());
+            }
         }
-
-        // Check main storage
+        
+        // Cache miss: atomic storage read + cache update
         let nodes = self.nodes.lock().await;
-        if let Some(node) = nodes.get(id) {
-            let node_clone = node.clone();
-            drop(nodes); // Release the lock before modifying the cache
-
-            cache.put(id.to_string(), node_clone.clone());
-            return Some(node_clone);
+        let node_opt = nodes.get(id).map(|n| n.clone());
+        
+        if let Some(ref node_data) = node_opt {
+            let mut cache = self.cache.lock().await;
+            cache.put(id.to_string(), node_data.clone());
         }
-
-        None
+        
+        node_opt
     }
 
     pub async fn save_node(&self, node: ThoughtNode) {
         let node_id = node.id.clone();
-        let node_clone = node.clone();
-
-        // Save to main storage
+        
+        // Atomic update: lock both in consistent order
         let mut nodes = self.nodes.lock().await;
-        nodes.insert(node_id.clone(), node);
-        drop(nodes); // Release the lock before modifying the cache
-
-        // Update cache
         let mut cache = self.cache.lock().await;
-        cache.put(node_id, node_clone);
+        
+        nodes.insert(node_id.clone(), node.clone());
+        cache.put(node_id, node);
     }
 
     pub async fn get_children(&self, node_id: &str) -> Vec<ThoughtNode> {
@@ -73,19 +71,21 @@ impl StateManager {
     }
 
     pub async fn get_path(&self, node_id: &str) -> Vec<ThoughtNode> {
-        let mut path = vec![];
-        let mut current_id = node_id.to_string();
+        let nodes = self.nodes.lock().await;
+        let mut path = Vec::new();
+        let mut current_id = node_id;
 
         while !current_id.is_empty() {
-            match self.get_node(&current_id).await {
+            match nodes.get(current_id) {
                 Some(node) => {
-                    path.insert(0, node.clone());
-                    current_id = node.parent_id.unwrap_or_default();
+                    path.push(node.clone());
+                    current_id = node.parent_id.as_deref().unwrap_or("");
                 }
                 None => break,
             }
         }
-
+        
+        path.reverse();
         path
     }
 
@@ -95,11 +95,11 @@ impl StateManager {
     }
 
     pub async fn clear(&self) {
+        // Atomic clear: lock both in consistent order
         let mut nodes = self.nodes.lock().await;
-        nodes.clear();
-        drop(nodes);
-
         let mut cache = self.cache.lock().await;
+        
+        nodes.clear();
         cache.clear();
     }
 }

@@ -82,7 +82,8 @@ impl Strategy for BeamSearchStrategy {
             // Evaluate and score the node
             node.score = self_clone
                 .base
-                .evaluate_thought(&node, parent_node.as_ref());
+                .evaluate_thought(&node, parent_node.as_ref())
+                .await;
             if let Err(e) = self_clone.base.save_node(node.clone()).await {
                 let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
                     format!("Failed to save node: {}", e)

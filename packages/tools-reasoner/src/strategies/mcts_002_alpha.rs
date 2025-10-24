@@ -367,7 +367,7 @@ impl MCTS002AlphaStrategy {
         new_node.novelty_score = Some(self.calculate_novelty(&new_node));
         // Calculate policy score with semantic coherence
         new_node.policy_score = self.calculate_policy_score(&new_node, Some(&node)).await;
-        new_node.base.score = self.base.evaluate_thought(&new_node.base, Some(&node.base));
+        new_node.base.score = self.base.evaluate_thought(&new_node.base, Some(&node.base)).await;
         // Await the async calculation
         new_node.value_estimate = self.estimate_value(&new_node).await;
 
@@ -697,7 +697,8 @@ impl Strategy for MCTS002AlphaStrategy {
             // Initialize node with policy guidance
             node.base.score = self_clone
                 .base
-                .evaluate_thought(&node.base, parent_node.as_ref().map(|p| &p.base));
+                .evaluate_thought(&node.base, parent_node.as_ref().map(|p| &p.base))
+                .await;
             node.visits = 1;
             node.total_reward = node.base.score;
             // Calculate policy score and value estimate

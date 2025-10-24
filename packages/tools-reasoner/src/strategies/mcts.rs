@@ -110,7 +110,7 @@ impl MonteCarloTreeSearchStrategy {
             is_complete: false,
         };
 
-        new_node.score = self.base.evaluate_thought(&new_node, Some(&node.base));
+        new_node.score = self.base.evaluate_thought(&new_node, Some(&node.base)).await;
 
         // Save the new node
         if let Err(e) = self.base.save_node(new_node.clone()).await {
@@ -166,7 +166,8 @@ impl MonteCarloTreeSearchStrategy {
 
             simulated_node.score = self
                 .base
-                .evaluate_thought(&simulated_node, Some(&current.base));
+                .evaluate_thought(&simulated_node, Some(&current.base))
+                .await;
             total_score += simulated_node.score;
 
             // Update current to the simulated node
@@ -368,7 +369,8 @@ impl Strategy for MonteCarloTreeSearchStrategy {
             // Initialize node
             node.score = self_clone
                 .base
-                .evaluate_thought(&node, parent_node.as_ref());
+                .evaluate_thought(&node, parent_node.as_ref())
+                .await;
             if let Err(e) = self_clone.base.save_node(node.clone()).await {
                 tracing::error!("Error saving node: {}", e);
             }

@@ -122,21 +122,26 @@ impl MemoryTool {
     /// Create a new memory tool instance
     #[must_use]
     pub fn new(memory: Arc<SurrealDBMemoryManager>) -> Self {
+        let schema_json = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["memorize", "recall", "vector_search", "get_memory", "update_memory", "delete_memory"]
+                }
+            },
+            "required": ["operation"]
+        });
+        let schema_map = schema_json.as_object().unwrap().clone();
+        
         let data = ToolInfo {
-            name: "memory".to_string(),
-            description: Some(
-                "Memory management tool for storing and retrieving information".to_string(),
-            ),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "enum": ["memorize", "recall", "vector_search", "get_memory", "update_memory", "delete_memory"]
-                    }
-                },
-                "required": ["operation"]
-            }),
+            name: "memory".into(),
+            title: None,
+            description: Some("Memory management tool for storing and retrieving information".into()),
+            input_schema: Arc::new(schema_map),
+            output_schema: None,
+            annotations: None,
+            icons: None,
         };
 
         Self { data, memory }
