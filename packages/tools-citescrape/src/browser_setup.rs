@@ -221,26 +221,11 @@ pub async fn launch_browser(
     };
 
     // Use provided chrome_data_dir or fall back to process ID
-    eprintln!("DEBUG browser_setup: chrome_data_dir parameter = {chrome_data_dir:?}");
     let user_data_dir = chrome_data_dir.unwrap_or_else(|| {
-        let fallback_dir =
-            std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()));
-        eprintln!(
-            "DEBUG browser_setup: No chrome_data_dir provided, using process ID fallback: {}",
-            fallback_dir.display()
-        );
-        fallback_dir
+        std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()))
     });
 
-    eprintln!(
-        "DEBUG browser_setup: Using Chrome user data directory: {}",
-        user_data_dir.display()
-    );
     std::fs::create_dir_all(&user_data_dir).context("Failed to create user data directory")?;
-    eprintln!(
-        "DEBUG browser_setup: Created Chrome user data directory: {}",
-        user_data_dir.display()
-    );
 
     // Build browser config with the executable path
     let mut config_builder = BrowserConfigBuilder::default()

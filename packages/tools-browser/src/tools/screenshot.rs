@@ -67,12 +67,16 @@ impl Tool for BrowserScreenshotTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Determine format
         let format = match args.format.as_deref() {
@@ -87,12 +91,23 @@ impl Tool for BrowserScreenshotTool {
         let image_data = if let Some(selector) = &args.selector {
             // Element screenshot
             let element = page.find_element(selector).await.map_err(|e| {
-                McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
+                McpError::Other(anyhow::anyhow!(
+                    "Element not found for selector '{}'. \
+                     Verify: (1) Selector syntax is valid CSS, \
+                     (2) Element exists on current page, \
+                     (3) Element is not in an iframe (unsupported). \
+                     Error: {}",
+                    selector, e
+                ))
             })?;
 
-            element.screenshot(format_enum.clone()).await.map_err(|e| {
+            element.screenshot(format.clone()).await.map_err(|e| {
                 McpError::Other(anyhow::anyhow!(
-                    "Element screenshot failed for '{}': {}",
+                    "Element screenshot failed for selector '{}'. \
+                     Possible causes: (1) Element is not visible or has no dimensions, \
+                     (2) Element is obscured or off-screen, \
+                     (3) Page is still loading. \
+                     Error: {}",
                     selector,
                     e
                 ))
@@ -101,7 +116,14 @@ impl Tool for BrowserScreenshotTool {
             // Full page screenshot
             page.screenshot(screenshot_params)
                 .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Page screenshot failed: {}", e)))?
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Page screenshot failed. \
+                     Possible causes: (1) Page has not fully loaded, \
+                     (2) Page has excessive height or width, \
+                     (3) Browser is in an invalid state. \
+                     Error: {}",
+                    e
+                )))?
         };
 
         // Encode as base64

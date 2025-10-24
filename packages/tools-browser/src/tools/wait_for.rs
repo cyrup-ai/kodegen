@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
+use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallFunctionOnParams, CallArgument};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -297,15 +298,16 @@ async fn check_condition(
                     "attribute_value parameter required for AttributeIs condition"
                 ))?;
             
-            let js_fn = format!(
-                r#"function() {{
-                    return this.getAttribute('{}') === '{}';
-                }}"#,
-                attr_name.replace('\\', "\\\\").replace('\'', "\\'"),
-                attr_value.replace('\\', "\\\\").replace('\'', "\\'")
-            );
+            // Safe: parameterized evaluation prevents injection
+            let call = CallFunctionOnParams::builder()
+                .function_declaration("(attrName, attrValue) => { return this.getAttribute(attrName) === attrValue; }")
+                .object_id(element.remote_object_id.clone())
+                .argument(CallArgument::builder().value(json!(attr_name)).build())
+                .argument(CallArgument::builder().value(json!(attr_value)).build())
+                .build()
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build attribute check params: {}", e)))?;
             
-            let result = element.call_js_fn(&js_fn, false).await
+            let result = page.execute(call).await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check attribute: {}", e)))?;
             
             Ok(result.result.value
