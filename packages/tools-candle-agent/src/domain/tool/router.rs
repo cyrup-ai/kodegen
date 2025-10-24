@@ -205,7 +205,8 @@ impl CandleToolRouter {
     /// Execute a tool by name
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value, RouterError> {
         // Try local tools first
-        if let Some(executor) = self.local_tools.read().get(name).cloned() {
+        let executor = self.local_tools.read().get(name).cloned();
+        if let Some(executor) = executor {
             return executor.execute(args).await;
         }
         
@@ -223,7 +224,8 @@ impl CandleToolRouter {
         // Try Cylo execution (for execute_* tools)
         if name.starts_with("execute_") && self.cylo_config.is_some() {
             // Get the route to know backend config
-            if let Some(route) = self.tool_routes.read().get(name).cloned() {
+            let route = self.tool_routes.read().get(name).cloned();
+            if let Some(route) = route {
                 if let ToolRoute::Cylo { backend_type, config } = route {
                     return self.execute_cylo_backend(&backend_type, &config, args).await;
                 }
