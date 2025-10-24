@@ -24,6 +24,7 @@ use crate::domain::completion::ToolCallParser;
 use uuid::Uuid;
 use crate::domain::model::{info::CandleModelInfo, traits::CandleModel};
 use crate::domain::prompt::CandlePrompt;
+use kodegen_simd::logits::constraints::GenerationConstraint;
 
 /// Builder trait for Qwen3 Quantized completion providers
 pub trait BuilderCandleQwen3QuantizedModel: Send + Sync + 'static {
@@ -203,6 +204,153 @@ impl LoadedQwen3QuantizedModel {
             engine: Arc::clone(&base.engine),
             eos_token_id,
         })
+    }
+
+    /// Get reference to tokenizer for constraint creation
+    ///
+    /// This is required by the tool selection agent to create schema constraints
+    /// using `constraint_for_type()` which needs access to the tokenizer's vocabulary.
+    pub fn tokenizer(&self) -> &tokenizers::Tokenizer {
+        &self.tokenizer
+    }
+
+    /// Generate text with schema constraint to guarantee valid JSON output
+    ///
+    /// This method implements structured generation by masking invalid tokens
+    /// based on a schema constraint, ensuring the output conforms to a specific
+    /// JSON structure (e.g., ToolSelectionResponse).
+    ///
+    /// # Arguments
+    /// * `prompt` - The prompt to generate from
+    /// * `type_constraint` - Schema constraint created via `constraint_for_type()`
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Generated text guaranteed to match schema
+    /// * `Err(anyhow::Error)` - If generation fails
+    pub async fn prompt_with_context(
+        &self,
+        prompt: String,
+        type_constraint: kodegen_simd::logits::constraints::SchemaConstraint,
+    ) -> anyhow::Result<String> {
+        use anyhow::Context;
+        use rand::Rng;
+
+        // Initialize constraint state
+        let mut constraint_state = type_constraint.new_state();
+        
+        // Tokenize prompt
+        let tokens = self.tokenizer
+            .encode(prompt, true)
+            .context("Failed to tokenize prompt")?;
+        let mut all_tokens = tokens.get_ids().to_vec();
+        
+        // Generation loop with constraint masking
+        let mut generated_text = String::new();
+        let max_tokens = 500;
+        
+        for _ in 0..max_tokens {
+            // Get logits from model
+            let input_ids = Tensor::new(&all_tokens[..], &self.device)?;
+            let logits = {
+                let mut model = self.model.lock().await;
+                model.forward(&input_ids.unsqueeze(0)?)?
+            };
+            
+            // Extract next token logits
+            let logits = logits.i((0, logits.dim(1)? - 1))?;
+            let mut logits_vec = logits.to_vec1::<f32>()?;
+            
+            // Apply temperature for more deterministic selection
+            let temperature = 0.3;
+            if temperature != 1.0 {
+                for logit in &mut logits_vec {
+                    *logit /= temperature;
+                }
+            }
+            
+            // ═══════════════════════════════════════════════════════════
+            // CONSTRAINT MASKING - Insert AFTER penalties, BEFORE sampling
+            // ═══════════════════════════════════════════════════════════
+            for (token_id, logit) in logits_vec.iter_mut().enumerate() {
+                let is_valid = type_constraint
+                    .try_next(&constraint_state, token_id as u32)
+                    .unwrap_or(false);
+                
+                if !is_valid {
+                    *logit = f32::NEG_INFINITY; // Mask invalid tokens
+                }
+            }
+            
+            // Sample next token (now guaranteed to be schema-valid)
+            let next_token = self.sample_token(&logits_vec)?;
+            
+            // Update constraint state with accepted token
+            let continue_generation = type_constraint
+                .update(&mut constraint_state, next_token)
+                .context("Constraint update failed")?;
+            
+            // Check if schema is complete
+            if !continue_generation || type_constraint.is_done(&constraint_state) {
+                break;
+            }
+            
+            // Decode and append token
+            all_tokens.push(next_token);
+            let token_text = self.tokenizer.decode(&[next_token], false)
+                .context("Failed to decode token")?;
+            generated_text.push_str(&token_text);
+            
+            // Stop on EOS
+            if Some(next_token) == self.eos_token_id {
+                break;
+            }
+        }
+        
+        Ok(generated_text)
+    }
+
+    /// Sample a token from logits distribution
+    ///
+    /// Converts logits to probabilities via softmax and samples from the
+    /// resulting distribution using basic random sampling.
+    ///
+    /// # Arguments
+    /// * `logits` - Logit values for each token in vocabulary
+    ///
+    /// # Returns
+    /// * `Ok(u32)` - Sampled token ID
+    /// * `Err(anyhow::Error)` - If sampling fails
+    fn sample_token(&self, logits: &[f32]) -> anyhow::Result<u32> {
+        use rand::Rng;
+
+        // Convert logits to probabilities via softmax
+        let max_logit = logits.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        
+        // Check for all invalid tokens (all NEG_INFINITY)
+        if max_logit.is_infinite() && max_logit.is_sign_negative() {
+            anyhow::bail!("All tokens masked - cannot sample");
+        }
+        
+        let exp_sum: f32 = logits.iter().map(|&l| (l - max_logit).exp()).sum();
+        
+        let probs: Vec<f32> = logits
+            .iter()
+            .map(|&l| (l - max_logit).exp() / exp_sum)
+            .collect();
+        
+        // Sample from distribution
+        let mut rng = rand::thread_rng();
+        let sample: f32 = rng.gen();
+        let mut cumsum = 0.0;
+        
+        for (i, &prob) in probs.iter().enumerate() {
+            cumsum += prob;
+            if cumsum >= sample {
+                return Ok(i as u32);
+            }
+        }
+        
+        Ok((probs.len() - 1) as u32) // Fallback to last token
     }
 }
 

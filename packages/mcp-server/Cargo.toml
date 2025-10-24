@@ -33,6 +33,7 @@ kodegen_tools_citescrape = { path = "../tools-citescrape", optional = true , ver
 kodegen_tools_git = { path = "../tools-git", optional = true , version = "0.0.1" }
 kodegen_tools_github = { path = "../tools-github", optional = true , version = "0.0.1" }
 kodegen_tools_database = { path = "../tools-database", optional = true, version = "0.0.1" }
+kodegen_tools_browser = { path = "../tools-browser", optional = true, version = "0.0.1" }
 
 # Core packages - REQUIRED (always compiled)
 kodegen_tools_config = { path = "../tools-config" , version = "0.0.1" }
@@ -130,7 +131,8 @@ all = [
     "git",
     "github",
     "config",
-    "database"
+    "database",
+    "browser"
 ]
 
 # Individual tool categories (feature names EXACTLY match package names)
@@ -147,6 +149,7 @@ git = ["dep:kodegen_tools_git"]
 github = ["dep:kodegen_tools_github"]
 config = []  # Config tools (ConfigManager is always required by other tools)
 database = ["dep:kodegen_tools_database", "dep:sqlx"]  
+browser = ["dep:kodegen_tools_browser"]
 
 # Convenience feature sets
 minimal = ["filesystem", "terminal"]

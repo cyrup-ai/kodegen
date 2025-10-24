@@ -8547,6 +8547,7 @@ dependencies = [
  "kodegen_bundler_autoconfig",
  "kodegen_mcp_client",
  "kodegen_mcp_tool",
+ "kodegen_tools_browser",
  "kodegen_tools_citescrape",
  "kodegen_tools_claude_agent",
  "kodegen_tools_config",

@@ -30,7 +30,6 @@ impl BrowserExtractTextTool {
     }
 }
 
-#[async_trait::async_trait]
 impl Tool for BrowserExtractTextTool {
     type Args = BrowserExtractTextArgs;
     type PromptArgs = BrowserExtractTextPromptArgs;
@@ -42,8 +41,9 @@ impl Tool for BrowserExtractTextTool {
     fn description() -> &'static str {
         "Extract text content from the page or specific element.\\n\\n\
          Returns the text content for AI agent analysis.\\n\\n\
-         Example: browser_extract_text({}) for full page\\n\
-         Example: browser_extract_text({\"selector\": \"#content\"}) for specific element"
+         Example: browser_extract_text({}) - Full page text\\n\
+         Example: browser_extract_text({\\\"selector\\\": \\\"#content\\\"}) - Specific element\\n\
+         Example: browser_extract_text({\\\"selector\\\": \\\"article.post\\\"}) - By class"
     }
 
     fn read_only() -> bool {
@@ -51,36 +51,62 @@ impl Tool for BrowserExtractTextTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Get browser context
-        let context = self.manager.get_or_create_context().await
+        // Get or create browser instance
+        let browser_arc = self.manager.get_or_launch().await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-
+        
+        let browser_guard = browser_arc.lock().await;
+        let wrapper = browser_guard.as_ref()
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+        
         // Get current page
-        let page = context.get_current_page().await
+        let page = crate::browser::create_blank_page(wrapper).await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
-
-        // Extract text
+        
+        // Extract text based on selector
         let text = if let Some(selector) = &args.selector {
             // Extract from specific element
-            page.text_content(selector).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get text: {}", e)))?
+            let element = page.find_element(selector).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Element not found '{}': {}", 
+                    selector, 
+                    e
+                )))?;
+            
+            // Get element's inner text
+            element.inner_text().await
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Failed to get text from '{}': {}", 
+                    selector,
+                    e
+                )))?
+                .unwrap_or_default()
         } else {
-            // Extract from entire page - get body text
+            // Extract from entire page using JavaScript
             let body_text = page.evaluate("document.body.innerText").await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to extract page text: {}", e)))?;
-
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Failed to extract page text: {}", 
+                    e
+                )))?;
+            
+            // Parse result value
             body_text.value()
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string()
         };
-
+        
         Ok(json!({
             "success": true,
             "text": text,
             "length": text.len(),
             "selector": args.selector,
-            "message": format!("Extracted {} characters", text.len())
+            "source": if args.selector.is_some() { "element" } else { "page" },
+            "message": format!(
+                "Extracted {} characters from {}", 
+                text.len(),
+                args.selector.as_ref().unwrap_or(&"full page".to_string())
+            )
         }))
     }
 
@@ -99,8 +125,10 @@ impl Tool for BrowserExtractTextTool {
                 content: PromptMessageContent::text(
                     "Use browser_extract_text to get page content. Examples:\\n\
                      - browser_extract_text({}) - Full page text\\n\
-                     - browser_extract_text({\"selector\": \"#article\"}) - Specific element\\n\
-                     - browser_extract_text({\"selector\": \".content\"}) - By class"
+                     - browser_extract_text({\\\"selector\\\": \\\"#article\\\"}) - Specific element by ID\\n\
+                     - browser_extract_text({\\\"selector\\\": \\\".content\\\"}) - By class\\n\
+                     - browser_extract_text({\\\"selector\\\": \\\"article p\\\"}) - Nested selector\\n\\n\
+                     Returns visible text only (no HTML tags)."
                 ),
             },
         ])

@@ -11,9 +11,11 @@
 //! - Full `tokio_stream::Stream` compatibility
 
 pub mod router;
+pub mod selector;
 
 // Re-export the router and error types
 pub use router::{CandleToolRouter, CyloBackendConfig, RouterError};
+pub use selector::*;
 
 // Re-export workspace MCP types
 pub use kodegen_mcp_client::KodegenClient;

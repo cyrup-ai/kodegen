@@ -87,6 +87,8 @@ pub enum ToolCategory {
     Github,
     /// Database operations (8 tools)
     Database,
+    /// Browser automation (7 tools)
+    Browser,
 }
 
 /// All available tool categories
@@ -106,6 +108,7 @@ pub const ALL_CATEGORIES: &[ToolCategory] = &[
     ToolCategory::Git,
     ToolCategory::Github,
     ToolCategory::Database,
+    ToolCategory::Browser,
 ];
 
 impl ToolCategory {
@@ -129,6 +132,7 @@ impl ToolCategory {
             Self::Git => "git",
             Self::Github => "github",
             Self::Database => "database",
+            Self::Browser => "browser",
         }
     }
 
@@ -156,6 +160,7 @@ impl ToolCategory {
             Self::Git => "Git operations",
             Self::Github => "GitHub API integration",
             Self::Database => "Database operations",
+            Self::Browser => "Browser automation",
         }
     }
 }

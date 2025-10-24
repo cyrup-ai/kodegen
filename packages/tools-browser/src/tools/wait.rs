@@ -5,10 +5,7 @@ use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent, Prompt
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::sync::Arc;
 use std::time::Duration;
-
-use crate::manager::BrowserManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserWaitArgs {
@@ -19,18 +16,15 @@ pub struct BrowserWaitArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserWaitPromptArgs {}
 
-#[derive(Clone)]
-pub struct BrowserWaitTool {
-    manager: Arc<BrowserManager>,
-}
+#[derive(Clone, Default)]
+pub struct BrowserWaitTool;
 
 impl BrowserWaitTool {
-    pub fn new(manager: Arc<BrowserManager>) -> Self {
-        Self { manager }
+    pub fn new() -> Self {
+        Self
     }
 }
 
-#[async_trait::async_trait]
 impl Tool for BrowserWaitTool {
     type Args = BrowserWaitArgs;
     type PromptArgs = BrowserWaitPromptArgs;

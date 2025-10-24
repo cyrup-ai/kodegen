@@ -99,7 +99,7 @@ impl FlowProductions {
                     state.consume_char()?;
                     // Check for quote doubling
                     match state.peek_char() {
-                        Ok(next) if next == '\'' => {
+                        Ok('\'') => {
                             state.consume_char()?;
                             content.push('\''); // Escaped quote
                         }

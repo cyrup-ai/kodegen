@@ -3,7 +3,7 @@
 use super::*;
 use crate::domain::agent::core::AGENT_STATS;
 use crate::domain::completion::types::ToolInfo;
-use crate::domain::tool::CandleToolRouter;
+use crate::domain::tool::{CandleToolRouter, ToolSelector};
 use kodegen_mcp_client::create_sse_client;
 
 pub struct CandleAgentRoleAgent {
@@ -91,7 +91,31 @@ impl CandleAgentRoleAgent {
                     all_tools.extend(auto_generated_tools);
 
                     if !all_tools.is_empty() {
-                        params.tools = Some(ZeroOneOrMany::from(all_tools));
+                        // ═══════════════════════════════════════════════════════════
+                        // TOOL SELECTION: Filter to 2-3 most relevant tools
+                        // ═══════════════════════════════════════════════════════════
+                        let final_tools = if all_tools.len() > 3 {
+                            // Use tool selection agent to filter
+                            let selector = ToolSelector::new(state.text_to_text_model.clone());
+                            let selected_names = selector
+                                .select_tools(&user_message, &all_tools)
+                                .await
+                                .unwrap_or_else(|e| {
+                                    log::warn!("Tool selection failed: {}, using all tools", e);
+                                    all_tools.iter().map(|t| t.name.clone()).collect()
+                                });
+                            
+                            // Filter to selected tools only
+                            all_tools
+                                .into_iter()
+                                .filter(|t| selected_names.contains(&t.name))
+                                .collect()
+                        } else {
+                            // 3 or fewer tools - no selection needed
+                            all_tools
+                        };
+                        
+                        params.tools = Some(ZeroOneOrMany::from(final_tools));
                     }
                 }
 

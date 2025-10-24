@@ -324,6 +324,12 @@ where
         }
     }
     
+    // Browser tools
+    #[cfg(feature = "browser")]
+    if is_category_enabled("browser", enabled_categories) {
+        (tool_router, prompt_router) = register_browser_tools(tool_router, prompt_router).await?;
+    }
+    
     // Reasoner tools
     #[cfg(feature = "reasoner")]
     if is_category_enabled("reasoner", enabled_categories) {
@@ -731,6 +737,59 @@ where
         tool_router,
         prompt_router,
         kodegen_tools_database::tools::GetPoolStatsTool::new(pool.clone(), connection_url)?
+    );
+    
+    Ok((tool_router, prompt_router))
+}
+
+#[cfg(feature = "browser")]
+async fn register_browser_tools<S>(
+    tool_router: ToolRouter<S>,
+    prompt_router: PromptRouter<S>,
+) -> Result<(ToolRouter<S>, PromptRouter<S>)>
+where
+    S: Send + Sync + 'static
+{
+    log::debug!("Initializing browser tools");
+    
+    // Create shared browser manager (lazy-loads Chrome on first use)
+    let browser_manager = Arc::new(kodegen_tools_browser::BrowserManager::new());
+    
+    // Register all 7 available tools
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserNavigateTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserScreenshotTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserClickTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserTypeTextTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserExtractTextTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router, 
+        prompt_router,
+        kodegen_tools_browser::BrowserScrollTool::new(browser_manager.clone())
+    );
+    let (tool_router, prompt_router) = register_tool(
+        tool_router,
+        prompt_router,
+        kodegen_tools_browser::BrowserWaitTool::new()
     );
     
     Ok((tool_router, prompt_router))

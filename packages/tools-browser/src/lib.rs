@@ -16,4 +16,12 @@ pub use browser::{
     download_managed_browser,
 };
 pub use manager::BrowserManager;
-pub use tools::{BrowserNavigateTool, BrowserScreenshotTool};
+pub use tools::{
+    BrowserNavigateTool, 
+    BrowserScreenshotTool,
+    BrowserClickTool,
+    BrowserTypeTextTool,
+    BrowserExtractTextTool,
+    BrowserScrollTool,
+    BrowserWaitTool,
+};

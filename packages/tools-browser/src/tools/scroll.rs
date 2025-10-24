@@ -38,7 +38,6 @@ impl BrowserScrollTool {
     }
 }
 
-#[async_trait::async_trait]
 impl Tool for BrowserScrollTool {
     type Args = BrowserScrollArgs;
     type PromptArgs = BrowserScrollPromptArgs;
@@ -59,21 +58,26 @@ impl Tool for BrowserScrollTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Get browser context
-        let context = self.manager.get_or_create_context().await
+        // Get browser instance
+        let browser_arc = self.manager.get_or_launch().await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-
-        // Get current page
-        let page = context.get_current_page().await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+        
+        let browser_guard = browser_arc.lock().await;
+        let wrapper = browser_guard.as_ref()
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+        
+        // Create new page with blank state
+        let page = crate::browser::create_blank_page(wrapper).await
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create page: {}", e)))?;
 
         // Perform scroll
         if let Some(selector) = &args.selector {
-            // Scroll to element using JavaScript
-            let js_code = format!("document.querySelector('{}').scrollIntoView()", 
-                selector.replace("'", "\\'"));
-
-            page.evaluate(&js_code).await
+            // Find element first (validates existence)
+            let element = page.find_element(selector).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e)))?;
+            
+            // Use chromiumoxide's scroll_into_view() (has IntersectionObserver check)
+            element.scroll_into_view().await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
 
             Ok(json!({
@@ -89,7 +93,7 @@ impl Tool for BrowserScrollTool {
 
             let js_code = format!("window.scrollBy({}, {})", x, y);
 
-            page.evaluate(&js_code).await
+            page.evaluate(js_code.as_str()).await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
 
             Ok(json!({
