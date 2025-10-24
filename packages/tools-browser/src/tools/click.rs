@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
+use crate::utils::validate_interaction_timeout;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserClickArgs {
@@ -77,7 +78,7 @@ impl Tool for BrowserClickTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
 
         // Find element with timeout
-        let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(5000));
+        let timeout = validate_interaction_timeout(args.timeout_ms, 5000)?;
 
         let element = tokio::time::timeout(timeout, page.find_element(&args.selector))
             .await

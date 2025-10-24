@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
+use crate::utils::validate_navigation_timeout;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserNavigateArgs {
@@ -91,14 +92,12 @@ impl Tool for BrowserNavigateTool {
         }
 
         // Create new blank page (now guaranteed to be the ONLY page)
-        let page = wrapper
-            .browser()
-            .new_page("about:blank")
+        let page = crate::browser::create_blank_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create page: {}", e)))?;
+            .map_err(|e| McpError::Other(e.into()))?;
 
         // Navigate to URL
-        let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(30000));
+        let timeout = validate_navigation_timeout(args.timeout_ms, 30000)?;
         tokio::time::timeout(timeout, page.goto(&args.url))
             .await
             .map_err(|_| {

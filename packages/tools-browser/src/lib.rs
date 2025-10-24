@@ -5,6 +5,7 @@
 mod browser;
 mod manager;
 mod tools;
+mod utils;
 
 pub use browser::{
     BrowserError, BrowserResult, BrowserWrapper, download_managed_browser, find_browser_executable,

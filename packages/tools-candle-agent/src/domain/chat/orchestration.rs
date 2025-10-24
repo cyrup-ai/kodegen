@@ -207,7 +207,7 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn test_format_tools_for_selection() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_format_tools_for_selection() {
         let schema = serde_json::json!({"type": "object"});
         let schema_map = if let serde_json::Value::Object(map) = schema {
             Arc::new(map)
@@ -239,11 +239,10 @@ mod tests {
         let formatted = format_tools_for_selection(&tools);
         assert!(formatted.contains("calculator: Perform calculations"));
         assert!(formatted.contains("search: Search the web"));
-        Ok(())
     }
 
     #[test]
-    fn test_get_selected_tool_schemas() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_get_selected_tool_schemas() {
         let schema = serde_json::json!({});
         let schema_map = if let serde_json::Value::Object(map) = schema {
             Arc::new(map)
@@ -275,6 +274,5 @@ mod tests {
         let selected = get_selected_tool_schemas(&["tool1".to_string()], &tools);
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0].name.as_ref(), "tool1");
-        Ok(())
     }
 }

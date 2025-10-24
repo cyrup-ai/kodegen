@@ -5,7 +5,8 @@ use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMes
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::time::Duration;
+
+use crate::utils::validate_wait_timeout;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserWaitArgs {
@@ -43,15 +44,8 @@ impl Tool for BrowserWaitTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Validate duration (cap at 30 seconds for safety)
-        if args.duration_ms > 30000 {
-            return Err(McpError::invalid_arguments(
-                "Duration cannot exceed 30000ms (30 seconds)",
-            ));
-        }
-
-        // Wait
-        let duration = Duration::from_millis(args.duration_ms);
+        // Validate duration
+        let duration = validate_wait_timeout(args.duration_ms)?;
         tokio::time::sleep(duration).await;
 
         Ok(json!({

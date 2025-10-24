@@ -212,12 +212,6 @@ impl BrowserManager {
     }
 }
 
-impl Default for BrowserManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Drop for BrowserManager {
     fn drop(&mut self) {
         // Cleanup happens via BrowserWrapper::drop() automatically

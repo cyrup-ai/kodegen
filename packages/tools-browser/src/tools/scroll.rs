@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
+use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallFunctionOnParams, CallArgument};
 
 use crate::manager::BrowserManager;
 
@@ -99,9 +100,15 @@ impl Tool for BrowserScrollTool {
             let x = args.x.unwrap_or(0);
             let y = args.y.unwrap_or(0);
 
-            let js_code = format!("window.scrollBy({}, {})", x, y);
+            // Safe: parameterized evaluation prevents injection
+            let call = CallFunctionOnParams::builder()
+                .function_declaration("(x, y) => window.scrollBy(x, y)")
+                .argument(CallArgument::builder().value(json!(x)).build())
+                .argument(CallArgument::builder().value(json!(y)).build())
+                .build()
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build scroll params: {}", e)))?;
 
-            page.evaluate(js_code.as_str())
+            page.evaluate_function(call)
                 .await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
 

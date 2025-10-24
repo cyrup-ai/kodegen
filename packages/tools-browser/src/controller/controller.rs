@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use arboard::Clipboard;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallFunctionOnParams, CallArgument};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
@@ -136,18 +138,33 @@ impl Controller {
                             .and_then(|a| a.parse::<i32>().ok())
                             .unwrap_or(500);
                         let element_index = params.parameters.get("element_index");
-                        let scroll_script = if let Some(idx) = element_index {
-                            format!("document.querySelector('[data-mcp-index=\"{}\"]').scrollIntoView();", idx)
-                        } else {
-                            match direction {
-                                "up" => format!("window.scrollBy(0, -{})", amount),
-                                "down" => format!("window.scrollBy(0, {})", amount),
-                                "to_element" => "/* element_index required */".to_string(),
-                                _ => format!("window.scrollBy(0, {})", amount),
-                            }
-                        };
+                        
                         let page = browser.get_current_page().await?;
-                        page.evaluate(&scroll_script).await?;
+
+                        if element_index.is_some() {
+                            // Element scrolling not implemented in this action
+                            return Err(ControllerError::NotImplemented("Scroll to element".into()));
+                        }
+
+                        // Calculate scroll amount based on direction
+                        let (x, y) = match direction {
+                            "up" => (0, -amount),
+                            "down" => (0, amount),
+                            "to_element" => {
+                                return Err(ControllerError::MissingParameter("element_index".into()));
+                            }
+                            _ => (0, amount),
+                        };
+
+                        // Safe: parameterized evaluation prevents injection
+                        let call = CallFunctionOnParams::builder()
+                            .function_declaration("(x, y) => window.scrollBy(x, y)")
+                            .argument(CallArgument::builder().value(json!(x)).build())
+                            .argument(CallArgument::builder().value(json!(y)).build())
+                            .build()
+                            .map_err(|e| ControllerError::BrowserError(e.to_string()))?;
+
+                        page.evaluate_function(call).await?;
                         Ok(ActionResult {
                             action: "scroll".into(),
                             success: true,
