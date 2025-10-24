@@ -77,8 +77,10 @@ impl Tool for BrowserTypeTextTool {
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
         
         // Get current page (must call browser_navigate first)
-        let page = crate::browser::get_current_page(wrapper).await
-            .map_err(|e| McpError::Other(e))?;
+        let page = wrapper.get_current_page().await
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "No page loaded. Call browser_navigate first to load a page."
+            )))?;
         
         // Find element with timeout
         let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(5000));
