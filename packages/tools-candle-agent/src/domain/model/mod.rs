@@ -11,10 +11,6 @@ pub mod traits;
 pub mod usage;
 pub mod validation;
 
-// ProgressHub model trait (for enforcing download patterns)
-#[cfg(feature = "download-progresshub")]
-pub mod progresshub;
-
 // Re-export commonly used Candle types
 pub use capabilities::*;
 pub use error::{CandleModelError, CandleResult};

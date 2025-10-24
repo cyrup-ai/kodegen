@@ -36,14 +36,12 @@ lazy_static! {
 /// Error type for reasoning operations
 #[derive(Debug)]
 pub enum ReasoningError {
-    StrategyUnavailable,
     Other(String),
 }
 
 impl fmt::Display for ReasoningError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::StrategyUnavailable => write!(f, "Reasoning strategy unavailable"),
             Self::Other(msg) => write!(f, "Reasoning error: {}", msg),
         }
     }
@@ -75,13 +73,6 @@ impl<T> AsyncTask<T> {
         let _ = tx.send(Ok(value));
         Self { rx }
     }
-
-    /// Creates an AsyncTask that will produce an error
-    pub fn from_error(error: ReasoningError) -> Self {
-        let (tx, rx) = oneshot::channel();
-        let _ = tx.send(Err(error));
-        Self { rx }
-    }
 }
 
 impl<T> Future for AsyncTask<T> {
@@ -111,13 +102,6 @@ impl<T> TaskStream<T> {
         Self {
             inner: ReceiverStream::new(rx),
         }
-    }
-
-    /// Creates a stream containing a single value
-    pub fn from_value(value: T) -> Self {
-        let (tx, rx) = mpsc::channel(1);
-        let _ = tx.try_send(Ok(value));
-        Self::new(rx)
     }
 
     /// Creates a stream that produces an error

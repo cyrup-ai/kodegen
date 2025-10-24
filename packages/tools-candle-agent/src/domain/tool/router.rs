@@ -41,8 +41,6 @@ pub struct CandleToolRouter {
 enum ToolRoute {
     /// Local tool via Tool trait
     Local,
-    /// Remote MCP server tool
-    Remote,
     /// Cylo code execution
     Cylo { backend_type: String, config: String },
 }
@@ -73,7 +71,6 @@ pub enum RouterError {
 
 /// Internal trait for executing tools with type erasure
 trait ToolExecutor: Send + Sync {
-    fn name(&self) -> &str;
     fn metadata(&self) -> RmcpTool;
     fn execute(&self, args: Value) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>>;
 }
@@ -90,10 +87,6 @@ impl<T: kodegen_mcp_tool::Tool> ToolWrapper<T> {
 }
 
 impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
-    fn name(&self) -> &str {
-        T::name()
-    }
-    
     fn metadata(&self) -> RmcpTool {
         use rmcp::model::ToolAnnotations;
         

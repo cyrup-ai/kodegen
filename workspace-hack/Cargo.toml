@@ -31,9 +31,9 @@ bytemuck = { version = "1", default-features = false, features = ["aarch64_simd"
 byteorder = { version = "1" }
 bytes = { version = "1", features = ["serde"] }
 camino = { version = "1", default-features = false, features = ["serde1"] }
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["metal"] }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["metal"] }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["metal"] }
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cuda", "metal", "mkl"] }
 castaway = { version = "0.2" }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -76,11 +76,7 @@ getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-f
 gix = { version = "0.74", features = ["blocking-network-client", "max-performance", "merge"] }
 gix-features-8e56bb57e3bdefa1 = { package = "gix-features", version = "0.44", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "parallel", "progress", "progress-unit-bytes", "progress-unit-human-numbers", "walkdir", "zlib"] }
 gix-features-b32c9ddb6d93a9d2 = { package = "gix-features", version = "0.42", features = ["fs-read-dir", "progress", "walkdir"] }
-gix-pack = { version = "0.61", default-features = false, features = ["object-cache-dynamic", "pack-cache-lru-dynamic", "pack-cache-lru-static", "streaming-input"] }
-gix-packetline = { version = "0.19", features = ["blocking-io"] }
-gix-protocol = { version = "0.52", default-features = false, features = ["blocking-client"] }
 gix-tempfile = { version = "19", features = ["signals"] }
-gix-transport = { version = "0.49", features = ["blocking-client"] }
 gix-utils = { version = "0.3", default-features = false, features = ["bstr"] }
 guppy = { version = "0.17", default-features = false, features = ["rayon1", "summaries"] }
 hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15", features = ["serde"] }
@@ -245,7 +241,6 @@ indexmap = { version = "2", features = ["serde"] }
 lazy_static = { version = "1", default-features = false, features = ["spin_no_std"] }
 libz-rs-sys = { version = "0.5" }
 log = { version = "0.4", default-features = false, features = ["std"] }
-maybe-async = { version = "0.2", features = ["is_sync"] }
 md-5 = { version = "0.10" }
 memchr = { version = "2" }
 miniz_oxide = { version = "0.8", features = ["simd"] }

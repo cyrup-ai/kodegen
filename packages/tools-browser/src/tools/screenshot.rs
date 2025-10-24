@@ -6,6 +6,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
+use chromiumoxide::page::ScreenshotParams;
+use chromiumoxide_cdp::cdp::browser_protocol::page::CaptureScreenshotFormat;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
 use crate::manager::BrowserManager;
 
@@ -14,7 +17,7 @@ pub struct BrowserScreenshotArgs {
     /// Optional: CSS selector to screenshot specific element (default: full page)
     #[serde(default)]
     pub selector: Option<String>,
-
+    
     /// Optional: format (png or jpeg, default: png)
     #[serde(default)]
     pub format: Option<String>,
@@ -34,7 +37,6 @@ impl BrowserScreenshotTool {
     }
 }
 
-#[async_trait::async_trait]
 impl Tool for BrowserScreenshotTool {
     type Args = BrowserScreenshotArgs;
     type PromptArgs = BrowserScreenshotPromptArgs;
@@ -46,7 +48,8 @@ impl Tool for BrowserScreenshotTool {
     fn description() -> &'static str {
         "Take a screenshot of the current page or specific element. Returns base64-encoded image.\\n\\n\
          Example: browser_screenshot({}) for full page\\n\
-         Example: browser_screenshot({\"selector\": \"#content\"}) for specific element"
+         Example: browser_screenshot({\\\"selector\\\": \\\"#content\\\"}) for specific element\\n\
+         Example: browser_screenshot({\\\"format\\\": \\\"jpeg\\\"}) for smaller file size"
     }
 
     fn read_only() -> bool {
@@ -54,41 +57,69 @@ impl Tool for BrowserScreenshotTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // Get browser context
-        let context = self.manager.get_or_create_context().await
+        // Get browser instance
+        let browser_arc = self.manager.get_or_launch().await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-
-        // Get current page
-        let page = context.get_current_page().await
+        
+        let browser_guard = browser_arc.lock().await;
+        let wrapper = browser_guard.as_ref()
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+        
+        // Create/get page
+        let page = crate::browser::create_blank_page(wrapper).await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
-
-        // Take screenshot
-        let image_data = if let Some(selector) = &args.selector {
-            // Screenshot specific element
-            let element = page.find_element(selector).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e)))?;
-
-            element.screenshot(Default::default()).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Screenshot failed: {}", e)))?
-        } else {
-            // Screenshot full page
-            page.screenshot(Default::default()).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Screenshot failed: {}", e)))?
+        
+        // Determine format
+        let format = match args.format.as_deref() {
+            Some("jpeg") | Some("jpg") => CaptureScreenshotFormat::Jpeg,
+            _ => CaptureScreenshotFormat::Png,
         };
-
+        
+        // Build screenshot params
+        let screenshot_params = ScreenshotParams::builder()
+            .format(format.clone())
+            .build();
+        
+        // Take screenshot (full page or element)
+        let image_data = if let Some(selector) = &args.selector {
+            // Element screenshot
+            let element = page.find_element(selector).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Element not found '{}': {}", 
+                    selector, 
+                    e
+                )))?;
+            
+            element.screenshot(format.clone()).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Element screenshot failed for '{}': {}", 
+                    selector,
+                    e
+                )))?
+        } else {
+            // Full page screenshot
+            page.screenshot(screenshot_params).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Page screenshot failed: {}",
+                    e
+                )))?
+        };
+        
         // Encode as base64
-        let base64_image = base64::encode(&image_data);
-
-        // Determine format (assume PNG for now, could be enhanced)
-        let format = args.format.as_deref().unwrap_or("png");
-
+        let base64_image = BASE64.encode(&image_data);
+        
         Ok(json!({
             "success": true,
             "image": base64_image,
-            "format": format,
+            "format": if format == CaptureScreenshotFormat::Png { "png" } else { "jpeg" },
             "size_bytes": image_data.len(),
             "selector": args.selector,
-            "message": format!("Screenshot captured ({} bytes)", image_data.len())
+            "message": format!(
+                "Screenshot captured ({} bytes, {} format{})", 
+                image_data.len(),
+                if format == CaptureScreenshotFormat::Png { "PNG" } else { "JPEG" },
+                if args.selector.is_some() { ", element only" } else { ", full page" }
+            )
         }))
     }
 
@@ -107,8 +138,9 @@ impl Tool for BrowserScreenshotTool {
                 content: PromptMessageContent::text(
                     "Use browser_screenshot after navigating to a page.\\n\\n\
                      Full page: browser_screenshot({})\\n\
-                     Specific element: browser_screenshot({\"selector\": \"#content\"})\\n\
-                     JPEG format: browser_screenshot({\"format\": \"jpeg\"})"
+                     Specific element: browser_screenshot({\\\"selector\\\": \\\"#content\\\"})\\n\
+                     JPEG format (smaller): browser_screenshot({\\\"format\\\": \\\"jpeg\\\"})\\n\\n\
+                     Note: Use after browser_navigate to ensure page is loaded."
                 ),
             },
         ])

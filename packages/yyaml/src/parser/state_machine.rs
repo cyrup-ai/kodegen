@@ -1,7 +1,7 @@
 use crate::error::ScanError;
-use crate::events::{TScalarStyle, TokenType};
+use crate::events::{TokenType, TScalarStyle};
 use crate::linked_hash_map::LinkedHashMap;
-use crate::parser::grammar::{YamlContext, ParametricContext};
+use crate::parser::grammar::{YamlContext, ParametricContext, ChompingMode};
 use crate::scanner::Scanner;
 use crate::yaml::Yaml;
 use std::collections::HashMap;
@@ -987,12 +987,187 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum BlockScalarStyle {
+    Literal,
+    Folded,
+}
+
+impl<T: Iterator<Item = char>> StateMachine<T> {
+    /// [105] e-node ::= e-scalar
+    /// Empty node production - represents null/absent content
+    fn parse_empty_node(&mut self) -> Result<Option<Yaml>, ScanError> {
+        // Empty nodes in flow context represent null values
+        Ok(None)
+    }
+
+    /// [106] e-scalar ::= /* Empty */
+    /// Empty scalar production
+    fn parse_empty_scalar(&mut self) -> Result<String, ScanError> {
+        // Empty scalar is just an empty string
+        Ok(String::new())
+    }
+
+    /// [162]-[169] Parse block scalar header: c-l+literal(n) ::= "|" nb-char* b-chomped-last(n)
+    /// Returns (style, chomping_mode, indentation_modifier)
+    fn parse_block_scalar_header(&mut self) -> Result<(BlockScalarStyle, ChompingMode, Option<usize>), ScanError> {
+        // Peek at the indicator
+        let ch = self.scanner.peek_char()?;
+        let style = match ch {
+            '|' => BlockScalarStyle::Literal,
+            '>' => BlockScalarStyle::Folded,
+            _ => return Err(ScanError::new(self.scanner.mark(), "expected block scalar indicator '|' or '>'")),
+        };
+        self.scanner.consume_char()?;
+
+        // Parse optional chomping indicator and indentation modifier
+        let mut chomping = ChompingMode::Clip; // Default
+        let mut indentation = None;
+
+        // Parse nb-char* (up to 9 digits for indentation)
+        let mut indent_str = String::new();
+        while let Ok(ch) = self.scanner.peek_char() {
+            if ch.is_ascii_digit() && indent_str.len() < 9 {
+                indent_str.push(self.scanner.consume_char()?);
+            } else if matches!(ch, '-' | '+') {
+                // Chomping indicator
+                chomping = if ch == '-' { ChompingMode::Strip } else { ChompingMode::Keep };
+                self.scanner.consume_char()?;
+                break;
+            } else if ch == '\n' || ch == '\r' {
+                break;
+            } else {
+                return Err(ScanError::new(self.scanner.mark(), "invalid character in block scalar header"));
+            }
+        }
+
+        // Parse indentation modifier if present
+        if !indent_str.is_empty() {
+            indentation = Some(indent_str.parse().map_err(|_| {
+                ScanError::new(self.scanner.mark(), "invalid indentation modifier")
+            })?);
+        }
+
+        Ok((style, chomping, indentation))
+    }
+
+    /// [183] ns-l-block-seq(n,c) with parametric indentation n+1+m
+    fn handle_parametric_block_sequence(&mut self) -> Result<(), ScanError> {
+        // Current indentation n from context
+        let n = self.context.current_indent();
+
+        // Sequence entries are at n+1
+        let entry_indent = n + 1;
+        self.context.push_context(YamlContext::BlockIn, entry_indent);
+
+        loop {
+            // Check for sequence entry indicators
+            let token = self.scanner.peek_token()?;
+            match &token.1 {
+                TokenType::BlockEntry => {
+                    self.scanner.fetch_token(); // consume
+                    // Parse sequence entry value
+                    self.handle_block_node()?;
+                }
+                _ => {
+                    // End of sequence
+                    break;
+                }
+            }
+        }
+
+        self.context.pop_context();
+        Ok(())
+    }
+
+    /// [187] ns-l-block-map(n,c) with parametric indentation n+1+m
+    fn handle_parametric_block_mapping(&mut self) -> Result<(), ScanError> {
+        let n = self.context.current_indent();
+
+        // Mapping keys at n+1
+        let key_indent = n + 1;
+        self.context.push_context(YamlContext::BlockKey, key_indent);
+
+        loop {
+            // Parse mapping entry
+            let token = self.scanner.peek_token()?;
+            match &token.1 {
+                TokenType::Key => {
+                    self.scanner.fetch_token(); // consume
+                    self.handle_block_mapping_key()?;
+                }
+                _ => {
+                    // End of mapping
+                    break;
+                }
+            }
+        }
+
+        self.context.pop_context();
+        Ok(())
+    }
+
+    fn apply_block_scalar_folding(&self, lines: &[String], chomping: ChompingMode, literal_style: bool) -> Result<String, ScanError> {
+        let mut result = String::new();
+        let mut trailing_breaks = String::new();
+
+        for (i, line) in lines.iter().enumerate() {
+            if line.trim().is_empty() {
+                // Empty line
+                trailing_breaks.push('\n');
+                continue;
+            }
+
+            // Add any accumulated breaks
+            if !trailing_breaks.is_empty() {
+                if literal_style || trailing_breaks.len() > 1 {
+                    // In literal mode or multiple breaks, preserve them
+                    result.push_str(&trailing_breaks);
+                } else if !result.is_empty() {
+                    // In folded mode with single break, convert to space
+                    result.push(' ');
+                }
+                trailing_breaks.clear();
+            }
+
+            // Add line content
+            if i > 0 && literal_style {
+                result.push('\n');
+            } else if i > 0 && !literal_style && !result.is_empty() {
+                result.push(' ');
+            }
+
+            result.push_str(line.trim_end());
+        }
+
+        // Apply chomping indicator
+        match chomping {
+            ChompingMode::Strip => {
+                // Remove all trailing newlines
+                Ok(result.trim_end_matches('\n').to_string())
+            }
+            ChompingMode::Keep => {
+                // Keep one trailing newline
+                if !trailing_breaks.is_empty() {
+                    result.push('\n');
+                }
+                Ok(result)
+            }
+            ChompingMode::Clip => {
+                // Keep all trailing newlines
+                result.push_str(&trailing_breaks);
+                Ok(result)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_context_state_machine() {
+    fn test_block_scalar_parsing() {
         let yaml = r#"
 outer:
   - item1  # BLOCK-IN at indent 2
