@@ -463,6 +463,32 @@ impl<T: Iterator<Item = char>> Scanner<T> {
             &mut self.state,
         )
     }
+
+    pub fn peek_line_indent(&mut self) -> Result<usize, ScanError> {
+        let mut pos = 0;
+        loop {
+            match self.state.peek_char_at(pos) {
+                Ok('\n') | Ok('\r') => {
+                    pos += 1;
+                    break;
+                }
+                Ok(_) => pos += 1,
+                Err(_) => return Ok(0), // No next line
+            }
+        }
+        let mut indent = 0;
+        loop {
+            match self.state.peek_char_at(pos) {
+                Ok(' ') => {
+                    indent += 1;
+                    pos += 1;
+                }
+                Ok(_) => break,
+                Err(_) => break,
+            }
+        }
+        Ok(indent)
+    }
 }
 
 #[cfg(test)]

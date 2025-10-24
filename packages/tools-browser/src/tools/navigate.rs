@@ -103,16 +103,19 @@ impl Tool for BrowserNavigateTool {
                 McpError::Other(anyhow::anyhow!("Navigation failed for {}: {}", args.url, e))
             })?;
 
-        // Wait for selector if specified (poll with find_element)
+        // Wait for selector if specified (exponential backoff)
         if let Some(selector) = &args.wait_for_selector {
-            let poll_interval = Duration::from_millis(100);
             let start = std::time::Instant::now();
+            let mut poll_interval = Duration::from_millis(100); // Start with 100ms
+            let max_interval = Duration::from_secs(1);          // Cap at 1 second
 
             loop {
+                // Try to find element
                 if page.find_element(selector).await.is_ok() {
                     break;
                 }
 
+                // Check timeout
                 if start.elapsed() >= timeout {
                     return Err(McpError::Other(anyhow::anyhow!(
                         "Selector '{}' not found after {}ms timeout",
@@ -121,7 +124,11 @@ impl Tool for BrowserNavigateTool {
                     )));
                 }
 
+                // Wait with exponential backoff
                 tokio::time::sleep(poll_interval).await;
+                
+                // Double the interval, but cap at max_interval
+                poll_interval = (poll_interval * 2).min(max_interval);
             }
         }
 

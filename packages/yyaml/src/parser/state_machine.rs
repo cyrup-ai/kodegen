@@ -17,8 +17,6 @@ pub enum State {
     DocumentEnd,
     NextDocument,
     BlockNode,
-    BlockSequenceFirstEntry,
-    BlockSequenceEntry,
     BlockMappingFirstKey,
     BlockMappingKey,
     BlockMappingValue,
@@ -158,8 +156,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             State::DocumentEnd => self.handle_document_end(),
             State::NextDocument => self.handle_next_document(),
             State::BlockNode => self.handle_block_content_with_structure(),
-            State::BlockSequenceFirstEntry => self.handle_block_sequence_first_entry(),
-            State::BlockSequenceEntry => self.handle_block_sequence_entry(),
             State::BlockMappingFirstKey => self.handle_block_mapping_first_key(),
             State::BlockMappingKey => self.handle_block_mapping_key(),
             State::BlockMappingValue => self.handle_block_mapping_value(),
@@ -257,10 +253,11 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                     return Ok(());
                 }
                 TokenType::BlockEntry => {
-                    self.scanner.fetch_token();
                     self.ast_stack.push(YamlBuilder::Sequence(Vec::new()));
-                    // Don't push state - we're at root level
-                    self.state = State::BlockSequenceFirstEntry;
+                    self.handle_parametric_block_sequence()?;
+                    if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.pop() {
+                        self.push_yaml(Yaml::Array(items));
+                    }
                     return Ok(());
                 }
                 TokenType::Key => {
@@ -334,12 +331,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         }
     }
 
-    fn handle_block_sequence_first_entry(&mut self) -> Result<(), ScanError> {
-        // The first BlockEntry was already consumed when we transitioned to this state
-        // Now we need to handle the content of this first sequence item
-        self.state = State::BlockSequenceEntry;
-        self.handle_sequence_content()
-    }
+    
 
     fn handle_block_sequence_entry(&mut self) -> Result<(), ScanError> {
         let token = self.scanner.peek_token()?;
@@ -944,6 +936,41 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
     fn process_tag_directive(&mut self, handle: String, prefix: String) -> Result<(), ScanError> {
         // Register tag handle for document scope
         self.tag_handles.insert(handle, prefix);
+        Ok(())
+    }
+
+    fn handle_parametric_block_sequence(&mut self) -> Result<(), ScanError> {
+        let n = self.context.current_indent();
+        let entry_indent = n + 1;
+        self.context.push_context(YamlContext::BlockIn, entry_indent);
+        loop {
+            let peeked_indent = self.scanner.peek_line_indent()?;
+            if peeked_indent < entry_indent {
+                break;
+            }
+            if peeked_indent != entry_indent {
+                return Err(ScanError::new(self.scanner.mark(), "Invalid indentation for sequence entry"));
+            }
+            self.scanner.consume_spaces(entry_indent);
+            let token = self.scanner.next_token()?;
+            if !matches!(token.1, TokenType::BlockEntry) {
+                return Err(ScanError::new(token.0, "Expected - for sequence entry"));
+            }
+            let value_indent = entry_indent + 1;
+            self.context.push_context(YamlContext::BlockIn, value_indent);
+            self.scanner.process_structural_separation(&mut self.context, value_indent as i32)?;
+            self.handle_block_node()?;
+            let value = if let Some(builder) = self.ast_stack.pop() {
+                self.finalize_builder(builder)
+            } else {
+                Yaml::Null
+            };
+            if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
+                items.push(value);
+            }
+            self.context.pop_context();
+        }
+        self.context.pop_context();
         Ok(())
     }
 
