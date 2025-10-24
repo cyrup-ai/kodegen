@@ -27,10 +27,15 @@ mod tests {
         let mut got_chunk = false;
         while let Some(chunk) = stream.next().await {
             got_chunk = true;
-            match chunk {
-                CandleStringChunk::Text(_) => {},
-                CandleStringChunk::Complete { .. } => break,
-                CandleStringChunk::Error(e) => panic!("Vision error: {}", e),
+            
+            // Check for errors
+            if let Some(error) = chunk.error() {
+                panic!("Vision error: {}", error);
+            }
+            
+            // Break on final chunk
+            if chunk.is_final {
+                break;
             }
         }
         

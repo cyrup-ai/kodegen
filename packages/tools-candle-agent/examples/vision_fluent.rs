@@ -22,17 +22,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .describe_image(test_image_path, "What UI elements are visible?");
     
     print!("Response: ");
+    let mut full_text = String::new();
     while let Some(chunk) = stream.next().await {
-        match chunk {
-            CandleStringChunk::Text(text) => print!("{}", text),
-            CandleStringChunk::Complete { elapsed_secs, .. } => {
-                println!("\n\nCompleted in {:.2}s", elapsed_secs.unwrap_or(0.0));
-                break;
+        if let Some(error) = chunk.error() {
+            eprintln!("\nError: {}", error);
+            break;
+        }
+        
+        if !chunk.text.is_empty() {
+            print!("{}", chunk.text);
+            full_text.push_str(&chunk.text);
+        }
+        
+        if chunk.is_final {
+            if let Some(stats) = &chunk.stats {
+                println!("\n\nCompleted in {:.2}s", stats.elapsed_secs);
+                println!("Tokens generated: {}", stats.token_count);
+                println!("Tokens/sec: {:.2}", stats.tokens_per_sec);
+            } else {
+                println!("\n\nCompleted");
             }
-            CandleStringChunk::Error(e) => {
-                eprintln!("\nError: {}", e);
-                break;
-            }
+            break;
         }
     }
     

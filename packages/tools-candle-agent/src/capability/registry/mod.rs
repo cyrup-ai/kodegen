@@ -104,7 +104,7 @@ mod api;
 mod enums;
 mod image_embedding;
 mod runtime;
-mod storage;
+pub(crate) mod storage;
 mod text_embedding;
 mod text_to_image;
 mod text_to_text;

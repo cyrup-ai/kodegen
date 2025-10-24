@@ -63,7 +63,7 @@ pub(super) static TEXT_TO_IMAGE_UNIFIED: LazyLock<RwLock<HashMap<String, TextToI
 /// Unified vision model registry
 ///
 /// Initialized with static vision models (LLaVA).
-pub(super) static VISION_UNIFIED: LazyLock<RwLock<HashMap<String, VisionModel>>> =
+pub(crate) static VISION_UNIFIED: LazyLock<RwLock<HashMap<String, VisionModel>>> =
     LazyLock::new(|| {
         let mut map = HashMap::new();
 

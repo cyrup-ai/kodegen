@@ -9,7 +9,10 @@ impl VisionBuilderImpl {
     /// Create a new vision builder with default LLaVA model
     pub(crate) fn new() -> Self {
         // Get LLaVA model from registry
-        let vision_model = if let Some(model) = crate::capability::registry::get_vision("llava-hf/llava-1.5-7b-hf") {
+        // Access the registry directly to get the concrete VisionModel type
+        use crate::capability::registry::storage::VISION_UNIFIED;
+        
+        let vision_model = if let Some(model) = VISION_UNIFIED.read().get("llava-hf/llava-1.5-7b-hf").cloned() {
             model
         } else {
             // This should never happen as LLaVA is registered at startup

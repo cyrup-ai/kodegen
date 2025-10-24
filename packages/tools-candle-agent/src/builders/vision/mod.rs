@@ -11,6 +11,6 @@ pub use vision_builder::VisionBuilderImpl;
 
 pub(crate) use crate::capability::registry::VisionModel;
 pub(crate) use crate::capability::traits::VisionCapable;
-pub(crate) use crate::domain::completion::CandleStringChunk;
+pub(crate) use crate::domain::context::chunks::CandleStringChunk;
 pub(crate) use std::pin::Pin;
 pub(crate) use tokio_stream::Stream;
