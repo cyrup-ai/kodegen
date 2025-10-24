@@ -1,14 +1,14 @@
-# Task: Review Structural Productions Module
+# Task: Complete Structural Productions Module
 
 ## Description
-Review and verify the existing `src/parser/structural_productions.rs` module implementing YAML 1.2 structural productions [63]-[81] with parametric indentation, line folding, comments, and separation handling.
+Complete the existing `src/parser/structural_productions.rs` module implementing YAML 1.2 structural productions [63]-[81] with parametric indentation, line folding, comments, and separation handling.
 
 The module has been implemented using existing infrastructure including ParametricContext for indentation tracking, delegation to character productions and scanner utilities, and integration with the state machine.
 
 ## Target Files
 - **Primary**: `src/parser/structural_productions.rs` (already implemented - [link](../src/parser/structural_productions.rs))
 - **Secondary**: `src/parser/mod.rs` (module import already present - [link](../src/parser/mod.rs))
-- **Integration**: ScannerState extension methods already added for structural operations
+- **Integration**: State machine integration in `src/parser/state_machine.rs` (structural operations called during block parsing - [link](../src/parser/state_machine.rs))
 
 ## Success Criteria
 - [x] Structural productions [63]-[81] fully implemented
@@ -85,14 +85,40 @@ pub fn parse_comment_text<T: Iterator<Item = char>>(
 }
 ```
 
-### Architecture Integration
+### State Machine Integration
 
-The module integrates with existing systems by:
-- Using `ParametricContext` for all indentation calculations and context tracking
-- Delegating character validation to `CharacterProductions`
-- Reusing whitespace and comment skipping from scanner utilities
-- Extending `ScannerState` with convenience methods for structural operations
-- Delegating line folding to existing scalar processing in `scalars.rs`
+The structural productions are integrated into the parsing pipeline through the state machine's block content handling:
+
+**Block Content Processing with Structural Operations:**
+```rust
+fn handle_block_content_with_structure(&mut self) -> Result<(), ScanError> {
+    // Process structural separation using parametric context
+    let current_indent = self.context.current_indent();
+    self.scanner
+        .process_structural_separation(&mut self.context, current_indent)?;
+
+    // Skip any comments using structural productions
+    let _comments = self.scanner.skip_structural_comments()?;
+
+    // Continue with existing block node parsing
+    self.handle_block_node()
+}
+```
+
+**State Machine Dispatch:**
+```rust
+match self.state {
+    // ... other states ...
+    State::BlockNode => self.handle_block_content_with_structure(),
+    // ... other states ...
+}
+```
+
+This integration ensures that:
+- Structural separation is validated before parsing block content
+- Comments are properly skipped using structural productions
+- Indentation tracking remains consistent with parametric context
+- Existing block parsing logic continues to work without modification
 
 ## Implementation Notes
 - **Architecture**: Module integrates with existing grammar and state machine without duplication
@@ -116,4 +142,4 @@ The module integrates with existing systems by:
 - Preserve zero-allocation optimizations using Cow<str> - maintained
 
 ## Definition of Done
-The structural productions module is fully implemented and integrated with the existing YAML parser infrastructure. All productions [63]-[81] are available through the StructuralProductions struct and ScannerState extension methods, using existing parametric context and character validation systems without code duplication.
+The structural productions module is fully implemented and integrated with the existing YAML parser infrastructure. All productions [63]-[81] are available through the StructuralProductions struct and ScannerState extension methods, using existing parametric context and character validation systems without code duplication. The module is actively used in the state machine's block content processing for proper structural validation and comment handling.
