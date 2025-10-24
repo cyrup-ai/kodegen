@@ -8,7 +8,10 @@ use chromiumoxide::Page;
 
 use crate::content_saver;
 
-use super::extractors::{extract_metadata, extract_resources, extract_timing_info, extract_security_info, extract_interactive_elements, extract_links};
+use super::extractors::{
+    extract_interactive_elements, extract_links, extract_metadata, extract_resources,
+    extract_security_info, extract_timing_info,
+};
 
 /// Configuration for page data extraction
 pub struct ExtractPageDataConfig {
@@ -68,7 +71,9 @@ fn has_interactive_role(attributes: &std::collections::HashMap<String, String>) 
 fn convert_interactive_elements(
     elements: Vec<super::schema::InteractiveElement>,
 ) -> super::schema::InteractiveElements {
-    use super::schema::{InteractiveElements, ButtonElement, LinkElement, InputElement, ClickableElement};
+    use super::schema::{
+        ButtonElement, ClickableElement, InputElement, InteractiveElements, LinkElement,
+    };
 
     let mut result = InteractiveElements::default();
 
@@ -275,19 +280,19 @@ pub async fn extract_page_data(
 
     // Get local path for URL registration BEFORE saving
     // This allows us to register the URL→path mapping after successful save
-    let local_path_str = match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await
-    {
-        Ok(path) => path.to_string_lossy().to_string(),
-        Err(e) => {
-            log::warn!("Failed to get mirror path for URL registration: {e}");
-            // Fallback path - registration will still work but path may be incorrect
-            config
-                .output_dir
-                .join("index.html")
-                .to_string_lossy()
-                .to_string()
-        }
-    };
+    let local_path_str =
+        match crate::utils::get_mirror_path(&url, &config.output_dir, "index.html").await {
+            Ok(path) => path.to_string_lossy().to_string(),
+            Err(e) => {
+                log::warn!("Failed to get mirror path for URL registration: {e}");
+                // Fallback path - registration will still work but path may be incorrect
+                config
+                    .output_dir
+                    .join("index.html")
+                    .to_string_lossy()
+                    .to_string()
+            }
+        };
 
     // Register URL → local path mapping BEFORE saving
     // This enables progressive rewriting: pages crawled later can immediately

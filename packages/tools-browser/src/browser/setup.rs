@@ -10,10 +10,16 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
     if let Ok(path) = std::env::var("CHROMIUM_PATH") {
         let path = PathBuf::from(path);
         if path.exists() {
-            info!("Using browser from CHROMIUM_PATH environment variable: {}", path.display());
+            info!(
+                "Using browser from CHROMIUM_PATH environment variable: {}",
+                path.display()
+            );
             return Ok(path);
         }
-        warn!("CHROMIUM_PATH environment variable points to non-existent file: {}", path.display());
+        warn!(
+            "CHROMIUM_PATH environment variable points to non-existent file: {}",
+            path.display()
+        );
     }
 
     // Common Chrome/Chromium installation paths by platform
@@ -77,19 +83,18 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
     // Use 'which' command to find Chromium on Unix systems
     if !cfg!(target_os = "windows") {
         for cmd in &["chromium", "chromium-browser", "google-chrome", "chrome"] {
-            let output = Command::new("which")
-                .arg(cmd)
-                .output();
+            let output = Command::new("which").arg(cmd).output();
 
             if let Ok(output) = output
-                && output.status.success() {
-                    let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    if !path_str.is_empty() {
-                        let path = PathBuf::from(path_str);
-                        info!("Found browser using 'which' command: {}", path.display());
-                        return Ok(path);
-                    }
+                && output.status.success()
+            {
+                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path_str.is_empty() {
+                    let path = PathBuf::from(path_str);
+                    info!("Found browser using 'which' command: {}", path.display());
+                    return Ok(path);
                 }
+            }
         }
     }
 
@@ -119,15 +124,12 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
 fn expand_windows_env_vars(path: &str) -> String {
     let mut result = String::with_capacity(path.len());
     let mut chars = path.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '%' {
             // Found start of potential environment variable
-            let var_name: String = chars
-                .by_ref()
-                .take_while(|&c| c != '%')
-                .collect();
-            
+            let var_name: String = chars.by_ref().take_while(|&c| c != '%').collect();
+
             if !var_name.is_empty() {
                 // Try to expand the variable
                 if let Ok(value) = std::env::var(&var_name) {
@@ -146,7 +148,7 @@ fn expand_windows_env_vars(path: &str) -> String {
             result.push(ch);
         }
     }
-    
+
     result
 }
 
@@ -154,28 +156,29 @@ fn expand_windows_env_vars(path: &str) -> String {
 /// Returns a path to the downloaded executable.
 pub async fn download_managed_browser() -> Result<PathBuf> {
     info!("Downloading managed Chromium browser...");
-    
+
     // Create cache directory for downloaded browser
     let cache_dir = dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("./.cache"))
         .join("enigo/chromium");
-    
-    std::fs::create_dir_all(&cache_dir)
-        .context("Failed to create cache directory")?;
-    
+
+    std::fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
+
     // Use fetcher to download Chrome
     let fetcher = BrowserFetcher::new(
         BrowserFetcherOptions::builder()
             .with_path(&cache_dir)
             .build()
-            .context("Failed to build fetcher options")?
+            .context("Failed to build fetcher options")?,
     );
-    
+
     // Download Chrome
-    let revision_info = fetcher.fetch().await
-        .context("Failed to fetch browser")?;
-    
-    info!("Downloaded Chromium to: {}", revision_info.folder_path.display());
-    
+    let revision_info = fetcher.fetch().await.context("Failed to fetch browser")?;
+
+    info!(
+        "Downloaded Chromium to: {}",
+        revision_info.folder_path.display()
+    );
+
     Ok(revision_info.executable_path)
 }

@@ -105,7 +105,7 @@ pub struct StartCrawlTool {
 }
 
 impl StartCrawlTool {
-    #[must_use] 
+    #[must_use]
     pub fn new(
         session_manager: Arc<CrawlSessionManager>,
         engine_cache: Arc<SearchEngineCache>,
@@ -144,8 +144,7 @@ impl StartCrawlTool {
     }
 
     fn validate_url(url: &str) -> Result<(), McpError> {
-        Url::parse(url)
-            .map_err(|e| McpError::InvalidUrl(format!("Invalid URL '{url}': {e}")))?;
+        Url::parse(url).map_err(|e| McpError::InvalidUrl(format!("Invalid URL '{url}': {e}")))?;
         Ok(())
     }
 
@@ -279,7 +278,10 @@ impl Tool for StartCrawlTool {
         // 6.5. Create unique Chrome user data directory for this crawl session
         // Using crawl_id ensures profile isolation between concurrent/sequential crawls
         let chrome_data_dir = std::env::temp_dir().join(format!("enigo_chrome_{crawl_id}"));
-        eprintln!("DEBUG start_crawl: Created chrome_data_dir: {}", chrome_data_dir.display());
+        eprintln!(
+            "DEBUG start_crawl: Created chrome_data_dir: {}",
+            chrome_data_dir.display()
+        );
 
         // 7. Create event bus for this crawl
         let event_bus = std::sync::Arc::new(crate::crawl_events::CrawlEventBus::new(1000));
@@ -288,8 +290,11 @@ impl Tool for StartCrawlTool {
         let config = config
             .with_event_bus(event_bus.clone())
             .with_chrome_data_dir(chrome_data_dir.clone());
-        
-        eprintln!("DEBUG start_crawl: After with_chrome_data_dir, config.chrome_data_dir = {:?}", config.chrome_data_dir);
+
+        eprintln!(
+            "DEBUG start_crawl: After with_chrome_data_dir, config.chrome_data_dir = {:?}",
+            config.chrome_data_dir
+        );
 
         // 8.5. Subscribe to events for real-time progress tracking
         let mut event_receiver = event_bus.subscribe();
@@ -359,7 +364,8 @@ impl Tool for StartCrawlTool {
                             .await;
 
                         // Save failed manifest
-                        if let Some(failed_session) = session_manager.get_session(&crawl_id_clone).await
+                        if let Some(failed_session) =
+                            session_manager.get_session(&crawl_id_clone).await
                         {
                             let mut manifest = CrawlManifest::from_session(&failed_session);
                             manifest.fail(error_msg);
@@ -375,7 +381,8 @@ impl Tool for StartCrawlTool {
                             .await;
 
                         // Save manifest
-                        if let Some(final_session) = session_manager.get_session(&crawl_id_clone).await
+                        if let Some(final_session) =
+                            session_manager.get_session(&crawl_id_clone).await
                         {
                             let mut manifest = CrawlManifest::from_session(&final_session);
                             manifest.complete(total_pages);

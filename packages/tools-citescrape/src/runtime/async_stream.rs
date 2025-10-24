@@ -45,7 +45,7 @@ impl<T, const CAP: usize> AsyncStream<T, CAP> {
     ///
     /// This is a zero-allocation operation that pre-allocates all necessary data structures.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn channel() -> (StreamSender<T, CAP>, AsyncStream<T, CAP>) {
         let inner = Arc::new(StreamInner {
             queue: ArrayQueue::new(CAP),
@@ -66,35 +66,35 @@ impl<T, const CAP: usize> AsyncStream<T, CAP> {
     ///
     /// This is a zero-allocation operation with optimal performance.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn try_recv(&self) -> Option<T> {
         self.inner.queue.pop()
     }
 
     /// Checks if the stream is closed and no more values will be produced.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_terminated(&self) -> bool {
         self.inner.closed.load(Ordering::Acquire) && self.inner.queue.is_empty()
     }
 
     /// Returns the current number of items in the stream.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.inner.queue.len()
     }
 
     /// Returns true if the stream is empty.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.inner.queue.is_empty()
     }
 
     /// Returns the compile-time capacity of the stream.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn capacity(&self) -> usize {
         CAP
     }
@@ -111,7 +111,7 @@ impl<T, const CAP: usize> AsyncStream<T, CAP> {
 
     /// Empty stream (always returns `Poll::Ready(None)`).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn empty() -> Self {
         let (tx, st) = Self::channel();
         tx.close(); // Close immediately to signal end
@@ -164,42 +164,42 @@ impl<T, const CAP: usize> StreamSender<T, CAP> {
 
     /// Checks if the stream sender is closed.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_closed(&self) -> bool {
         self.inner.closed.load(Ordering::Acquire)
     }
 
     /// Returns the current number of items in the queue.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.inner.queue.len()
     }
 
     /// Returns true if the queue is empty.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.inner.queue.is_empty()
     }
 
     /// Returns true if the queue is at capacity.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_full(&self) -> bool {
         self.inner.queue.len() == CAP
     }
 
     /// Returns the compile-time capacity of the stream.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn capacity(&self) -> usize {
         CAP
     }
 
     /// Returns the number of free slots in the queue.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn available_capacity(&self) -> usize {
         CAP.saturating_sub(self.inner.queue.len())
     }

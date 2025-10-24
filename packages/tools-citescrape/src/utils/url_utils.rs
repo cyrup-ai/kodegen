@@ -39,7 +39,7 @@ pub async fn get_mirror_path(url: &str, output_dir: &Path, filename: &str) -> Re
 }
 
 /// Check if a URL is valid
-#[must_use] 
+#[must_use]
 pub fn is_valid_url(url: &str) -> bool {
     if url.is_empty() {
         return false;
@@ -76,36 +76,36 @@ pub async fn ensure_domain_gitignore(mirror_path: &Path, output_dir: &Path) -> R
     let relative_path = mirror_path
         .strip_prefix(output_dir)
         .map_err(|e| anyhow::anyhow!("Failed to strip output_dir prefix: {e}"))?;
-    
+
     let domain = relative_path
         .components()
         .next()
         .ok_or_else(|| anyhow::anyhow!("Path has no domain component"))?;
-    
+
     let domain_dir = output_dir.join(domain);
     let gitignore_path = domain_dir.join(".gitignore");
-    
+
     // FIX #1: Ensure domain directory exists first (idempotent)
     tokio::fs::create_dir_all(&domain_dir)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create domain directory: {e}"))?;
-    
+
     // FIX #2: Check if .gitignore exists, propagate errors instead of swallowing
     if tokio::fs::try_exists(&gitignore_path)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to check .gitignore existence: {e}"))? 
+        .map_err(|e| anyhow::anyhow!("Failed to check .gitignore existence: {e}"))?
     {
         return Ok(());
     }
-    
+
     // Create .gitignore with ignore all except self pattern
     let gitignore_content = "*\n!.gitignore\n";
-    
+
     tokio::fs::write(&gitignore_path, gitignore_content)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to write .gitignore: {e}"))?;
-    
+
     log::debug!("Created .gitignore in {}", domain_dir.display());
-    
+
     Ok(())
 }

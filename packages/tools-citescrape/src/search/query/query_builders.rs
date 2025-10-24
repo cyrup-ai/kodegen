@@ -58,7 +58,10 @@ pub(crate) fn build_phrase_query_sync(
     let schema = engine.schema();
 
     // Parse phrase into terms
-    let terms: Vec<String> = phrase.split_whitespace().map(std::string::ToString::to_string).collect();
+    let terms: Vec<String> = phrase
+        .split_whitespace()
+        .map(std::string::ToString::to_string)
+        .collect();
 
     if terms.is_empty() {
         return Err(anyhow::anyhow!("Empty phrase query"));

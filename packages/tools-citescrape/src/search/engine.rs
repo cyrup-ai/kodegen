@@ -94,13 +94,13 @@ impl SearchEngine {
     }
 
     /// Get a reference to the search schema
-    #[must_use] 
+    #[must_use]
     pub fn schema(&self) -> &SearchSchema {
         &self.schema
     }
 
     /// Get the Tantivy index
-    #[must_use] 
+    #[must_use]
     pub fn index(&self) -> &Index {
         &self.index
     }
@@ -140,7 +140,8 @@ impl SearchEngine {
                     ))
                 })
             }
-        }).await
+        })
+        .await
     }
 
     /// Create an index writer with configured memory limit
@@ -152,13 +153,13 @@ impl SearchEngine {
     }
 
     /// Get the index reader
-    #[must_use] 
+    #[must_use]
     pub fn reader(&self) -> &IndexReader {
         &self.reader
     }
 
     /// Get the query parser
-    #[must_use] 
+    #[must_use]
     pub fn query_parser(&self) -> &QueryParser {
         &self.query_parser
     }
@@ -171,43 +172,43 @@ impl SearchEngine {
     }
 
     /// Commit changes and optimize index with logging
-    pub async fn commit_and_optimize(
-        &self,
-        mut writer: IndexWriter,
-    ) -> SearchResult<IndexWriter> {
+    pub async fn commit_and_optimize(&self, mut writer: IndexWriter) -> SearchResult<IndexWriter> {
         let start = std::time::Instant::now();
-        
+
         // Clone engine for move into spawn_blocking (cheap - SearchEngine is Clone via Arc)
         let engine = self.clone();
-        
+
         // Move blocking operations to dedicated blocking thread pool
         let writer = tokio::task::spawn_blocking(move || -> SearchResult<IndexWriter> {
             // Blocking I/O: Commit index changes to disk
-            writer.commit()
+            writer
+                .commit()
                 .map_err(|e| SearchError::CommitFailed(format!("Index commit failed: {e}")))?;
-            
+
             let commit_duration = start.elapsed();
             tracing::info!(
                 duration_ms = commit_duration.as_millis(),
                 "Index commit completed"
             );
-            
+
             // Blocking I/O: Reload reader to see committed changes
-            engine.reader.reload()
+            engine
+                .reader
+                .reload()
                 .map_err(|e| SearchError::Other(format!("Failed to reload reader: {e}")))?;
-            
+
             let total_duration = start.elapsed();
             tracing::debug!(
                 total_duration_ms = total_duration.as_millis(),
                 commit_duration_ms = commit_duration.as_millis(),
                 "Index commit and reload completed"
             );
-            
+
             Ok(writer)
         })
         .await
         .map_err(|e| SearchError::Other(format!("Commit task panicked: {e}")))??;
-        
+
         Ok(writer)
     }
 

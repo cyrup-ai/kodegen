@@ -29,7 +29,7 @@ pub async fn save_markdown_content(
     compress: bool,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.md").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     ensure_domain_gitignore(&path, &output_dir).await?;
 
@@ -41,8 +41,13 @@ pub async fn save_markdown_content(
     .await?;
 
     // save_compressed_file returns the actual saved path (.gz if compressed, plain otherwise)
-    let (saved_path, metadata) =
-        save_compressed_file(markdown_content.into_bytes(), &path, "text/markdown", compress).await?;
+    let (saved_path, metadata) = save_compressed_file(
+        markdown_content.into_bytes(),
+        &path,
+        "text/markdown",
+        compress,
+    )
+    .await?;
 
     // Trigger search indexing if sender provided
     if let Some(sender) = indexing_sender {

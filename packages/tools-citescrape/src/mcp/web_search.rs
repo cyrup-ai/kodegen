@@ -34,7 +34,7 @@ pub struct WebSearchTool {
 }
 
 impl WebSearchTool {
-    #[must_use] 
+    #[must_use]
     pub fn new(browser_manager: Arc<crate::web_search::BrowserManager>) -> Self {
         Self { browser_manager }
     }
@@ -83,12 +83,9 @@ impl Tool for WebSearchTool {
         }
 
         // Perform search
-        let results = crate::web_search::search_with_manager(
-            &self.browser_manager,
-            args.query
-        )
-        .await
-        .map_err(McpError::Other)?;
+        let results = crate::web_search::search_with_manager(&self.browser_manager, args.query)
+            .await
+            .map_err(McpError::Other)?;
 
         // Convert to JSON response
         Ok(json!({

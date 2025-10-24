@@ -199,7 +199,7 @@ pub fn process_markdown_headings(markdown: &str) -> String {
 ///
 /// Removes optional closing hashes from ATX headings per `CommonMark` spec.
 /// For example: `## Title ##` becomes `## Title`
-#[must_use] 
+#[must_use]
 pub fn extract_heading_level(line: &str) -> Option<(usize, &str)> {
     // Match markdown headings (# to ######)
     if line.starts_with('#') {
@@ -242,7 +242,7 @@ pub fn extract_heading_level(line: &str) -> Option<(usize, &str)> {
 }
 
 /// Normalize heading level to ensure it's within valid range (1-6)
-#[must_use] 
+#[must_use]
 pub fn normalize_heading_level(level: usize) -> usize {
     // Ensure headings are in the range 1-6
     level.clamp(1, 6)
@@ -536,9 +536,18 @@ Real content.
 
         // NEW: Verify print statement stays inside fence
         let lines: Vec<&str> = result.lines().collect();
-        let opening_idx = lines.iter().position(|l| l.contains("```python")).expect("Test operation should succeed");
-        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").expect("Test operation should succeed");
-        let print_idx = lines.iter().position(|l| l.contains("print(")).expect("Test operation should succeed");
+        let opening_idx = lines
+            .iter()
+            .position(|l| l.contains("```python"))
+            .expect("Test operation should succeed");
+        let closing_idx = lines
+            .iter()
+            .rposition(|l| l.trim() == "```")
+            .expect("Test operation should succeed");
+        let print_idx = lines
+            .iter()
+            .position(|l| l.contains("print("))
+            .expect("Test operation should succeed");
 
         assert!(
             print_idx > opening_idx && print_idx < closing_idx,
@@ -612,7 +621,10 @@ This is prose text.
 
         // Verify heading is NOT inside the fence
         let lines: Vec<&str> = result.lines().collect();
-        let closing_idx = lines.iter().rposition(|l| l.trim() == "```").expect("Test operation should succeed");
+        let closing_idx = lines
+            .iter()
+            .rposition(|l| l.trim() == "```")
+            .expect("Test operation should succeed");
         let heading_idx = lines
             .iter()
             .position(|l| l.contains("# Next Section"))

@@ -111,7 +111,7 @@ impl BatchPublishResult {
     /// Check if all events were successfully published
     ///
     /// Returns true only if published == total and failed == 0
-    #[must_use] 
+    #[must_use]
     pub fn is_complete(&self) -> bool {
         self.published == self.total && self.failed == 0
     }
@@ -119,7 +119,7 @@ impl BatchPublishResult {
     /// Check if any events failed to publish
     ///
     /// Returns true if failed > 0
-    #[must_use] 
+    #[must_use]
     pub fn has_failures(&self) -> bool {
         self.failed > 0
     }
@@ -127,7 +127,7 @@ impl BatchPublishResult {
     /// Calculate success rate as a percentage
     ///
     /// Returns 100.0 if total is 0 (empty batch), otherwise (published / total) * 100.0
-    #[must_use] 
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.total == 0 {
             return 100.0;
@@ -139,7 +139,7 @@ impl BatchPublishResult {
 /// Helper functions for creating common events
 impl CrawlEvent {
     /// Create a `CrawlStarted` event
-    #[must_use] 
+    #[must_use]
     pub fn crawl_started(start_url: String, output_dir: PathBuf, max_depth: u32) -> Self {
         Self::CrawlStarted {
             start_url,
@@ -150,7 +150,7 @@ impl CrawlEvent {
     }
 
     /// Create a `PageCrawled` event
-    #[must_use] 
+    #[must_use]
     pub fn page_crawled(
         url: String,
         local_path: PathBuf,
@@ -167,7 +167,7 @@ impl CrawlEvent {
     }
 
     /// Create a `LinkRewriteCompleted` event
-    #[must_use] 
+    #[must_use]
     pub fn link_rewrite_completed(
         target_url: String,
         files_updated: usize,
@@ -182,7 +182,7 @@ impl CrawlEvent {
     }
 
     /// Create a `CrawlCompleted` event
-    #[must_use] 
+    #[must_use]
     pub fn crawl_completed(
         total_pages: usize,
         total_links_rewritten: usize,
@@ -197,7 +197,7 @@ impl CrawlEvent {
     }
 
     /// Create a cache hit event
-    #[must_use] 
+    #[must_use]
     pub fn cache_hit(url: String) -> Self {
         Self::CacheHit {
             url,
@@ -206,7 +206,7 @@ impl CrawlEvent {
     }
 
     /// Create a Shutdown event
-    #[must_use] 
+    #[must_use]
     pub fn shutdown(reason: ShutdownReason) -> Self {
         Self::Shutdown {
             reason,

@@ -21,7 +21,7 @@ impl DomainLimiter {
     ///
     /// # Arguments
     /// * `max_per_domain` - Maximum concurrent requests per domain
-    #[must_use] 
+    #[must_use]
     pub fn new(max_per_domain: usize) -> Self {
         Self {
             domain_semaphores: DashMap::new(),
@@ -50,11 +50,11 @@ impl DomainLimiter {
         // We never close semaphores, so this should always succeed.
         // If it fails, the semaphore system is in an invalid state and we cannot continue.
         loop {
-            if let Ok(permit) = semaphore.clone().acquire_owned().await { return permit } else {
+            if let Ok(permit) = semaphore.clone().acquire_owned().await {
+                return permit;
+            } else {
                 // Semaphore was closed - this indicates a serious bug
-                log::error!(
-                    "Semaphore for domain '{domain}' was closed unexpectedly - replacing"
-                );
+                log::error!("Semaphore for domain '{domain}' was closed unexpectedly - replacing");
 
                 // Replace the closed semaphore with a fresh one
                 let new_semaphore = Arc::new(Semaphore::new(self.max_per_domain));
@@ -63,7 +63,9 @@ impl DomainLimiter {
 
                 // Try the new semaphore - it should succeed immediately
                 // If it doesn't, loop will retry (defensive programming)
-                if let Ok(permit) = new_semaphore.acquire_owned().await { return permit }
+                if let Ok(permit) = new_semaphore.acquire_owned().await {
+                    return permit;
+                }
                 // Even new semaphore failed - extremely unlikely, retry loop
                 log::error!("Fresh semaphore also failed - retrying");
                 continue;

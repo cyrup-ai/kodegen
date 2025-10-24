@@ -27,21 +27,21 @@ impl SearchQueryBuilder {
     }
 
     /// Set the maximum number of results to return
-    #[must_use] 
+    #[must_use]
     pub fn limit(mut self, limit: usize) -> Self {
         self.limit = limit;
         self
     }
 
     /// Set the offset for pagination
-    #[must_use] 
+    #[must_use]
     pub fn offset(mut self, offset: usize) -> Self {
         self.offset = offset;
         self
     }
 
     /// Enable or disable result highlighting
-    #[must_use] 
+    #[must_use]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
@@ -54,7 +54,8 @@ impl SearchQueryBuilder {
         let offset = self.offset;
         let highlight = self.highlight;
 
-        let search_results = execute_search_query(&engine, &query, limit, offset, highlight).await?;
+        let search_results =
+            execute_search_query(&engine, &query, limit, offset, highlight).await?;
         Ok(search_results.results)
     }
 

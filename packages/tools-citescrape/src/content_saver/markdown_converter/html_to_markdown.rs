@@ -16,8 +16,9 @@ static EMPTY_LINES: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static SPACE_AFTER_LIST: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^(\s*[-*+])\s*")
-        .expect("BUG: hardcoded regex r\"(?m)^(\\s*[-*+])\\s*\" is invalid - this is a compile-time bug")
+    Regex::new(r"(?m)^(\s*[-*+])\s*").expect(
+        "BUG: hardcoded regex r\"(?m)^(\\s*[-*+])\\s*\" is invalid - this is a compile-time bug",
+    )
 });
 
 static HEADING_SPACE: LazyLock<Regex> = LazyLock::new(|| {
@@ -26,13 +27,15 @@ static HEADING_SPACE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static TABLE_ALIGN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\|(\s*:?-+:?\s*\|)+")
-        .expect("BUG: hardcoded regex r\"\\|(\\s*:?-+:?\\s*\\|)+\" is invalid - this is a compile-time bug")
+    Regex::new(r"\|(\s*:?-+:?\s*\|)+").expect(
+        "BUG: hardcoded regex r\"\\|(\\s*:?-+:?\\s*\\|)+\" is invalid - this is a compile-time bug",
+    )
 });
 
 static CODE_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"```([a-zA-Z]*)\n")
-        .expect("BUG: hardcoded regex r\"```([a-zA-Z]*)\\n\" is invalid - this is a compile-time bug")
+    Regex::new(r"```([a-zA-Z]*)\n").expect(
+        "BUG: hardcoded regex r\"```([a-zA-Z]*)\\n\" is invalid - this is a compile-time bug",
+    )
 });
 
 static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -65,30 +68,30 @@ impl Default for MarkdownConverter {
 }
 
 impl MarkdownConverter {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_preserve_tables(mut self, preserve: bool) -> Self {
         self.preserve_tables = preserve;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_preserve_links(mut self, preserve: bool) -> Self {
         self.preserve_links = preserve;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_preserve_images(mut self, preserve: bool) -> Self {
         self.preserve_images = preserve;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_code_highlighting(mut self, highlight: bool) -> Self {
         self.code_highlighting = highlight;
         self

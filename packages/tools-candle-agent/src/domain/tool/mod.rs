@@ -3,7 +3,7 @@
 //! This module provides tool routing and execution for the Candle Agent framework.
 //! Tools are executed via local implementations, remote MCP servers, and Cylo backends.
 //! Users never directly call tools - they prompt naturally and the LLM
-//! decides which tools to call, similar to OpenAI function calling.
+//! decides which tools to call, similar to `OpenAI` function calling.
 //!
 //! Key components:
 //! - `CandleToolRouter`: Unified tool routing (local, remote, Cylo)

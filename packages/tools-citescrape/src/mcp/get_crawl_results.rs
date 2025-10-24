@@ -62,7 +62,7 @@ pub struct GetCrawlResultsTool {
 }
 
 impl GetCrawlResultsTool {
-    #[must_use] 
+    #[must_use]
     pub fn new(session_manager: Arc<CrawlSessionManager>) -> Self {
         Self { session_manager }
     }

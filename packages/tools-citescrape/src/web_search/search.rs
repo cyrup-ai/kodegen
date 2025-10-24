@@ -7,10 +7,13 @@ use anyhow::{Context, Result, anyhow};
 use chromiumoxide::page::Page;
 use rand::Rng;
 use std::time::{Duration, Instant};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 use url::Url;
 
-use super::types::{SEARCH_URL, SEARCH_RESULT_SELECTOR, SEARCH_RESULTS_WAIT_TIMEOUT, SearchResult, MAX_RESULTS, TITLE_SELECTOR, LINK_SELECTOR, SNIPPET_SELECTOR};
+use super::types::{
+    LINK_SELECTOR, MAX_RESULTS, SEARCH_RESULT_SELECTOR, SEARCH_RESULTS_WAIT_TIMEOUT, SEARCH_URL,
+    SNIPPET_SELECTOR, SearchResult, TITLE_SELECTOR,
+};
 use crate::crawl_engine::page_enhancer;
 
 /// Perform a search with kromekover stealth injection
@@ -43,14 +46,15 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
     }
 
     // Navigate directly to DuckDuckGo search results with proper URL encoding
-    let mut search_url = Url::parse(SEARCH_URL)
-        .context("Failed to parse DuckDuckGo base URL")?;
-    search_url.query_pairs_mut()
+    let mut search_url = Url::parse(SEARCH_URL).context("Failed to parse DuckDuckGo base URL")?;
+    search_url
+        .query_pairs_mut()
         .append_pair("q", query)
         .append_pair("ia", "web");
-    
+
     info!("Navigating to DuckDuckGo search: {}", search_url);
-    page.goto(search_url.as_str()).await
+    page.goto(search_url.as_str())
+        .await
         .context("Failed to navigate to DuckDuckGo")?;
 
     // DuckDuckGo uses React for rendering - wait for initial load
@@ -63,24 +67,29 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
     let poll_start = Instant::now();
     let max_wait = Duration::from_secs(5);
     let poll_interval = Duration::from_millis(200);
-    
+
     info!("Waiting for React to render search results...");
     loop {
         // Check if results are present
         if page.find_element(SEARCH_RESULT_SELECTOR).await.is_ok() {
             let elapsed = poll_start.elapsed();
-            debug!("Search results appeared after {:.2}s", elapsed.as_secs_f64());
+            debug!(
+                "Search results appeared after {:.2}s",
+                elapsed.as_secs_f64()
+            );
             break;
         }
-        
+
         // Check timeout
         if poll_start.elapsed() >= max_wait {
             // Check if we got a CAPTCHA or error page
             let url = page.url().await.ok().flatten().unwrap_or_default();
             if url.contains("/sorry/") || url.contains("captcha") {
-                return Err(anyhow!("DuckDuckGo presented a CAPTCHA page. Try again later or use a different network."));
+                return Err(anyhow!(
+                    "DuckDuckGo presented a CAPTCHA page. Try again later or use a different network."
+                ));
             }
-            
+
             return Err(anyhow!(
                 "Timeout waiting for DuckDuckGo results to render. \
                  React took longer than {}s to load results. \
@@ -88,7 +97,7 @@ pub async fn perform_search(page: &Page, query: &str) -> Result<()> {
                 max_wait.as_secs()
             ));
         }
-        
+
         // Wait before next poll
         tokio::time::sleep(poll_interval).await;
     }
@@ -129,13 +138,13 @@ pub async fn wait_for_results(page: &Page) -> Result<()> {
                     .ok()
                     .flatten()
                     .unwrap_or_else(|| "unknown".to_string());
-                
+
                 // Get page HTML for debugging
                 let html = page
                     .content()
                     .await
                     .unwrap_or_else(|_| "Failed to retrieve page HTML".to_string());
-                
+
                 eprintln!("\n========== PAGE HTML DEBUG ==========");
                 eprintln!("URL: {url}");
                 eprintln!("Expected selector: {SEARCH_RESULT_SELECTOR}");
@@ -146,14 +155,14 @@ pub async fn wait_for_results(page: &Page) -> Result<()> {
                 let start_idx = html.len().saturating_sub(2000);
                 eprintln!("{}", &html[start_idx..]);
                 eprintln!("========== END HTML DEBUG ==========\n");
-                
+
                 // Also save full HTML to file for inspection
                 if let Err(e) = tokio::fs::write("/tmp/search_page_debug.html", &html).await {
                     eprintln!("Failed to write debug HTML to /tmp/search_page_debug.html: {e}");
                 } else {
                     eprintln!("Full HTML saved to: /tmp/search_page_debug.html");
                 }
-                
+
                 return Err(anyhow!(
                     "Timeout waiting for search results. Page URL: {url}. \
                      Expected selector '{SEARCH_RESULT_SELECTOR}' not found after {timeout_duration:?}"
@@ -197,7 +206,7 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
     if search_results.is_empty() {
         // Get current URL for diagnostics
         let url = page.url().await.ok().flatten().unwrap_or_default();
-        
+
         // Check for known error conditions
         if url.contains("/sorry/") || url.contains("captcha") {
             return Err(anyhow!(
@@ -205,7 +214,7 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
                  Try again later or use a different network connection."
             ));
         }
-        
+
         // Check if this might be a "no results" page from DDG
         if let Ok(body) = page.find_element("body").await
             && let Ok(Some(text)) = body.inner_text().await
@@ -216,7 +225,7 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
                  Try a different search term."
             ));
         }
-        
+
         return Err(anyhow!(
             "No search results found on DuckDuckGo. This may indicate:\n\
              • DuckDuckGo DOM structure changed (selector '{SEARCH_RESULT_SELECTOR}' not found)\n\
@@ -233,11 +242,14 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
         let title = result
             .find_element(TITLE_SELECTOR)
             .await
-            .with_context(|| format!(
-                "DuckDuckGo result {}: Title element not found with selector '{}'. \
+            .with_context(|| {
+                format!(
+                    "DuckDuckGo result {}: Title element not found with selector '{}'. \
                  DOM structure may have changed.",
-                index + 1, TITLE_SELECTOR
-            ))?
+                    index + 1,
+                    TITLE_SELECTOR
+                )
+            })?
             .inner_text()
             .await
             .with_context(|| format!("Failed to get title text for result {}", index + 1))?
@@ -247,19 +259,24 @@ pub async fn extract_results(page: &Page) -> Result<Vec<SearchResult>> {
         let url = result
             .find_element(LINK_SELECTOR)
             .await
-            .with_context(|| format!(
-                "DuckDuckGo result {}: Link element not found with selector '{}'. \
+            .with_context(|| {
+                format!(
+                    "DuckDuckGo result {}: Link element not found with selector '{}'. \
                  DOM structure may have changed.",
-                index + 1, LINK_SELECTOR
-            ))?
+                    index + 1,
+                    LINK_SELECTOR
+                )
+            })?
             .attribute("href")
             .await
             .with_context(|| format!("Failed to get href attribute for result {}", index + 1))?
-            .ok_or_else(|| anyhow!(
-                "DuckDuckGo result {}: Link href attribute is empty. \
+            .ok_or_else(|| {
+                anyhow!(
+                    "DuckDuckGo result {}: Link href attribute is empty. \
                  This shouldn't happen - may indicate a DuckDuckGo UI change.",
-                index + 1
-            ))?;
+                    index + 1
+                )
+            })?;
 
         // Extract snippet - OPTIONAL, can fallback
         let snippet = match result.find_element(SNIPPET_SELECTOR).await {

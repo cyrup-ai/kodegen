@@ -92,7 +92,7 @@ where
     ///
     /// # Arguments
     /// * `event` - Test event to check against filter
-    #[must_use] 
+    #[must_use]
     pub fn would_receive(&self, event: &CrawlEvent) -> bool {
         (self.filter)(event)
     }

@@ -70,7 +70,7 @@ impl From<anyhow::Error> for SearchError {
 
 impl SearchError {
     /// Check if error is transient and should be retried
-    #[must_use] 
+    #[must_use]
     pub fn is_transient(&self) -> bool {
         matches!(
             self,
@@ -79,7 +79,7 @@ impl SearchError {
     }
 
     /// Get suggested retry delay for transient errors
-    #[must_use] 
+    #[must_use]
     pub fn retry_delay(&self) -> Option<Duration> {
         if self.is_transient() {
             Some(Duration::from_millis(100))
@@ -89,7 +89,7 @@ impl SearchError {
     }
 
     /// Check if index rebuild is recommended
-    #[must_use] 
+    #[must_use]
     pub fn needs_index_rebuild(&self) -> bool {
         matches!(self, SearchError::IndexCorruption(_))
     }
@@ -121,7 +121,7 @@ impl Default for RetryConfig {
 
 impl RetryConfig {
     /// Calculate delay for given attempt number (0-based)
-    #[must_use] 
+    #[must_use]
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
         let multiplier = self.backoff_multiplier.powi(attempt as i32);
         let delay_ms = (self.initial_delay.as_millis() as f64 * multiplier) as u64;

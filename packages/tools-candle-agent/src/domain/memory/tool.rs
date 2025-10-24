@@ -120,6 +120,9 @@ pub type MemoryToolResult<T> = Result<T, MemoryToolError>;
 
 impl MemoryTool {
     /// Create a new memory tool instance
+    ///
+    /// # Panics
+    /// Panics if the JSON schema cannot be converted to an object (should never happen with static schema)
     #[must_use]
     pub fn new(memory: Arc<SurrealDBMemoryManager>) -> Self {
         let schema_json = serde_json::json!({

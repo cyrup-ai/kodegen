@@ -158,7 +158,9 @@ async fn initialize_tool_router(
     _sender: &tokio::sync::mpsc::UnboundedSender<CandleMessageChunk>,
 ) -> Option<CandleToolRouter> {
     // Create router with no remote MCP client (local tools only)
-    Some(CandleToolRouter::new(None))
+    let mut router = CandleToolRouter::new(None);
+    router.initialize().await.ok()?;
+    Some(router)
 }
 
 /// Search memory and format context

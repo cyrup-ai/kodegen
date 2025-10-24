@@ -270,7 +270,8 @@ async fn test_batch_publish() {
 fn test_event_bus_config() {
     let config = EventBusConfig {
         capacity: 500,
-        backpressure_mode: kodegen_tools_citescrape::crawl_events::config::BackpressureMode::default(),
+        backpressure_mode:
+            kodegen_tools_citescrape::crawl_events::config::BackpressureMode::default(),
         overload_threshold: 0.8,
         enable_batching: true,
         max_batch_size: 50,
@@ -343,9 +344,7 @@ async fn test_block_backpressure_no_race_condition() {
         let handle = tokio::spawn(async move {
             for event_id in 0..events_per_publisher {
                 let event = CrawlEvent::page_crawled(
-                    format!(
-                        "https://example.com/publisher{publisher_id}/page{event_id}"
-                    ),
+                    format!("https://example.com/publisher{publisher_id}/page{event_id}"),
                     PathBuf::from(format!("/output/p{publisher_id}_e{event_id}.html")),
                     1,
                     PageCrawlMetadata {
@@ -362,9 +361,7 @@ async fn test_block_backpressure_no_race_condition() {
                 // This should block when channel is full, never drop events
                 match bus_clone.publish_with_backpressure(event).await {
                     Ok(_) => {}
-                    Err(e) => panic!(
-                        "Publisher {publisher_id} event {event_id} failed: {e:?}"
-                    ),
+                    Err(e) => panic!("Publisher {publisher_id} event {event_id} failed: {e:?}"),
                 }
             }
         });

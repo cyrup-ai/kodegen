@@ -34,9 +34,11 @@ pub(crate) async fn execute_search_query(
         },
         move || async move {
             tracing::warn!("Attempting fallback search with reduced features");
-            execute_search_with_features(engine_fallback, query_fallback, limit, offset, false).await
+            execute_search_with_features(engine_fallback, query_fallback, limit, offset, false)
+                .await
         },
-    ).await;
+    )
+    .await;
 
     // Convert SearchResult<SearchResults> to Result<SearchResults>
     result.map_err(|e| anyhow::anyhow!("{e}"))
@@ -85,9 +87,7 @@ async fn execute_search_with_features(
         })?;
 
         let search_result = convert_to_search_result(&doc, &engine, score, generators.as_ref())
-            .map_err(|e| {
-                SearchError::Other(format!("Failed to convert search result: {e}"))
-            })?;
+            .map_err(|e| SearchError::Other(format!("Failed to convert search result: {e}")))?;
 
         results.push(search_result);
     }

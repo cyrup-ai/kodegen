@@ -26,7 +26,7 @@ pub enum SearchQueryType {
 
 impl SearchQueryType {
     /// Parse a query string to determine its type
-    #[must_use] 
+    #[must_use]
     pub fn parse(query: &str) -> Self {
         let query = query.trim();
 

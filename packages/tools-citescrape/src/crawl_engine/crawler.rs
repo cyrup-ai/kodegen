@@ -29,7 +29,7 @@ async fn save_markdown_content(content: &str, url: &str, output_dir: &Path) -> R
         url.to_string(),
         output_dir.to_path_buf(),
         MessagePriority::Normal,
-        None, // No indexing sender available
+        None,  // No indexing sender available
         false, // Default to uncompressed for this helper
     )
     .await
@@ -54,7 +54,7 @@ pub struct ChromiumoxideCrawler {
 }
 
 impl ChromiumoxideCrawler {
-    #[must_use] 
+    #[must_use]
     pub fn new(config: CrawlConfig) -> Self {
         let link_rewriter = LinkRewriter::new(config.storage_dir());
         let chrome_data_dir = config.chrome_data_dir().cloned();
@@ -70,12 +70,9 @@ impl ChromiumoxideCrawler {
         let link_rewriter = self.link_rewriter.clone();
         let chrome_data_dir = self.chrome_data_dir.clone();
 
-        let chrome_data_dir_path = super::crawl_impl(
-            config,
-            link_rewriter,
-            chrome_data_dir,
-        ).await?;
-        
+        let chrome_data_dir_path =
+            super::crawl_impl(config, link_rewriter, chrome_data_dir).await?;
+
         self.chrome_data_dir = chrome_data_dir_path;
         Ok(())
     }
@@ -171,7 +168,7 @@ impl Drop for ChromiumoxideCrawler {
 ///
 /// Vector of URL strings that passed all filters (external domain rules,
 /// allowed domains, excluded patterns, etc.)
-#[must_use] 
+#[must_use]
 pub fn extract_valid_urls(
     links: &[crate::page_extractor::schema::CrawlLink],
     config: &CrawlConfig,
@@ -191,7 +188,7 @@ pub fn extract_valid_urls(
         .collect()
 }
 
-#[must_use] 
+#[must_use]
 pub fn should_visit_url(url: &str, config: &CrawlConfig) -> bool {
     let parsed_url = match Url::parse(url) {
         Ok(parsed_url) => parsed_url,

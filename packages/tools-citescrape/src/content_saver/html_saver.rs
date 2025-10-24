@@ -17,7 +17,7 @@ pub async fn save_html_content(
 
     // get_mirror_path is async, await it
     let path = get_mirror_path(&url, &output_dir, "index.html").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     ensure_domain_gitignore(&path, &output_dir).await?;
 
@@ -27,8 +27,9 @@ pub async fn save_html_content(
         url.clone(),
         &config,
         max_inline_image_size_bytes,
-        rate_rps
-    ).await;
+        rate_rps,
+    )
+    .await;
 
     let inlined_html = match inline_result {
         Ok(inlined) => {
@@ -41,9 +42,7 @@ pub async fn save_html_content(
             inlined.html
         }
         Err(e) => {
-            log::warn!(
-                "Failed to inline resources for {url}: {e}, using original HTML"
-            );
+            log::warn!("Failed to inline resources for {url}: {e}, using original HTML");
             html_content
         }
     };
@@ -55,7 +54,8 @@ pub async fn save_html_content(
     .await?;
 
     // save_compressed_file is now async
-    let (_saved_path, _metadata) = save_compressed_file(inlined_html.into_bytes(), &path, "text/html", false).await?;
+    let (_saved_path, _metadata) =
+        save_compressed_file(inlined_html.into_bytes(), &path, "text/html", false).await?;
 
     Ok(())
 }
@@ -74,10 +74,10 @@ pub async fn save_html_content_with_resources(
 
     // Get mirror path first (async)
     let path = get_mirror_path(&url, &output_dir, "index.html").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     ensure_domain_gitignore(&path, &output_dir).await?;
-    
+
     // Then inline resources (async)
     let config = crate::inline_css::InlineConfig::default();
     let inline_future = crate::inline_css::inline_resources_from_info(
@@ -86,8 +86,9 @@ pub async fn save_html_content_with_resources(
         &config,
         resources,
         max_inline_image_size_bytes,
-        rate_rps
-    ).await;
+        rate_rps,
+    )
+    .await;
 
     let inlined_html = match inline_future {
         Ok(inlined) => {
@@ -100,9 +101,7 @@ pub async fn save_html_content_with_resources(
             inlined.html
         }
         Err(e) => {
-            log::warn!(
-                "Failed to inline resources for {url}: {e}, using original HTML"
-            );
+            log::warn!("Failed to inline resources for {url}: {e}, using original HTML");
             html_content
         }
     };
@@ -114,7 +113,8 @@ pub async fn save_html_content_with_resources(
     .await?;
 
     // save_compressed_file is now async
-    let (_saved_path, _metadata) = save_compressed_file(inlined_html.into_bytes(), &path, "text/html", false).await?;
+    let (_saved_path, _metadata) =
+        save_compressed_file(inlined_html.into_bytes(), &path, "text/html", false).await?;
 
     Ok(())
 }

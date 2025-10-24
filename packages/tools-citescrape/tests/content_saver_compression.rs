@@ -1,5 +1,5 @@
-use kodegen_tools_citescrape::content_saver::save_compressed_file;
 use flate2::{Compression, GzBuilder};
+use kodegen_tools_citescrape::content_saver::save_compressed_file;
 use std::io::{Cursor, Write};
 use std::time::Instant;
 
@@ -38,10 +38,7 @@ fn generate_html_content(size_kb: usize) -> Vec<u8> {
 }
 
 /// Compress data with specified level and return (duration, `compressed_size`)
-fn compress_with_level(
-    data: &[u8],
-    level: u32,
-) -> anyhow::Result<(std::time::Duration, usize)> {
+fn compress_with_level(data: &[u8], level: u32) -> anyhow::Result<(std::time::Duration, usize)> {
     let start = Instant::now();
 
     let mut output = Cursor::new(Vec::new());
@@ -67,9 +64,7 @@ fn benchmark_compression_levels_10kb() {
         match compress_with_level(&content, level) {
             Ok((duration, size)) => {
                 let ratio = (size as f64 / content.len() as f64) * 100.0;
-                println!(
-                    "Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original"
-                );
+                println!("Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original");
             }
             Err(e) => println!("Level {level}: Error - {e}"),
         }
@@ -86,9 +81,7 @@ fn benchmark_compression_levels_100kb() {
         match compress_with_level(&content, level) {
             Ok((duration, size)) => {
                 let ratio = (size as f64 / content.len() as f64) * 100.0;
-                println!(
-                    "Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original"
-                );
+                println!("Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original");
             }
             Err(e) => println!("Level {level}: Error - {e}"),
         }
@@ -105,9 +98,7 @@ fn benchmark_compression_levels_1mb() {
         match compress_with_level(&content, level) {
             Ok((duration, size)) => {
                 let ratio = (size as f64 / content.len() as f64) * 100.0;
-                println!(
-                    "Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original"
-                );
+                println!("Level {level}: {duration:?} | {size} bytes | {ratio:.1}% of original");
             }
             Err(e) => println!("Level {level}: Error - {e}"),
         }

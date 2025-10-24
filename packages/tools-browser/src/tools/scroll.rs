@@ -1,10 +1,10 @@
 //! Browser scroll tool - scrolls page or to specific element
 
 use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent, PromptArgument};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::manager::BrowserManager;
@@ -59,25 +59,33 @@ impl Tool for BrowserScrollTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get browser instance
-        let browser_arc = self.manager.get_or_launch().await
+        let browser_arc = self
+            .manager
+            .get_or_launch()
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-        
+
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard.as_ref()
+        let wrapper = browser_guard
+            .as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
-        
+
         // Get current page (must call browser_navigate first)
-        let page = crate::browser::get_current_page(wrapper).await
+        let page = crate::browser::get_current_page(wrapper)
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
 
         // Perform scroll
         if let Some(selector) = &args.selector {
             // Find element first (validates existence)
-            let element = page.find_element(selector).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e)))?;
-            
+            let element = page.find_element(selector).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
+            })?;
+
             // Use chromiumoxide's scroll_into_view() (has IntersectionObserver check)
-            element.scroll_into_view().await
+            element
+                .scroll_into_view()
+                .await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
 
             Ok(json!({
@@ -93,7 +101,8 @@ impl Tool for BrowserScrollTool {
 
             let js_code = format!("window.scrollBy({}, {})", x, y);
 
-            page.evaluate(js_code.as_str()).await
+            page.evaluate(js_code.as_str())
+                .await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
 
             Ok(json!({
@@ -123,7 +132,7 @@ impl Tool for BrowserScrollTool {
                      - browser_scroll({\"y\": 500}) - Scroll down 500px\\n\
                      - browser_scroll({\"y\": -300}) - Scroll up 300px\\n\
                      - browser_scroll({\"x\": 200, \"y\": 400}) - Scroll right and down\\n\
-                     - browser_scroll({\"selector\": \"#footer\"}) - Scroll to element"
+                     - browser_scroll({\"selector\": \"#footer\"}) - Scroll to element",
                 ),
             },
         ])

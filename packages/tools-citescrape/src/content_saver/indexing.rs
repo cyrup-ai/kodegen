@@ -10,9 +10,6 @@ use crate::search::IndexingSender;
 /// # Arguments
 /// * `indexing_sender` - The indexing service sender to use (required)
 /// * `force` - Whether to force optimization even if not needed
-pub async fn optimize_search_index(
-    indexing_sender: &IndexingSender,
-    force: bool,
-) -> Result<()> {
+pub async fn optimize_search_index(indexing_sender: &IndexingSender, force: bool) -> Result<()> {
     indexing_sender.optimize(force).await
 }

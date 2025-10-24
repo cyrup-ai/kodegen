@@ -85,7 +85,7 @@ pub struct SearchCrawlResultsTool {
 }
 
 impl SearchCrawlResultsTool {
-    #[must_use] 
+    #[must_use]
     pub fn new(
         session_manager: Arc<CrawlSessionManager>,
         engine_cache: Arc<SearchEngineCache>,
@@ -241,9 +241,7 @@ impl Tool for SearchCrawlResultsTool {
             .highlight(args.highlight)
             .execute_with_metadata((*entry.engine).clone())
             .await
-            .map_err(|e| {
-                McpError::SearchIndex(format!("Search query execution failed: {e}"))
-            })?;
+            .map_err(|e| McpError::SearchIndex(format!("Search query execution failed: {e}")))?;
 
         let search_time_ms = start_time.elapsed().as_millis();
 

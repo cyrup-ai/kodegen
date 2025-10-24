@@ -267,4 +267,3 @@ fn process_other_inline_elements(mut text: String) -> String {
 // ============================================================================
 // IN-PLACE VERSIONS (ZERO-ALLOCATION) - Option 3: Hybrid Approach
 // ============================================================================
-

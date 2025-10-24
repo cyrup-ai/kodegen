@@ -68,7 +68,7 @@ pub async fn read_cached_etag(url: &str, output_dir: &Path) -> Result<Option<Str
 ///
 /// The headers come from CDP EventResponseReceived.response.headers
 /// which is a JSON object like {"etag": "abc123", "content-type": "text/html"}
-#[must_use] 
+#[must_use]
 pub fn extract_etag_from_headers(headers: &Headers) -> Option<String> {
     let headers_json = headers.inner();
 

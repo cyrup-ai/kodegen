@@ -12,7 +12,7 @@ impl<State> CrawlConfigBuilder<State> {
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_screenshots(mut self, save: bool) -> Self {
         self.save_screenshots = save;
         self
@@ -70,91 +70,91 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .headless(false)  // Show visible browser window
     ///     .build();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn headless(mut self, headless: bool) -> Self {
         self.headless = headless;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn stealth_mode(mut self, stealth: bool) -> Self {
         self.stealth_mode = stealth;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn limit(mut self, limit: Option<usize>) -> Self {
         self.limit = limit;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn only_html(mut self, only_html: bool) -> Self {
         self.only_html = only_html;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn full_resources(mut self, full_resources: bool) -> Self {
         self.full_resources = full_resources;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allow_subdomains(mut self, allow: bool) -> Self {
         self.allow_subdomains = allow;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allow_external_domains(mut self, allow: bool) -> Self {
         self.allow_external_domains = allow;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_raw_html(mut self, save: bool) -> Self {
         self.save_raw_html = save;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn extract_main_content(mut self, extract: bool) -> Self {
         self.extract_main_content = extract;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_markdown(mut self, save: bool) -> Self {
         self.save_markdown = save;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_selector(mut self, selector: Option<String>) -> Self {
         self.content_selector = selector;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allowed_domains(mut self, domains: Option<Vec<String>>) -> Self {
         self.allowed_domains = domains;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn excluded_patterns(mut self, patterns: Option<Vec<String>>) -> Self {
         self.excluded_patterns = patterns;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn generate_components(mut self, generate: bool) -> Self {
         self.generate_components = generate;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn progressive(mut self, progressive: bool) -> Self {
         self.progressive = progressive;
         self
@@ -165,13 +165,13 @@ impl<State> CrawlConfigBuilder<State> {
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn max_depth(mut self, depth: u8) -> Self {
         self.max_depth = depth;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn screenshot_quality(mut self, quality: u8) -> Self {
         self.screenshot_quality = quality;
         self
@@ -182,13 +182,13 @@ impl<State> CrawlConfigBuilder<State> {
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn search_memory_limit(mut self, limit: Option<usize>) -> Self {
         self.search_memory_limit = limit;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn search_batch_size(mut self, size: Option<usize>) -> Self {
         self.search_batch_size = size;
         self
@@ -212,7 +212,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .build()
     ///     .unwrap();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn crawl_rate_rps(mut self, rate_rps: f64) -> Self {
         self.crawl_rate_rps = Some(rate_rps);
         self
@@ -233,7 +233,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .build()
     ///     .unwrap();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn no_crawl_rate_limit(mut self) -> Self {
         self.crawl_rate_rps = None;
         self
@@ -257,7 +257,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .build()
     ///     .unwrap();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn max_inline_image_size_bytes(mut self, max_bytes: usize) -> Self {
         self.max_inline_image_size_bytes = Some(max_bytes);
         self
@@ -267,7 +267,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///
     /// This is the default behavior - all images will be converted to base64
     /// and inlined in the HTML, regardless of their size.
-    #[must_use] 
+    #[must_use]
     pub fn inline_all_images(mut self) -> Self {
         self.max_inline_image_size_bytes = None;
         self
@@ -279,7 +279,7 @@ impl<State> CrawlConfigBuilder<State> {
     /// Set to None for unlimited (not recommended), or Some(size) to limit.
     ///
     /// Default: `Some(10_000)`
-    #[must_use] 
+    #[must_use]
     pub fn max_deferred_queue_size(mut self, size: Option<usize>) -> Self {
         self.max_deferred_queue_size = size;
         self
@@ -291,7 +291,7 @@ impl<State> CrawlConfigBuilder<State> {
     /// them using HTTP `ETags`. If the etag matches, content extraction is skipped.
     ///
     /// Default: true
-    #[must_use] 
+    #[must_use]
     pub fn enable_cache_validation(mut self, enable: bool) -> Self {
         self.enable_cache_validation = enable;
         self
@@ -303,7 +303,7 @@ impl<State> CrawlConfigBuilder<State> {
     /// cached versions exist.
     ///
     /// Default: false
-    #[must_use] 
+    #[must_use]
     pub fn ignore_cache(mut self, ignore: bool) -> Self {
         self.ignore_cache = ignore;
         self
@@ -332,7 +332,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .build()
     ///     .unwrap();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn cache_validation_timeout_secs(mut self, timeout_secs: u64) -> Self {
         self.cache_validation_timeout_secs = Some(timeout_secs);
         self
@@ -358,7 +358,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///     .build()
     ///     .unwrap();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_enabled(mut self, enabled: bool) -> Self {
         self.circuit_breaker_enabled = enabled;
         self
@@ -374,7 +374,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///
     /// # Arguments
     /// * `threshold` - Number of failures before circuit opens (e.g., 5)
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_failure_threshold(mut self, threshold: u32) -> Self {
         self.circuit_breaker_failure_threshold = threshold;
         self
@@ -391,7 +391,7 @@ impl<State> CrawlConfigBuilder<State> {
     ///
     /// # Arguments
     /// * `delay_secs` - Delay in seconds before retry (e.g., 120 for 2 minutes)
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_retry_delay_secs(mut self, delay_secs: u64) -> Self {
         self.circuit_breaker_retry_delay_secs = delay_secs;
         self

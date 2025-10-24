@@ -51,7 +51,7 @@ use once_cell::sync::OnceCell;
 use tracing::info;
 
 /// Standalone browser manager for convenience API
-/// 
+///
 /// Used by `search()` and `shutdown_standalone()` functions.
 /// MCP tools should NOT use this - they get a manager from `tool_registry`.
 static STANDALONE_MANAGER: OnceCell<BrowserManager> = OnceCell::new();
@@ -77,14 +77,14 @@ pub async fn search_with_manager(
     // Get browser from manager (NOT global static)
     let browser_arc = browser_manager.get_or_launch().await?;
     let browser_lock = browser_arc.lock().await;
-    
+
     let browser_wrapper = browser_lock
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Browser not available"))?;
 
     // Create fresh page for this search
     let page = browser::create_blank_page(browser_wrapper).await?;
-    
+
     // Release lock before performing search
     drop(browser_lock);
 
@@ -99,7 +99,10 @@ pub async fn search_with_manager(
     )
     .await?;
 
-    info!("Search completed successfully with {} results", results.len());
+    info!(
+        "Search completed successfully with {} results",
+        results.len()
+    );
     Ok(SearchResults::new(query, results))
 }
 

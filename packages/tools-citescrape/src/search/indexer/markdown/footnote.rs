@@ -25,4 +25,3 @@ pub(crate) fn remove_footnote_markers(text: String) -> String {
         }
     })
 }
-

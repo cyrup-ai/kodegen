@@ -109,7 +109,7 @@ pub struct CrawlManifest {
 
 impl CrawlManifest {
     /// Create manifest from an active session
-    #[must_use] 
+    #[must_use]
     pub fn from_session(session: &ActiveCrawlSession) -> Self {
         Self {
             crawl_id: session.crawl_id.clone(),

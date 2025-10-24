@@ -31,7 +31,7 @@ pub async fn cleanup_browser_and_data(
     } else {
         debug!(target: "citescrape::cleanup", "Browser closed successfully");
     }
-    
+
     // Wait for browser process to fully exit (prevents "not closed manually" warning)
     debug!(target: "citescrape::cleanup", "Waiting for browser process to exit");
     if let Err(e) = browser.wait().await {

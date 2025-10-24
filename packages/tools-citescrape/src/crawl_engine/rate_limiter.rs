@@ -194,7 +194,7 @@ fn get_base_time() -> &'static Instant {
 
 /// Extract domain from URL
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn extract_domain(url: &str) -> Option<String> {
     if let Some(scheme_end) = url.find("://") {
         let after_scheme = &url[scheme_end + 3..];

@@ -1,10 +1,10 @@
 //! Browser click tool - clicks elements by CSS selector
 
 use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent, PromptArgument};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ use crate::manager::BrowserManager;
 pub struct BrowserClickArgs {
     /// CSS selector for element to click
     pub selector: String,
-    
+
     /// Optional: timeout in milliseconds (default: 5000)
     #[serde(default)]
     pub timeout_ms: Option<u64>,
@@ -58,43 +58,53 @@ impl Tool for BrowserClickTool {
         if args.selector.trim().is_empty() {
             return Err(McpError::invalid_arguments("Selector cannot be empty"));
         }
-        
+
         // Get or create browser instance
-        let browser_arc = self.manager.get_or_launch().await
+        let browser_arc = self
+            .manager
+            .get_or_launch()
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-        
+
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard.as_ref()
+        let wrapper = browser_guard
+            .as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
-        
+
         // Get current page (must call browser_navigate first)
-        let page = crate::browser::get_current_page(wrapper).await
+        let page = crate::browser::get_current_page(wrapper)
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
-        
+
         // Find element with timeout
         let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(5000));
-        
+
         let element = tokio::time::timeout(timeout, page.find_element(&args.selector))
             .await
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "Element not found (timeout after {}ms): {}", 
-                timeout.as_millis(),
-                args.selector
-            )))?
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Element not found '{}': {}", 
-                args.selector, 
-                e
-            )))?;
-        
+            .map_err(|_| {
+                McpError::Other(anyhow::anyhow!(
+                    "Element not found (timeout after {}ms): {}",
+                    timeout.as_millis(),
+                    args.selector
+                ))
+            })?
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Element not found '{}': {}",
+                    args.selector,
+                    e
+                ))
+            })?;
+
         // Click element (automatically scrolls into view)
-        element.click().await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Click failed for '{}': {}", 
+        element.click().await.map_err(|e| {
+            McpError::Other(anyhow::anyhow!(
+                "Click failed for '{}': {}",
                 args.selector,
                 e
-            )))?;
-        
+            ))
+        })?;
+
         Ok(json!({
             "success": true,
             "selector": args.selector,
@@ -119,7 +129,7 @@ impl Tool for BrowserClickTool {
                      - browser_click({\\\"selector\\\": \\\"#submit\\\"}) - By ID\\n\
                      - browser_click({\\\"selector\\\": \\\".btn-primary\\\"}) - By class\\n\
                      - browser_click({\\\"selector\\\": \\\"button[type='submit']\\\"}) - By attribute\\n\
-                     - browser_click({\\\"selector\\\": \\\"form button:first-child\\\"}) - Complex selector"
+                     - browser_click({\\\"selector\\\": \\\"form button:first-child\\\"}) - Complex selector",
                 ),
             },
         ])

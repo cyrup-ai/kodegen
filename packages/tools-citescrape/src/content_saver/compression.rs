@@ -22,7 +22,7 @@ pub struct CacheMetadata {
 
 /// Save content as a file with optional compression and cache metadata
 /// Returns (`actual_saved_path`, metadata)
-/// 
+///
 /// When compress=true, saves as .gz file
 /// When compress=false, saves as plain file
 pub async fn save_compressed_file(
@@ -103,9 +103,10 @@ pub async fn save_compressed_file(
     } else {
         // Save as uncompressed plain file
         // Metadata stored as extended attributes (or could use sidecar .meta.json file)
-        tokio::fs::write(&path, &content).await
+        tokio::fs::write(&path, &content)
+            .await
             .with_context(|| format!("Failed to write file: {path:?}"))?;
-        
+
         Ok((path.clone(), metadata))
     }
 }

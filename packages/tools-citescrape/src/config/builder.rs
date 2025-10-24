@@ -130,7 +130,7 @@ impl Default for CrawlConfigBuilder<()> {
 
 impl CrawlConfig {
     /// Create a builder for configuring a `CrawlConfig` with a fluent interface
-    #[must_use] 
+    #[must_use]
     pub fn builder() -> CrawlConfigBuilder<()> {
         CrawlConfigBuilder::default()
     }

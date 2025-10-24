@@ -210,9 +210,12 @@ impl IndexingSender {
 
         {
             let mut callbacks = self.completion_callbacks.lock().await;
-            callbacks.insert(completion_id, Box::new(move |result| {
-                let _ = tx.send(result);
-            }));
+            callbacks.insert(
+                completion_id,
+                Box::new(move |result| {
+                    let _ = tx.send(result);
+                }),
+            );
         }
 
         let message = IndexingMessage::Delete { url, completion_id };
@@ -221,9 +224,14 @@ impl IndexingSender {
             self.pending_operations.fetch_add(1, Ordering::Relaxed);
             self.stats.pending_count.fetch_add(1, Ordering::Relaxed);
             // Wait for background worker to complete the operation
-            rx.await.map_err(|_| anyhow::anyhow!("Indexing service disconnected"))?
+            rx.await
+                .map_err(|_| anyhow::anyhow!("Indexing service disconnected"))?
         } else {
-            let _ = self.completion_callbacks.lock().await.remove(&completion_id);
+            let _ = self
+                .completion_callbacks
+                .lock()
+                .await
+                .remove(&completion_id);
             Err(anyhow::anyhow!("Indexing service disconnected"))
         }
     }
@@ -232,14 +240,17 @@ impl IndexingSender {
     #[inline]
     pub async fn optimize(&self, force: bool) -> Result<()> {
         let completion_id = self.next_completion_id.fetch_add(1, Ordering::Relaxed) as u64;
-        
+
         let (tx, rx) = tokio::sync::oneshot::channel();
-        
+
         {
             let mut callbacks = self.completion_callbacks.lock().await;
-            callbacks.insert(completion_id, Box::new(move |result| {
-                let _ = tx.send(result);
-            }));
+            callbacks.insert(
+                completion_id,
+                Box::new(move |result| {
+                    let _ = tx.send(result);
+                }),
+            );
         }
 
         let message = IndexingMessage::Optimize {
@@ -255,7 +266,10 @@ impl IndexingSender {
             }
         } else {
             // Clean up callback and return error
-            self.completion_callbacks.lock().await.remove(&completion_id);
+            self.completion_callbacks
+                .lock()
+                .await
+                .remove(&completion_id);
             Err(anyhow::anyhow!("Indexing service disconnected"))
         }
     }
@@ -268,7 +282,7 @@ impl IndexingSender {
 
     /// Check if service is healthy and processing messages
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         // Check if the sender can potentially send (not disconnected)
         // We'll use the pending operations count as a health indicator
@@ -280,8 +294,7 @@ impl IncrementalIndexingService {
     /// Create and start the incremental indexing service
     pub async fn start(engine: SearchEngine) -> Result<IndexingSender> {
         let (sender, receiver) = mpsc::unbounded_channel();
-        let completion_callbacks =
-            Arc::new(Mutex::new(ahash::AHashMap::with_capacity(1024)));
+        let completion_callbacks = Arc::new(Mutex::new(ahash::AHashMap::with_capacity(1024)));
         let next_completion_id = Arc::new(AtomicUsize::new(1));
         let pending_operations = Arc::new(AtomicUsize::new(0));
         let is_running = Arc::new(AtomicBool::new(true));
@@ -547,14 +560,13 @@ impl IncrementalIndexingService {
                             &mut writer,
                             file_path.as_path(),
                             url,
-                            &super::indexer::IndexingLimits::default()
-                        ).map_err(|e| anyhow::anyhow!("{e}"))
+                            &super::indexer::IndexingLimits::default(),
+                        )
+                        .map_err(|e| anyhow::anyhow!("{e}"))
                     }
-                    IndexingMessage::Delete { url, .. } => {
-                        engine
-                            .delete_document(&mut writer, url.to_string())
-                            .map_err(|e| anyhow::anyhow!("{e}"))
-                    }
+                    IndexingMessage::Delete { url, .. } => engine
+                        .delete_document(&mut writer, url.to_string())
+                        .map_err(|e| anyhow::anyhow!("{e}")),
                     IndexingMessage::Shutdown => Ok(()), // No-op, handled by worker loop
                     IndexingMessage::Optimize { .. } => {
                         unreachable!("Optimize messages filtered out")
@@ -609,7 +621,7 @@ impl IncrementalIndexingService {
                 if !optimize_messages.is_empty() {
                     *stats.last_optimization.lock().await = Some(Instant::now());
                 }
-                
+
                 // Complete all optimize operation callbacks
                 for msg in optimize_messages {
                     if let Some(id) = Self::extract_completion_id(&msg) {

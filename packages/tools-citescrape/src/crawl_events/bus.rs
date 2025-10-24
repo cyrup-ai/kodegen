@@ -36,7 +36,7 @@ impl CrawlEventBus {
     ///
     /// # Arguments
     /// * `capacity` - Maximum number of events that can be buffered
-    #[must_use] 
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         let config = EventBusConfig {
             capacity,
@@ -49,7 +49,7 @@ impl CrawlEventBus {
     ///
     /// # Arguments
     /// * `config` - Event bus configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: EventBusConfig) -> Self {
         let (sender, _) = broadcast::channel(config.capacity);
         let metrics = EventBusMetrics::new();
@@ -73,7 +73,7 @@ impl CrawlEventBus {
     }
 
     /// Get the current configuration
-    #[must_use] 
+    #[must_use]
     pub fn config(&self) -> &EventBusConfig {
         &self.config
     }
@@ -98,7 +98,7 @@ impl CrawlEventBus {
     /// let snapshot = bus.metrics().snapshot();
     /// assert!(snapshot.events_published >= snapshot.events_dropped);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn metrics(&self) -> &EventBusMetrics {
         &self.metrics
     }
@@ -313,13 +313,13 @@ impl CrawlEventBus {
     ///
     /// # Returns
     /// A receiver that can be used to listen for events
-    #[must_use] 
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<CrawlEvent> {
         self.sender.subscribe()
     }
 
     /// Get the number of active subscribers
-    #[must_use] 
+    #[must_use]
     pub fn subscriber_count(&self) -> usize {
         let count = self.sender.receiver_count();
         if self.config.enable_metrics {
@@ -329,7 +329,7 @@ impl CrawlEventBus {
     }
 
     /// Check if the event bus has any active subscribers
-    #[must_use] 
+    #[must_use]
     pub fn has_subscribers(&self) -> bool {
         self.subscriber_count() > 0
     }
@@ -351,7 +351,7 @@ impl CrawlEventBus {
     ///     log::warn!("Channel is {}% full", pressure * 100.0);
     /// }
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn pressure(&self) -> f64 {
         let current = self.sender.len();
         let capacity = self.config.capacity;
@@ -370,19 +370,19 @@ impl CrawlEventBus {
     ///     tokio::time::sleep(Duration::from_millis(10)).await;
     /// }
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn is_overloaded(&self) -> bool {
         self.pressure() >= self.config.overload_threshold
     }
 
     /// Get current number of events in the channel buffer
-    #[must_use] 
+    #[must_use]
     pub fn buffer_len(&self) -> usize {
         self.sender.len()
     }
 
     /// Get remaining capacity before channel is full
-    #[must_use] 
+    #[must_use]
     pub fn remaining_capacity(&self) -> usize {
         self.config.capacity.saturating_sub(self.sender.len())
     }
@@ -477,7 +477,7 @@ impl CrawlEventBus {
     /// Get detailed metrics report
     ///
     /// Uses a snapshot to ensure all metrics are consistent with each other.
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics_report(&self) -> String {
         if !self.config.enable_metrics {
             return "Metrics disabled".to_string();
@@ -529,7 +529,7 @@ impl CrawlEventBus {
     /// Check if shutdown has been signaled
     ///
     /// Returns true if `shutdown()` has been called on this bus or any of its clones.
-    #[must_use] 
+    #[must_use]
     pub fn is_shutdown(&self) -> bool {
         self.shutdown_flag.load(Ordering::SeqCst)
     }

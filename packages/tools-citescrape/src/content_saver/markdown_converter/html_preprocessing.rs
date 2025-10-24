@@ -16,13 +16,13 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 
 /// Maximum HTML input size to prevent memory exhaustion attacks (10 MB)
-/// 
+///
 /// This limit protects against `DoS` attacks while accommodating legitimate use:
 /// - Wikipedia largest articles: ~2-3 MB
 /// - Typical documentation: 1-2 MB  
 /// - Blog posts: 100-500 KB
 /// - 99.9% of real HTML is under 10 MB
-const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;  // 10 MB
+const MAX_HTML_SIZE: usize = 10 * 1024 * 1024; // 10 MB
 
 // ============================================================================
 // PART 1: Main Content Extraction
@@ -32,13 +32,11 @@ const MAX_HTML_SIZE: usize = 10 * 1024 * 1024;  // 10 MB
 // These are parsed once at first access and cached forever.
 // Hardcoded selectors should NEVER fail to parse - if they do, it's a compile-time bug.
 static MAIN_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse("main")
-        .expect("BUG: hardcoded CSS selector 'main' is invalid")
+    Selector::parse("main").expect("BUG: hardcoded CSS selector 'main' is invalid")
 });
 
 static ARTICLE_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse("article")
-        .expect("BUG: hardcoded CSS selector 'article' is invalid")
+    Selector::parse("article").expect("BUG: hardcoded CSS selector 'article' is invalid")
 });
 
 static ROLE_MAIN_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
@@ -57,13 +55,11 @@ static MAIN_CONTENT_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
 });
 
 static CONTENT_ID_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse("#content")
-        .expect("BUG: hardcoded CSS selector '#content' is invalid")
+    Selector::parse("#content").expect("BUG: hardcoded CSS selector '#content' is invalid")
 });
 
 static CONTENT_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse(".content")
-        .expect("BUG: hardcoded CSS selector '.content' is invalid")
+    Selector::parse(".content").expect("BUG: hardcoded CSS selector '.content' is invalid")
 });
 
 static POST_CONTENT_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
@@ -87,13 +83,11 @@ static ARTICLE_BODY_CLASS_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
 });
 
 static STORY_BODY_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse(".story-body")
-        .expect("BUG: hardcoded CSS selector '.story-body' is invalid")
+    Selector::parse(".story-body").expect("BUG: hardcoded CSS selector '.story-body' is invalid")
 });
 
 static BODY_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
-    Selector::parse("body")
-        .expect("BUG: hardcoded CSS selector 'body' is invalid")
+    Selector::parse("body").expect("BUG: hardcoded CSS selector 'body' is invalid")
 });
 
 /// Efficiently remove elements matching selectors from an element's subtree.
@@ -389,8 +383,10 @@ static HIDDEN_ATTR: LazyLock<Regex> = LazyLock::new(|| {
 
 // Matches elements with visibility:hidden in style attribute
 static HIDDEN_VISIBILITY: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?s)<[^>]+style\s*=\s*["'][^"']*visibility\s*:\s*hidden[^"']*["'][^>]*>.*?</[^>]+>"#)
-        .expect("HIDDEN_VISIBILITY: hardcoded regex is valid")
+    Regex::new(
+        r#"(?s)<[^>]+style\s*=\s*["'][^"']*visibility\s*:\s*hidden[^"']*["'][^>]*>.*?</[^>]+>"#,
+    )
+    .expect("HIDDEN_VISIBILITY: hardcoded regex is valid")
 });
 
 static DETAILS_RE: LazyLock<Regex> = LazyLock::new(|| {

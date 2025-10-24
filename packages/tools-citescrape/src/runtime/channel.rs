@@ -55,7 +55,7 @@ impl<T: Send + 'static> Tx<T> {
 
     /// Returns true if the channel is closed and all receivers have been dropped.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_disconnected(&self) -> bool {
         match &self.0 {
             TxInner::Bounded(s) => s.is_closed(),
@@ -66,7 +66,7 @@ impl<T: Send + 'static> Tx<T> {
     /// Returns the number of messages currently in the channel.
     /// Returns None for unbounded channels (tokio doesn't expose len for unbounded).
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> Option<usize> {
         match &self.0 {
             TxInner::Bounded(s) => {
@@ -83,14 +83,14 @@ impl<T: Send + 'static> Tx<T> {
     /// Returns true if the channel is empty.
     /// Only for bounded channels where we can check len.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == Some(0)
     }
 
     /// Returns the channel capacity, None for unbounded channels.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn capacity(&self) -> Option<usize> {
         match &self.0 {
             TxInner::Bounded(s) => Some(s.max_capacity()),
@@ -165,7 +165,7 @@ impl<T: Send + 'static> Rx<T> {
 
     /// Returns the channel capacity, None for unbounded channels.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn capacity(&self) -> Option<usize> {
         match &self.0 {
             RxInner::Bounded(_, cap) => Some(*cap),
@@ -179,7 +179,7 @@ impl<T: Send + 'static> Rx<T> {
 ///
 /// Returns (sender, receiver) pair for lock-free communication.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn unbounded<T>() -> (Tx<T>, Rx<T>) {
     let (s, r) = tokio::sync::mpsc::unbounded_channel();
     (Tx(TxInner::Unbounded(s)), Rx(RxInner::Unbounded(r)))
@@ -189,7 +189,7 @@ pub fn unbounded<T>() -> (Tx<T>, Rx<T>) {
 ///
 /// Returns (sender, receiver) pair for lock-free communication with flow control.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn bounded<T>(cap: usize) -> (Tx<T>, Rx<T>) {
     let (s, r) = tokio::sync::mpsc::channel(cap);
     (Tx(TxInner::Bounded(s)), Rx(RxInner::Bounded(r, cap)))
@@ -198,7 +198,7 @@ pub fn bounded<T>(cap: usize) -> (Tx<T>, Rx<T>) {
 /// Performance-optimized channel creation for single-shot communication.
 /// Equivalent to bounded(1) but may have optimizations for the single-item use case.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn oneshot<T>() -> (Tx<T>, Rx<T>) {
     bounded(1)
 }
@@ -206,7 +206,7 @@ pub fn oneshot<T>() -> (Tx<T>, Rx<T>) {
 /// Creates a channel pair optimized for high-frequency, low-latency communication.
 /// Uses a small bounded capacity to maintain cache locality while preventing blocking.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn sync_channel<T>(cap: usize) -> (Tx<T>, Rx<T>) {
     bounded(cap.max(1)) // Ensure at least capacity of 1
 }

@@ -19,13 +19,13 @@ pub struct SearchResults {
 
 impl SearchResults {
     /// Check if there are more results available
-    #[must_use] 
+    #[must_use]
     pub fn has_more(&self) -> bool {
         self.offset + self.results.len() < self.total_count
     }
 
     /// Get the next page offset
-    #[must_use] 
+    #[must_use]
     pub fn next_offset(&self) -> Option<usize> {
         if self.has_more() {
             Some(self.offset + self.results.len())

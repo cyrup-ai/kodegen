@@ -352,9 +352,7 @@ impl LinkRewriter {
                             }
                             Err(e) => {
                                 if let Some(href) = el.get_attribute("data-original-href") {
-                                    log::warn!(
-                                        "Failed to calculate relative path for {href}: {e}"
-                                    );
+                                    log::warn!("Failed to calculate relative path for {href}: {e}");
                                 }
                             }
                         }
@@ -385,7 +383,7 @@ impl LinkRewriter {
     }
 
     /// Remove crawler-specific data attributes from final HTML
-    #[must_use] 
+    #[must_use]
     pub fn remove_crawler_data_attrs(html: &str) -> String {
         // Remove our tracking attributes using regex - if any regex fails to compile,
         // just return the original HTML since these are optional cleanup operations

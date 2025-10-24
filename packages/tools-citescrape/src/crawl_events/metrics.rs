@@ -15,7 +15,7 @@ pub struct EventBusMetrics {
 }
 
 impl EventBusMetrics {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             events_published: Arc::new(AtomicU64::new(0)),
@@ -43,7 +43,7 @@ impl EventBusMetrics {
         let _ = self.peak_subscribers.fetch_max(count, Ordering::SeqCst);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn snapshot(&self) -> MetricsSnapshot {
         MetricsSnapshot {
             events_published: self.events_published.load(Ordering::SeqCst),
@@ -79,12 +79,12 @@ pub struct MetricsSnapshot {
 }
 
 impl MetricsSnapshot {
-    #[must_use] 
+    #[must_use]
     pub fn total_events(&self) -> u64 {
         self.events_published + self.events_dropped + self.events_failed
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         let total = self.total_events();
         if total == 0 {

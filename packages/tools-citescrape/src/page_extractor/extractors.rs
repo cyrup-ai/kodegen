@@ -3,7 +3,9 @@
 //! This module provides blazing-fast extraction functions for various page elements
 //! with pre-allocated buffers and lock-free operations.
 
-use super::js_scripts::{METADATA_SCRIPT, RESOURCES_SCRIPT, TIMING_SCRIPT, SECURITY_SCRIPT, INTERACTIVE_ELEMENTS_SCRIPT};
+use super::js_scripts::{
+    INTERACTIVE_ELEMENTS_SCRIPT, METADATA_SCRIPT, RESOURCES_SCRIPT, SECURITY_SCRIPT, TIMING_SCRIPT,
+};
 use super::schema::InteractiveElement;
 use super::schema::{PageMetadata, ResourceInfo, SecurityInfo, TimingInfo};
 use anyhow::{Context, Result};
@@ -146,7 +148,7 @@ pub async fn capture_screenshot(page: Page, url: &str, output_dir: &std::path::P
 
     // Get mirror path (async)
     let path = crate::utils::get_mirror_path(&url, &output_dir, "index.png").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     crate::utils::ensure_domain_gitignore(&path, &output_dir).await?;
 
@@ -169,10 +171,10 @@ pub async fn capture_screenshot(page: Page, url: &str, output_dir: &std::path::P
         .map_err(|e| anyhow::anyhow!("Failed to capture screenshot: {e}"))?;
 
     // Save compressed file directly with async/await
-    let (_saved_path, _metadata) = crate::content_saver::save_compressed_file(screenshot_data, &path, "image/png", false).await?;
+    let (_saved_path, _metadata) =
+        crate::content_saver::save_compressed_file(screenshot_data, &path, "image/png", false)
+            .await?;
 
-    log::info!(
-        "Screenshot captured and saved successfully for URL: {url}"
-    );
+    log::info!("Screenshot captured and saved successfully for URL: {url}");
     Ok(())
 }

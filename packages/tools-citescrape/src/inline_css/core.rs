@@ -53,19 +53,19 @@ pub struct InliningResult {
 
 impl InliningResult {
     /// Total number of resources processed
-    #[must_use] 
+    #[must_use]
     pub fn total(&self) -> usize {
         self.successes + self.failures.len()
     }
 
     /// Check if any failures occurred
-    #[must_use] 
+    #[must_use]
     pub fn has_failures(&self) -> bool {
         !self.failures.is_empty()
     }
 
     /// Get failure rate as a ratio between 0.0 and 1.0
-    #[must_use] 
+    #[must_use]
     pub fn failure_rate(&self) -> f64 {
         let total = self.total();
         if total == 0 {
@@ -197,9 +197,7 @@ async fn download_all_css(
                 Ok(css_content) => Ok((href, css_content)),
                 Err(e) => {
                     let error_msg = e.to_string();
-                    log::warn!(
-                        "Failed to download CSS from {css_url_for_error}: {error_msg}"
-                    );
+                    log::warn!("Failed to download CSS from {css_url_for_error}: {error_msg}");
                     Err(InliningError {
                         url: css_url_for_error,
                         resource_type: ResourceType::Css,
@@ -274,9 +272,7 @@ async fn download_all_images(
                 Ok(data_url) => Ok((src, data_url)),
                 Err(e) => {
                     let error_msg = e.to_string();
-                    log::warn!(
-                        "Failed to download image from {image_url_for_error}: {error_msg}"
-                    );
+                    log::warn!("Failed to download image from {image_url_for_error}: {error_msg}");
                     Err(InliningError {
                         url: image_url_for_error,
                         resource_type: ResourceType::Image,
@@ -342,9 +338,7 @@ async fn download_all_svgs(
                 Ok(svg_content) => Ok((src, svg_content)),
                 Err(e) => {
                     let error_msg = e.to_string();
-                    log::warn!(
-                        "Failed to download SVG from {svg_url_for_error}: {error_msg}"
-                    );
+                    log::warn!("Failed to download SVG from {svg_url_for_error}: {error_msg}");
                     Err(InliningError {
                         url: svg_url_for_error,
                         resource_type: ResourceType::Svg,

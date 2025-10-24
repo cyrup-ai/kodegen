@@ -175,9 +175,7 @@ pub async fn process_css_links_internal(
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!(
-                    "Failed to download CSS from {css_url_for_error}: {error_msg}"
-                );
+                log::warn!("Failed to download CSS from {css_url_for_error}: {error_msg}");
                 failures.push(InliningError {
                     url: css_url_for_error,
                     resource_type: ResourceType::Css,
@@ -284,9 +282,7 @@ pub async fn process_images_internal(
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!(
-                    "Failed to download image from {image_url_for_error}: {error_msg}"
-                );
+                log::warn!("Failed to download image from {image_url_for_error}: {error_msg}");
                 failures.push(InliningError {
                     url: image_url_for_error,
                     resource_type: ResourceType::Image,
@@ -393,9 +389,7 @@ pub async fn process_svgs_internal(
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                log::warn!(
-                    "Failed to download SVG from {svg_url_for_error}: {error_msg}"
-                );
+                log::warn!("Failed to download SVG from {svg_url_for_error}: {error_msg}");
                 failures.push(InliningError {
                     url: svg_url_for_error,
                     resource_type: ResourceType::Svg,

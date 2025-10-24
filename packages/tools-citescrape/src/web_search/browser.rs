@@ -47,8 +47,6 @@ impl Drop for BrowserWrapper {
     }
 }
 
-
-
 /// Launch a new browser instance with stealth configuration
 ///
 /// Returns a tuple of (Browser, `JoinHandle`) where the `JoinHandle` tracks the
@@ -70,14 +68,12 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
         Ok(path) => path,
         Err(_) => crate::browser_setup::download_managed_browser().await?,
     };
-    
+
     // Create unique temp directory for this browser instance
-    let user_data_dir = std::env::temp_dir()
-        .join(format!("enigo_chrome_{}", std::process::id()));
-    
-    std::fs::create_dir_all(&user_data_dir)
-        .context("Failed to create user data directory")?;
-    
+    let user_data_dir = std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()));
+
+    std::fs::create_dir_all(&user_data_dir).context("Failed to create user data directory")?;
+
     // Build browser config with stealth settings
     let browser_config = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
@@ -119,14 +115,14 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
         .arg("--mute-audio")
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build browser config: {e}"))?;
-    
+
     info!("Launching browser with config");
-    
+
     // Launch browser and get REAL handler (not a dummy)
     let (browser, mut handler) = Browser::launch(browser_config)
         .await
         .context("Failed to launch browser")?;
-    
+
     // Spawn handler with TRACKED JoinHandle (this is the critical fix)
     let handler_task = task::spawn(async move {
         while let Some(event) = handler.next().await {
@@ -164,5 +160,3 @@ pub async fn create_blank_page(wrapper: &BrowserWrapper) -> Result<Page> {
     info!("Created blank page for stealth injection");
     Ok(page)
 }
-
-

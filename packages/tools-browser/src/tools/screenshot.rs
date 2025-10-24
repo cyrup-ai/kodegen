@@ -1,14 +1,14 @@
 //! Browser screenshot tool - captures page or element as base64 image
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent, PromptArgument};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::sync::Arc;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use chromiumoxide::page::ScreenshotParams;
 use chromiumoxide_cdp::cdp::browser_protocol::page::CaptureScreenshotFormat;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use std::sync::Arc;
 
 use crate::manager::BrowserManager;
 
@@ -17,7 +17,7 @@ pub struct BrowserScreenshotArgs {
     /// Optional: CSS selector to screenshot specific element (default: full page)
     #[serde(default)]
     pub selector: Option<String>,
-    
+
     /// Optional: format (png or jpeg, default: png)
     #[serde(default)]
     pub format: Option<String>,
@@ -58,56 +58,55 @@ impl Tool for BrowserScreenshotTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get browser instance
-        let browser_arc = self.manager.get_or_launch().await
+        let browser_arc = self
+            .manager
+            .get_or_launch()
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
-        
+
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard.as_ref()
+        let wrapper = browser_guard
+            .as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
-        
+
         // Get current page (must call browser_navigate first)
-        let page = crate::browser::get_current_page(wrapper).await
+        let page = crate::browser::get_current_page(wrapper)
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
-        
+
         // Determine format
         let format = match args.format.as_deref() {
             Some("jpeg") | Some("jpg") => CaptureScreenshotFormat::Jpeg,
             _ => CaptureScreenshotFormat::Png,
         };
-        
+
         // Build screenshot params
-        let screenshot_params = ScreenshotParams::builder()
-            .format(format.clone())
-            .build();
-        
+        let screenshot_params = ScreenshotParams::builder().format(format.clone()).build();
+
         // Take screenshot (full page or element)
         let image_data = if let Some(selector) = &args.selector {
             // Element screenshot
-            let element = page.find_element(selector).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
-                    "Element not found '{}': {}", 
-                    selector, 
-                    e
-                )))?;
-            
-            element.screenshot(format.clone()).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
-                    "Element screenshot failed for '{}': {}", 
+            let element = page.find_element(selector).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
+            })?;
+
+            element.screenshot(format.clone()).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Element screenshot failed for '{}': {}",
                     selector,
                     e
-                )))?
+                ))
+            })?
         } else {
             // Full page screenshot
-            page.screenshot(screenshot_params).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
-                    "Page screenshot failed: {}",
-                    e
-                )))?
+            page.screenshot(screenshot_params)
+                .await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Page screenshot failed: {}", e)))?
         };
-        
+
         // Encode as base64
         let base64_image = BASE64.encode(&image_data);
-        
+
         Ok(json!({
             "success": true,
             "image": base64_image,
@@ -115,7 +114,7 @@ impl Tool for BrowserScreenshotTool {
             "size_bytes": image_data.len(),
             "selector": args.selector,
             "message": format!(
-                "Screenshot captured ({} bytes, {} format{})", 
+                "Screenshot captured ({} bytes, {} format{})",
                 image_data.len(),
                 if format == CaptureScreenshotFormat::Png { "PNG" } else { "JPEG" },
                 if args.selector.is_some() { ", element only" } else { ", full page" }
@@ -140,7 +139,7 @@ impl Tool for BrowserScreenshotTool {
                      Full page: browser_screenshot({})\\n\
                      Specific element: browser_screenshot({\\\"selector\\\": \\\"#content\\\"})\\n\
                      JPEG format (smaller): browser_screenshot({\\\"format\\\": \\\"jpeg\\\"})\\n\\n\
-                     Note: Use after browser_navigate to ensure page is loaded."
+                     Note: Use after browser_navigate to ensure page is loaded.",
                 ),
             },
         ])

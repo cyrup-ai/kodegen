@@ -1,10 +1,10 @@
 //! Browser wait tool - pauses execution for specified duration
 
 use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent, PromptArgument};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -46,7 +46,7 @@ impl Tool for BrowserWaitTool {
         // Validate duration (cap at 30 seconds for safety)
         if args.duration_ms > 30000 {
             return Err(McpError::invalid_arguments(
-                "Duration cannot exceed 30000ms (30 seconds)"
+                "Duration cannot exceed 30000ms (30 seconds)",
             ));
         }
 
@@ -77,7 +77,7 @@ impl Tool for BrowserWaitTool {
                     "Use browser_wait to pause execution. Examples:\\n\
                      - browser_wait({\"duration_ms\": 1000}) - Wait 1 second\\n\
                      - browser_wait({\"duration_ms\": 5000}) - Wait 5 seconds\\n\\n\
-                     For waiting for specific elements, use wait_for_selector in browser_navigate instead."
+                     For waiting for specific elements, use wait_for_selector in browser_navigate instead.",
                 ),
             },
         ])

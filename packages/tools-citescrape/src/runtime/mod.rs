@@ -60,7 +60,7 @@ macro_rules! recv_async {
 
 /// Create channel with optimal configuration
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn create_channel<T>() -> (
     tokio::sync::mpsc::UnboundedSender<T>,
     tokio::sync::mpsc::UnboundedReceiver<T>,

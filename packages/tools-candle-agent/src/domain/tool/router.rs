@@ -32,7 +32,7 @@ pub struct CandleToolRouter {
     /// Cylo backend configuration for code execution
     cylo_config: Option<CyloBackendConfig>,
     
-    /// Tool routing map: tool_name -> execution strategy
+    /// Tool routing map: `tool_name` -> execution strategy
     tool_routes: Arc<RwLock<HashMap<String, ToolRoute>>>,
 }
 
@@ -133,6 +133,7 @@ impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
 
 impl CandleToolRouter {
     /// Create new router with optional MCP client
+    #[must_use]
     pub fn new(mcp_client: Option<KodegenClient>) -> Self {
         Self {
             mcp_client,
@@ -141,8 +142,9 @@ impl CandleToolRouter {
             tool_routes: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Configure Cylo backend for code execution
+    #[must_use]
     pub fn with_cylo(mut self, backend_type: String, config: String) -> Self {
         self.cylo_config = Some(CyloBackendConfig {
             backend_type,
@@ -165,6 +167,10 @@ impl CandleToolRouter {
     /// Initialize router by discovering available tools
     ///
     /// This adds Cylo execution tools if configured.
+    ///
+    /// # Errors
+    /// Currently never returns an error, but signature allows for future async initialization
+    #[allow(clippy::unused_async)]
     pub async fn initialize(&mut self) -> Result<(), RouterError> {
         // Add native code execution tools if Cylo is configured
         self.add_native_execution_tools();
@@ -181,21 +187,24 @@ impl CandleToolRouter {
         }
         
         // Add remote MCP tools
-        if let Some(client) = &self.mcp_client {
-            if let Ok(remote_tools) = client.list_tools().await {
-                tools.extend(remote_tools);
-            }
+        if let Some(client) = &self.mcp_client
+            && let Ok(remote_tools) = client.list_tools().await
+        {
+            tools.extend(remote_tools);
         }
         
         // Add Cylo execution tools if configured
         if self.cylo_config.is_some() {
-            tools.extend(self.create_cylo_tool_metadata());
+            tools.extend(Self::create_cylo_tool_metadata());
         }
         
         tools
     }
     
     /// Execute a tool by name
+    ///
+    /// # Errors
+    /// Returns error if tool not found, execution fails, or invalid arguments provided
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<Value, RouterError> {
         // Try local tools first
         let executor = self.local_tools.read().get(name).cloned();
@@ -218,10 +227,8 @@ impl CandleToolRouter {
         if name.starts_with("execute_") && self.cylo_config.is_some() {
             // Get the route to know backend config
             let route = self.tool_routes.read().get(name).cloned();
-            if let Some(route) = route {
-                if let ToolRoute::Cylo { backend_type, config } = route {
-                    return self.execute_cylo_backend(&backend_type, &config, args).await;
-                }
+            if let Some(ToolRoute::Cylo { backend_type, config }) = route {
+                return self.execute_cylo_backend(&backend_type, &config, args).await;
             }
         }
         
@@ -229,6 +236,7 @@ impl CandleToolRouter {
     }
     
     /// Execute tool and return stream
+    #[must_use]
     pub fn call_tool_stream(
         &self,
         tool_name: &str,
@@ -286,7 +294,7 @@ impl CandleToolRouter {
     }
     
     /// Create Cylo tool metadata
-    fn create_cylo_tool_metadata(&self) -> Vec<RmcpTool> {
+    fn create_cylo_tool_metadata() -> Vec<RmcpTool> {
         let languages = vec![
             ("execute_python", "Python"),
             ("execute_javascript", "JavaScript"),

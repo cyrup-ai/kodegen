@@ -15,7 +15,7 @@ const ALLOWED_IMAGE_TYPES: &[&str] = &[
     "image/vnd.microsoft.icon",
 ];
 
-#[must_use] 
+#[must_use]
 pub fn detect_image_type(bytes: &[u8]) -> Option<&'static str> {
     if bytes.len() < 4 {
         return None;

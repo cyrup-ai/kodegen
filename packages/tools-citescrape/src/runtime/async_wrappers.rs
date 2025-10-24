@@ -19,7 +19,7 @@ pub struct CrawlRequest {
 
 impl CrawlRequest {
     /// Create a new `CrawlRequest` from a oneshot receiver
-    #[must_use] 
+    #[must_use]
     pub fn new(receiver: oneshot::Receiver<CrawlResult<()>>) -> Self {
         Self { receiver }
     }
@@ -46,7 +46,7 @@ pub struct AsyncJsonSave {
 
 impl AsyncJsonSave {
     /// Create a new `AsyncJsonSave` from a oneshot receiver
-    #[must_use] 
+    #[must_use]
     pub fn new(receiver: oneshot::Receiver<Result<(), anyhow::Error>>) -> Self {
         Self { receiver }
     }
@@ -74,7 +74,7 @@ pub struct BrowserAction<T> {
 
 impl<T> BrowserAction<T> {
     /// Create a new `BrowserAction` from a oneshot receiver
-    #[must_use] 
+    #[must_use]
     pub fn new(receiver: oneshot::Receiver<Result<T, anyhow::Error>>) -> Self {
         Self { receiver }
     }

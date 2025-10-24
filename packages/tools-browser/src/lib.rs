@@ -7,20 +7,11 @@ mod manager;
 mod tools;
 
 pub use browser::{
-    BrowserWrapper, 
-    launch_browser, 
-    BrowserError, 
-    BrowserResult,
-    find_browser_executable,
-    download_managed_browser,
+    BrowserError, BrowserResult, BrowserWrapper, download_managed_browser, find_browser_executable,
+    launch_browser,
 };
 pub use manager::BrowserManager;
 pub use tools::{
-    BrowserNavigateTool, 
-    BrowserScreenshotTool,
-    BrowserClickTool,
-    BrowserTypeTextTool,
-    BrowserExtractTextTool,
-    BrowserScrollTool,
-    BrowserWaitTool,
+    BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool, BrowserScreenshotTool,
+    BrowserScrollTool, BrowserTypeTextTool, BrowserWaitTool,
 };

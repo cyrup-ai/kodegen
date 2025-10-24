@@ -86,7 +86,7 @@ impl Default for BatchConfig {
 impl BatchConfig {
     /// Check if the operation has been cancelled
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.cancellation_token
             .as_ref()

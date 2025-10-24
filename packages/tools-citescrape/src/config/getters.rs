@@ -8,119 +8,119 @@ use std::path::PathBuf;
 use super::types::CrawlConfig;
 
 impl CrawlConfig {
-    #[must_use] 
+    #[must_use]
     pub fn storage_dir(&self) -> &PathBuf {
         &self.storage_dir
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn start_url(&self) -> &str {
         &self.start_url
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn target_url(&self) -> &str {
         &self.target_url
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn limit(&self) -> Option<usize> {
         self.limit
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn screenshot_quality(&self) -> u8 {
         self.screenshot_quality
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn stealth_mode(&self) -> bool {
         self.stealth_mode
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allow_subdomains(&self) -> bool {
         self.allow_subdomains
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allow_external_domains(&self) -> bool {
         self.allow_external_domains
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_screenshots(&self) -> bool {
         self.save_screenshots
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_raw_html(&self) -> bool {
         self.save_raw_html
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn extract_main_content(&self) -> bool {
         self.extract_main_content
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_markdown(&self) -> bool {
         self.save_markdown
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn save_json(&self) -> bool {
         self.save_json
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn headless(&self) -> bool {
         self.headless
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_selector(&self) -> Option<&str> {
         self.content_selector.as_deref()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn allowed_domains(&self) -> Option<&Vec<String>> {
         self.allowed_domains.as_ref()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn excluded_patterns(&self) -> Option<&Vec<String>> {
         self.excluded_patterns.as_ref()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn generate_components(&self) -> bool {
         self.generate_components
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn progressive(&self) -> bool {
         self.progressive
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn presentation_style(&self) -> &str {
         &self.presentation_style
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn max_depth(&self) -> u8 {
         self.max_depth
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn search_index_dir(&self) -> PathBuf {
         self.search_index_dir
             .clone()
             .unwrap_or_else(|| self.storage_dir.join("search_index"))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn search_memory_limit(&self) -> usize {
         self.search_memory_limit.unwrap_or_else(|| {
             // Calculate dynamic memory limit based on available system memory
@@ -132,7 +132,7 @@ impl CrawlConfig {
         })
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn search_batch_size(&self) -> usize {
         self.search_batch_size.unwrap_or(1000)
     }
@@ -141,7 +141,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured rate limit, or None if rate limiting is disabled.
     /// The default rate limit is 2.0 RPS for respectful crawling.
-    #[must_use] 
+    #[must_use]
     pub fn crawl_rate_rps(&self) -> Option<f64> {
         self.crawl_rate_rps
     }
@@ -150,7 +150,7 @@ impl CrawlConfig {
     ///
     /// Returns None if all images should be inlined regardless of size,
     /// or Some(bytes) to limit inlining to images smaller than this size.
-    #[must_use] 
+    #[must_use]
     pub fn max_inline_image_size_bytes(&self) -> Option<usize> {
         self.max_inline_image_size_bytes
     }
@@ -163,19 +163,19 @@ impl CrawlConfig {
     ///
     /// Default is 10,000 URLs, which provides reasonable memory bounds while
     /// allowing large crawls to handle temporary rate limiting effectively.
-    #[must_use] 
+    #[must_use]
     pub fn max_deferred_queue_size(&self) -> usize {
         self.max_deferred_queue_size.unwrap_or(10_000)
     }
 
     /// Check if cache validation is enabled
-    #[must_use] 
+    #[must_use]
     pub fn enable_cache_validation(&self) -> bool {
         self.enable_cache_validation
     }
 
     /// Check if cache should be ignored (force re-crawl)
-    #[must_use] 
+    #[must_use]
     pub fn ignore_cache(&self) -> bool {
         self.ignore_cache
     }
@@ -184,7 +184,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured timeout for etag-based cache validation checks.
     /// If None, defaults to 15 seconds.
-    #[must_use] 
+    #[must_use]
     pub fn cache_validation_timeout_secs(&self) -> u64 {
         self.cache_validation_timeout_secs.unwrap_or(15)
     }
@@ -193,7 +193,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured timeout for `page.goto()` operations.
     /// If None, defaults to 30 seconds.
-    #[must_use] 
+    #[must_use]
     pub fn page_load_timeout_secs(&self) -> u64 {
         self.page_load_timeout_secs.unwrap_or(30)
     }
@@ -202,7 +202,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured timeout for `page.wait_for_navigation()` operations.
     /// If None, defaults to 30 seconds.
-    #[must_use] 
+    #[must_use]
     pub fn navigation_timeout_secs(&self) -> u64 {
         self.navigation_timeout_secs.unwrap_or(30)
     }
@@ -211,7 +211,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured timeout for `page.event_listener()` setup.
     /// If None, defaults to 10 seconds.
-    #[must_use] 
+    #[must_use]
     pub fn event_timeout_secs(&self) -> u64 {
         self.event_timeout_secs.unwrap_or(10)
     }
@@ -220,7 +220,7 @@ impl CrawlConfig {
     ///
     /// Returns true if the circuit breaker should track domain failures
     /// and short-circuit consistently failing domains.
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_enabled(&self) -> bool {
         self.circuit_breaker_enabled
     }
@@ -229,7 +229,7 @@ impl CrawlConfig {
     ///
     /// Returns the number of consecutive failures before opening the circuit.
     /// Default is 5.
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_failure_threshold(&self) -> u32 {
         self.circuit_breaker_failure_threshold
     }
@@ -238,7 +238,7 @@ impl CrawlConfig {
     ///
     /// Returns how long to wait before retrying a failed domain.
     /// Default is 300 seconds (5 minutes).
-    #[must_use] 
+    #[must_use]
     pub fn circuit_breaker_retry_delay_secs(&self) -> u64 {
         self.circuit_breaker_retry_delay_secs
     }
@@ -247,7 +247,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured concurrency limit.
     /// Default is 10, range is 1-100.
-    #[must_use] 
+    #[must_use]
     pub fn max_concurrent_pages(&self) -> usize {
         self.max_concurrent_pages.unwrap_or(10)
     }
@@ -256,7 +256,7 @@ impl CrawlConfig {
     ///
     /// Returns the configured per-domain concurrency limit to prevent rate limiting.
     /// Default is 2, range is 1-10.
-    #[must_use] 
+    #[must_use]
     pub fn max_concurrent_per_domain(&self) -> usize {
         self.max_concurrent_per_domain.unwrap_or(2)
     }

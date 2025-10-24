@@ -5,16 +5,17 @@
 //! - Automatic Tantivy search indexing during crawl
 //! - Search verification using existing `SearchEngine` infrastructure
 
-use kodegen_tools_citescrape::{crawl, CrawlConfig};
-use kodegen_tools_citescrape::search::{IncrementalIndexingService, SearchEngine, SearchQueryBuilder};
+use kodegen_tools_citescrape::search::{
+    IncrementalIndexingService, SearchEngine, SearchQueryBuilder,
+};
+use kodegen_tools_citescrape::{CrawlConfig, crawl};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize detailed logging
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("🚀 Starting FULL SITE crawl of ratatui.rs documentation");
     log::info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -42,9 +43,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("  URL: {}", config.start_url());
     log::info!("  Output: {}", config.storage_dir().display());
     log::info!("  Max depth: {}", config.max_depth());
-    log::info!("  Page limit: {:?}", config.limit().map_or("unlimited".to_string(), |n| n.to_string()));
+    log::info!(
+        "  Page limit: {:?}",
+        config
+            .limit()
+            .map_or("unlimited".to_string(), |n| n.to_string())
+    );
     log::info!("  Formats: markdown ✓, json ✓, html ✓, screenshots ✓");
-    log::info!("  Search index: {} (automatic indexing enabled)", search_index_dir.display());
+    log::info!(
+        "  Search index: {} (automatic indexing enabled)",
+        search_index_dir.display()
+    );
     log::info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     // Initialize search engine and incremental indexing (exactly like MCP path)
@@ -76,7 +85,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     test_search(&config).await?;
 
     log::info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    log::info!("✅ ALL TESTS PASSED! Full site crawl with automatic search indexing completed successfully.");
+    log::info!(
+        "✅ ALL TESTS PASSED! Full site crawl with automatic search indexing completed successfully."
+    );
 
     Ok(())
 }

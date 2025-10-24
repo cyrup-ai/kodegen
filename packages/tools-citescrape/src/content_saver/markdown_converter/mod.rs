@@ -107,7 +107,7 @@ impl Default for ConversionOptions {
 
 impl ConversionOptions {
     /// Create a new `ConversionOptions` with all features enabled
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -116,7 +116,7 @@ impl ConversionOptions {
     ///
     /// Only performs basic HTML→Markdown conversion without extraction,
     /// cleaning, or post-processing. Useful for already-clean HTML.
-    #[must_use] 
+    #[must_use]
     pub fn minimal() -> Self {
         Self {
             extract_main_content: false,
@@ -130,7 +130,7 @@ impl ConversionOptions {
     }
 
     /// Text-only mode: strips images and links
-    #[must_use] 
+    #[must_use]
     pub fn text_only() -> Self {
         Self {
             extract_main_content: true,

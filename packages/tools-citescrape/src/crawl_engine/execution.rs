@@ -39,6 +39,6 @@ pub async fn crawl_impl(
     // Use NoOpProgress - event publishing handled directly by crawl_pages
     let progress = NoOpProgress;
     let event_bus = config.event_bus().cloned();
-    
+
     crawl_pages(config, link_rewriter, chrome_data_dir, progress, event_bus).await
 }

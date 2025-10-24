@@ -206,16 +206,16 @@ pub async fn crawl_pages<P: ProgressReporter>(
     // - Configuring browser with stealth mode arguments
     // - Spawning handler task to drive CDP connection
     // - Using unique chrome_data_dir per session (if configured) to prevent profile lock contention
-    
+
     // DEBUG: Log chrome_data_dir from config
-    eprintln!("DEBUG core.rs: config.chrome_data_dir() = {:?}", config.chrome_data_dir());
+    eprintln!(
+        "DEBUG core.rs: config.chrome_data_dir() = {:?}",
+        config.chrome_data_dir()
+    );
     let chrome_dir_param = config.chrome_data_dir().cloned();
     eprintln!("DEBUG core.rs: Passing to launch_browser: {chrome_dir_param:?}");
-    
-    let (browser, _browser_config) = launch_browser(
-        config.headless(),
-        chrome_dir_param
-    )
+
+    let (browser, _browser_config, handler_task) = launch_browser(config.headless(), chrome_dir_param)
         .await
         .context("Failed to launch browser")?;
 
@@ -259,7 +259,9 @@ pub async fn crawl_pages<P: ProgressReporter>(
             }
 
             // Acquire global semaphore permit (limits total concurrency)
-            let permit = if let Ok(p) = semaphore.clone().acquire_owned().await { p } else {
+            let permit = if let Ok(p) = semaphore.clone().acquire_owned().await {
+                p
+            } else {
                 error!("Semaphore closed unexpectedly");
                 continue;
             };
@@ -355,9 +357,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
                 warn!("Failed to publish LinkRewriteCompleted event: {e}");
             }
         }
-        info!(
-            "Link rewriting enabled: {urls_registered} URLs registered for local navigation"
-        );
+        info!("Link rewriting enabled: {urls_registered} URLs registered for local navigation");
     }
 
     // Publish CrawlCompleted event (CRITICAL - this is the final summary)
@@ -396,6 +396,15 @@ pub async fn crawl_pages<P: ProgressReporter>(
     let chrome_data_dir_path = chrome_data_dir
         .clone()
         .ok_or_else(|| anyhow::anyhow!("Chrome data directory path not available for cleanup"))?;
+
+    // Abort browser handler task to prevent resource leak
+    info!("Aborting browser handler task");
+    handler_task.abort();
+    if let Err(e) = handler_task.await {
+        if !e.is_cancelled() {
+            warn!("Handler task failed during abort: {e}");
+        }
+    }
 
     // Try to unwrap browser from Arc - if there are still references, skip cleanup
     let browser_for_cleanup = match Arc::try_unwrap(browser) {
@@ -695,8 +704,12 @@ async fn process_single_page(
             }
         };
 
-        let event =
-            CrawlEvent::page_crawled(item.url.clone(), local_path, u32::from(item.depth), metadata);
+        let event = CrawlEvent::page_crawled(
+            item.url.clone(),
+            local_path,
+            u32::from(item.depth),
+            metadata,
+        );
 
         if let Err(e) = bus.publish(event).await {
             warn!(

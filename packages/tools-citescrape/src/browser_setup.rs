@@ -6,7 +6,7 @@ use rand::Rng;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
-use tokio::task;
+use tokio::task::{self, JoinHandle};
 use tracing::{error, info, warn};
 
 /// Find Chrome/Chromium executable on the system with platform-specific search paths.
@@ -15,10 +15,16 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
     if let Ok(path) = std::env::var("CHROMIUM_PATH") {
         let path = PathBuf::from(path);
         if path.exists() {
-            info!("Using browser from CHROMIUM_PATH environment variable: {}", path.display());
+            info!(
+                "Using browser from CHROMIUM_PATH environment variable: {}",
+                path.display()
+            );
             return Ok(path);
         }
-        warn!("CHROMIUM_PATH environment variable points to non-existent file: {}", path.display());
+        warn!(
+            "CHROMIUM_PATH environment variable points to non-existent file: {}",
+            path.display()
+        );
     }
 
     // Common Chrome/Chromium installation paths by platform
@@ -82,19 +88,18 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
     // Use 'which' command to find Chromium on Unix systems
     if !cfg!(target_os = "windows") {
         for cmd in &["chromium", "chromium-browser", "google-chrome", "chrome"] {
-            let output = Command::new("which")
-                .arg(cmd)
-                .output();
+            let output = Command::new("which").arg(cmd).output();
 
             if let Ok(output) = output
-                && output.status.success() {
-                    let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    if !path_str.is_empty() {
-                        let path = PathBuf::from(path_str);
-                        info!("Found browser using 'which' command: {}", path.display());
-                        return Ok(path);
-                    }
+                && output.status.success()
+            {
+                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path_str.is_empty() {
+                    let path = PathBuf::from(path_str);
+                    info!("Found browser using 'which' command: {}", path.display());
+                    return Ok(path);
                 }
+            }
         }
     }
 
@@ -124,15 +129,12 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
 fn expand_windows_env_vars(path: &str) -> String {
     let mut result = String::with_capacity(path.len());
     let mut chars = path.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '%' {
             // Found start of potential environment variable
-            let var_name: String = chars
-                .by_ref()
-                .take_while(|&c| c != '%')
-                .collect();
-            
+            let var_name: String = chars.by_ref().take_while(|&c| c != '%').collect();
+
             if !var_name.is_empty() {
                 // Try to expand the variable
                 if let Ok(value) = std::env::var(&var_name) {
@@ -151,7 +153,7 @@ fn expand_windows_env_vars(path: &str) -> String {
             result.push(ch);
         }
     }
-    
+
     result
 }
 
@@ -159,29 +161,30 @@ fn expand_windows_env_vars(path: &str) -> String {
 /// Returns a path to the downloaded executable.
 pub async fn download_managed_browser() -> Result<PathBuf> {
     info!("Downloading managed Chromium browser...");
-    
+
     // Create cache directory for downloaded browser
     let cache_dir = dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("./.cache"))
         .join("enigo/chromium");
-    
-    std::fs::create_dir_all(&cache_dir)
-        .context("Failed to create cache directory")?;
-    
+
+    std::fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
+
     // Use fetcher to download Chrome
     let fetcher = BrowserFetcher::new(
         BrowserFetcherOptions::builder()
             .with_path(&cache_dir)
             .build()
-            .context("Failed to build fetcher options")?
+            .context("Failed to build fetcher options")?,
     );
-    
+
     // Download Chrome
-    let revision_info = fetcher.fetch().await
-        .context("Failed to fetch browser")?;
-    
-    info!("Downloaded Chromium to: {}", revision_info.folder_path.display());
-    
+    let revision_info = fetcher.fetch().await.context("Failed to fetch browser")?;
+
+    info!(
+        "Downloaded Chromium to: {}",
+        revision_info.folder_path.display()
+    );
+
     Ok(revision_info.executable_path)
 }
 
@@ -195,7 +198,10 @@ pub async fn download_managed_browser() -> Result<PathBuf> {
 /// # Profile Isolation
 /// When `chrome_data_dir` is provided, each browser instance uses a unique profile directory,
 /// preventing lock contention in long-running servers with concurrent crawls.
-pub async fn launch_browser(headless: bool, chrome_data_dir: Option<PathBuf>) -> Result<(Browser, BrowserConfig)> {
+pub async fn launch_browser(
+    headless: bool,
+    chrome_data_dir: Option<PathBuf>,
+) -> Result<(Browser, BrowserConfig, JoinHandle<()>)> {
     // First try to find the browser
     let chrome_path = match find_browser_executable().await {
         Ok(path) => path,
@@ -208,30 +214,39 @@ pub async fn launch_browser(headless: bool, chrome_data_dir: Option<PathBuf>) ->
     // Use provided chrome_data_dir or fall back to process ID
     eprintln!("DEBUG browser_setup: chrome_data_dir parameter = {chrome_data_dir:?}");
     let user_data_dir = chrome_data_dir.unwrap_or_else(|| {
-        let fallback_dir = std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()));
-        eprintln!("DEBUG browser_setup: No chrome_data_dir provided, using process ID fallback: {}", fallback_dir.display());
+        let fallback_dir =
+            std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()));
+        eprintln!(
+            "DEBUG browser_setup: No chrome_data_dir provided, using process ID fallback: {}",
+            fallback_dir.display()
+        );
         fallback_dir
     });
-    
-    eprintln!("DEBUG browser_setup: Using Chrome user data directory: {}", user_data_dir.display());
-    std::fs::create_dir_all(&user_data_dir)
-        .context("Failed to create user data directory")?;
-    eprintln!("DEBUG browser_setup: Created Chrome user data directory: {}", user_data_dir.display());
-    
+
+    eprintln!(
+        "DEBUG browser_setup: Using Chrome user data directory: {}",
+        user_data_dir.display()
+    );
+    std::fs::create_dir_all(&user_data_dir).context("Failed to create user data directory")?;
+    eprintln!(
+        "DEBUG browser_setup: Created Chrome user data directory: {}",
+        user_data_dir.display()
+    );
+
     // Build browser config with the executable path
     let mut config_builder = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
         .window_size(1920, 1080)
         .user_data_dir(user_data_dir)
         .chrome_executable(chrome_path);
-    
+
     // Set headless mode based on parameter
     if headless {
         config_builder = config_builder.headless_mode(HeadlessMode::default());
     } else {
         config_builder = config_builder.with_head();
     }
-    
+
     // Add stealth mode arguments
     config_builder = config_builder
         .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
@@ -266,30 +281,32 @@ pub async fn launch_browser(headless: bool, chrome_data_dir: Option<PathBuf>) ->
         .arg("--use-mock-keychain")
         .arg("--hide-scrollbars")
         .arg("--mute-audio");
-        
-    let browser_config = config_builder.build()
+
+    let browser_config = config_builder
+        .build()
         .map_err(|e| anyhow::anyhow!("Failed to build browser config: {e}"))?;
-        
+
     info!("Launching browser with config: {:?}", browser_config);
     let (browser, mut handler) = Browser::launch(browser_config.clone())
         .await
         .context("Failed to launch browser")?;
-    
-    task::spawn(async move {
+
+    let handler_task = task::spawn(async move {
         while let Some(h) = handler.next().await {
             if let Err(e) = h {
                 error!("Browser handler error: {:?}", e);
             }
         }
+        info!("Browser handler task completed");
     });
-    
-    Ok((browser, browser_config))
+
+    Ok((browser, browser_config, handler_task))
 }
 
 /// Apply stealth mode settings to evade bot detection
 pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
     info!("Applying stealth measures to page");
-    
+
     // 1. Webdriver property removal
     let webdriver_js = r"
         Object.defineProperty(navigator, 'webdriver', {
@@ -297,7 +314,7 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
         });
     ";
     page.evaluate(webdriver_js).await?;
-    
+
     // 2. User agent consistency
     let user_agent_js = r"
         Object.defineProperty(navigator, 'userAgent', {
@@ -305,7 +322,7 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
         });
     ";
     page.evaluate(user_agent_js).await?;
-    
+
     // 3. Languages
     let languages_js = r"
         Object.defineProperty(navigator, 'languages', {
@@ -313,7 +330,7 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
         });
     ";
     page.evaluate(languages_js).await?;
-    
+
     // 4. Plugins
     let plugins_js = r"
         const getPluginProto = () => {
@@ -363,7 +380,7 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
         });
     ";
     page.evaluate(plugins_js).await?;
-    
+
     // 5. Chrome runtime
     let chrome_runtime_js = r"
         // Mock chrome

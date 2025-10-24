@@ -80,7 +80,7 @@ pub struct CrawlSessionManager {
 
 impl CrawlSessionManager {
     /// Create a new session manager
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::with_capacity(
@@ -104,7 +104,12 @@ impl CrawlSessionManager {
     }
 
     /// Update progress counters for a crawl session
-    pub async fn update_progress(&self, crawl_id: &str, total_pages: usize, current_url: Option<String>) {
+    pub async fn update_progress(
+        &self,
+        crawl_id: &str,
+        total_pages: usize,
+        current_url: Option<String>,
+    ) {
         let mut sessions = self.sessions.lock().await;
         if let Some(session) = sessions.get_mut(crawl_id) {
             session.total_pages = total_pages;
@@ -258,7 +263,7 @@ pub struct SearchEngineCache {
 
 impl SearchEngineCache {
     /// Create a new search engine cache
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             engines: Arc::new(Mutex::new(HashMap::with_capacity(
@@ -328,18 +333,19 @@ impl SearchEngineCache {
 
         // Start incremental indexing service with engine clone
         let engine_for_indexing = engine.clone();
-        let indexing_sender = match crate::search::IncrementalIndexingService::start(engine_for_indexing).await {
-            Ok(sender) => {
-                log::info!(
-                    "Incremental indexing service started for output_dir: {output_dir:?}"
-                );
-                Some(Arc::new(sender))
-            }
-            Err(e) => {
-                log::error!("Failed to start incremental indexing service: {e}");
-                None
-            }
-        };
+        let indexing_sender =
+            match crate::search::IncrementalIndexingService::start(engine_for_indexing).await {
+                Ok(sender) => {
+                    log::info!(
+                        "Incremental indexing service started for output_dir: {output_dir:?}"
+                    );
+                    Some(Arc::new(sender))
+                }
+                Err(e) => {
+                    log::error!("Failed to start incremental indexing service: {e}");
+                    None
+                }
+            };
 
         let engine = Arc::new(engine);
 
@@ -564,9 +570,9 @@ impl ManifestManager {
         // Atomic write pattern: temp file + rename
         let temp_path = manifest_path.with_extension("json.tmp");
 
-        let mut file = fs::File::create(&temp_path).await.map_err(|e| {
-            McpError::Manifest(format!("Failed to create temp manifest file: {e}"))
-        })?;
+        let mut file = fs::File::create(&temp_path)
+            .await
+            .map_err(|e| McpError::Manifest(format!("Failed to create temp manifest file: {e}")))?;
 
         file.write_all(json.as_bytes())
             .await
@@ -626,8 +632,8 @@ impl ManifestManager {
 /// // => Ok(PathBuf::from("output/example.com_8080"))
 /// ```
 pub fn url_to_output_dir(url: &str, base_dir: Option<&str>) -> Result<PathBuf, McpError> {
-    let parsed_url = Url::parse(url)
-        .map_err(|e| McpError::InvalidUrl(format!("Invalid URL '{url}': {e}")))?;
+    let parsed_url =
+        Url::parse(url).map_err(|e| McpError::InvalidUrl(format!("Invalid URL '{url}': {e}")))?;
 
     let domain = parsed_url
         .host_str()

@@ -66,7 +66,7 @@ impl ErrorContext {
     ///   - {suggestion1}
     ///   - {suggestion2}
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn build(self) -> String {
         let mut msg = format!("Operation failed: {}\n", self.operation);
 

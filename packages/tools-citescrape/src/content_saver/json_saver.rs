@@ -11,7 +11,7 @@ pub async fn save_json_data(
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.json").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     ensure_domain_gitignore(&path, &output_dir).await?;
 
@@ -28,7 +28,8 @@ pub async fn save_json_data(
     .await?;
 
     // save_compressed_file is now async
-    let (_saved_path, _metadata) = save_compressed_file(json_str.into_bytes(), &path, "application/json", false).await?;
+    let (_saved_path, _metadata) =
+        save_compressed_file(json_str.into_bytes(), &path, "application/json", false).await?;
 
     Ok(())
 }
@@ -40,7 +41,7 @@ pub async fn save_page_data(
     output_dir: std::path::PathBuf,
 ) -> Result<()> {
     let path = get_mirror_path(&url, &output_dir, "index.json").await?;
-    
+
     // Ensure .gitignore exists in domain directory
     ensure_domain_gitignore(&path, &output_dir).await?;
 

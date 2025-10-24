@@ -79,16 +79,16 @@ impl Drop for BrowserWrapper {
         self.handler.abort();
         // Handler will be awaited/cleaned up by tokio runtime
         // Browser::drop() will automatically kill the Chrome process
-        
+
         // Cleanup temp directory (fallback if shutdown() wasn't called)
         if self.user_data_dir.is_some() {
-            tracing::warn!("BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop");
+            tracing::warn!(
+                "BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop"
+            );
             self.cleanup_temp_dir();
         }
     }
 }
-
-
 
 /// Launch a new browser instance with stealth configuration
 ///
@@ -110,14 +110,12 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
         Ok(path) => path,
         Err(_) => crate::browser::download_managed_browser().await?,
     };
-    
+
     // Create unique temp directory for this browser instance
-    let user_data_dir = std::env::temp_dir()
-        .join(format!("enigo_chrome_{}", std::process::id()));
-    
-    std::fs::create_dir_all(&user_data_dir)
-        .context("Failed to create user data directory")?;
-    
+    let user_data_dir = std::env::temp_dir().join(format!("enigo_chrome_{}", std::process::id()));
+
+    std::fs::create_dir_all(&user_data_dir).context("Failed to create user data directory")?;
+
     // Build browser config with stealth settings
     let browser_config = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
@@ -159,14 +157,14 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
         .arg("--mute-audio")
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build browser config: {e}"))?;
-    
+
     info!("Launching browser with config");
-    
+
     // Launch browser and get REAL handler (not a dummy)
     let (browser, mut handler) = Browser::launch(browser_config)
         .await
         .context("Failed to launch browser")?;
-    
+
     // Spawn handler with TRACKED JoinHandle (this is the critical fix)
     let handler_task = task::spawn(async move {
         while let Some(event) = handler.next().await {
@@ -227,11 +225,9 @@ pub async fn get_current_page(wrapper: &BrowserWrapper) -> Result<Page> {
         .pages()
         .await
         .context("Failed to get browser pages")?;
-    
+
     pages
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow::anyhow!(
-            "No page loaded. Call browser_navigate first."
-        ))
+        .ok_or_else(|| anyhow::anyhow!("No page loaded. Call browser_navigate first."))
 }

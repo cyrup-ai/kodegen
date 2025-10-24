@@ -14,8 +14,8 @@ mod discovery;
 mod markdown;
 mod progress;
 
-pub use batch::{BatchConfig, IndexingLimits};
 pub(crate) use batch::index_single_file_sync;
+pub use batch::{BatchConfig, IndexingLimits};
 
 use super::engine::SearchEngine;
 use super::types::{IndexProgress, IndexingPhase};
@@ -44,7 +44,7 @@ impl CancellationHandle {
     }
 
     /// Check if the operation has been cancelled
-    #[must_use] 
+    #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.token.load(Ordering::Acquire)
     }
@@ -59,7 +59,7 @@ pub struct MarkdownIndexer {
 impl MarkdownIndexer {
     /// Create a new markdown indexer
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(engine: SearchEngine) -> Self {
         Self { engine }
     }
@@ -73,7 +73,7 @@ impl MarkdownIndexer {
     }
 
     /// Batch index all markdown files in a directory with blazing-fast performance
-    #[must_use] 
+    #[must_use]
     pub fn batch_index_directory(
         &self,
         directory: PathBuf,
@@ -106,9 +106,8 @@ impl MarkdownIndexer {
             let mut writer = match engine.writer_with_retry(Some(128 * 1024 * 1024)).await {
                 Ok(w) => w,
                 Err(e) => {
-                    let _ = tx.try_send(Err(anyhow::anyhow!(
-                        "Failed to acquire index writer: {e}"
-                    )));
+                    let _ =
+                        tx.try_send(Err(anyhow::anyhow!("Failed to acquire index writer: {e}")));
                     return;
                 }
             };

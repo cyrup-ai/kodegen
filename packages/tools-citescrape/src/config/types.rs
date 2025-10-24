@@ -204,7 +204,7 @@ impl Default for CrawlConfig {
 // Constructor
 impl CrawlConfig {
     /// Attach an event bus for real-time crawl events
-    #[must_use] 
+    #[must_use]
     pub fn with_event_bus(
         mut self,
         bus: std::sync::Arc<crate::crawl_events::CrawlEventBus>,
@@ -214,7 +214,7 @@ impl CrawlConfig {
     }
 
     /// Get the event bus if attached
-    #[must_use] 
+    #[must_use]
     pub fn event_bus(&self) -> Option<&std::sync::Arc<crate::crawl_events::CrawlEventBus>> {
         self.event_bus.as_ref()
     }
@@ -231,7 +231,7 @@ impl CrawlConfig {
     ///     .with_indexing_sender(indexing_sender)
     ///     .build();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn with_indexing_sender(
         mut self,
         sender: std::sync::Arc<crate::search::IndexingSender>,
@@ -241,7 +241,7 @@ impl CrawlConfig {
     }
 
     /// Get the indexing sender if configured
-    #[must_use] 
+    #[must_use]
     pub fn indexing_sender(&self) -> Option<&std::sync::Arc<crate::search::IndexingSender>> {
         self.indexing_sender.as_ref()
     }
@@ -261,14 +261,14 @@ impl CrawlConfig {
     ///     .with_chrome_data_dir(chrome_dir)
     ///     .build();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn with_chrome_data_dir(mut self, dir: PathBuf) -> Self {
         self.chrome_data_dir = Some(dir);
         self
     }
 
     /// Get the Chrome user data directory if configured
-    #[must_use] 
+    #[must_use]
     pub fn chrome_data_dir(&self) -> Option<&PathBuf> {
         self.chrome_data_dir.as_ref()
     }
@@ -277,7 +277,7 @@ impl CrawlConfig {
     ///
     /// These patterns are compiled once at config creation time
     /// to avoid repeated regex compilation in the hot path.
-    #[must_use] 
+    #[must_use]
     pub fn excluded_patterns_compiled(&self) -> &[regex::Regex] {
         &self.excluded_patterns_compiled
     }

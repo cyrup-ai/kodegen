@@ -3,12 +3,13 @@
 //! Ensures only one browser runs at a time, shared across all tools.
 //!
 //! # Architecture
-//! 
-//! Uses `Arc<Mutex<Option<BrowserWrapper>>>` pattern from citescrape for:
-//! - Thread-safe lazy initialization
+//!
+//! Uses `Arc<OnceCell<Arc<Mutex<Option<BrowserWrapper>>>>>` pattern:
+//! - Thread-safe lazy initialization via OnceCell
 //! - Automatic browser launch on first use
 //! - Shared access from multiple tools
 //! - Proper cleanup on shutdown
+//! - Atomic initialization without race conditions
 //!
 //! # Async Lock Requirements
 //!
@@ -27,7 +28,7 @@ use tracing::info;
 use crate::browser::{BrowserWrapper, launch_browser};
 
 /// Singleton manager for browser instances
-/// 
+///
 /// Manages browser lifecycle to ensure:
 /// - Only one browser instance exists at a time (lazy-loaded)
 /// - Automatic launch on first use (~2-3s first call, instant after)
@@ -57,7 +58,7 @@ impl BrowserManager {
             browser: Arc::new(OnceCell::new()),
         }
     }
-    
+
     /// Get or launch the shared browser instance
     ///
     /// Uses OnceCell for atomic async initialization to prevent race conditions
@@ -89,7 +90,8 @@ impl BrowserManager {
     /// }
     /// ```
     pub async fn get_or_launch(&self) -> Result<Arc<Mutex<Option<BrowserWrapper>>>> {
-        let browser_arc = self.browser
+        let browser_arc = self
+            .browser
             .get_or_try_init(|| async {
                 info!("Launching browser for first use (will be reused)");
                 let (browser, handler, user_data_dir) = launch_browser().await?;
@@ -97,7 +99,7 @@ impl BrowserManager {
                 Ok::<_, anyhow::Error>(Arc::new(Mutex::new(Some(wrapper))))
             })
             .await?;
-        
+
         Ok(browser_arc.clone())
     }
 
@@ -142,31 +144,31 @@ impl BrowserManager {
         // Check if browser was ever initialized
         if let Some(browser_arc) = self.browser.get() {
             let mut browser_lock = browser_arc.lock().await;
-            
+
             if let Some(mut wrapper) = browser_lock.take() {
                 info!("Shutting down browser");
-                
+
                 // 1. Close the browser
                 if let Err(e) = wrapper.browser_mut().close().await {
                     tracing::warn!("Failed to close browser cleanly: {}", e);
                 }
-                
+
                 // 2. Wait for process to fully exit (CRITICAL - releases file handles)
                 if let Err(e) = wrapper.browser_mut().wait().await {
                     tracing::warn!("Failed to wait for browser exit: {}", e);
                 }
-                
+
                 // 3. Cleanup temp directory
                 wrapper.cleanup_temp_dir();
-                
+
                 // 4. Drop wrapper (aborts handler)
                 drop(wrapper);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Check if browser is currently running
     ///
     /// Non-blocking check of browser state.

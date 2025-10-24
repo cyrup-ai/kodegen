@@ -57,7 +57,7 @@ pub struct SearchResult {
 
 impl SearchResult {
     /// Convert to `serde_json::Value` for MCP response
-    #[must_use] 
+    #[must_use]
     pub fn to_json(&self) -> Value {
         serde_json::json!({
             "rank": self.rank,
@@ -80,13 +80,13 @@ pub struct SearchResults {
 
 impl SearchResults {
     /// Create new `SearchResults`
-    #[must_use] 
+    #[must_use]
     pub fn new(query: String, results: Vec<SearchResult>) -> Self {
         Self { query, results }
     }
 
     /// Convert to `serde_json::Value` for MCP response
-    #[must_use] 
+    #[must_use]
     pub fn to_json(&self) -> Value {
         serde_json::json!({
             "query": self.query,

@@ -18,7 +18,10 @@ async fn test_link_rewriter() {
     let html = r#"<a href="/about">About</a>"#.to_string();
     let current_url = "https://example.com/".to_string();
 
-    let rewritten = rewriter.rewrite_links(html, current_url).await.expect("Failed to rewrite links");
+    let rewritten = rewriter
+        .rewrite_links(html, current_url)
+        .await
+        .expect("Failed to rewrite links");
 
     assert!(rewritten.contains(r#"href="about/index.html""#));
 }

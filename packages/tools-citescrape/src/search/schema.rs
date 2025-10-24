@@ -90,7 +90,7 @@ impl SearchSchema {
 
     /// Create schema builder for custom configuration
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn builder() -> SearchSchemaBuilder {
         SearchSchemaBuilder::new()
     }
@@ -253,13 +253,13 @@ impl SearchSchema {
 
     /// Get field by name with zero allocation for known fields
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_field(&self, name: &str) -> Option<Field> {
         self.schema.get_field(name).ok()
     }
 
     /// Get all field names for introspection and debugging
-    #[must_use] 
+    #[must_use]
     pub fn field_names(&self) -> Vec<&str> {
         self.schema
             .fields()
@@ -268,7 +268,7 @@ impl SearchSchema {
     }
 
     /// Get schema performance characteristics for monitoring
-    #[must_use] 
+    #[must_use]
     pub fn performance_info(&self) -> SchemaPerformanceInfo {
         let field_count = self.schema.fields().count();
         let text_field_count = self
@@ -316,7 +316,7 @@ impl SearchSchema {
 impl SearchSchemaBuilder {
     /// Create new schema builder with production defaults
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             enable_ngram_search: false,
@@ -335,7 +335,7 @@ impl SearchSchemaBuilder {
 
     /// Enable N-gram tokenization for fuzzy search capabilities
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_ngram_search(mut self) -> Self {
         self.enable_ngram_search = true;
         self
@@ -353,7 +353,7 @@ impl SearchSchemaBuilder {
     /// - Code search: 3-5 grams (longer identifiers)
     /// - CJK languages: 1-2 grams (character-based)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_ngram_config(
         mut self,
         min_size: usize,
@@ -368,21 +368,21 @@ impl SearchSchemaBuilder {
 
     /// Configure stemming for natural language processing
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_stemming(mut self, enabled: bool) -> Self {
         self.enable_stemming = enabled;
         self
     }
 
     /// Add custom tokenizer for specialized processing
-    #[must_use] 
+    #[must_use]
     pub fn with_custom_tokenizer(mut self, name: String, tokenizer: TextAnalyzer) -> Self {
         self.custom_tokenizers.insert(name, tokenizer);
         self
     }
 
     /// Override field options for specific requirements
-    #[must_use] 
+    #[must_use]
     pub fn with_field_override(mut self, field_name: String, options: TextOptions) -> Self {
         self.field_overrides.insert(field_name, options);
         self
@@ -390,7 +390,7 @@ impl SearchSchemaBuilder {
 
     /// Disable validation for performance-critical scenarios
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn without_validation(mut self) -> Self {
         self.validation_enabled = false;
         self

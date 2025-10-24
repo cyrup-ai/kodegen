@@ -12,16 +12,16 @@ pub mod search;
 pub mod utils;
 pub mod web_search;
 
-pub use browser_setup::{apply_stealth_measures, download_managed_browser, find_browser_executable, launch_browser};
+pub use browser_setup::{
+    apply_stealth_measures, download_managed_browser, find_browser_executable, launch_browser,
+};
 pub use config::CrawlConfig;
 pub use content_saver::{CacheMetadata, save_json_data};
 pub use crawl_engine::{
     ChromiumoxideCrawler, CrawlError, CrawlProgress, CrawlQueue, CrawlResult, Crawler,
 };
 pub use page_extractor::schema::*;
-pub use runtime::{
-    AsyncJsonSave, AsyncStream, BrowserAction, CrawlRequest,
-};
+pub use runtime::{AsyncJsonSave, AsyncStream, BrowserAction, CrawlRequest};
 pub use utils::{get_mirror_path, get_uri_from_path};
 pub use web_search::BrowserManager;
 

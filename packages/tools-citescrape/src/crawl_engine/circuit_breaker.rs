@@ -76,7 +76,7 @@ impl CircuitBreaker {
     /// * `failure_threshold` - Open circuit after this many consecutive failures
     /// * `success_threshold` - Close circuit after this many consecutive successes
     /// * `half_open_timeout` - Duration to wait before retrying failed domains
-    #[must_use] 
+    #[must_use]
     pub fn new(
         failure_threshold: u32,
         success_threshold: u32,
@@ -111,9 +111,7 @@ impl CircuitBreaker {
                     if opened.elapsed() >= self.half_open_timeout {
                         health.state = CircuitState::HalfOpen;
                         health.consecutive_successes_in_halfopen = 0;
-                        debug!(
-                            "Circuit breaker transitioning to HALF-OPEN for domain: {domain}"
-                        );
+                        debug!("Circuit breaker transitioning to HALF-OPEN for domain: {domain}");
                         return true;
                     }
                 } else {
@@ -200,13 +198,13 @@ impl CircuitBreaker {
     ///
     /// # Arguments
     /// * `domain` - The domain to query
-    #[must_use] 
+    #[must_use]
     pub fn get_health(&self, domain: &str) -> Option<&DomainHealth> {
         self.domains.get(domain)
     }
 
     /// Get health statistics for all tracked domains
-    #[must_use] 
+    #[must_use]
     pub fn get_all_health(&self) -> &HashMap<String, DomainHealth> {
         &self.domains
     }
