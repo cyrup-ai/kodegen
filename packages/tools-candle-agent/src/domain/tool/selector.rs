@@ -55,18 +55,20 @@ impl ToolSelector {
     /// # Returns
     /// * `Ok(Vec<String>)` - List of 2-3 selected tool names
     /// * `Err(anyhow::Error)` - If selection fails
+    ///
+    /// # Errors
+    /// Returns error if constraint creation, inference, or JSON parsing fails
     pub async fn select_tools(
         &self,
         user_query: &str,
         available_tools: &[ToolInfo],
     ) -> AnyResult<Vec<String>> {
         // 1. Create abbreviated tool list (name + one-line description)
-        let tool_list = self.create_abbreviated_list(available_tools);
-        
+        let tool_list = Self::create_abbreviated_list(available_tools);
+
         // 2. Build selection prompt
         let prompt = format!(
-            "User query: {}\n\nAvailable tools:\n{}\n\nSelect 2-3 most relevant tools:",
-            user_query, tool_list
+            "User query: {user_query}\n\nAvailable tools:\n{tool_list}\n\nSelect 2-3 most relevant tools:"
         );
         
         // 3. Create constraint from ToolSelectionResponse schema
@@ -91,7 +93,7 @@ impl ToolSelector {
     ///
     /// This reduces token usage while retaining enough information for
     /// the model to make informed selection decisions.
-    fn create_abbreviated_list(&self, tools: &[ToolInfo]) -> String {
+    fn create_abbreviated_list(tools: &[ToolInfo]) -> String {
         tools
             .iter()
             .map(|t| {

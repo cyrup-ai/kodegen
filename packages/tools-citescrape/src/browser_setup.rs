@@ -9,6 +9,8 @@ use std::time::Duration;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info, warn};
 
+use crate::utils::constants::CHROME_USER_AGENT;
+
 /// Find Chrome/Chromium executable on the system with platform-specific search paths.
 pub async fn find_browser_executable() -> Result<PathBuf> {
     // First check environment variable which overrides all other methods
@@ -249,7 +251,7 @@ pub async fn launch_browser(
 
     // Add stealth mode arguments
     config_builder = config_builder
-        .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        .arg(format!("--user-agent={}", CHROME_USER_AGENT))
         .arg("--disable-blink-features=AutomationControlled")
         .arg("--disable-infobars")
         .arg("--disable-notifications")
@@ -316,12 +318,12 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
     page.evaluate(webdriver_js).await?;
 
     // 2. User agent consistency
-    let user_agent_js = r"
-        Object.defineProperty(navigator, 'userAgent', {
-            value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        });
-    ";
-    page.evaluate(user_agent_js).await?;
+    let user_agent_js = format!(r"
+        Object.defineProperty(navigator, 'userAgent', {{
+            value: '{}'
+        }});
+    ", CHROME_USER_AGENT);
+    page.evaluate(&user_agent_js).await?;
 
     // 3. Languages
     let languages_js = r"

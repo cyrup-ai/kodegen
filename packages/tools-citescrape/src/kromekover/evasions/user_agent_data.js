@@ -1,6 +1,6 @@
 // Extract Chrome version from actual user agent
 const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
-const chromeVersion = chromeMatch ? chromeMatch[1] : '129.0.6668.70';
+const chromeVersion = chromeMatch ? chromeMatch[1] : '132.0.6834.160';
 const majorVersion = chromeVersion.split('.')[0];
 
 navigator.userAgentData = {

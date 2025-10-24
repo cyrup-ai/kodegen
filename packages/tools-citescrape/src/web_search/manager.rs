@@ -66,8 +66,8 @@ impl BrowserManager {
             .browser
             .get_or_try_init(|| async {
                 info!("Launching browser for first web search (will be reused)");
-                let (browser, handler) = launch_browser().await?;
-                let wrapper = BrowserWrapper::new(browser, handler);
+                let (browser, handler, user_data_dir) = launch_browser().await?;
+                let wrapper = BrowserWrapper::new(browser, handler, user_data_dir);
                 Ok::<_, anyhow::Error>(Arc::new(Mutex::new(Some(wrapper))))
             })
             .await?;
@@ -99,12 +99,15 @@ impl BrowserManager {
                     tracing::warn!("Failed to close browser cleanly: {}", e);
                 }
 
-                // 2. Wait for process to fully exit (prevents "not closed manually" warning)
+                // 2. Wait for process to fully exit (CRITICAL - releases file handles)
                 if let Err(e) = wrapper.browser_mut().wait().await {
                     tracing::warn!("Failed to wait for browser exit: {}", e);
                 }
 
-                // Now drop the wrapper (calls handler.abort())
+                // 3. Cleanup temp directory
+                wrapper.cleanup_temp_dir();
+
+                // 4. Drop wrapper (aborts handler)
                 drop(wrapper);
             }
         }

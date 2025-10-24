@@ -123,7 +123,7 @@ impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
             Err(e) => {
                 Box::pin(async move {
                     Err(RouterError::InvalidArguments(format!(
-                        "Failed to deserialize arguments: {}", e
+                        "Failed to deserialize arguments: {e}"
                     )))
                 })
             }
@@ -215,7 +215,7 @@ impl CandleToolRouter {
         // Try remote MCP client
         if let Some(client) = &self.mcp_client {
             match client.call_tool(name, args.clone()).await {
-                Ok(result) => return self.call_result_to_json(result),
+                Ok(result) => return Self::call_result_to_json(&result),
                 Err(kodegen_mcp_client::ClientError::ServiceError(_)) => {
                     // Tool might not exist on remote - try Cylo
                 }
@@ -341,7 +341,7 @@ impl CandleToolRouter {
             .map_err(|e| RouterError::BackendError(e.to_string()))?;
 
         // Convert Value args to ExecutionRequest
-        let request = Self::json_args_to_execution_request(args)?;
+        let request = Self::json_args_to_execution_request(&args)?;
 
         // Execute via backend
         let result_handle = backend.execute_code(request);
@@ -353,8 +353,8 @@ impl CandleToolRouter {
         Ok(Self::execution_result_to_json(&result))
     }
     
-    /// Convert Value arguments to ExecutionRequest
-    fn json_args_to_execution_request(args: Value) -> Result<ExecutionRequest, RouterError> {
+    /// Convert Value arguments to `ExecutionRequest`
+    fn json_args_to_execution_request(args: &Value) -> Result<ExecutionRequest, RouterError> {
         let code = args
             .get("code")
             .and_then(|v| v.as_str())
@@ -383,7 +383,7 @@ impl CandleToolRouter {
         Ok(request)
     }
     
-    /// Convert ExecutionResult to JSON Value
+    /// Convert `ExecutionResult` to JSON Value
     fn execution_result_to_json(result: &ExecutionResult) -> Value {
         serde_json::json!({
             "success": result.exit_code == 0,
@@ -430,8 +430,8 @@ impl CandleToolRouter {
     // HELPER METHODS
     // ========================================================================
     
-    /// Convert CallToolResult to JSON Value
-    fn call_result_to_json(&self, result: rmcp::model::CallToolResult) -> Result<Value, RouterError> {
+    /// Convert `CallToolResult` to JSON Value
+    fn call_result_to_json(result: &rmcp::model::CallToolResult) -> Result<Value, RouterError> {
         // Extract text content from result
         let text_content = result.content.first()
             .and_then(|c| c.as_text())

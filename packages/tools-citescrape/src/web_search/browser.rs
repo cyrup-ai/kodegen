@@ -7,9 +7,12 @@ use anyhow::{Context, Result};
 use chromiumoxide::browser::{Browser, BrowserConfigBuilder};
 use chromiumoxide::page::Page;
 use futures::StreamExt;
+use std::path::PathBuf;
 use std::time::Duration;
 use tokio::task::{self, JoinHandle};
 use tracing::info;
+
+use crate::utils::constants::CHROME_USER_AGENT;
 
 /// Wrapper for Browser and its event handler task
 ///
@@ -19,11 +22,16 @@ use tracing::info;
 pub struct BrowserWrapper {
     browser: Browser,
     handler: JoinHandle<()>,
+    user_data_dir: Option<PathBuf>,
 }
 
 impl BrowserWrapper {
-    pub(crate) fn new(browser: Browser, handler: JoinHandle<()>) -> Self {
-        Self { browser, handler }
+    pub(crate) fn new(browser: Browser, handler: JoinHandle<()>, user_data_dir: PathBuf) -> Self {
+        Self {
+            browser,
+            handler,
+            user_data_dir: Some(user_data_dir),
+        }
     }
 
     /// Get reference to inner browser
@@ -35,6 +43,36 @@ impl BrowserWrapper {
     pub(crate) fn browser_mut(&mut self) -> &mut Browser {
         &mut self.browser
     }
+
+    /// Clean up temp directory (blocking operation)
+    ///
+    /// MUST be called AFTER `browser.wait()` completes to ensure Chrome
+    /// has released all file handles. Windows will fail to remove locked files.
+    ///
+    /// Uses blocking `std::fs::remove_dir_all()` because this may be called
+    /// from Drop context where async is not available.
+    ///
+    /// Pattern from: tools-browser/src/browser/wrapper.rs (following SurrealDB TempDir pattern)
+    pub fn cleanup_temp_dir(&mut self) {
+        if let Some(path) = self.user_data_dir.take() {
+            info!("Cleaning up temp directory: {}", path.display());
+            if let Err(e) = std::fs::remove_dir_all(&path) {
+                tracing::warn!(
+                    "Failed to clean up temp directory {}: {}. Manual cleanup may be required.",
+                    path.display(),
+                    e
+                );
+            }
+        }
+    }
+
+    /// Prevent automatic cleanup (for debugging)
+    ///
+    /// Useful when investigating Chrome crashes - preserves profile for inspection
+    #[allow(dead_code)]
+    pub fn keep_temp_dir(mut self) {
+        self.user_data_dir = None;
+    }
 }
 
 impl Drop for BrowserWrapper {
@@ -43,15 +81,19 @@ impl Drop for BrowserWrapper {
         self.handler.abort();
         // Handler will be awaited/cleaned up by tokio runtime
         // Browser::drop() will automatically kill the Chrome process
-        // (it logs a warning but prevents zombie processes)
+        
+        // Cleanup temp directory (fallback if shutdown() wasn't called)
+        if self.user_data_dir.is_some() {
+            tracing::warn!("BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop");
+            self.cleanup_temp_dir();
+        }
     }
 }
 
 /// Launch a new browser instance with stealth configuration
 ///
-/// Returns a tuple of (Browser, `JoinHandle`) where the `JoinHandle` tracks the
-/// REAL browser event handler task. The handler must be aborted when
-/// closing the browser to prevent zombie processes.
+/// Returns tuple of (Browser, JoinHandle, PathBuf) where PathBuf is the
+/// temp directory that MUST be cleaned up after browser shuts down.
 ///
 /// This function calls chromiumoxide `Browser::launch()` directly and properly
 /// tracks the handler, unlike `browser_setup::launch_browser()` which spawns
@@ -60,7 +102,7 @@ impl Drop for BrowserWrapper {
 /// # Handler Lifecycle
 /// The returned `JoinHandle` MUST be aborted when done to stop the browser process.
 /// `BrowserWrapper::drop()` handles this automatically.
-pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
+pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
     info!("Launching browser for web search");
 
     // Find or download Chrome executable
@@ -78,11 +120,11 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
     let browser_config = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
         .window_size(1920, 1080)
-        .user_data_dir(user_data_dir)
+        .user_data_dir(&user_data_dir)
         .chrome_executable(chrome_path)
         .headless_mode(chromiumoxide::browser::HeadlessMode::default())
         // Stealth mode arguments
-        .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        .arg(format!("--user-agent={}", CHROME_USER_AGENT))
         .arg("--disable-blink-features=AutomationControlled")
         .arg("--disable-infobars")
         .arg("--disable-notifications")
@@ -133,7 +175,7 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
         info!("Browser event handler task completed");
     });
 
-    Ok((browser, handler_task))
+    Ok((browser, handler_task, user_data_dir))
 }
 
 /// Create a blank page for stealth injection
