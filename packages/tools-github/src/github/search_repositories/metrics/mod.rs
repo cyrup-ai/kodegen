@@ -60,7 +60,8 @@ pub(crate) async fn collect_local_metrics(
     let ci_cd_metrics = collect_ci_cd_metrics(repo_path, context.build_status, config).await?;
     let documentation_metrics = collect_documentation_metrics(repo_path, context.wiki_info).await?;
     let dependency_metrics =
-        collect_dependency_metrics(repo_path, config, octocrab, context.owner, context.repo).await?;
+        collect_dependency_metrics(repo_path, config, octocrab, context.owner, context.repo)
+            .await?;
     let security_metrics = collect_security_metrics(
         repo_path,
         context.signed_commits_ratio,

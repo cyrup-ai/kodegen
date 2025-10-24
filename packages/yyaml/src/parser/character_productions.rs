@@ -25,7 +25,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::is_printable()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_printable(ch: char) -> bool {
         crate::lexer::unicode::chars::is_printable(ch)
     }
@@ -34,7 +34,7 @@ impl CharacterProductions {
     ///
     /// JSON compatible characters are tab plus the printable subset of Unicode.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_nb_json(ch: char) -> bool {
         ch == '\t' || (ch as u32 >= 0x20 && ch as u32 <= 0x10FFFF && !Self::is_surrogate(ch))
     }
@@ -43,7 +43,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::normalization::remove_bom()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn remove_bom(input: &str) -> &str {
         crate::lexer::unicode::normalization::remove_bom(input)
     }
@@ -52,7 +52,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::is_break()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_break(ch: char) -> bool {
         crate::lexer::unicode::chars::is_break(ch)
     }
@@ -61,7 +61,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::is_white()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_white(ch: char) -> bool {
         crate::lexer::unicode::chars::is_white(ch)
     }
@@ -70,7 +70,7 @@ impl CharacterProductions {
     ///
     /// Characters that are neither line breaks nor white space.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_ns_char(ch: char) -> bool {
         Self::is_printable(ch) && !Self::is_white(ch) && !Self::is_break(ch)
     }
@@ -91,7 +91,7 @@ impl CharacterProductions {
     /// Line breaks in escape sequences should be folded to single space.
     /// This is handled within the main escape processing.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn fold_escaped_line_break() -> char {
         ' '
     }
@@ -109,7 +109,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::is_blank()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_blank(ch: char) -> bool {
         crate::lexer::unicode::chars::is_blank(ch)
     }
@@ -118,7 +118,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::can_start_plain_scalar()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn can_start_plain_scalar(ch: char) -> bool {
         crate::lexer::unicode::chars::can_start_plain_scalar(ch)
     }
@@ -127,7 +127,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::chars::can_continue_plain_scalar()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn can_continue_plain_scalar(ch: char) -> bool {
         crate::lexer::unicode::chars::can_continue_plain_scalar(ch)
     }
@@ -136,7 +136,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::UnicodeProcessor::escape_string()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn escape_string(input: &str, style: EscapeStyle) -> String {
         crate::lexer::unicode::UnicodeProcessor::escape_string(input, style)
     }
@@ -145,7 +145,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::normalization::normalize_line_endings()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn normalize_line_endings(input: &str) -> Cow<'_, str> {
         crate::lexer::unicode::normalization::normalize_line_endings(input)
     }
@@ -154,7 +154,7 @@ impl CharacterProductions {
     ///
     /// Delegates to: `lexer/unicode.rs::normalization::is_valid_yaml_text()`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_valid_yaml_text(text: &str) -> bool {
         crate::lexer::unicode::normalization::is_valid_yaml_text(text)
     }

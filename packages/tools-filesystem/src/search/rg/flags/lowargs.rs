@@ -6,10 +6,7 @@ Many enum variants and struct fields are unused but maintained for
 full ripgrep API compatibility.
 */
 
-use std::{
-    ffi::OsString,
-    path::PathBuf,
-};
+use std::{ffi::OsString, path::PathBuf};
 
 use {
     bstr::BString,
@@ -251,31 +248,25 @@ impl ContextMode {
     /// Set the "before" context.
     pub(crate) fn set_before(&mut self, lines: usize) {
         match *self {
-            ContextMode::Limited(ContextModeLimited {
-                ref mut before,
-                ..
-            }) => *before = Some(lines),
+            ContextMode::Limited(ContextModeLimited { ref mut before, .. }) => {
+                *before = Some(lines)
+            }
         }
     }
 
     /// Set the "after" context.
     pub(crate) fn set_after(&mut self, lines: usize) {
         match *self {
-            ContextMode::Limited(ContextModeLimited {
-                ref mut after, ..
-            }) => *after = Some(lines),
+            ContextMode::Limited(ContextModeLimited { ref mut after, .. }) => *after = Some(lines),
         }
     }
 
     /// Set the "both" context.
     pub(crate) fn set_both(&mut self, lines: usize) {
         match *self {
-            ContextMode::Limited(ContextModeLimited {
-                ref mut both, ..
-            }) => *both = Some(lines),
+            ContextMode::Limited(ContextModeLimited { ref mut both, .. }) => *both = Some(lines),
         }
     }
-
 }
 
 /// A context mode for a finite number of lines.
@@ -305,8 +296,7 @@ impl ContextModeLimited {
     ///
     /// By default, this returns `(0, 0)`.
     pub(crate) fn get(&self) -> (usize, usize) {
-        let (mut before, mut after) =
-            self.both.map_or((0, 0), |lines| (lines, lines));
+        let (mut before, mut after) = self.both.map_or((0, 0), |lines| (lines, lines));
         // --before and --after always override --context, regardless
         // of where they appear relative to each other.
         if let Some(lines) = self.before {

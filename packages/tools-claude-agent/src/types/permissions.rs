@@ -8,8 +8,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::error::Result;
 use super::identifiers::ToolName;
+use crate::error::Result;
 
 // ============================================================================
 // Permission Types

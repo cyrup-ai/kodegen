@@ -23,9 +23,7 @@ pub async fn uninstall_fluent_voice(fluent_voice_dir: &std::path::Path) -> Resul
     info!("Removing fluent-voice directory: {fluent_voice_dir:?}");
 
     fs::remove_dir_all(fluent_voice_dir).with_context(|| {
-        format!(
-            "Failed to remove fluent-voice directory: {fluent_voice_dir:?}"
-        )
+        format!("Failed to remove fluent-voice directory: {fluent_voice_dir:?}")
     })?;
 
     info!("Successfully uninstalled fluent-voice components");
@@ -54,12 +52,14 @@ async fn clone_from_git(fluent_voice_dir: &std::path::Path) -> Result<()> {
                         anyhow::anyhow!("fluent-voice directory path contains invalid UTF-8")
                     })?,
                 ])
-                .output()
-        ).await {
+                .output(),
+        )
+        .await
+        {
             Ok(Ok(output)) => output,
             Ok(Err(e)) => {
                 last_error = Some(format!("Git command failed: {e}"));
-                
+
                 // Clean up failed attempt
                 if fluent_voice_dir.exists() {
                     let _ = fs::remove_dir_all(fluent_voice_dir);
@@ -71,7 +71,7 @@ async fn clone_from_git(fluent_voice_dir: &std::path::Path) -> Result<()> {
                     "Git clone timed out after {} seconds",
                     GIT_CLONE_TIMEOUT.as_secs()
                 ));
-                
+
                 // Clean up failed attempt
                 if fluent_voice_dir.exists() {
                     let _ = fs::remove_dir_all(fluent_voice_dir);

@@ -21,19 +21,19 @@ pub struct Cli {
     /// Subcommand to run
     #[command(subcommand)]
     pub command: Option<Commands>,
-    
+
     /// Enable specific tool categories (comma-separated)
-    /// 
+    ///
     /// Example: --tools filesystem,terminal,citescrape
-    /// 
+    ///
     /// If not specified, all compiled tool categories are enabled.
     #[arg(long, value_delimiter = ',', conflicts_with = "tool")]
     pub tools: Option<Vec<String>>,
 
     /// Enable specific tool category (can be specified multiple times)
-    /// 
+    ///
     /// Example: --tool filesystem --tool terminal --tool citescrape
-    /// 
+    ///
     /// If not specified, all compiled tool categories are enabled.
     #[arg(long = "tool", conflicts_with = "tools")]
     pub tool: Vec<String>,
@@ -56,12 +56,12 @@ pub struct Cli {
     pub tls_key: Option<std::path::PathBuf>,
 
     /// SSE server URL for proxy mode (stdio server only)
-    /// 
+    ///
     /// When specified, the server will proxy all tool calls to the SSE server.
     /// If the connection fails, the server will exit with an error rather than
     /// falling back to standalone mode. This ensures that when proxy mode is
     /// explicitly requested, it is always honored.
-    /// 
+    ///
     /// Example: --proxy-sse <http://localhost:8080/sse>
     #[arg(long, value_name = "URL", conflicts_with = "sse")]
     pub proxy_sse: Option<String>,
@@ -72,7 +72,12 @@ pub struct Cli {
 
     /// Graceful shutdown timeout in seconds for SSE server (default: 30)
     /// Can also be set via `KODEGEN_SHUTDOWN_TIMEOUT_SECS` environment variable
-    #[arg(long, value_name = "SECONDS", env = "KODEGEN_SHUTDOWN_TIMEOUT_SECS", default_value = "30")]
+    #[arg(
+        long,
+        value_name = "SECONDS",
+        env = "KODEGEN_SHUTDOWN_TIMEOUT_SECS",
+        default_value = "30"
+    )]
     pub shutdown_timeout: u64,
 
     /// SSE connection timeout in seconds (default: 5)
@@ -96,54 +101,53 @@ pub struct Cli {
     pub sse_no_retry: bool,
 
     // ============ Database Configuration ============
-    
     /// Database connection string (DSN)
-    /// 
+    ///
     /// Format varies by database type:
     /// - PostgreSQL: postgres://user:pass@host:5432/dbname
     /// - MySQL: mysql://user:pass@host:3306/dbname
     /// - SQLite: sqlite:///path/to/database.db
     /// - SQL Server: sqlserver://user:pass@host:1433/dbname
-    /// 
+    ///
     /// If not provided, database tools will not be available.
     #[arg(long, env = "DATABASE_DSN")]
     pub database_dsn: Option<String>,
-    
+
     /// Enable read-only mode (only SELECT/SHOW/EXPLAIN/DESCRIBE allowed)
-    /// 
+    ///
     /// When enabled, any INSERT/UPDATE/DELETE/DROP statements will be rejected.
     /// Useful for safe database exploration by AI agents.
     #[arg(long, env = "DATABASE_READONLY")]
     pub database_readonly: bool,
-    
+
     /// Maximum rows per SELECT query
-    /// 
+    ///
     /// Automatically applies LIMIT clause to SELECT statements to prevent
     /// large result sets. If not set, queries can return unlimited rows.
     #[arg(long, env = "DATABASE_MAX_ROWS")]
     pub database_max_rows: Option<usize>,
-    
+
     /// SSH tunnel host for database connection
-    /// 
+    ///
     /// When specified, creates SSH tunnel to bastion host before connecting
     /// to database. Requires --ssh-user and either --ssh-key or --ssh-password.
     #[arg(long, env = "SSH_HOST")]
     pub ssh_host: Option<String>,
-    
+
     /// SSH tunnel port
     #[arg(long, env = "SSH_PORT", default_value = "22")]
     pub ssh_port: u16,
-    
+
     /// SSH username for tunnel authentication
     #[arg(long, env = "SSH_USER")]
     pub ssh_user: Option<String>,
-    
+
     /// SSH private key path for key-based authentication
-    /// 
+    ///
     /// If both --ssh-key and --ssh-password are provided, key is preferred.
     #[arg(long, env = "SSH_KEY")]
     pub ssh_key: Option<std::path::PathBuf>,
-    
+
     /// SSH password for password-based authentication
     #[arg(long, env = "SSH_PASSWORD")]
     pub ssh_password: Option<String>,
@@ -166,7 +170,7 @@ pub enum ServerMode {
 
 impl Cli {
     /// Get the set of enabled tool categories
-    /// 
+    ///
     /// Returns None if no filter specified (enable all compiled categories)
     /// Returns Some(HashSet) if filter specified (enable only these categories)
     pub fn enabled_categories(&self) -> Option<HashSet<String>> {
@@ -174,12 +178,12 @@ impl Cli {
         if let Some(tools) = &self.tools {
             return Some(tools.iter().cloned().collect());
         }
-        
+
         // If --tool was used (multiple flags)
         if !self.tool.is_empty() {
             return Some(self.tool.iter().cloned().collect());
         }
-        
+
         // No filter specified - enable all
         None
     }
@@ -191,7 +195,9 @@ impl Cli {
         } else {
             // Stdio mode always proxies to daemon's SSE server
             // Default port: 30437 (matches daemon config default)
-            let proxy_url = self.proxy_sse.clone()
+            let proxy_url = self
+                .proxy_sse
+                .clone()
                 .unwrap_or_else(|| "http://127.0.0.1:30437".to_string());
             ServerMode::Stdio { proxy_url }
         }
@@ -203,8 +209,13 @@ impl Cli {
     }
 
     /// Get the SSE connection timeout with fallback to config
-    pub fn sse_connection_timeout(&self, config_manager: &kodegen_tools_config::ConfigManager) -> std::time::Duration {
-        let seconds = self.sse_timeout.unwrap_or_else(|| config_manager.get_sse_connection_timeout_secs());
+    pub fn sse_connection_timeout(
+        &self,
+        config_manager: &kodegen_tools_config::ConfigManager,
+    ) -> std::time::Duration {
+        let seconds = self
+            .sse_timeout
+            .unwrap_or_else(|| config_manager.get_sse_connection_timeout_secs());
         std::time::Duration::from_secs(seconds)
     }
 
@@ -237,40 +248,28 @@ pub fn available_categories() -> Vec<&'static str> {
     let categories = vec![
         #[cfg(feature = "filesystem")]
         "filesystem",
-
         #[cfg(feature = "terminal")]
         "terminal",
-
         #[cfg(feature = "process")]
         "process",
-
         #[cfg(feature = "introspection")]
         "introspection",
-
         #[cfg(feature = "prompt")]
         "prompt",
-
         #[cfg(feature = "reasoner")]
         "reasoner",
-
         #[cfg(feature = "sequential_thinking")]
         "sequential_thinking",
-
         #[cfg(feature = "claude_agent")]
         "claude_agent",
-
         #[cfg(feature = "citescrape")]
         "citescrape",
-
         #[cfg(feature = "git")]
         "git",
-
         #[cfg(feature = "github")]
         "github",
-
         #[cfg(feature = "config")]
         "config",
-
         #[cfg(feature = "database")]
         "database",
     ];

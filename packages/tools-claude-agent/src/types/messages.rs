@@ -3,8 +3,8 @@
 //! This module contains types for representing messages, content blocks,
 //! and various message formats used in conversations with Claude.
 
-use serde::{Deserialize, Serialize};
 use super::identifiers::SessionId;
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Message Types

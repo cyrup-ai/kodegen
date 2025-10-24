@@ -22,7 +22,7 @@ pub struct YamlLexer<'input> {
 impl<'input> YamlLexer<'input> {
     /// Create a new lexer for the given input
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         Self {
             scanner: Scanner::new(input),
@@ -44,7 +44,7 @@ impl<'input> YamlLexer<'input> {
 
     /// Get the current position in the input
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn position(&self) -> Position {
         self.position.current()
     }
@@ -56,7 +56,7 @@ impl<'input> YamlLexer<'input> {
     }
 
     /// Create an iterator over all tokens
-    #[must_use] 
+    #[must_use]
     pub const fn tokens(self) -> TokenIterator<'input> {
         TokenIterator::new(self)
     }
@@ -110,7 +110,7 @@ pub struct LexError {
 
 impl LexError {
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn new(kind: LexErrorKind, position: Position) -> Self {
         Self { kind, position }
     }

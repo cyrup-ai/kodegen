@@ -81,14 +81,16 @@ impl ProcessorConfig {
         }
 
         if let Some(k) = self.top_k
-            && k == 0 {
-                return Err(ConfigError::InvalidTopK(k));
-            }
+            && k == 0
+        {
+            return Err(ConfigError::InvalidTopK(k));
+        }
 
         if let Some(top_p) = self.top_p
-            && !(0.0..=1.0).contains(&top_p) {
-                return Err(ConfigError::InvalidTopP(top_p));
-            }
+            && !(0.0..=1.0).contains(&top_p)
+        {
+            return Err(ConfigError::InvalidTopP(top_p));
+        }
 
         if self.repetition_penalty < 1.0 {
             return Err(ConfigError::InvalidRepetitionPenalty(
@@ -149,4 +151,3 @@ impl ProcessorConfig {
         self
     }
 }
-

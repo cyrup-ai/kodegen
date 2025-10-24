@@ -20,7 +20,7 @@ pub struct SchemaProcessor<'input> {
 
 impl<'input> SchemaProcessor<'input> {
     /// Create new schema processor with all schemas initialized
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             core_schema: CoreSchema::new(),
@@ -42,8 +42,11 @@ impl<'input> SchemaProcessor<'input> {
     }
 
     /// Infer scalar type from content with pattern matching
-    #[must_use] 
+    #[must_use]
     pub fn infer_scalar_type(&self, scalar_value: &str) -> YamlType {
+        if self.current_schema == SchemaType::Failsafe {
+            return YamlType::Str;
+        }
         // Fast path for common values
         match scalar_value {
             "" | "~" | "null" | "Null" | "NULL" => return YamlType::Null,
@@ -68,7 +71,7 @@ impl<'input> SchemaProcessor<'input> {
     }
 
     /// Check if string matches integer pattern
-    #[must_use] 
+    #[must_use]
     pub fn is_integer_pattern(&self, value: &str) -> bool {
         if value.is_empty() {
             return false;
@@ -92,7 +95,7 @@ impl<'input> SchemaProcessor<'input> {
     }
 
     /// Check if string matches float pattern
-    #[must_use] 
+    #[must_use]
     pub fn is_float_pattern(&self, value: &str) -> bool {
         // Special float values
         match value {
@@ -138,14 +141,14 @@ impl<'input> SchemaProcessor<'input> {
     }
 
     /// Check if string matches timestamp pattern
-    #[must_use] 
+    #[must_use]
     pub fn is_timestamp_pattern(&self, value: &str) -> bool {
         // Simplified timestamp check - full ISO 8601 would be more complex
         value.len() >= 10 && value.chars().nth(4) == Some('-') && value.chars().nth(7) == Some('-')
     }
 
     /// Check if string matches binary pattern
-    #[must_use] 
+    #[must_use]
     pub fn is_binary_pattern(&self, value: &str) -> bool {
         // Must be at least 4 characters and have proper base64 structure
         if value.len() < 4 || !value.len().is_multiple_of(4) {
@@ -175,7 +178,7 @@ impl<'input> SchemaProcessor<'input> {
     }
 
     /// Get custom type definition
-    #[must_use] 
+    #[must_use]
     pub fn get_custom_type(&self, tag_name: &str) -> Option<&CustomTypeDefinition<'input>> {
         self.custom_types.get(tag_name)
     }
@@ -183,6 +186,12 @@ impl<'input> SchemaProcessor<'input> {
     /// Set current schema type
     pub const fn set_schema(&mut self, schema_type: SchemaType) {
         self.current_schema = schema_type;
+    }
+
+    /// Get the currently configured schema type
+    #[must_use]
+    pub const fn current_schema(&self) -> SchemaType {
+        self.current_schema
     }
 
     /// Resolve custom tag
@@ -203,7 +212,7 @@ pub struct CoreSchema {
 
 impl CoreSchema {
     /// Create new core schema with all type resolvers
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut resolvers = HashMap::new();
 
@@ -303,7 +312,7 @@ pub struct JsonSchema {
 
 impl JsonSchema {
     /// Create new JSON schema (subset of core)
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut resolvers = HashMap::new();
 
@@ -373,7 +382,7 @@ pub struct FailsafeSchema {
 
 impl FailsafeSchema {
     /// Create new failsafe schema (minimal types)
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut resolvers = HashMap::new();
 
@@ -404,7 +413,6 @@ impl FailsafeSchema {
             NodeKind::Scalar => YamlType::Str,
             NodeKind::Sequence => YamlType::Seq,
             NodeKind::Mapping => YamlType::Map,
-            _ => YamlType::Str, // Fallback
         }
     }
 

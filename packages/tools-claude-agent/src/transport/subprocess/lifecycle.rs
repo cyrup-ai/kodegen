@@ -5,8 +5,8 @@ use std::env;
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 
-use crate::error::{ClaudeError, Result};
 use crate::VERSION;
+use crate::error::{ClaudeError, Result};
 
 use super::command::CommandBuilder;
 use super::config::{DANGEROUS_ENV_VARS, PromptInput};

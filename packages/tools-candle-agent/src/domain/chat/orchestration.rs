@@ -7,10 +7,10 @@
 //! - Stage 4: Result Interpretation
 
 use anyhow::{Context, Result};
+use rmcp::model::Tool as ToolInfo;
 use serde_json::json;
 use std::collections::HashMap;
 use std::pin::Pin;
-use rmcp::model::Tool as ToolInfo;
 use tokio_stream::{Stream, StreamExt};
 
 use super::templates;
@@ -39,7 +39,7 @@ pub fn format_tools_openai(tools: &[ToolInfo]) -> Result<String> {
         .iter()
         .map(|tool| {
             let description = tool.description.as_deref().unwrap_or("");
-            
+
             json!({
                 "type": "function",
                 "function": {
@@ -181,7 +181,11 @@ pub fn get_selected_tool_schemas(
 ) -> Vec<ToolInfo> {
     available_tools
         .iter()
-        .filter(|tool| selected_names.iter().any(|n| n.as_str() == tool.name.as_ref()))
+        .filter(|tool| {
+            selected_names
+                .iter()
+                .any(|n| n.as_str() == tool.name.as_ref())
+        })
         .cloned()
         .collect()
 }

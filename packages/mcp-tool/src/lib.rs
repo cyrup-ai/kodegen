@@ -50,5 +50,5 @@ pub mod tool;
 pub mod tool_history;
 
 // Re-export the main types for convenience
-pub use tool::Tool;
 pub use error::McpError;
+pub use tool::Tool;

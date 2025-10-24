@@ -1,3 +1,5 @@
+//! Deep research module - infrastructure for future use
+
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -58,13 +60,13 @@ impl Default for ResearchOptions {
 pub struct DeepResearch {
     /// MCP client for calling all browser and search tools (HOT PATH)
     mcp_client: Arc<KodegenClient>,
-    
+
     /// LLM temperature for summarization (0.0 = deterministic, 2.0 = creative)
     temperature: f64,
-    
+
     /// Maximum tokens for LLM generation
     max_tokens: u64,
-    
+
     /// Track visited URLs to avoid duplicates
     visited_urls: Arc<Mutex<Vec<String>>>,
 }
@@ -78,11 +80,7 @@ impl DeepResearch {
     /// * `mcp_client` - Client for calling web_search, browser_navigate, browser_extract_text
     /// * `temperature` - LLM sampling temperature (0.0-2.0)
     /// * `max_tokens` - Maximum tokens for LLM generation
-    pub fn new(
-        mcp_client: Arc<KodegenClient>,
-        temperature: f64,
-        max_tokens: u64,
-    ) -> Self {
+    pub fn new(mcp_client: Arc<KodegenClient>, temperature: f64, max_tokens: u64) -> Self {
         Self {
             mcp_client,
             temperature,
@@ -90,7 +88,7 @@ impl DeepResearch {
             visited_urls: Arc::new(Mutex::new(Vec::new())),
         }
     }
-    
+
     /// Perform web research on a query
     pub async fn research(
         &self,
@@ -98,18 +96,18 @@ impl DeepResearch {
         options: Option<ResearchOptions>,
     ) -> Result<Vec<ResearchResult>, UtilsError> {
         let options = options.unwrap_or_default();
-        
+
         // Initialize results
         let mut results = Vec::new();
-        
+
         // Reset visited URLs
         let mut visited = self.visited_urls.lock().await;
         visited.clear();
         drop(visited);
-        
+
         // Search for query
         let search_results = self.search_query(query, &options).await?;
-        
+
         // Process each search result
         for url in search_results.iter().take(options.max_pages) {
             match self.process_url(url, &options).await {
@@ -120,16 +118,16 @@ impl DeepResearch {
                     warn!("Error processing URL {}: {}", url, e);
                 }
             }
-            
+
             // Add to visited URLs
             let mut visited = self.visited_urls.lock().await;
             visited.push(url.clone());
             drop(visited);
         }
-        
+
         Ok(results)
     }
-    
+
     /// Search for query using web_search tool
     ///
     /// Calls citescrape's web_search tool which provides DuckDuckGo search
@@ -158,15 +156,19 @@ impl DeepResearch {
         _options: &ResearchOptions,
     ) -> Result<Vec<String>, UtilsError> {
         debug!("Searching DuckDuckGo via web_search tool: {}", query);
-        
+
         // Call web_search tool via MCP client
-        let result = self.mcp_client.call_tool(
-            "web_search",
-            serde_json::json!({
-                "query": query
-            })
-        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-        
+        let result = self
+            .mcp_client
+            .call_tool(
+                "web_search",
+                serde_json::json!({
+                    "query": query
+                }),
+            )
+            .await
+            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
+
         // Parse MCP response
         let response = if let Some(content) = result.content.first() {
             if let Some(text) = content.as_text() {
@@ -176,9 +178,11 @@ impl DeepResearch {
                 return Err(UtilsError::JsonParseError("Expected text content".into()));
             }
         } else {
-            return Err(UtilsError::JsonParseError("No content in web_search result".into()));
+            return Err(UtilsError::JsonParseError(
+                "No content in web_search result".into(),
+            ));
         };
-        
+
         // Extract URLs from results array
         let urls: Vec<String> = response["results"]
             .as_array()
@@ -188,16 +192,16 @@ impl DeepResearch {
                     .collect()
             })
             .unwrap_or_default();
-        
+
         if urls.is_empty() {
             warn!("web_search returned no results for query: {}", query);
         } else {
             info!("web_search found {} URLs for query: {}", urls.len(), query);
         }
-        
+
         Ok(urls)
     }
-    
+
     /// Process a URL and extract content
     async fn process_url(
         &self,
@@ -210,23 +214,28 @@ impl DeepResearch {
             return Err(UtilsError::UnexpectedError("URL already visited".into()));
         }
         drop(visited);
-        
+
         // 1. NAVIGATE VIA MCP CLIENT (HOT PATH)
         debug!("Navigating to {} via MCP browser_navigate tool", url);
-        let nav_result = self.mcp_client.call_tool(
-            "browser_navigate",
-            serde_json::json!({
-                "url": url,
-                "timeout_ms": options.timeout_seconds * 1000
-            })
-        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-        
+        let nav_result = self
+            .mcp_client
+            .call_tool(
+                "browser_navigate",
+                serde_json::json!({
+                    "url": url,
+                    "timeout_ms": options.timeout_seconds * 1000
+                }),
+            )
+            .await
+            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
+
         // Parse navigation result to get actual URL (may have redirected)
         let final_url = if let Some(content) = nav_result.content.first() {
             if let Some(text) = content.as_text() {
                 let response: serde_json::Value = serde_json::from_str(&text.text)
                     .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-                response.get("url")
+                response
+                    .get("url")
                     .and_then(|v| v.as_str())
                     .unwrap_or(url)
                     .to_string()
@@ -236,31 +245,36 @@ impl DeepResearch {
         } else {
             url.to_string()
         };
-        
+
         // 2. WAIT FOR PAGE TO SETTLE
         tokio::time::sleep(Duration::from_secs(2)).await;
-        
+
         // 3. GET PAGE TITLE
         // TODO: Add browser_get_page_info tool to get title/metadata
         let title = final_url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("Untitled")
             .to_string();
-        
+
         // 4. EXTRACT CONTENT VIA MCP CLIENT (HOT PATH)
         debug!("Extracting content via MCP browser_extract_text tool");
-        let extract_result = self.mcp_client.call_tool(
-            "browser_extract_text",
-            serde_json::json!({})  // No selector = full page
-        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-        
+        let extract_result = self
+            .mcp_client
+            .call_tool(
+                "browser_extract_text",
+                serde_json::json!({}), // No selector = full page
+            )
+            .await
+            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
+
         // Parse extraction result
         let content = if let Some(content_item) = extract_result.content.first() {
             if let Some(text) = content_item.as_text() {
                 let response: serde_json::Value = serde_json::from_str(&text.text)
                     .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-                response.get("text")
+                response
+                    .get("text")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string()
@@ -268,17 +282,19 @@ impl DeepResearch {
                 return Err(UtilsError::JsonParseError("Expected text content".into()));
             }
         } else {
-            return Err(UtilsError::JsonParseError("No content in extract result".into()));
+            return Err(UtilsError::JsonParseError(
+                "No content in extract result".into(),
+            ));
         };
-        
+
         // 5. GENERATE SUMMARY WITH CANDLEFLUENTAI
         let summary = self.summarize_content(&title, &content).await?;
-        
+
         // 6. ADD TO VISITED URLS
         let mut visited = self.visited_urls.lock().await;
         visited.push(final_url.clone());
         drop(visited);
-        
+
         Ok(ResearchResult {
             url: final_url,
             title,
@@ -287,7 +303,6 @@ impl DeepResearch {
             timestamp: chrono::Utc::now(),
         })
     }
-    
 
     /// Summarize content using CandleFluentAi streaming
     ///
@@ -296,11 +311,7 @@ impl DeepResearch {
     ///
     /// # Pattern Reference
     /// Based on: packages/tools-candle-agent/examples/fluent_builder.rs:58-90
-    async fn summarize_content(
-        &self,
-        title: &str,
-        content: &str,
-    ) -> Result<String, UtilsError> {
+    async fn summarize_content(&self, title: &str, content: &str) -> Result<String, UtilsError> {
         // Truncate content if too long (avoid context overflow)
         let max_content_length = 8000;
         let truncated_content = if content.len() > max_content_length {
@@ -308,13 +319,13 @@ impl DeepResearch {
         } else {
             content.to_string()
         };
-        
+
         // Build prompt
         let prompt = format!(
             "Please summarize the following webpage content.\n\nTitle: '{}'\n\nContent:\n{}",
             title, truncated_content
         );
-        
+
         // Create streaming agent with CandleFluentAi builder
         let mut stream = CandleFluentAi::agent_role("research-summarizer")
             .temperature(self.temperature)
@@ -335,10 +346,13 @@ impl DeepResearch {
                 async move { CandleChatLoop::UserPrompt(prompt_clone) }
             })
             .map_err(|e| UtilsError::LlmError(e.to_string()))?;
-        
+
         // Collect streamed response into String
         use tokio_stream::StreamExt;
-        let mut summary = String::new();
+        // Pre-allocate for research summary streaming
+        // Typical summaries: 1000-2000 tokens (~4-8KB)
+        // Use 8KB (8192 bytes) conservative estimate
+        let mut summary = String::with_capacity(8192);
         while let Some(chunk) = stream.next().await {
             match chunk {
                 CandleMessageChunk::Text(text) => {
@@ -353,11 +367,11 @@ impl DeepResearch {
                 }
             }
         }
-        
+
         if summary.is_empty() {
             return Err(UtilsError::LlmError("Empty summary generated".into()));
         }
-        
+
         Ok(summary)
     }
 }

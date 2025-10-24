@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::manager::TerminalManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -15,10 +15,10 @@ use std::sync::Arc;
 pub struct SendTerminalInputArgs {
     /// Process ID to send input to
     pub pid: u32,
-    
+
     /// Input text to send
     pub input: String,
-    
+
     /// Append newline to execute command (default: true)
     /// Set to false for raw input like Ctrl+C or partial commands
     #[serde(default = "default_append_newline")]
@@ -71,14 +71,15 @@ impl Tool for SendTerminalInputTool {
     }
 
     fn idempotent() -> bool {
-        false  // Each input execution has cumulative effect in REPL state
+        false // Each input execution has cumulative effect in REPL state
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let success = self.terminal_manager
+        let success = self
+            .terminal_manager
             .send_input(args.pid, &args.input, args.append_newline)
             .await?;
-        
+
         Ok(json!({
             "success": success,
             "pid": args.pid,
@@ -91,7 +92,9 @@ impl Tool for SendTerminalInputTool {
         let messages = vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text("How do I send Ctrl+C to interrupt a running command?"),
+                content: PromptMessageContent::text(
+                    "How do I send Ctrl+C to interrupt a running command?",
+                ),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -129,7 +132,7 @@ EXAMPLE: STOP RUNAWAY PYTHON SCRIPT
 
 BACKWARD COMPATIBILITY:
 Default behavior unchanged - newline appended automatically unless append_newline=false.
-"#
+"#,
                 ),
             },
         ];

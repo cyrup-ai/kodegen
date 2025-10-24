@@ -16,7 +16,7 @@ root:
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert!(docs[0]["root"]["child1"].as_str().is_some());
-    
+
     // Invalid: mixed tab/space indentation MUST be rejected
     let invalid_yaml = "root:\n\tchild: value"; // Tab not allowed
     assert!(YamlLoader::load_from_str(invalid_yaml).is_err());

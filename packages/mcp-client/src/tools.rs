@@ -106,7 +106,6 @@ pub const SEARCH_USERS: &str = "search_users";
 pub const GET_CONFIG: &str = "get_config";
 pub const SET_CONFIG_VALUE: &str = "set_config_value";
 
-
 // Database tools (7)
 pub const LIST_SCHEMAS: &str = "list_schemas";
 pub const LIST_TABLES: &str = "list_tables";

@@ -3,17 +3,17 @@
 //! This module provides the main `SearchManager` API for starting, managing,
 //! and retrieving results from background search tasks.
 
-use kodegen_mcp_tool::error::McpError;
-use crate::validate_path;
 use super::super::types::{
-    GetMoreSearchResultsResponse, SearchSession,
-    SearchSessionInfo, SearchSessionOptions, SearchType, StartSearchResponse,
+    GetMoreSearchResultsResponse, SearchSession, SearchSessionInfo, SearchSessionOptions,
+    SearchType, StartSearchResponse,
 };
 use super::config::{
-    DEFAULT_MAX_RESULTS, ABSOLUTE_MAX_RESULTS, CLEANUP_INTERVAL_SECS,
-    ACTIVE_SESSION_RETENTION_SECS, COMPLETED_SESSION_RETENTION_SECS,
+    ABSOLUTE_MAX_RESULTS, ACTIVE_SESSION_RETENTION_SECS, CLEANUP_INTERVAL_SECS,
+    COMPLETED_SESSION_RETENTION_SECS, DEFAULT_MAX_RESULTS,
 };
 use super::context::SearchContext;
+use crate::validate_path;
+use kodegen_mcp_tool::error::McpError;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -67,11 +67,9 @@ impl SearchManager {
                 capped as usize
             }
         };
-        
-        log::debug!(
-            "Starting search with effective max_results: {effective_max_results}"
-        );
-        
+
+        log::debug!("Starting search with effective max_results: {effective_max_results}");
+
         // Generate unique session ID using UUID v4 with collision detection
         let mut collision_count = 0;
 
@@ -103,10 +101,10 @@ impl SearchManager {
 
         // Create cancellation channel (false = not cancelled initially)
         let (cancellation_tx, cancellation_rx) = watch::channel(false);
-        
+
         // Create first-result notification channel
         let (first_result_tx, mut first_result_rx) = watch::channel(false);
-        
+
         // Create session
         let session = SearchSession {
             id: session_id.clone(),
@@ -133,7 +131,10 @@ impl SearchManager {
         };
 
         // Store session
-        self.sessions.write().await.insert(session_id.clone(), session);
+        self.sessions
+            .write()
+            .await
+            .insert(session_id.clone(), session);
 
         // Capture sort options before moving options into spawn_search_task
         let sort_by = options.sort_by;
@@ -147,61 +148,62 @@ impl SearchManager {
             // Wait for search to complete or timeout
             let timeout_duration = Duration::from_secs(30); // Max 30s wait for sorting
             let wait_start = Instant::now();
-            
+
             loop {
                 tokio::time::sleep(Duration::from_millis(100)).await;
-                
+
                 let sessions = self.sessions.read().await;
-                let session = sessions.get(&session_id)
+                let session = sessions
+                    .get(&session_id)
                     .ok_or_else(|| McpError::Other(anyhow::anyhow!("Session lost during wait")))?;
-                
+
                 let is_complete = session.is_complete.load(Ordering::Acquire);
                 let is_error = *session.is_error.read().await;
-                
+
                 if is_complete || is_error || wait_start.elapsed() >= timeout_duration {
                     break;
                 }
             }
-            
+
             // Apply sorting to results
             let sessions = self.sessions.read().await;
-            let session = sessions.get(&session_id)
+            let session = sessions
+                .get(&session_id)
                 .ok_or_else(|| McpError::Other(anyhow::anyhow!("Session lost after search")))?;
-            
+
             let mut results = session.results.write().await;
-            
+
             if let Some(sort_criterion) = sort_by {
-                use crate::search::sorting::{SortBy as SortCriterion, SortDirection as SortDir, sort_results};
+                use crate::search::sorting::{
+                    SortBy as SortCriterion, SortDirection as SortDir, sort_results,
+                };
                 use crate::search::types::{SortBy, SortDirection};
-                
+
                 let sort_by_criterion = match sort_criterion {
                     SortBy::Path => SortCriterion::Path,
                     SortBy::Modified => SortCriterion::Modified,
                     SortBy::Accessed => SortCriterion::Accessed,
                     SortBy::Created => SortCriterion::Created,
                 };
-                
+
                 let sort_dir = match sort_direction.unwrap_or(SortDirection::Ascending) {
                     SortDirection::Ascending => SortDir::Ascending,
                     SortDirection::Descending => SortDir::Descending,
                 };
-                
+
                 sort_results(&mut results, sort_by_criterion, sort_dir);
             }
         } else {
             // No sorting: wait for first result OR 40ms timeout (streaming mode)
             use tokio::time::timeout;
-            let _ = timeout(
-                Duration::from_millis(40),
-                first_result_rx.changed()
-            ).await;
+            let _ = timeout(Duration::from_millis(40), first_result_rx.changed()).await;
         }
 
         // Return initial state
         let sessions = self.sessions.read().await;
-        let session = sessions
-            .get(&session_id)
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Session lost during initialization")))?;
+        let session = sessions.get(&session_id).ok_or_else(|| {
+            McpError::Other(anyhow::anyhow!("Session lost during initialization"))
+        })?;
 
         // Read status fields
         let is_complete = session.is_complete.load(Ordering::Acquire);
@@ -279,7 +281,7 @@ impl SearchManager {
             tokio::spawn(async move {
                 // Wait for either search completion or timeout
                 let timeout_result = tokio::time::timeout(timeout, search_handle).await;
-                
+
                 match timeout_result {
                     Ok(_) => {
                         // Search completed before timeout - nothing to do
@@ -287,18 +289,20 @@ impl SearchManager {
                     Err(_elapsed) => {
                         // Timeout occurred - send cancellation signal
                         log::warn!("Search session {session_id} timed out");
-                        
+
                         let sessions_guard = sessions.read().await;
                         if let Some(session) = sessions_guard.get(&session_id) {
                             // Only proceed if session still exists
                             let _ = session.cancellation_tx.send(true);
-                            
+
                             // Use try_write to avoid blocking
                             if let Ok(mut incomplete) = session.was_incomplete.try_write() {
                                 *incomplete = true;
                             }
                         } else {
-                            log::debug!("Timeout fired but session {session_id} already cleaned up");
+                            log::debug!(
+                                "Timeout fired but session {session_id} already cleaned up"
+                            );
                         }
                     }
                 }
@@ -311,29 +315,27 @@ impl SearchManager {
         }
     }
 
-
-
     /// Terminate a search session by sending cancellation signal
-    /// 
+    ///
     /// Sends cancellation signal to the blocking task, causing it to exit cleanly at next loop iteration.
     ///
     /// # Errors
     /// Returns error if session cannot be accessed (should not occur in practice)
     pub async fn terminate_search(&self, session_id: &str) -> Result<bool, McpError> {
         let sessions = self.sessions.read().await;
-        
+
         let Some(session) = sessions.get(session_id) else {
-            return Ok(false);  // Session not found
+            return Ok(false); // Session not found
         };
-        
+
         if session.is_complete.load(Ordering::Acquire) {
-            return Ok(false);  // Already complete, nothing to cancel
+            return Ok(false); // Already complete, nothing to cancel
         }
-        
+
         // Send cancellation signal - This actually stops the task!
         if let Ok(()) = session.cancellation_tx.send(true) {
             log::info!("Sent cancellation signal to search session: {session_id}");
-            Ok(true)  // Signal sent successfully
+            Ok(true) // Signal sent successfully
         } else {
             // Channel closed means receiver dropped (task already finished)
             log::debug!("Search session {session_id} already finished");
@@ -352,9 +354,9 @@ impl SearchManager {
         length: usize,
     ) -> Result<GetMoreSearchResultsResponse, McpError> {
         let sessions = self.sessions.read().await;
-        let session = sessions
-            .get(session_id)
-            .ok_or_else(|| McpError::InvalidArguments(format!("Search session {session_id} not found")))?;
+        let session = sessions.get(session_id).ok_or_else(|| {
+            McpError::InvalidArguments(format!("Search session {session_id} not found"))
+        })?;
 
         // Read status fields first (no lock coupling needed for these)
         let is_complete = session.is_complete.load(Ordering::Acquire);
@@ -365,26 +367,26 @@ impl SearchManager {
         // Lock coupling: Hold results lock while reading total_matches and performing slicing
         // This ensures total_results and total_matches are consistent snapshots from the same instant
         let (sliced_results, total_results, total_matches, has_more) = {
-            let results = session.results.read().await;  // Acquire read lock
-            
+            let results = session.results.read().await; // Acquire read lock
+
             // Capture both counts WHILE holding lock
             let total_results = results.len();
             let total_matches = session.total_matches.load(Ordering::SeqCst);
-            
+
             // Perform slicing WHILE holding lock (ensures consistency)
             let (sliced, has_more) = if offset < 0 {
                 // Negative offset: tail slicing - O(tail_count)
                 let tail_count = usize::try_from(-offset).unwrap_or(0);
-                
+
                 // Direct slice from end - no iterator overhead
                 let start = results.len().saturating_sub(tail_count);
                 let tail_results = results[start..].to_vec();
-                
+
                 (tail_results, false)
             } else {
                 // Positive offset: range slicing - O(length)
                 let start = usize::try_from(offset).unwrap_or(0);
-                
+
                 if start >= results.len() {
                     // Start past end - return empty
                     (Vec::new(), !is_complete)
@@ -393,16 +395,18 @@ impl SearchManager {
                     let end = start.saturating_add(length).min(results.len());
                     let sliced = results[start..end].to_vec();
                     let has_more = end < results.len() || !is_complete;
-                    
+
                     (sliced, has_more)
                 }
             };
-            
+
             (sliced, total_results, total_matches, has_more)
-        };  // Read lock released here - all values are consistent
+        }; // Read lock released here - all values are consistent
 
         let elapsed_micros = session.start_time.elapsed().as_micros() as u64;
-        session.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+        session
+            .last_read_time_atomic
+            .store(elapsed_micros, Ordering::Relaxed);
 
         let error_count = session.error_count.load(Ordering::SeqCst);
         let errors = session.errors.read().await.clone();
@@ -451,13 +455,14 @@ impl SearchManager {
                 pattern: session.pattern.clone(),
                 is_complete,
                 is_error,
-                runtime_ms: u64::try_from(session.start_time.elapsed().as_millis()).unwrap_or(u64::MAX),
+                runtime_ms: u64::try_from(session.start_time.elapsed().as_millis())
+                    .unwrap_or(u64::MAX),
                 total_results,
                 timeout_ms: session.timeout_ms,
-                was_incomplete: if *session.was_incomplete.read().await { 
-                    Some(true) 
-                } else { 
-                    None 
+                was_incomplete: if *session.was_incomplete.read().await {
+                    Some(true)
+                } else {
+                    None
                 },
             });
         }
@@ -466,37 +471,38 @@ impl SearchManager {
     }
 
     /// Clean up old completed sessions with differentiated retention.
-    /// 
+    ///
     /// Removes sessions based on completion status:
     /// - Completed searches: 30 seconds retention
     /// - Active searches: 5 minutes retention
-    /// 
+    ///
     /// Recently-read sessions are preserved regardless of completion status.
     pub async fn cleanup_sessions(&self) {
         let now = Instant::now();
-        
+
         // Calculate different cutoff times for active vs completed searches
         let active_cutoff = now
             .checked_sub(Duration::from_secs(ACTIVE_SESSION_RETENTION_SECS))
             .unwrap_or(now);
-        
+
         let completed_cutoff = now
             .checked_sub(Duration::from_secs(COMPLETED_SESSION_RETENTION_SECS))
             .unwrap_or(now);
-        
+
         let mut sessions = self.sessions.write().await;
         let initial_count = sessions.len();
-        
+
         sessions.retain(|session_id, session| {
             // LOCK-FREE atomic loads
             let is_complete = session.is_complete.load(Ordering::Acquire);
-            
+
             // Convert stored elapsed micros back to Instant
             let elapsed_micros = session.last_read_time_atomic.load(Ordering::Relaxed);
-            let last_read = session.start_time
+            let last_read = session
+                .start_time
                 .checked_add(Duration::from_micros(elapsed_micros))
                 .unwrap_or(now);
-            
+
             // Differentiated retention based on completion status
             let should_keep = if is_complete {
                 // Completed searches: shorter retention (30 seconds)
@@ -505,7 +511,7 @@ impl SearchManager {
                 // Active searches: longer retention (5 minutes)
                 last_read > active_cutoff
             };
-            
+
             if !should_keep {
                 let reason = if is_complete {
                     "completed and inactive for 30s"
@@ -514,10 +520,10 @@ impl SearchManager {
                 };
                 log::debug!("Cleaning up search session {session_id}: {reason}");
             }
-            
+
             should_keep
         });
-        
+
         let cleaned_count = initial_count - sessions.len();
         if cleaned_count > 0 {
             log::info!("Cleaned up {cleaned_count} search sessions");
@@ -525,7 +531,7 @@ impl SearchManager {
     }
 
     /// Start background cleanup task (call once on manager creation)
-    /// 
+    ///
     /// Runs cleanup every minute with differentiated retention:
     /// - Active searches: 5 minutes retention
     /// - Completed searches: 30 seconds retention

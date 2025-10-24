@@ -78,7 +78,7 @@ static BAD_VALUE: Yaml = Yaml::BadValue;
 /// Accessors for Yaml
 impl Yaml {
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn as_bool(&self) -> Option<bool> {
         match *self {
             Self::Boolean(b) => Some(b),
@@ -87,7 +87,7 @@ impl Yaml {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn as_i64(&self) -> Option<i64> {
         match *self {
             Self::Integer(i) => Some(i),
@@ -96,7 +96,7 @@ impl Yaml {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn as_f64(&self) -> Option<f64> {
         match *self {
             Self::Real(ref s) => parse_f64(s),
@@ -105,7 +105,7 @@ impl Yaml {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match *self {
             Self::String(ref s) => Some(s),
@@ -114,7 +114,7 @@ impl Yaml {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn as_vec(&self) -> Option<&[Self]> {
         match *self {
             Self::Array(ref v) => Some(v),
@@ -123,7 +123,7 @@ impl Yaml {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn as_hash(&self) -> Option<&LinkedHashMap<Self, Self>> {
         match *self {
             Self::Hash(ref h) => Some(h),
@@ -132,20 +132,20 @@ impl Yaml {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn is_null(&self) -> bool {
         matches!(*self, Self::Null)
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn is_badvalue(&self) -> bool {
         matches!(*self, Self::BadValue)
     }
 
     /// Parse a string into a Yaml value with automatic type detection
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn parse_str(v: &str) -> Self {
         // Handle hexadecimal numbers (0x, +0x, -0x)
         if let Some(stripped) = v.strip_prefix("0x")

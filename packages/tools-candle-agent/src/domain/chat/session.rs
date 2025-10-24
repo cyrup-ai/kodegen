@@ -39,8 +39,8 @@ use crate::memory::core::manager::surreal::MemoryManager; // Trait must be in sc
 use crate::memory::primitives::node::MemoryNode as CoreMemoryNode;
 use crate::memory::primitives::types::{MemoryContent, MemoryTypeEnum as CoreMemoryTypeEnum};
 
-use cyrup_sugars::collections::ZeroOneOrMany;
 use crate::domain::completion::types::ToolInfo;
+use cyrup_sugars::collections::ZeroOneOrMany;
 
 // Type aliases for complex callback types
 type OnChunkHandler =
@@ -160,9 +160,8 @@ async fn initialize_tool_router(
     // Create router with no remote MCP client (local tools only)
     let mut router = CandleToolRouter::new(None);
     if let Err(e) = router.initialize().await {
-        let error_chunk = CandleMessageChunk::Error(format!(
-            "Failed to initialize tool router: {e}"
-        ));
+        let error_chunk =
+            CandleMessageChunk::Error(format!("Failed to initialize tool router: {e}"));
         let _ = sender.send(error_chunk);
         return None;
     }
@@ -531,18 +530,16 @@ async fn execute_tool_call(
 ) -> CandleMessageChunk {
     if let Some(router) = tool_router {
         match serde_json::from_str::<serde_json::Value>(input) {
-            Ok(args_json) => {
-                match router.call_tool(name, args_json).await {
-                    Ok(response) => {
-                        if let Some(handler) = on_tool_result_handler {
-                            let results = vec![format!("{response:?}")];
-                            handler(&results).await;
-                        }
-                        CandleMessageChunk::Text(format!("Tool '{name}' executed: {response:?}"))
+            Ok(args_json) => match router.call_tool(name, args_json).await {
+                Ok(response) => {
+                    if let Some(handler) = on_tool_result_handler {
+                        let results = vec![format!("{response:?}")];
+                        handler(&results).await;
                     }
-                    Err(e) => CandleMessageChunk::Error(format!("Tool '{name}' failed: {e}")),
+                    CandleMessageChunk::Text(format!("Tool '{name}' executed: {response:?}"))
                 }
-            }
+                Err(e) => CandleMessageChunk::Error(format!("Tool '{name}' failed: {e}")),
+            },
             Err(e) => CandleMessageChunk::Error(format!("Invalid JSON: {e}")),
         }
     } else {

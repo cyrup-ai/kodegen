@@ -12,10 +12,10 @@
 //! - `background` - Background task spawning
 //! - `helpers` - Pure helper functions for message processing
 
-mod commands;
-mod session;
-mod helpers;
-mod background;
 mod agent_manager;
+mod background;
+mod commands;
+mod helpers;
+mod session;
 
 pub use agent_manager::{AgentManager, SpawnSessionRequest};

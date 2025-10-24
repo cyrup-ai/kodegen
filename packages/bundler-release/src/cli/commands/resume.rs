@@ -3,8 +3,8 @@
 //! Handles resuming an interrupted or failed release from the last successful checkpoint.
 
 use crate::cli::{Args, Command, ResumePhase, RuntimeConfig};
-use crate::error::{Result, ReleaseError};
-use crate::git::{GitManager, GitConfig};
+use crate::error::{ReleaseError, Result};
+use crate::git::{GitConfig, GitManager};
 use crate::publish::{Publisher, PublisherConfig};
 use crate::state::{ReleasePhase, create_state_manager_at};
 use crate::version::VersionManager;
@@ -12,26 +12,42 @@ use crate::workspace::{WorkspaceInfo, WorkspaceValidator};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::temp_clone::{get_active_temp_path, clear_active_temp_path};
+use super::temp_clone::{clear_active_temp_path, get_active_temp_path};
 
 /// Execute resume command
 pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Result<()> {
-    if let Command::Resume { force, reset_to_phase, skip_validation: _ } = &args.command {
+    if let Command::Resume {
+        force,
+        reset_to_phase,
+        skip_validation: _,
+    } = &args.command
+    {
         config.verbose_println("Resuming release operation...");
 
         // Check if there's an active temp clone from a previous release
         let (workspace_path, state_file_path) = if let Some(temp_path) = get_active_temp_path() {
             if temp_path.exists() {
-                config.println(&format!("📂 Resuming from temp clone: {}", temp_path.display()));
+                config.println(&format!(
+                    "📂 Resuming from temp clone: {}",
+                    temp_path.display()
+                ));
                 let temp_state = temp_path.join(".cyrup_release_state.json");
                 (temp_path, temp_state)
             } else {
-                config.warning_println("Tracked temp clone no longer exists, using current workspace");
+                config.warning_println(
+                    "Tracked temp clone no longer exists, using current workspace",
+                );
                 clear_active_temp_path()?;
-                (config.workspace_path.clone(), config.state_file_path.clone())
+                (
+                    config.workspace_path.clone(),
+                    config.state_file_path.clone(),
+                )
             }
         } else {
-            (config.workspace_path.clone(), config.state_file_path.clone())
+            (
+                config.workspace_path.clone(),
+                config.state_file_path.clone(),
+            )
         };
 
         // Load release state
@@ -42,7 +58,8 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
         // Validate resumability
         if !release_state.is_resumable() && !force {
             return Err(ReleaseError::State(crate::error::StateError::LoadFailed {
-                reason: "Release is not in a resumable state. Use --force to resume anyway".to_string(),
+                reason: "Release is not in a resumable state. Use --force to resume anyway"
+                    .to_string(),
             }));
         }
 
@@ -68,8 +85,7 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
 
         config.println(&format!(
             "Resuming release {} from phase: {:?}",
-            release_state.target_version,
-            release_state.current_phase
+            release_state.target_version, release_state.current_phase
         ));
 
         // Reconstruct workspace (needed for all phases)
@@ -90,9 +106,11 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                         for error in &validation.critical_errors {
                             config.error_println(&format!("  • {}", error));
                         }
-                        return Err(ReleaseError::Workspace(crate::error::WorkspaceError::InvalidStructure {
-                            reason: "Workspace validation failed".to_string(),
-                        }));
+                        return Err(ReleaseError::Workspace(
+                            crate::error::WorkspaceError::InvalidStructure {
+                                reason: "Workspace validation failed".to_string(),
+                            },
+                        ));
                     }
 
                     // Move to next phase
@@ -107,7 +125,8 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                     let mut version_manager = VersionManager::new(workspace.clone());
 
                     // Perform version update (using stored version_bump from state)
-                    let version_result = version_manager.release_version(release_state.version_bump.clone())?;
+                    let version_result =
+                        version_manager.release_version(release_state.version_bump.clone())?;
                     release_state.set_version_state(&version_result.update_result);
                     release_state.add_checkpoint(
                         "version_updated".to_string(),
@@ -117,7 +136,8 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                     );
                     state_manager.save_state(&release_state).await?;
 
-                    config.success_println(&format!("Version updated: {}", version_result.summary()));
+                    config
+                        .success_println(&format!("Version updated: {}", version_result.summary()));
 
                     // Move to next phase
                     release_state.set_phase(ReleasePhase::GitOperations);
@@ -134,13 +154,16 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                         auto_push_tags: release_state.config.push_to_remote,
                         ..Default::default()
                     };
-                    let mut git_manager = GitManager::with_config(&workspace_path, git_config).await?;
+                    let mut git_manager =
+                        GitManager::with_config(&workspace_path, git_config).await?;
 
                     // Perform git operations
-                    let git_result = git_manager.perform_release(
-                        &release_state.target_version,
-                        release_state.config.push_to_remote
-                    ).await?;
+                    let git_result = git_manager
+                        .perform_release(
+                            &release_state.target_version,
+                            release_state.config.push_to_remote,
+                        )
+                        .await?;
 
                     release_state.set_git_state(Some(&git_result.commit), Some(&git_result.tag));
 
@@ -156,7 +179,10 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                     );
                     state_manager.save_state(&release_state).await?;
 
-                    config.success_println(&format!("Git operations completed: {}", git_result.format_result()));
+                    config.success_println(&format!(
+                        "Git operations completed: {}",
+                        git_result.format_result()
+                    ));
 
                     // Move to next phase
                     release_state.set_phase(ReleasePhase::Publishing);
@@ -168,16 +194,20 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
 
                     // Reconstruct publisher from original config
                     let publisher_config = PublisherConfig {
-                        inter_package_delay: Duration::from_millis(release_state.config.inter_package_delay_ms),
+                        inter_package_delay: Duration::from_millis(
+                            release_state.config.inter_package_delay_ms,
+                        ),
                         registry: release_state.config.registry.clone(),
                         max_concurrent_per_tier: 1,
                         ..Default::default()
                     };
-                    let mut publisher = Publisher::with_config(workspace.clone(), publisher_config)?;
+                    let mut publisher =
+                        Publisher::with_config(workspace.clone(), publisher_config)?;
 
                     // Initialize publish state if not already done
                     if release_state.publish_state.is_none() {
-                        let publish_order = crate::workspace::DependencyGraph::build(&workspace)?.publish_order()?;
+                        let publish_order = crate::workspace::DependencyGraph::build(&workspace)?
+                            .publish_order()?;
                         release_state.init_publish_state(publish_order.tier_count());
                         state_manager.save_state(&release_state).await?;
                     }
@@ -203,9 +233,15 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
                     state_manager.save_state(&release_state).await?;
 
                     if publish_result.all_successful {
-                        config.success_println(&format!("Publishing completed: {}", publish_result.format_summary()));
+                        config.success_println(&format!(
+                            "Publishing completed: {}",
+                            publish_result.format_summary()
+                        ));
                     } else {
-                        config.warning_println(&format!("Publishing partially failed: {}", publish_result.format_summary()));
+                        config.warning_println(&format!(
+                            "Publishing partially failed: {}",
+                            publish_result.format_summary()
+                        ));
                     }
 
                     // Move to cleanup and exit loop
@@ -221,7 +257,10 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
 
                 _ => {
                     return Err(ReleaseError::State(crate::error::StateError::Corrupted {
-                        reason: format!("Cannot resume from phase: {:?}", release_state.current_phase),
+                        reason: format!(
+                            "Cannot resume from phase: {:?}",
+                            release_state.current_phase
+                        ),
                     }));
                 }
             }
@@ -242,11 +281,13 @@ pub(super) async fn execute_resume(args: &Args, config: &RuntimeConfig) -> Resul
         );
         state_manager.save_state(&release_state).await?;
 
-        config.success_println(&format!("🎉 Release {} resumed and completed successfully!", release_state.target_version));
+        config.success_println(&format!(
+            "🎉 Release {} resumed and completed successfully!",
+            release_state.target_version
+        ));
 
         // Cleanup state file after successful completion
         state_manager.cleanup_state()?;
-
     } else {
         unreachable!("execute_resume called with non-Resume command");
     }

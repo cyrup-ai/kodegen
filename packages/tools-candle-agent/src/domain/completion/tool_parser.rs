@@ -1,6 +1,6 @@
 //! Streaming parser for Qwen3 tool calls
 //!
-//! Detects `<tool_call>{"name": "...", "arguments": {...}}</tool_call>` 
+//! Detects `<tool_call>{"name": "...", "arguments": {...}}</tool_call>`
 //! tags in streaming LLM output.
 //!
 //! # Design
@@ -45,7 +45,7 @@ pub struct ToolCall {
 /// # Usage
 /// ```rust
 /// let mut parser = ToolCallParser::new();
-/// 
+///
 /// // Process each token from the stream
 /// for token in stream {
 ///     if let Some(tool_call) = parser.process_token(&token) {
@@ -106,7 +106,7 @@ impl ToolCallParser {
         if !self.in_tool_call && self.buffer.contains("<tool_call>") {
             self.in_tool_call = true;
             self.tool_call_content.clear();
-            
+
             // Extract content after opening tag
             // Example: buffer = "text <tool_call>{\"na" → content = "{\"na"
             if let Some(idx) = self.buffer.find("<tool_call>") {
@@ -177,7 +177,10 @@ impl ToolCallParser {
                 let arguments = json["arguments"].clone();
                 let args_string = serde_json::to_string(&arguments).ok()?;
 
-                Some(ToolCall { name, arguments: args_string })
+                Some(ToolCall {
+                    name,
+                    arguments: args_string,
+                })
             }
             Err(e) => {
                 // Model may generate invalid JSON - log and continue

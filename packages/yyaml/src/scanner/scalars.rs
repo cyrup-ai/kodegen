@@ -19,12 +19,20 @@ pub fn scan_plain_scalar<T: Iterator<Item = char>>(
     let mut spaces = String::new();
     let start_col = state.column();
     let in_flow = state.in_flow_context();
-    log::debug!("scan_plain_scalar: in_flow={}, flow_level={}, start_col={}", in_flow, state.flow_level(), start_col);
+    log::debug!(
+        "scan_plain_scalar: in_flow={}, flow_level={}, start_col={}",
+        in_flow,
+        state.flow_level(),
+        start_col
+    );
 
     while let Ok(ch) = state.peek_char() {
         // Flow context indicators
         if in_flow && matches!(ch, ',' | '[' | ']' | '{' | '}') {
-            log::debug!("scan_plain_scalar: stopping at flow indicator '{}' in flow context", ch);
+            log::debug!(
+                "scan_plain_scalar: stopping at flow indicator '{}' in flow context",
+                ch
+            );
             break;
         }
 
@@ -600,7 +608,7 @@ fn consume_line_break<T: Iterator<Item = char>>(
 }
 
 /// Apply block scalar folding logic - extracted for reuse by structural productions
-#[must_use] 
+#[must_use]
 pub fn apply_block_scalar_folding(
     lines: &[String],
     chomping: ChompingMode,
@@ -661,7 +669,6 @@ pub fn apply_block_scalar_folding(
     result
 }
 
-
 /// Peek at indentation at current position without consuming characters
 #[inline]
 fn peek_line_indent_at_current<T: Iterator<Item = char>>(
@@ -673,4 +680,3 @@ fn peek_line_indent_at_current<T: Iterator<Item = char>>(
     }
     Ok(count)
 }
-

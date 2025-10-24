@@ -2,7 +2,10 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::{Commit, Ref}, Octocrab};
+use octocrab::{
+    Octocrab,
+    models::repos::{Commit, Ref},
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 

@@ -4,8 +4,8 @@
 //! creation for the MCP bridge with zero allocation patterns and blazing-fast
 //! performance.
 
-use serde_json::Value;
 use log::{debug, warn};
+use serde_json::Value;
 
 /// Validate JSON-RPC request structure
 pub fn validate_json_rpc_request(request: &Value) -> Result<(), anyhow::Error> {
@@ -190,7 +190,7 @@ fn is_valid_error_code(code: i64) -> bool {
 }
 
 /// Create standardized error responses (part of complete JSON-RPC validation API)
-#[must_use] 
+#[must_use]
 pub fn create_parse_error_response(id: Option<Value>) -> Value {
     serde_json::json!({
         "jsonrpc": "2.0",
@@ -204,7 +204,7 @@ pub fn create_parse_error_response(id: Option<Value>) -> Value {
 }
 
 /// Create invalid request error response
-#[must_use] 
+#[must_use]
 pub fn create_invalid_request_response(id: Option<Value>) -> Value {
     serde_json::json!({
         "jsonrpc": "2.0",
@@ -217,9 +217,8 @@ pub fn create_invalid_request_response(id: Option<Value>) -> Value {
     })
 }
 
-
 /// Create invalid params error response (part of complete JSON-RPC validation API)
-#[must_use] 
+#[must_use]
 pub fn create_invalid_params_response(id: Option<Value>, details: &str) -> Value {
     serde_json::json!({
         "jsonrpc": "2.0",
@@ -233,7 +232,7 @@ pub fn create_invalid_params_response(id: Option<Value>, details: &str) -> Value
 }
 
 /// Create internal error response (part of complete JSON-RPC validation API)
-#[must_use] 
+#[must_use]
 pub fn create_internal_error_response(id: Option<Value>, details: Option<&str>) -> Value {
     serde_json::json!({
         "jsonrpc": "2.0",
@@ -246,9 +245,8 @@ pub fn create_internal_error_response(id: Option<Value>, details: Option<&str>) 
     })
 }
 
-
 /// Extract request ID from potentially malformed JSON (part of complete JSON-RPC validation API)
-#[must_use] 
+#[must_use]
 pub fn extract_request_id(request_text: &str) -> Option<Value> {
     // Try to parse as JSON first
     if let Ok(json) = serde_json::from_str::<Value>(request_text)
@@ -286,7 +284,6 @@ pub fn extract_request_id(request_text: &str) -> Option<Value> {
     None
 }
 
-
 /// Batch validate multiple JSON-RPC requests
 pub fn validate_batch_requests(requests: &[Value]) -> Vec<Result<(), anyhow::Error>> {
     if requests.is_empty() {
@@ -301,7 +298,6 @@ pub fn validate_batch_requests(requests: &[Value]) -> Vec<Result<(), anyhow::Err
 
     requests.iter().map(validate_json_rpc_request).collect()
 }
-
 
 /// Validate request size limits
 pub fn validate_request_size(request_text: &str) -> Result<(), anyhow::Error> {

@@ -103,7 +103,6 @@ impl ModelCommitteeEvaluator {
         ))
     }
 
-
     /// Evaluate with Qwen provider
     pub async fn evaluate_with_qwen(&self, content: &str) -> Result<String, CognitiveError> {
         let evaluation_prompt = format!(

@@ -11,13 +11,25 @@ use std::future::Future;
 /// Trait defining all required Git operations for release management
 pub trait GitOperations {
     /// Create a commit with all current changes
-    fn create_release_commit(&self, version: &Version, message: Option<String>) -> impl Future<Output = Result<CommitInfo>>;
+    fn create_release_commit(
+        &self,
+        version: &Version,
+        message: Option<String>,
+    ) -> impl Future<Output = Result<CommitInfo>>;
 
     /// Create a version tag
-    fn create_version_tag(&self, version: &Version, message: Option<String>) -> impl Future<Output = Result<TagInfo>>;
+    fn create_version_tag(
+        &self,
+        version: &Version,
+        message: Option<String>,
+    ) -> impl Future<Output = Result<TagInfo>>;
 
     /// Push commits and tags to remote
-    fn push_to_remote(&self, remote_name: Option<&str>, push_tags: bool) -> impl Future<Output = Result<PushInfo>>;
+    fn push_to_remote(
+        &self,
+        remote_name: Option<&str>,
+        push_tags: bool,
+    ) -> impl Future<Output = Result<PushInfo>>;
 
     /// Check if working directory is clean
     fn is_working_directory_clean(&self) -> impl Future<Output = Result<bool>>;
@@ -26,7 +38,11 @@ pub trait GitOperations {
     fn get_current_branch(&self) -> impl Future<Output = Result<BranchInfo>>;
 
     /// Reset to previous commit (rollback)
-    fn reset_to_commit(&self, commit_id: &str, reset_type: ResetType) -> impl Future<Output = Result<()>>;
+    fn reset_to_commit(
+        &self,
+        commit_id: &str,
+        reset_type: ResetType,
+    ) -> impl Future<Output = Result<()>>;
 
     /// Delete a tag (local and optionally remote)
     fn delete_tag(&self, tag_name: &str, delete_remote: bool) -> impl Future<Output = Result<()>>;
@@ -47,7 +63,11 @@ pub trait GitOperations {
     fn create_release_branch(&self, version: &Version) -> impl Future<Output = Result<BranchInfo>>;
 
     /// Push a specific branch with tags to remote
-    fn push_branch_with_tags(&self, branch_name: &str, remote_name: Option<&str>) -> impl Future<Output = Result<PushInfo>>;
+    fn push_branch_with_tags(
+        &self,
+        branch_name: &str,
+        remote_name: Option<&str>,
+    ) -> impl Future<Output = Result<PushInfo>>;
 
     /// Checkout to a specific branch
     fn checkout_branch(&self, branch_name: &str) -> impl Future<Output = Result<()>>;

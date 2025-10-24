@@ -1,4 +1,6 @@
-use kodegen_candle_agent::domain::voice::transcription::{TranscriptionRequest, TranscriptionResponse};
+use kodegen_candle_agent::domain::voice::transcription::{
+    TranscriptionRequest, TranscriptionResponse,
+};
 
 #[test]
 fn test_transcription_request_creation() {

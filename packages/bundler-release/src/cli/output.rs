@@ -28,7 +28,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
         let _ = write!(&mut buffer, "ℹ ");
@@ -42,7 +42,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
         let _ = write!(&mut buffer, "✓");
@@ -56,7 +56,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));
         let _ = write!(&mut buffer, "⚠");
@@ -85,7 +85,7 @@ impl OutputManager {
         if !self.verbose || self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)));
         let _ = write!(&mut buffer, "→");
@@ -101,7 +101,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Magenta)));
         let _ = write!(&mut buffer, "⋯");
@@ -115,7 +115,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = writeln!(&mut buffer);
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true));
@@ -129,7 +129,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = writeln!(&mut buffer, "    {}", message);
         let _ = self.bufwtr.print(&buffer);
@@ -140,7 +140,7 @@ impl OutputManager {
         if self.quiet {
             return;
         }
-        
+
         let mut buffer = self.bufwtr.buffer();
         let _ = writeln!(&mut buffer, "{}", message);
         let _ = self.bufwtr.print(&buffer);

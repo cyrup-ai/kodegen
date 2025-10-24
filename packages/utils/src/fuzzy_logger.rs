@@ -3,11 +3,11 @@
 //! Logs fuzzy match attempts to ~/.kodegen-logs/fuzzy-search.log
 //! for debugging and analysis. Format: tab-separated values (TSV)
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuzzySearchLogEntry {
@@ -38,7 +38,7 @@ impl Default for FuzzyLogger {
 
 impl FuzzyLogger {
     /// Create a new fuzzy logger with default path
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
         let log_dir = home.join(".kodegen-logs");
@@ -46,20 +46,23 @@ impl FuzzyLogger {
 
         Self { log_path }
     }
-    
+
     /// Get the log file path
-    #[must_use] 
+    #[must_use]
     pub fn log_path(&self) -> &Path {
         &self.log_path
     }
-    
+
     /// Ensure log directory and file exist
     async fn ensure_log_file(&self) -> Result<(), std::io::Error> {
         let log_dir = self.log_path.parent().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid log path: no parent directory")
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid log path: no parent directory",
+            )
         })?;
         fs::create_dir_all(log_dir).await?;
-        
+
         // Check if file exists (async)
         if !fs::try_exists(&self.log_path).await.unwrap_or(false) {
             // Create with headers
@@ -77,21 +80,22 @@ impl FuzzyLogger {
                 "search_length",
                 "found_length",
                 "file_extension",
-            ].join("\t");
-            
+            ]
+            .join("\t");
+
             fs::write(&self.log_path, format!("{headers}\n")).await?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Log a fuzzy search attempt
     pub async fn log(&self, entry: &FuzzySearchLogEntry) -> Result<(), std::io::Error> {
         self.ensure_log_file().await?;
-        
+
         // Escape tabs and newlines
         let escape = |s: &str| s.replace('\n', "\\n").replace('\t', "\\t");
-        
+
         let line = format!(
             "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             entry.timestamp.to_rfc3339(),
@@ -108,16 +112,16 @@ impl FuzzyLogger {
             entry.found_length,
             entry.file_extension,
         );
-        
+
         // Append to log file
         let mut file = fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.log_path)
             .await?;
-        
+
         file.write_all(line.as_bytes()).await?;
-        
+
         Ok(())
     }
 }
@@ -125,9 +129,8 @@ impl FuzzyLogger {
 // Global singleton
 use tokio::sync::Mutex;
 
-static FUZZY_LOGGER: std::sync::LazyLock<Mutex<FuzzyLogger>> = std::sync::LazyLock::new(|| {
-    Mutex::new(FuzzyLogger::new())
-});
+static FUZZY_LOGGER: std::sync::LazyLock<Mutex<FuzzyLogger>> =
+    std::sync::LazyLock::new(|| Mutex::new(FuzzyLogger::new()));
 
 /// Get the global fuzzy logger instance
 pub async fn get_logger() -> tokio::sync::MutexGuard<'static, FuzzyLogger> {

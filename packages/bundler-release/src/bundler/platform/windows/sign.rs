@@ -3,10 +3,7 @@
 //! This module provides integration between the bundler and the kodegen_sign
 //! package, adapting bundler Settings to the sign crate's API.
 
-use crate::bundler::{
-    error::Result,
-    settings::Settings,
-};
+use crate::bundler::{error::Result, settings::Settings};
 use std::path::Path;
 
 /// Sign a Windows executable or installer using kodegen_sign
@@ -31,7 +28,7 @@ use std::path::Path;
 /// ```
 pub fn sign_file(binary_path: &Path, settings: &Settings) -> Result<()> {
     let windows = &settings.bundle_settings().windows;
-    
+
     // Check if signing is configured
     let cert_path = match &windows.cert_path {
         Some(path) => path,
@@ -40,34 +37,39 @@ pub fn sign_file(binary_path: &Path, settings: &Settings) -> Result<()> {
             return Ok(());
         }
     };
-    
+
     log::info!("Signing {} with Authenticode", binary_path.display());
-    
+
     // Build SignConfig from WindowsSettings
     let sign_config = kodegen_bundler_sign::windows::SignConfig {
         cert_path: cert_path.clone(),
         key_path: windows.key_path.clone(),
         password: windows.password.clone(),
-        timestamp_url: windows.timestamp_url.clone()
+        timestamp_url: windows
+            .timestamp_url
+            .clone()
             .or_else(|| Some("http://timestamp.digicert.com".to_string())),
         app_name: Some(settings.product_name().to_string()),
         app_url: settings.homepage().map(|s| s.to_string()),
     };
-    
+
     // Sign the binary
-    kodegen_bundler_sign::windows::sign_binary(binary_path, &sign_config)
-        .map_err(|e| crate::bundler::Error::GenericError(format!(
-            "Windows code signing failed: {}", e
-        )))?;
-    
+    kodegen_bundler_sign::windows::sign_binary(binary_path, &sign_config).map_err(|e| {
+        crate::bundler::Error::GenericError(format!("Windows code signing failed: {}", e))
+    })?;
+
     // Generate integrity hash
-    let hash = kodegen_bundler_sign::windows::generate_integrity_hash(binary_path)
-        .map_err(|e| crate::bundler::Error::GenericError(format!(
-            "Hash generation failed: {}", e
-        )))?;
-    
-    log::info!("✓ Successfully signed {} (SHA-256: {})", binary_path.display(), &hash[..16]);
-    
+    let hash =
+        kodegen_bundler_sign::windows::generate_integrity_hash(binary_path).map_err(|e| {
+            crate::bundler::Error::GenericError(format!("Hash generation failed: {}", e))
+        })?;
+
+    log::info!(
+        "✓ Successfully signed {} (SHA-256: {})",
+        binary_path.display(),
+        &hash[..16]
+    );
+
     Ok(())
 }
 

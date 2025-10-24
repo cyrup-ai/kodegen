@@ -86,40 +86,44 @@ impl ClientConfigPlugin for ZedPlugin {
 
     fn inject_kodegen(&self, config_content: &str, _format: ConfigFormat) -> Result<String> {
         use anyhow::Context;
-        
+
         let mut config: serde_json::Value = if config_content.trim().is_empty() {
             serde_json::json!({})
         } else {
-            serde_json::from_str(config_content)
-                .context("Failed to parse Zed config")?
+            serde_json::from_str(config_content).context("Failed to parse Zed config")?
         };
-        
+
         // Fast path: already configured?
         if let Some(servers) = config.get("context_servers")
             && servers.get("kodegen").is_some()
         {
             return Ok(config_content.to_string());
         }
-        
+
         // Inject Zed format: uses context_servers not mcpServers
         if let Some(obj) = config.as_object_mut() {
             if !obj.contains_key("context_servers") {
                 obj.insert("context_servers".to_string(), serde_json::json!({}));
             }
-            
-            if let Some(servers) = obj.get_mut("context_servers").and_then(|v| v.as_object_mut()) {
-                servers.insert("kodegen".to_string(), serde_json::json!({
-                    "command": {
-                        "path": "kodegen",
-                        "args": []
-                    },
-                    "settings": {}
-                }));
+
+            if let Some(servers) = obj
+                .get_mut("context_servers")
+                .and_then(|v| v.as_object_mut())
+            {
+                servers.insert(
+                    "kodegen".to_string(),
+                    serde_json::json!({
+                        "command": {
+                            "path": "kodegen",
+                            "args": []
+                        },
+                        "settings": {}
+                    }),
+                );
             }
         }
-        
-        serde_json::to_string_pretty(&config)
-            .context("Failed to serialize Zed config")
+
+        serde_json::to_string_pretty(&config).context("Failed to serialize Zed config")
     }
 
     fn config_format(&self) -> ConfigFormat {

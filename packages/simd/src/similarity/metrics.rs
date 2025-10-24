@@ -91,4 +91,3 @@ impl<'a> Drop for MetricsGuard<'a> {
         // Currently no-op; can be extended for timing metrics
     }
 }
-

@@ -2,12 +2,12 @@
 
 use futures::Stream;
 
+use crate::Transport;
 use crate::error::Result;
 use crate::message::parse_message;
 use crate::transport::{PromptInput, SubprocessTransport};
 use crate::types::messages::Message;
 use crate::types::options::ClaudeAgentOptions;
-use crate::Transport;
 
 /// One-shot query function for simple interactions with Claude Code
 ///

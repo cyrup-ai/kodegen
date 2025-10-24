@@ -1,9 +1,9 @@
+use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use anyhow;
 
 use crate::GitHubClient;
 
@@ -58,10 +58,9 @@ impl Tool for SearchUsersTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
 
         let client = GitHubClient::builder()
             .personal_token(token)
@@ -74,9 +73,11 @@ impl Tool for SearchUsersTool {
                 "followers" => Some(crate::github::UserSearchSort::Followers),
                 "repositories" => Some(crate::github::UserSearchSort::Repositories),
                 "joined" => Some(crate::github::UserSearchSort::Joined),
-                _ => return Err(McpError::InvalidArguments(
-                    "sort must be followers, repositories, or joined".into()
-                )),
+                _ => {
+                    return Err(McpError::InvalidArguments(
+                        "sort must be followers, repositories, or joined".into(),
+                    ));
+                }
             }
         } else {
             None
@@ -87,9 +88,11 @@ impl Tool for SearchUsersTool {
             match o.as_str() {
                 "asc" => Some(crate::github::SearchOrder::Asc),
                 "desc" => Some(crate::github::SearchOrder::Desc),
-                _ => return Err(McpError::InvalidArguments(
-                    "order must be asc or desc".into()
-                )),
+                _ => {
+                    return Err(McpError::InvalidArguments(
+                        "order must be asc or desc".into(),
+                    ));
+                }
             }
         } else {
             None
@@ -99,11 +102,11 @@ impl Tool for SearchUsersTool {
             .search_users(args.query, sort_enum, order_enum, args.page, args.per_page)
             .await;
 
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
 
-        let page = api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+        let page =
+            api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
 
         Ok(serde_json::to_value(&page)?)
     }

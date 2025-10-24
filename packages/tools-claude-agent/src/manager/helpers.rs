@@ -2,8 +2,8 @@
 //!
 //! Pure functions for converting and extracting data from messages.
 
-use std::collections::VecDeque;
 use chrono::Utc;
+use std::collections::VecDeque;
 
 use crate::types::agent::SerializedMessage;
 use crate::types::messages::{ContentBlock, Message};
@@ -26,10 +26,10 @@ pub(super) fn serialize_message(msg: &Message) -> SerializedMessage {
         Message::Result { num_turns, .. } => ("result".to_string(), *num_turns),
         Message::StreamEvent { .. } => ("stream_event".to_string(), 0),
     };
-    
+
     // Serialize the entire message to JSON, falling back to Null on error
     let content = serde_json::to_value(msg).unwrap_or(serde_json::Value::Null);
-    
+
     SerializedMessage {
         message_type,
         content,
@@ -55,20 +55,22 @@ pub(super) fn extract_last_output_lines(
 ) -> Vec<String> {
     messages
         .iter()
-        .rev()  // Start from most recent
+        .rev() // Start from most recent
         .filter(|msg| msg.message_type == "assistant")
         .flat_map(|msg| {
             // Try to deserialize as Message and extract text from content blocks
-            if let Ok(Message::Assistant { message, .. }) = 
-                serde_json::from_value::<Message>(msg.content.clone()) 
+            if let Ok(Message::Assistant { message, .. }) =
+                serde_json::from_value::<Message>(msg.content.clone())
             {
-                message.content.iter().filter_map(|block| {
-                    match block {
+                message
+                    .content
+                    .iter()
+                    .filter_map(|block| match block {
                         ContentBlock::Text { text } => Some(text.clone()),
                         ContentBlock::Thinking { thinking, .. } => Some(thinking.clone()),
                         _ => None,
-                    }
-                }).collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
             } else {
                 vec![]
             }

@@ -23,7 +23,9 @@ fn test_install_handles_broken_pipe() {
     }
 
     // Wait for the process to complete
-    let output = child.wait_with_output().expect("Failed to wait for process");
+    let output = child
+        .wait_with_output()
+        .expect("Failed to wait for process");
 
     // Verify exit code is 0 despite broken pipe
     assert!(
@@ -69,7 +71,9 @@ fn test_install_with_immediate_stdout_close() {
     drop(child.stdout.take());
 
     // Wait for the process to complete
-    let output = child.wait_with_output().expect("Failed to wait for process");
+    let output = child
+        .wait_with_output()
+        .expect("Failed to wait for process");
 
     // Should still exit successfully
     assert!(

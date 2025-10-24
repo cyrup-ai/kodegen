@@ -114,7 +114,7 @@ impl StateManager {
     /// Save release state to file
     pub async fn save_state(&mut self, state: &ReleaseState) -> Result<SaveStateResult> {
         let start_time = SystemTime::now();
-        
+
         // Acquire lock
         self.acquire_lock().await?;
 
@@ -124,17 +124,17 @@ impl StateManager {
         }
 
         // Serialize state
-        let serialized = serde_json::to_string_pretty(state)
-            .map_err(|e| StateError::SaveFailed {
+        let serialized =
+            serde_json::to_string_pretty(state).map_err(|e| StateError::SaveFailed {
                 reason: format!("Failed to serialize state: {}", e),
             })?;
 
         // Write to temporary file first (atomic operation)
         let temp_file_path = self.state_file_path.with_extension("tmp");
-        
+
         {
-            let mut file = fs::File::create(&temp_file_path)
-                .map_err(|e| StateError::SaveFailed {
+            let mut file =
+                fs::File::create(&temp_file_path).map_err(|e| StateError::SaveFailed {
                     reason: format!("Failed to create temp file: {}", e),
                 })?;
 
@@ -143,17 +143,15 @@ impl StateManager {
                     reason: format!("Failed to write state: {}", e),
                 })?;
 
-            file.sync_all()
-                .map_err(|e| StateError::SaveFailed {
-                    reason: format!("Failed to sync file: {}", e),
-                })?;
+            file.sync_all().map_err(|e| StateError::SaveFailed {
+                reason: format!("Failed to sync file: {}", e),
+            })?;
         }
 
         // Atomic rename
-        fs::rename(&temp_file_path, &self.state_file_path)
-            .map_err(|e| StateError::SaveFailed {
-                reason: format!("Failed to rename temp file: {}", e),
-            })?;
+        fs::rename(&temp_file_path, &self.state_file_path).map_err(|e| StateError::SaveFailed {
+            reason: format!("Failed to rename temp file: {}", e),
+        })?;
 
         // Get file size
         let file_size_bytes = fs::metadata(&self.state_file_path)
@@ -178,10 +176,11 @@ impl StateManager {
         let recovered_from_backup = false;
 
         // Load from main state file
-        let state = self.load_from_file(&self.state_file_path)
-            .map_err(|e| StateError::LoadFailed {
-                reason: format!("Failed to load state file: {}", e),
-            })?;
+        let state =
+            self.load_from_file(&self.state_file_path)
+                .map_err(|e| StateError::LoadFailed {
+                    reason: format!("Failed to load state file: {}", e),
+                })?;
 
         // Validate loaded state
         if self.config.validate_on_load {
@@ -206,20 +205,23 @@ impl StateManager {
 
         // Remove main state file
         if self.state_file_path.exists()
-            && let Err(e) = fs::remove_file(&self.state_file_path) {
-                errors.push(format!("Failed to remove state file: {}", e));
-            }
+            && let Err(e) = fs::remove_file(&self.state_file_path)
+        {
+            errors.push(format!("Failed to remove state file: {}", e));
+        }
 
         // Remove lock file
         if self.lock_file_path.exists()
-            && let Err(e) = fs::remove_file(&self.lock_file_path) {
-                errors.push(format!("Failed to remove lock file: {}", e));
-            }
+            && let Err(e) = fs::remove_file(&self.lock_file_path)
+        {
+            errors.push(format!("Failed to remove lock file: {}", e));
+        }
 
         if !errors.is_empty() {
             return Err(StateError::SaveFailed {
                 reason: format!("Cleanup errors: {}", errors.join("; ")),
-            }.into());
+            }
+            .into());
         }
 
         Ok(())
@@ -228,8 +230,8 @@ impl StateManager {
     /// Get state file information
     pub fn get_state_info(&self) -> Result<StateFileInfo> {
         let main_info = if self.state_file_path.exists() {
-            let metadata = fs::metadata(&self.state_file_path)
-                .map_err(|e| StateError::LoadFailed {
+            let metadata =
+                fs::metadata(&self.state_file_path).map_err(|e| StateError::LoadFailed {
                     reason: format!("Failed to get state file metadata: {}", e),
                 })?;
 
@@ -262,9 +264,10 @@ impl StateManager {
             Ok(content) => {
                 // Try parsing as JSON first (new format)
                 if let Ok(lock_info) = serde_json::from_str::<serde_json::Value>(&content)
-                    && let Some(pid) = lock_info["pid"].as_u64() {
-                        return pid as u32 != std::process::id();
-                    }
+                    && let Some(pid) = lock_info["pid"].as_u64()
+                {
+                    return pid as u32 != std::process::id();
+                }
                 // Fall back to plain PID format (backward compatibility)
                 if let Ok(pid) = content.trim().parse::<u32>() {
                     return pid != std::process::id();
@@ -286,13 +289,13 @@ impl StateManager {
         }
 
         // Read and parse lock file
-        let lock_data = fs::read_to_string(&self.lock_file_path)
-            .map_err(|e| StateError::LoadFailed {
+        let lock_data =
+            fs::read_to_string(&self.lock_file_path).map_err(|e| StateError::LoadFailed {
                 reason: format!("Failed to read lock file: {}", e),
             })?;
 
-        let lock_info: serde_json::Value = serde_json::from_str(&lock_data)
-            .map_err(|e| StateError::Corrupted {
+        let lock_info: serde_json::Value =
+            serde_json::from_str(&lock_data).map_err(|e| StateError::Corrupted {
                 reason: format!("Invalid lock file format: {}", e),
             })?;
 
@@ -348,10 +351,9 @@ impl StateManager {
     /// Force remove lock (use with caution)
     pub fn force_unlock(&mut self) -> Result<()> {
         if self.lock_file_path.exists() {
-            fs::remove_file(&self.lock_file_path)
-                .map_err(|e| StateError::SaveFailed {
-                    reason: format!("Failed to remove lock file: {}", e),
-                })?;
+            fs::remove_file(&self.lock_file_path).map_err(|e| StateError::SaveFailed {
+                reason: format!("Failed to remove lock file: {}", e),
+            })?;
         }
 
         self.lock_handle = None;
@@ -360,10 +362,9 @@ impl StateManager {
 
     /// Load state from specific file
     fn load_from_file(&self, file_path: &Path) -> Result<ReleaseState> {
-        let mut file = fs::File::open(file_path)
-            .map_err(|e| StateError::LoadFailed {
-                reason: format!("Failed to open file {}: {}", file_path.display(), e),
-            })?;
+        let mut file = fs::File::open(file_path).map_err(|e| StateError::LoadFailed {
+            reason: format!("Failed to open file {}: {}", file_path.display(), e),
+        })?;
 
         let mut contents = String::new();
         file.read_to_string(&mut contents)
@@ -371,8 +372,8 @@ impl StateManager {
                 reason: format!("Failed to read file {}: {}", file_path.display(), e),
             })?;
 
-        let state: ReleaseState = serde_json::from_str(&contents)
-            .map_err(|e| StateError::Corrupted {
+        let state: ReleaseState =
+            serde_json::from_str(&contents).map_err(|e| StateError::Corrupted {
                 reason: format!("Failed to deserialize state: {}", e),
             })?;
 
@@ -409,15 +410,16 @@ impl StateManager {
                         "acquired_at": acquired_at,
                     });
 
-                    let lock_data_str = serde_json::to_string(&lock_data)
-                        .map_err(|e| StateError::SaveFailed {
+                    let lock_data_str =
+                        serde_json::to_string(&lock_data).map_err(|e| StateError::SaveFailed {
                             reason: format!("Failed to serialize lock data: {}", e),
                         })?;
 
-                    file.write_all(lock_data_str.as_bytes())
-                        .map_err(|e| StateError::SaveFailed {
+                    file.write_all(lock_data_str.as_bytes()).map_err(|e| {
+                        StateError::SaveFailed {
                             reason: format!("Failed to write lock file: {}", e),
-                        })?;
+                        }
+                    })?;
 
                     self.lock_handle = Some(FileLock {
                         _lock_file: self.lock_file_path.clone(),
@@ -441,14 +443,16 @@ impl StateManager {
                 Err(e) => {
                     return Err(StateError::SaveFailed {
                         reason: format!("Failed to create lock file: {}", e),
-                    }.into());
+                    }
+                    .into());
                 }
             }
         }
 
         Err(StateError::SaveFailed {
             reason: "Timeout waiting for file lock".to_string(),
-        }.into())
+        }
+        .into())
     }
 
     /// Update configuration
@@ -501,19 +505,23 @@ impl StateFileInfo {
 
     /// Get total size of all state files
     pub fn total_size_bytes(&self) -> u64 {
-        self.main_file_info.as_ref().map(|f| f.size_bytes).unwrap_or(0)
+        self.main_file_info
+            .as_ref()
+            .map(|f| f.size_bytes)
+            .unwrap_or(0)
     }
 
     /// Format state info for display
     pub fn format_info(&self) -> String {
         let mut info = String::new();
-        
+
         if let Some(main_info) = &self.main_file_info {
             info.push_str(&format!("State: {} bytes", main_info.size_bytes));
             if let Some(modified) = main_info.modified_at
-                && let Ok(elapsed) = modified.elapsed() {
-                    info.push_str(&format!(" (modified {}s ago)", elapsed.as_secs()));
-                }
+                && let Ok(elapsed) = modified.elapsed()
+            {
+                info.push_str(&format!(" (modified {}s ago)", elapsed.as_secs()));
+            }
         } else {
             info.push_str("No state file");
         }

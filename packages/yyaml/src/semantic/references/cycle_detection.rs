@@ -27,7 +27,7 @@ pub struct CycleDetector {
 impl CycleDetector {
     /// Create new cycle detector with optimized settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             detection_algorithm: CycleDetectionAlgorithm::DepthFirstSearch,
@@ -195,7 +195,7 @@ impl CycleDetector {
 
     /// Classify type of cycle - blazing-fast pattern recognition
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn classify_cycle_type(&self, cycle_nodes: &[ReferenceId]) -> CycleType {
         match cycle_nodes.len() {
             1 => CycleType::SelfReference,
@@ -206,7 +206,7 @@ impl CycleDetector {
     }
 
     /// Assess severity of cycle - intelligent risk analysis
-    #[must_use] 
+    #[must_use]
     pub fn assess_cycle_severity(
         &self,
         cycle_nodes: &[ReferenceId],
@@ -251,7 +251,7 @@ impl CycleDetector {
     }
 
     /// Build cycle path description for debugging
-    #[must_use] 
+    #[must_use]
     pub fn build_cycle_path(
         &self,
         cycle_nodes: &[ReferenceId],
@@ -297,14 +297,14 @@ impl CycleDetector {
 
     /// Get current detection algorithm
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_algorithm(&self) -> CycleDetectionAlgorithm {
         self.detection_algorithm
     }
 
     /// Get performance metrics from last detection
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_performance_metrics(&self) -> &DetectionMetrics {
         &self.performance_metrics
     }
@@ -317,14 +317,14 @@ impl CycleDetector {
 
     /// Get cache size for memory optimization
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn cache_size(&self) -> usize {
         self.cycle_cache.len()
     }
 
     /// Check if detection is cached for a node
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_cached(&self, node_id: ReferenceId) -> bool {
         self.cycle_cache.contains_key(&node_id)
     }

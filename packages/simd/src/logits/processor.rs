@@ -10,8 +10,6 @@ pub struct DefaultLogitsProcessor {
     config: ProcessorConfig,
 }
 
-
-
 impl DefaultLogitsProcessor {
     /// Create a new processor with default configuration
     #[must_use]
@@ -45,15 +43,19 @@ impl DefaultLogitsProcessor {
 
         // Apply top-k filtering if enabled
         if let Some(k) = context.top_k.or(self.config.top_k)
-            && k > 0 && k < logits.len() {
-                super::topk::topk_filtering_simd(logits, k)?;
-            }
+            && k > 0
+            && k < logits.len()
+        {
+            super::topk::topk_filtering_simd(logits, k)?;
+        }
 
         // Apply nucleus sampling if enabled
         if let Some(top_p) = context.top_p.or(self.config.top_p)
-            && top_p > 0.0 && top_p < 1.0 {
-                super::nucleus::prepare_nucleus_sampling_simd(logits, top_p as f64)?;
-            }
+            && top_p > 0.0
+            && top_p < 1.0
+        {
+            super::nucleus::prepare_nucleus_sampling_simd(logits, top_p as f64)?;
+        }
 
         // Ensure we have valid probabilities
         if logits.iter().all(|&x| x == f32::NEG_INFINITY) {

@@ -1,6 +1,6 @@
 //! Tests for GitHub user search operation with type-safe parameters.
 
-use kodegen_tools_github::{UserSearchSort, SearchOrder};
+use kodegen_tools_github::{SearchOrder, UserSearchSort};
 
 #[test]
 fn test_user_search_sort_as_str() {

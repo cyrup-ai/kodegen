@@ -12,13 +12,13 @@ fn test_double_quoted_flow_scalars() {
     let yaml = r#""Hello, World!""#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_str().unwrap(), "Hello, World!");
-    
+
     // Multi-line double-quoted with folding
     let yaml = r#""First line
 Second line""#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_str().unwrap(), "First line Second line");
-    
+
     // With escape sequences
     let yaml = r#""Tab:\t Newline:\n Quote:\" Backslash:\\""#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
@@ -36,11 +36,12 @@ fn test_single_quoted_flow_scalars() {
     let yaml = r#"'Hello, World!'"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_str().unwrap(), "Hello, World!");
-    
+
     // Quote doubling for literal quote
-    let yaml = r#"'It''s quoted'"#;    let docs = YamlLoader::load_from_str(yaml).unwrap();
+    let yaml = r#"'It''s quoted'"#;
+    let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_str().unwrap(), "It's quoted");
-    
+
     // No escape sequences in single quotes
     let yaml = r#"'Literal \n and \t'"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
@@ -60,12 +61,12 @@ fn test_plain_flow_scalars() {
         "with:colon",
         "with#hash",
     ];
-    
+
     for case in valid_cases {
         let docs = YamlLoader::load_from_str(case).unwrap();
         assert_eq!(docs[0].as_str().unwrap(), case);
     }
-    
+
     // Invalid in flow context - these should be parsed differently
     let flow_yaml = r#"[key: value]"#; // : followed by space in flow context
     let docs = YamlLoader::load_from_str(flow_yaml).unwrap();
@@ -80,8 +81,8 @@ fn test_plain_scalar_context_restrictions() {
     let yaml = r#"{simple_key: value}"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["simple_key"].as_str().unwrap(), "value");
-    
-    // Flow indicators not allowed to start plain scalars in flow context  
+
+    // Flow indicators not allowed to start plain scalars in flow context
     let invalid_flow = r#"[[], {}]"#; // Should parse as nested collections
     let docs = YamlLoader::load_from_str(invalid_flow).unwrap();
     let arr = docs[0].as_vec().unwrap();

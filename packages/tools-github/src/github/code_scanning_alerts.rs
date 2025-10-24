@@ -17,7 +17,10 @@ pub(crate) fn get_code_scanning_alert(
 
     spawn_task(async move {
         let url = format!("/repos/{owner}/{repo}/code-scanning/alerts/{alert_number}");
-        let result: serde_json::Value = inner.get(url, None::<&()>).await.map_err(GitHubError::from)?;
+        let result: serde_json::Value = inner
+            .get(url, None::<&()>)
+            .await
+            .map_err(GitHubError::from)?;
         Ok(result)
     })
 }
@@ -38,7 +41,7 @@ pub(crate) fn list_code_scanning_alerts(
     spawn_task(async move {
         let mut url = format!("/repos/{owner}/{repo}/code-scanning/alerts");
         let mut params = vec![];
-        
+
         if let Some(s) = state {
             params.push(format!("state={s}"));
         }
@@ -51,12 +54,15 @@ pub(crate) fn list_code_scanning_alerts(
         if let Some(sev) = severity {
             params.push(format!("severity={sev}"));
         }
-        
+
         if !params.is_empty() {
             url.push_str(&format!("?{}", params.join("&")));
         }
-        
-        let results: Vec<serde_json::Value> = inner.get(url, None::<&()>).await.map_err(GitHubError::from)?;
+
+        let results: Vec<serde_json::Value> = inner
+            .get(url, None::<&()>)
+            .await
+            .map_err(GitHubError::from)?;
         Ok(results)
     })
 }

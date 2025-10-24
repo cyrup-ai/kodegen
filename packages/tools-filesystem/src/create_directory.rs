@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 
 // ============================================================================
@@ -58,11 +58,11 @@ impl Tool for CreateDirectoryTool {
     }
 
     fn destructive() -> bool {
-        false  // Creates only, doesn't delete
+        false // Creates only, doesn't delete
     }
 
     fn idempotent() -> bool {
-        true  // Can be called multiple times safely
+        true // Can be called multiple times safely
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -98,7 +98,7 @@ impl Tool for CreateDirectoryTool {
                      - Succeeds silently if directory already exists (idempotent)\n\
                      - Validates paths are within allowed directories\n\
                      - Normalizes paths and expands ~\n\n\
-                     This is safe to call multiple times with the same path."
+                     This is safe to call multiple times with the same path.",
                 ),
             },
         ])

@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::manager::TerminalManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -82,7 +82,7 @@ impl Tool for ListTerminalCommandsTool {
                     // Convert runtime to seconds for display
                     // Runtime < 2^52 ms for all realistic sessions
                     let runtime_s = (session.runtime as f64) / 1000.0;
-                    
+
                     json!({
                         "pid": session.pid,
                         "is_blocked": session.is_blocked,
@@ -111,9 +111,7 @@ impl Tool for ListTerminalCommandsTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I see all my running commands?"
-                ),
+                content: PromptMessageContent::text("How do I see all my running commands?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -167,7 +165,7 @@ impl Tool for ListTerminalCommandsTool {
                      3. list_terminal_commands() → [{pid: 100, ...}, {pid: 101, ...}]\n\
                      4. read_terminal_output({\"pid\": 100}) → Check npm progress\n\
                      5. read_terminal_output({\"pid\": 101}) → Check cargo progress\n\
-                     6. stop_terminal_command({\"pid\": 100}) → Cancel npm if needed"
+                     6. stop_terminal_command({\"pid\": 100}) → Cancel npm if needed",
                 ),
             },
         ])

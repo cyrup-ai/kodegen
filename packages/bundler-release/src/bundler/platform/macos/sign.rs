@@ -3,10 +3,7 @@
 //! This module provides integration between the bundler and the kodegen_sign
 //! package, adapting bundler Settings to the sign crate's API.
 
-use crate::bundler::{
-    error::Result,
-    settings::Settings,
-};
+use crate::bundler::{error::Result, settings::Settings};
 use std::path::Path;
 
 /// Sign a macOS app bundle using kodegen_sign
@@ -44,12 +41,16 @@ pub fn sign_app(app_bundle: &Path, settings: &Settings) -> Result<()> {
             return Ok(());
         }
     };
-    
-    log::info!("Signing {} with identity '{}'", app_bundle.display(), identity);
-    
+
+    log::info!(
+        "Signing {} with identity '{}'",
+        app_bundle.display(),
+        identity
+    );
+
     // Get entitlements path if configured
     let entitlements = settings.bundle_settings().macos.entitlements.as_deref();
-    
+
     // Sign with hardened runtime (required for notarization)
     kodegen_bundler_sign::macos::sign_with_entitlements(
         app_bundle,
@@ -57,12 +58,10 @@ pub fn sign_app(app_bundle: &Path, settings: &Settings) -> Result<()> {
         entitlements,
         true, // hardened_runtime = true
     )
-    .map_err(|e| crate::bundler::Error::GenericError(format!(
-        "Code signing failed: {}", e
-    )))?;
-    
+    .map_err(|e| crate::bundler::Error::GenericError(format!("Code signing failed: {}", e)))?;
+
     log::info!("✓ Successfully signed {}", app_bundle.display());
-    
+
     Ok(())
 }
 
@@ -104,25 +103,22 @@ pub fn notarize_app(app_bundle: &Path, settings: &Settings) -> Result<()> {
         log::info!("Notarization disabled (skip_notarization = true)");
         return Ok(());
     }
-    
+
     log::info!("Notarizing {}", app_bundle.display());
-    
+
     // If APPLE_API_KEY_CONTENT is set, write to file and use that path directly
-    let auth = if let Some(key_path) = kodegen_bundler_sign::macos::ensure_api_key_file()
-        .map_err(|e| crate::bundler::Error::GenericError(format!(
-            "Failed to write API key file: {}", e
-        )))?
-    {
+    let auth = if let Some(key_path) =
+        kodegen_bundler_sign::macos::ensure_api_key_file().map_err(|e| {
+            crate::bundler::Error::GenericError(format!("Failed to write API key file: {}", e))
+        })? {
         // We wrote the key, build auth directly with the path (no env var indirection)
-        let key_id = std::env::var("APPLE_API_KEY")
-            .map_err(|_| crate::bundler::Error::GenericError(
-                "APPLE_API_KEY not set".to_string()
-            ))?;
-        let issuer_id = std::env::var("APPLE_API_ISSUER")
-            .map_err(|_| crate::bundler::Error::GenericError(
-                "APPLE_API_ISSUER not set".to_string()
-            ))?;
-        
+        let key_id = std::env::var("APPLE_API_KEY").map_err(|_| {
+            crate::bundler::Error::GenericError("APPLE_API_KEY not set".to_string())
+        })?;
+        let issuer_id = std::env::var("APPLE_API_ISSUER").map_err(|_| {
+            crate::bundler::Error::GenericError("APPLE_API_ISSUER not set".to_string())
+        })?;
+
         kodegen_bundler_sign::macos::NotarizationAuth::ApiKey {
             key_id,
             issuer_id,
@@ -130,23 +126,23 @@ pub fn notarize_app(app_bundle: &Path, settings: &Settings) -> Result<()> {
         }
     } else {
         // No key content in env, use from_env() which checks APPLE_API_KEY_PATH or searches
-        kodegen_bundler_sign::macos::NotarizationAuth::from_env()
-            .map_err(|e| crate::bundler::Error::GenericError(format!(
-                "Failed to load notarization credentials: {}", e
-            )))?
+        kodegen_bundler_sign::macos::NotarizationAuth::from_env().map_err(|e| {
+            crate::bundler::Error::GenericError(format!(
+                "Failed to load notarization credentials: {}",
+                e
+            ))
+        })?
     };
-    
+
     // Wait for notarization to complete
     let wait = true;
-    
+
     // Notarize (will also staple unless skip_stapling is set)
     kodegen_bundler_sign::macos::notarize(app_bundle, &auth, wait)
-        .map_err(|e| crate::bundler::Error::GenericError(format!(
-            "Notarization failed: {}", e
-        )))?;
-    
+        .map_err(|e| crate::bundler::Error::GenericError(format!("Notarization failed: {}", e)))?;
+
     log::info!("✓ Successfully notarized {}", app_bundle.display());
-    
+
     Ok(())
 }
 
@@ -156,8 +152,8 @@ pub fn notarize_app(app_bundle: &Path, settings: &Settings) -> Result<()> {
 /// - skip_notarization is false
 /// - Notarization credentials are available in environment
 pub fn should_notarize(settings: &Settings) -> bool {
-    !settings.bundle_settings().macos.skip_notarization && 
-    kodegen_bundler_sign::macos::NotarizationAuth::from_env().is_ok()
+    !settings.bundle_settings().macos.skip_notarization
+        && kodegen_bundler_sign::macos::NotarizationAuth::from_env().is_ok()
 }
 
 /// Sign a DMG file using kodegen_sign
@@ -195,21 +191,21 @@ pub fn sign_dmg(dmg_path: &Path, settings: &Settings) -> Result<()> {
             return Ok(());
         }
     };
-    
-    log::info!("Signing DMG {} with identity '{}'", dmg_path.display(), identity);
-    
+
+    log::info!(
+        "Signing DMG {} with identity '{}'",
+        dmg_path.display(),
+        identity
+    );
+
     // Sign DMG without entitlements or hardened runtime
     kodegen_bundler_sign::macos::sign_with_entitlements(
-        dmg_path,
-        identity,
-        None,    // no entitlements for DMG
-        false,   // no hardened runtime for DMG
+        dmg_path, identity, None,  // no entitlements for DMG
+        false, // no hardened runtime for DMG
     )
-    .map_err(|e| crate::bundler::Error::GenericError(format!(
-        "DMG signing failed: {}", e
-    )))?;
-    
+    .map_err(|e| crate::bundler::Error::GenericError(format!("DMG signing failed: {}", e)))?;
+
     log::info!("✓ Successfully signed DMG: {}", dmg_path.display());
-    
+
     Ok(())
 }

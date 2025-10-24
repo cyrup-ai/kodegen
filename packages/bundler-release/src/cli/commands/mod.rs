@@ -4,30 +4,30 @@
 //! all modules and providing comprehensive error handling and user feedback.
 
 // Submodules
-mod temp_clone;
-mod helpers;
-mod release;
-mod rollback;
-mod resume;
-mod status;
-mod cleanup;
-mod validate;
-mod preview;
 mod bundle;
+mod cleanup;
+mod helpers;
+mod preview;
+mod release;
+mod resume;
+mod rollback;
 mod runway;
+mod status;
+mod temp_clone;
+mod validate;
 
 use crate::cli::{Args, Command, RuntimeConfig};
 use crate::error::Result;
 
 // Import command executors
-use release::execute_release;
-use rollback::execute_rollback;
-use resume::execute_resume;
-use status::execute_status;
-use cleanup::execute_cleanup;
-use validate::execute_validate;
-use preview::execute_preview;
 use bundle::execute_bundle;
+use cleanup::execute_cleanup;
+use preview::execute_preview;
+use release::execute_release;
+use resume::execute_resume;
+use rollback::execute_rollback;
+use status::execute_status;
+use validate::execute_validate;
 
 /// Execute the main command based on parsed arguments
 pub async fn execute_command(args: Args) -> Result<i32> {
@@ -57,7 +57,11 @@ pub async fn execute_command(args: Args) -> Result<i32> {
                     Ok(exit_code)
                 }
                 Err(e) => {
-                    config.error_println(&format!("Command '{}' failed: {}", args.command.name(), e));
+                    config.error_println(&format!(
+                        "Command '{}' failed: {}",
+                        args.command.name(),
+                        e
+                    ));
 
                     // Show recovery suggestions if available
                     if config.is_verbose() {
@@ -89,12 +93,19 @@ pub async fn execute_command(args: Args) -> Result<i32> {
             match result {
                 Ok(()) => {
                     if !config.is_quiet() {
-                        config.success_println(&format!("Command '{}' completed successfully", args.command.name()));
+                        config.success_println(&format!(
+                            "Command '{}' completed successfully",
+                            args.command.name()
+                        ));
                     }
                     Ok(0)
                 }
                 Err(e) => {
-                    config.error_println(&format!("Command '{}' failed: {}", args.command.name(), e));
+                    config.error_println(&format!(
+                        "Command '{}' failed: {}",
+                        args.command.name(),
+                        e
+                    ));
 
                     // Show recovery suggestions if available
                     if config.is_verbose() {

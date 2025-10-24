@@ -373,25 +373,25 @@ pub fn resolve_tag_handle(handle: &str, suffix: &str) -> Result<String, String> 
 }
 
 /// Check if tag is a standard YAML 1.2 tag
-#[must_use] 
+#[must_use]
 pub fn is_standard_tag(uri: &str) -> bool {
     uri.starts_with("tag:yaml.org,2002:")
 }
 
 /// Get YAML 1.2 standard tag name from URI
-#[must_use] 
+#[must_use]
 pub fn get_standard_tag_name(uri: &str) -> Option<&str> {
     uri.strip_prefix("tag:yaml.org,2002:")
 }
 
 /// Create local tag URI
-#[must_use] 
+#[must_use]
 pub fn create_local_tag(suffix: &str) -> String {
     format!("!{suffix}")
 }
 
 /// Create global tag URI
-#[must_use] 
+#[must_use]
 pub fn create_global_tag(type_name: &str) -> String {
     format!("tag:yaml.org,2002:{type_name}")
 }

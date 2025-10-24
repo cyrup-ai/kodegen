@@ -11,8 +11,8 @@ use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::types::DatabaseType;
 use crate::tools::timeout::execute_with_timeout;
+use crate::types::DatabaseType;
 
 // =============================================================================
 // Args Structs
@@ -48,10 +48,18 @@ impl ListTablesTool {
     ///
     /// # Errors
     /// Returns error if connection_url cannot be parsed to determine database type
-    pub fn new(pool: Arc<AnyPool>, connection_url: &str, config: ConfigManager) -> Result<Self, McpError> {
+    pub fn new(
+        pool: Arc<AnyPool>,
+        connection_url: &str,
+        config: ConfigManager,
+    ) -> Result<Self, McpError> {
         let db_type = DatabaseType::from_url(connection_url)
             .map_err(|e| McpError::Other(anyhow::anyhow!("Invalid database URL: {}", e)))?;
-        Ok(Self { pool, db_type, config })
+        Ok(Self {
+            pool,
+            db_type,
+            config,
+        })
     }
 }
 
@@ -86,11 +94,9 @@ impl Tool for ListTablesTool {
         let db_type = self.db_type;
 
         // Get SQL query from centralized schema_queries module
-        let (sql, params) = crate::schema_queries::get_tables_query(
-            db_type,
-            args.schema.as_deref(),
-        );
-        
+        let (sql, params) =
+            crate::schema_queries::get_tables_query(db_type, args.schema.as_deref());
+
         // Determine resolved schema for response
         let resolved_schema = args.schema.unwrap_or_else(|| {
             crate::schema_queries::get_default_schema(db_type)

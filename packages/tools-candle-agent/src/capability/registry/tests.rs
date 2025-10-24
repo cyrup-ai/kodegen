@@ -121,7 +121,8 @@ async fn test_concurrent_registration_and_reads() {
     for i in 0..5 {
         let key = format!("{}-{}", base_key, i);
         tasks.spawn(async move {
-            let model = TextToTextModel::Qwen3Quantized(Arc::new(CandleQwen3QuantizedModel::default()));
+            let model =
+                TextToTextModel::Qwen3Quantized(Arc::new(CandleQwen3QuantizedModel::default()));
             register_text_to_text(&key, model).await
         });
     }
@@ -168,7 +169,8 @@ async fn test_cross_capability_duplicate_prevention() {
     let test_key = format!("test-cross-cap-{}", uuid::Uuid::new_v4());
 
     // Register in text-to-text capability
-    let text_model = TextToTextModel::Qwen3Quantized(Arc::new(CandleQwen3QuantizedModel::default()));
+    let text_model =
+        TextToTextModel::Qwen3Quantized(Arc::new(CandleQwen3QuantizedModel::default()));
     let result_1 = register_text_to_text(&test_key, text_model).await;
     assert!(result_1.is_ok(), "First registration should succeed");
 

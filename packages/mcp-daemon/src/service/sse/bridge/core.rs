@@ -10,9 +10,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use log::{debug, warn};
 use reqwest::{Client, Response};
 use serde_json::Value;
-use log::{debug, warn};
 
 /// Connection statistics tracker with atomic counters
 #[derive(Debug)]
@@ -93,14 +93,14 @@ impl McpBridge {
     }
 
     /// Get the MCP server URL
-    #[must_use] 
+    #[must_use]
     pub fn server_url(&self) -> &str {
         &self.mcp_server_url
     }
 
     /// Get the request timeout
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn timeout(&self) -> Duration {
         self.timeout
     }
@@ -138,16 +138,24 @@ impl McpBridge {
     }
 
     /// Get connection statistics
-    #[must_use] 
+    #[must_use]
     pub fn get_connection_stats(&self) -> ConnectionStats {
         ConnectionStats {
             active_connections: self.stats_tracker.active.load(Ordering::Relaxed),
             idle_connections: 0, // reqwest doesn't expose pool idle count
             total_requests: self.stats_tracker.total_requests.load(Ordering::Relaxed),
             failed_requests: self.stats_tracker.failed_requests.load(Ordering::Relaxed),
-            successful_requests: self.stats_tracker.successful_requests.load(Ordering::Relaxed),
-            total_response_time_ms: self.stats_tracker.total_response_time_ms.load(Ordering::Relaxed),
-            last_request_time: self.stats_tracker.last_request_time
+            successful_requests: self
+                .stats_tracker
+                .successful_requests
+                .load(Ordering::Relaxed),
+            total_response_time_ms: self
+                .stats_tracker
+                .total_response_time_ms
+                .load(Ordering::Relaxed),
+            last_request_time: self
+                .stats_tracker
+                .last_request_time
                 .lock()
                 .ok()
                 .and_then(|guard| *guard),
@@ -158,12 +166,12 @@ impl McpBridge {
     pub(super) async fn send_request(&self, json_rpc_request: Value) -> Result<Value> {
         // Track request start
         let start_time = Instant::now();
-        self.stats_tracker.total_requests.fetch_add(1, Ordering::Relaxed);
+        self.stats_tracker
+            .total_requests
+            .fetch_add(1, Ordering::Relaxed);
         self.stats_tracker.active.fetch_add(1, Ordering::Relaxed);
-        
-        debug!(
-            "Sending JSON-RPC request to MCP server: {json_rpc_request}"
-        );
+
+        debug!("Sending JSON-RPC request to MCP server: {json_rpc_request}");
 
         let response = self
             .client
@@ -178,29 +186,37 @@ impl McpBridge {
         // Track request completion and timing
         let elapsed_ms = start_time.elapsed().as_millis() as u64;
         self.stats_tracker.active.fetch_sub(1, Ordering::Relaxed);
-        
+
         // Update last request time
         if let Ok(mut last_time) = self.stats_tracker.last_request_time.lock() {
             *last_time = Some(Utc::now());
         }
-        
+
         match response {
             Ok(resp) => {
                 match self.handle_http_response(resp).await {
                     Ok(value) => {
                         // Track success
-                        self.stats_tracker.successful_requests.fetch_add(1, Ordering::Relaxed);
-                        self.stats_tracker.total_response_time_ms.fetch_add(elapsed_ms, Ordering::Relaxed);
+                        self.stats_tracker
+                            .successful_requests
+                            .fetch_add(1, Ordering::Relaxed);
+                        self.stats_tracker
+                            .total_response_time_ms
+                            .fetch_add(elapsed_ms, Ordering::Relaxed);
                         Ok(value)
                     }
                     Err(e) => {
-                        self.stats_tracker.failed_requests.fetch_add(1, Ordering::Relaxed);
+                        self.stats_tracker
+                            .failed_requests
+                            .fetch_add(1, Ordering::Relaxed);
                         Err(e)
                     }
                 }
             }
             Err(e) => {
-                self.stats_tracker.failed_requests.fetch_add(1, Ordering::Relaxed);
+                self.stats_tracker
+                    .failed_requests
+                    .fetch_add(1, Ordering::Relaxed);
                 Err(e)
             }
         }
@@ -243,12 +259,12 @@ impl McpBridge {
         // Try specialized connection error handling first
         // This performs health checks and returns rich error context
         let runtime_handle = tokio::runtime::Handle::current();
-        if let Some(specialized_response) = runtime_handle.block_on(
-            self.handle_connection_error(&error, original_request)
-        ) {
+        if let Some(specialized_response) =
+            runtime_handle.block_on(self.handle_connection_error(&error, original_request))
+        {
             return specialized_response;
         }
-        
+
         // Fallback to generic error response for unrecognized errors
         let request_id = original_request.get("id").cloned().unwrap_or(Value::Null);
 
@@ -298,7 +314,7 @@ impl McpBridge {
 
     /// Get bridge configuration summary
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn get_config_summary(&self) -> BridgeConfig {
         BridgeConfig {
             server_url: self.mcp_server_url.clone(),
@@ -384,11 +400,9 @@ impl Default for McpBridge {
                     "Failed to create HTTP client with full config: {e}. \
                      Attempting minimal configuration..."
                 );
-                
+
                 // Fallback to minimal configuration
-                Client::builder()
-                    .timeout(Duration::from_secs(30))
-                    .build()
+                Client::builder().timeout(Duration::from_secs(30)).build()
             })
             .unwrap_or_else(|e| {
                 panic!(
@@ -430,21 +444,21 @@ impl McpBridgeBuilder {
     }
 
     /// Set the request timeout
-    #[must_use] 
+    #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
     /// Set maximum idle connections
-    #[must_use] 
+    #[must_use]
     pub fn max_idle_connections(mut self, max: usize) -> Self {
         self.max_idle_connections = Some(max);
         self
     }
 
     /// Set keepalive timeout
-    #[must_use] 
+    #[must_use]
     pub fn keepalive_timeout(mut self, timeout: Duration) -> Self {
         self.keepalive_timeout = Some(timeout);
         self
@@ -465,7 +479,7 @@ impl McpBridgeBuilder {
         let timeout = self.timeout.unwrap_or(Duration::from_secs(30));
         let max_idle = self.max_idle_connections.unwrap_or(10);
         let keepalive = self.keepalive_timeout.unwrap_or(Duration::from_secs(60));
-        
+
         // Create custom client if user_agent is specified
         if let Some(user_agent) = self.user_agent {
             let client = Client::builder()
@@ -478,7 +492,7 @@ impl McpBridgeBuilder {
                 .user_agent(user_agent)
                 .build()
                 .context("Failed to create HTTP client with user agent")?;
-            
+
             Ok(McpBridge {
                 client,
                 mcp_server_url: server_url,

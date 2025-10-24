@@ -9,7 +9,7 @@ use crate::domain::collections::ZeroOneOrMany;
 pub struct Embedding {
     /// The original document text that was embedded
     pub document: String,
-    
+
     /// The computed embedding vector(s)
     /// Can be None, single vector, or multiple vectors
     pub vec: ZeroOneOrMany<Vec<f32>>,

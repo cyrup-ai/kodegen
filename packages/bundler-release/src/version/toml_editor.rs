@@ -7,7 +7,7 @@ use crate::error::{Result, VersionError};
 use semver::Version;
 use std::collections::HashMap;
 use std::path::Path;
-use toml_edit::{DocumentMut, Item, Value, InlineTable};
+use toml_edit::{DocumentMut, InlineTable, Item, Value};
 
 /// Format-preserving TOML editor for Cargo.toml files
 #[derive(Debug)]
@@ -33,14 +33,20 @@ impl TomlEditor {
     /// Open a TOML file for editing
     pub fn open<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let file_path = file_path.as_ref().to_path_buf();
-        let content = std::fs::read_to_string(&file_path)
-            .map_err(|e| std::io::Error::new(e.kind(), format!("Failed to read {}: {}", file_path.display(), e)))?;
+        let content = std::fs::read_to_string(&file_path).map_err(|e| {
+            std::io::Error::new(
+                e.kind(),
+                format!("Failed to read {}: {}", file_path.display(), e),
+            )
+        })?;
 
-        let document = content.parse::<DocumentMut>()
-            .map_err(|e| VersionError::TomlUpdateFailed {
-                path: file_path.clone(),
-                reason: format!("Failed to parse TOML: {}", e),
-            })?;
+        let document =
+            content
+                .parse::<DocumentMut>()
+                .map_err(|e| VersionError::TomlUpdateFailed {
+                    path: file_path.clone(),
+                    reason: format!("Failed to parse TOML: {}", e),
+                })?;
 
         Ok(Self {
             file_path,
@@ -54,7 +60,9 @@ impl TomlEditor {
         let version_str = new_version.to_string();
 
         // Navigate to [package] section
-        let package_table = self.document.get_mut("package")
+        let package_table = self
+            .document
+            .get_mut("package")
             .and_then(|item| item.as_table_mut())
             .ok_or_else(|| VersionError::TomlUpdateFailed {
                 path: self.file_path.clone(),
@@ -78,7 +86,8 @@ impl TomlEditor {
                         return Err(VersionError::TomlUpdateFailed {
                             path: self.file_path.clone(),
                             reason: "Unexpected version format in inline table".to_string(),
-                        }.into());
+                        }
+                        .into());
                     }
                     Item::Table(table) => {
                         // Handle dotted key workspace inheritance: version.workspace = true
@@ -89,13 +98,18 @@ impl TomlEditor {
                         return Err(VersionError::TomlUpdateFailed {
                             path: self.file_path.clone(),
                             reason: "Unexpected version table format".to_string(),
-                        }.into());
+                        }
+                        .into());
                     }
                     _ => {
                         return Err(VersionError::TomlUpdateFailed {
                             path: self.file_path.clone(),
-                            reason: format!("Version field has unexpected format: {:?}", version_item),
-                        }.into());
+                            reason: format!(
+                                "Version field has unexpected format: {:?}",
+                                version_item
+                            ),
+                        }
+                        .into());
                     }
                 }
             }
@@ -113,7 +127,9 @@ impl TomlEditor {
         let version_str = new_version.to_string();
 
         // Navigate to [workspace] section
-        let workspace_table = self.document.get_mut("workspace")
+        let workspace_table = self
+            .document
+            .get_mut("workspace")
             .and_then(|item| item.as_table_mut())
             .ok_or_else(|| VersionError::TomlUpdateFailed {
                 path: self.file_path.clone(),
@@ -121,7 +137,8 @@ impl TomlEditor {
             })?;
 
         // Navigate to [workspace.package] section
-        let package_table = workspace_table.get_mut("package")
+        let package_table = workspace_table
+            .get_mut("package")
             .and_then(|item| item.as_table_mut())
             .ok_or_else(|| VersionError::TomlUpdateFailed {
                 path: self.file_path.clone(),
@@ -137,7 +154,8 @@ impl TomlEditor {
                     return Err(VersionError::TomlUpdateFailed {
                         path: self.file_path.clone(),
                         reason: "Workspace version field has unexpected format".to_string(),
-                    }.into());
+                    }
+                    .into());
                 }
             }
             None => {
@@ -150,44 +168,65 @@ impl TomlEditor {
     }
 
     /// Update internal dependency version
-    pub fn update_dependency_version(&mut self, dependency_name: &str, new_version: &Version) -> Result<()> {
+    pub fn update_dependency_version(
+        &mut self,
+        dependency_name: &str,
+        new_version: &Version,
+    ) -> Result<()> {
         let version_str = new_version.to_string();
         let mut updated = false;
 
         // Update in [dependencies] section
-        if let Some(deps_table) = self.document.get_mut("dependencies").and_then(|item| item.as_table_mut())
-            && let Some(dep_item) = deps_table.get_mut(dependency_name) {
-                Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
-                updated = true;
-            }
+        if let Some(deps_table) = self
+            .document
+            .get_mut("dependencies")
+            .and_then(|item| item.as_table_mut())
+            && let Some(dep_item) = deps_table.get_mut(dependency_name)
+        {
+            Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
+            updated = true;
+        }
 
         // Update in [dev-dependencies] section
-        if let Some(dev_deps_table) = self.document.get_mut("dev-dependencies").and_then(|item| item.as_table_mut())
-            && let Some(dep_item) = dev_deps_table.get_mut(dependency_name) {
-                Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
-                updated = true;
-            }
+        if let Some(dev_deps_table) = self
+            .document
+            .get_mut("dev-dependencies")
+            .and_then(|item| item.as_table_mut())
+            && let Some(dep_item) = dev_deps_table.get_mut(dependency_name)
+        {
+            Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
+            updated = true;
+        }
 
         // Update in [build-dependencies] section
-        if let Some(build_deps_table) = self.document.get_mut("build-dependencies").and_then(|item| item.as_table_mut())
-            && let Some(dep_item) = build_deps_table.get_mut(dependency_name) {
-                Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
-                updated = true;
-            }
+        if let Some(build_deps_table) = self
+            .document
+            .get_mut("build-dependencies")
+            .and_then(|item| item.as_table_mut())
+            && let Some(dep_item) = build_deps_table.get_mut(dependency_name)
+        {
+            Self::update_dependency_item(&self.file_path, dep_item, &version_str)?;
+            updated = true;
+        }
 
         if !updated {
             return Err(VersionError::DependencyMismatch {
                 dependency: dependency_name.to_string(),
                 expected: version_str,
                 found: "not found".to_string(),
-            }.into());
+            }
+            .into());
         }
 
         Ok(())
     }
 
     /// Update a single dependency item (handles different formats)
-    fn update_dependency_item(file_path: &Path, dep_item: &mut Item, version_str: &str) -> Result<()> {
+    fn update_dependency_item(
+        file_path: &Path,
+        dep_item: &mut Item,
+        version_str: &str,
+    ) -> Result<()> {
         match dep_item {
             Item::Value(Value::String(version_ref)) => {
                 // Simple string dependency: "1.0.0"
@@ -215,7 +254,8 @@ impl TomlEditor {
                 return Err(VersionError::TomlUpdateFailed {
                     path: file_path.to_path_buf(),
                     reason: format!("Unexpected dependency format for item: {:?}", dep_item),
-                }.into());
+                }
+                .into());
             }
         }
 
@@ -223,7 +263,10 @@ impl TomlEditor {
     }
 
     /// Update multiple dependency versions in batch
-    pub fn update_multiple_dependencies(&mut self, updates: &HashMap<String, Version>) -> Result<()> {
+    pub fn update_multiple_dependencies(
+        &mut self,
+        updates: &HashMap<String, Version>,
+    ) -> Result<()> {
         for (dep_name, version) in updates {
             self.update_dependency_version(dep_name, version)?;
         }
@@ -239,13 +282,18 @@ impl TomlEditor {
         additional_fields: Option<HashMap<String, String>>,
     ) -> Result<()> {
         let section_name = section.section_name();
-        
+
         // Ensure the section exists
         if !self.document.contains_key(section_name) {
-            self.document.insert(section_name, toml_edit::Item::Table(toml_edit::Table::new()));
+            self.document.insert(
+                section_name,
+                toml_edit::Item::Table(toml_edit::Table::new()),
+            );
         }
 
-        let deps_table = self.document.get_mut(section_name)
+        let deps_table = self
+            .document
+            .get_mut(section_name)
             .and_then(|item| item.as_table_mut())
             .ok_or_else(|| VersionError::TomlUpdateFailed {
                 path: self.file_path.clone(),
@@ -257,12 +305,15 @@ impl TomlEditor {
             // Create inline table with version and additional fields
             let mut inline_table = InlineTable::new();
             inline_table.insert("version", toml_edit::Value::from(version.to_string()));
-            
+
             for (key, value) in additional {
                 inline_table.insert(&key, toml_edit::Value::from(value));
             }
-            
-            deps_table.insert(dependency_name, toml_edit::Item::Value(Value::InlineTable(inline_table)));
+
+            deps_table.insert(
+                dependency_name,
+                toml_edit::Item::Value(Value::InlineTable(inline_table)),
+            );
         } else {
             // Simple string version
             deps_table.insert(dependency_name, toml_edit::value(version.to_string()));
@@ -272,10 +323,18 @@ impl TomlEditor {
     }
 
     /// Remove a dependency
-    pub fn remove_dependency(&mut self, dependency_name: &str, section: DependencySection) -> Result<bool> {
+    pub fn remove_dependency(
+        &mut self,
+        dependency_name: &str,
+        section: DependencySection,
+    ) -> Result<bool> {
         let section_name = section.section_name();
-        
-        if let Some(deps_table) = self.document.get_mut(section_name).and_then(|item| item.as_table_mut()) {
+
+        if let Some(deps_table) = self
+            .document
+            .get_mut(section_name)
+            .and_then(|item| item.as_table_mut())
+        {
             Ok(deps_table.remove(dependency_name).is_some())
         } else {
             Ok(false)
@@ -285,73 +344,97 @@ impl TomlEditor {
     /// Get current version from the TOML
     pub fn get_current_version(&self) -> Result<Version> {
         // Try package version first
-        if let Some(package_table) = self.document.get("package").and_then(|item| item.as_table())
-            && let Some(version_item) = package_table.get("version") {
-                match version_item.as_value() {
-                    Some(Value::String(version_str)) => {
-                        return Version::parse(version_str.value())
-                            .map_err(|e| VersionError::ParseFailed {
-                                version: version_str.value().to_string(),
-                                source: e,
-                            }.into());
-                    }
-                    Some(Value::InlineTable(table)) => {
-                        // Check for workspace inheritance
-                        if table.contains_key("workspace") {
-                            // Fall through to check workspace version
-                        } else {
-                            return Err(VersionError::TomlUpdateFailed {
-                                path: self.file_path.clone(),
-                                reason: "Package version has unexpected inline table format".to_string(),
-                            }.into());
+        if let Some(package_table) = self
+            .document
+            .get("package")
+            .and_then(|item| item.as_table())
+            && let Some(version_item) = package_table.get("version")
+        {
+            match version_item.as_value() {
+                Some(Value::String(version_str)) => {
+                    return Version::parse(version_str.value()).map_err(|e| {
+                        VersionError::ParseFailed {
+                            version: version_str.value().to_string(),
+                            source: e,
                         }
-                    }
-                    _ => {}
+                        .into()
+                    });
                 }
+                Some(Value::InlineTable(table)) => {
+                    // Check for workspace inheritance
+                    if table.contains_key("workspace") {
+                        // Fall through to check workspace version
+                    } else {
+                        return Err(VersionError::TomlUpdateFailed {
+                            path: self.file_path.clone(),
+                            reason: "Package version has unexpected inline table format"
+                                .to_string(),
+                        }
+                        .into());
+                    }
+                }
+                _ => {}
             }
+        }
 
         // Try workspace version
-        if let Some(workspace_table) = self.document.get("workspace").and_then(|item| item.as_table())
-            && let Some(package_table) = workspace_table.get("package").and_then(|item| item.as_table())
+        if let Some(workspace_table) = self
+            .document
+            .get("workspace")
+            .and_then(|item| item.as_table())
+            && let Some(package_table) = workspace_table
+                .get("package")
+                .and_then(|item| item.as_table())
             && let Some(version_item) = package_table.get("version")
-            && let Some(Value::String(version_str)) = version_item.as_value() {
-                return Version::parse(version_str.value())
-                    .map_err(|e| VersionError::ParseFailed {
-                        version: version_str.value().to_string(),
-                        source: e,
-                    }.into());
-            }
+            && let Some(Value::String(version_str)) = version_item.as_value()
+        {
+            return Version::parse(version_str.value()).map_err(|e| {
+                VersionError::ParseFailed {
+                    version: version_str.value().to_string(),
+                    source: e,
+                }
+                .into()
+            });
+        }
 
         Err(VersionError::TomlUpdateFailed {
             path: self.file_path.clone(),
             reason: "No version found in package or workspace.package sections".to_string(),
-        }.into())
+        }
+        .into())
     }
 
     /// Check if file has workspace version inheritance
     pub fn uses_workspace_version(&self) -> bool {
-        if let Some(package_table) = self.document.get("package").and_then(|item| item.as_table())
-            && let Some(version_item) = package_table.get("version") {
-                // Handle dotted key syntax: version.workspace = true
-                if let Some(table) = version_item.as_table()
-                    && table.contains_key("workspace") {
-                        return true;
-                    }
-                // Handle inline table syntax: version = { workspace = true }
-                if let Some(Value::InlineTable(table)) = version_item.as_value() {
-                    return table.contains_key("workspace");
-                }
+        if let Some(package_table) = self
+            .document
+            .get("package")
+            .and_then(|item| item.as_table())
+            && let Some(version_item) = package_table.get("version")
+        {
+            // Handle dotted key syntax: version.workspace = true
+            if let Some(table) = version_item.as_table()
+                && table.contains_key("workspace")
+            {
+                return true;
             }
+            // Handle inline table syntax: version = { workspace = true }
+            if let Some(Value::InlineTable(table)) = version_item.as_value() {
+                return table.contains_key("workspace");
+            }
+        }
         false
     }
 
     /// Save changes to file
     pub fn save(&self) -> Result<()> {
-        std::fs::write(&self.file_path, self.document.to_string())
-            .map_err(|e| VersionError::TomlUpdateFailed {
+        std::fs::write(&self.file_path, self.document.to_string()).map_err(|e| {
+            VersionError::TomlUpdateFailed {
                 path: self.file_path.clone(),
                 reason: format!("Failed to write file: {}", e),
-            }.into())
+            }
+            .into()
+        })
     }
 
     /// Create backup of current state
@@ -364,11 +447,13 @@ impl TomlEditor {
 
     /// Restore from backup
     pub fn restore_from_backup(backup: &TomlBackup) -> Result<()> {
-        std::fs::write(&backup.file_path, &backup.content)
-            .map_err(|e| VersionError::TomlUpdateFailed {
+        std::fs::write(&backup.file_path, &backup.content).map_err(|e| {
+            VersionError::TomlUpdateFailed {
                 path: backup.file_path.clone(),
                 reason: format!("Failed to restore backup: {}", e),
-            }.into())
+            }
+            .into()
+        })
     }
 
     /// Get the document as string (preview changes)
@@ -391,7 +476,9 @@ impl TomlEditor {
         let mut dependencies = HashMap::new();
 
         // Helper to extract dependencies from a table
-        let extract_deps = |table: &toml_edit::Table, section: DependencySection| -> Vec<(String, DependencyInfo)> {
+        let extract_deps = |table: &toml_edit::Table,
+                            section: DependencySection|
+         -> Vec<(String, DependencyInfo)> {
             let mut deps = Vec::new();
             for (name, item) in table.iter() {
                 if let Some(dep_info) = self.parse_dependency_info(item, section) {
@@ -402,22 +489,37 @@ impl TomlEditor {
         };
 
         // Extract from [dependencies]
-        if let Some(deps_table) = self.document.get("dependencies").and_then(|item| item.as_table()) {
+        if let Some(deps_table) = self
+            .document
+            .get("dependencies")
+            .and_then(|item| item.as_table())
+        {
             for (name, dep_info) in extract_deps(deps_table, DependencySection::Dependencies) {
                 dependencies.insert(name, dep_info);
             }
         }
 
         // Extract from [dev-dependencies]
-        if let Some(dev_deps_table) = self.document.get("dev-dependencies").and_then(|item| item.as_table()) {
-            for (name, dep_info) in extract_deps(dev_deps_table, DependencySection::DevDependencies) {
+        if let Some(dev_deps_table) = self
+            .document
+            .get("dev-dependencies")
+            .and_then(|item| item.as_table())
+        {
+            for (name, dep_info) in extract_deps(dev_deps_table, DependencySection::DevDependencies)
+            {
                 dependencies.insert(name, dep_info);
             }
         }
 
         // Extract from [build-dependencies]
-        if let Some(build_deps_table) = self.document.get("build-dependencies").and_then(|item| item.as_table()) {
-            for (name, dep_info) in extract_deps(build_deps_table, DependencySection::BuildDependencies) {
+        if let Some(build_deps_table) = self
+            .document
+            .get("build-dependencies")
+            .and_then(|item| item.as_table())
+        {
+            for (name, dep_info) in
+                extract_deps(build_deps_table, DependencySection::BuildDependencies)
+            {
                 dependencies.insert(name, dep_info);
             }
         }
@@ -426,21 +528,32 @@ impl TomlEditor {
     }
 
     /// Parse dependency information from TOML item
-    fn parse_dependency_info(&self, item: &Item, section: DependencySection) -> Option<DependencyInfo> {
+    fn parse_dependency_info(
+        &self,
+        item: &Item,
+        section: DependencySection,
+    ) -> Option<DependencyInfo> {
         match item {
-            Item::Value(Value::String(version_str)) => {
-                Some(DependencyInfo {
-                    version: Some(version_str.value().to_string()),
-                    path: None,
-                    git: None,
-                    section,
-                })
-            }
+            Item::Value(Value::String(version_str)) => Some(DependencyInfo {
+                version: Some(version_str.value().to_string()),
+                path: None,
+                git: None,
+                section,
+            }),
             Item::Value(Value::InlineTable(table)) => {
-                let version = table.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
-                let path = table.get("path").and_then(|v| v.as_str()).map(|s| s.to_string());
-                let git = table.get("git").and_then(|v| v.as_str()).map(|s| s.to_string());
-                
+                let version = table
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let path = table
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let git = table
+                    .get("git")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 Some(DependencyInfo {
                     version,
                     path,
@@ -449,10 +562,22 @@ impl TomlEditor {
                 })
             }
             Item::Table(table) => {
-                let version = table.get("version").and_then(|item| item.as_value()).and_then(|v| v.as_str()).map(|s| s.to_string());
-                let path = table.get("path").and_then(|item| item.as_value()).and_then(|v| v.as_str()).map(|s| s.to_string());
-                let git = table.get("git").and_then(|item| item.as_value()).and_then(|v| v.as_str()).map(|s| s.to_string());
-                
+                let version = table
+                    .get("version")
+                    .and_then(|item| item.as_value())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let path = table
+                    .get("path")
+                    .and_then(|item| item.as_value())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let git = table
+                    .get("git")
+                    .and_then(|item| item.as_value())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 Some(DependencyInfo {
                     version,
                     path,

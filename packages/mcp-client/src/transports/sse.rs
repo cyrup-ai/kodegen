@@ -1,10 +1,10 @@
 // packages/mcp-client/src/transports/sse.rs
+use crate::{ClientError, KodegenClient, KodegenConnection};
 use rmcp::{
     ServiceExt,
     model::{ClientCapabilities, ClientInfo, Implementation},
     transport::{SseClientTransport, StreamableHttpClientTransport},
 };
-use crate::{KodegenClient, KodegenConnection, ClientError};
 
 /// Create an SSE client from a URL
 ///
@@ -24,12 +24,14 @@ use crate::{KodegenClient, KodegenConnection, ClientError};
 ///
 /// Returns `ClientError::Connection` if the SSE connection fails,
 /// or `ClientError::InitError` if the MCP initialization fails.
-pub async fn create_sse_client(url: &str) -> Result<(KodegenClient, KodegenConnection), ClientError> {
+pub async fn create_sse_client(
+    url: &str,
+) -> Result<(KodegenClient, KodegenConnection), ClientError> {
     // SseClientTransport requires async start
     let transport = SseClientTransport::start(url.to_owned())
         .await
         .map_err(|e| ClientError::Connection(format!("Failed to connect to SSE endpoint: {e}")))?;
-    
+
     let client_info = ClientInfo {
         protocol_version: Default::default(),
         capabilities: ClientCapabilities::default(),
@@ -41,16 +43,17 @@ pub async fn create_sse_client(url: &str) -> Result<(KodegenClient, KodegenConne
             icons: None,
         },
     };
-    
+
     // Use () as the client type for SSE (no custom client needed)
-    let service = client_info.serve(transport)
+    let service = client_info
+        .serve(transport)
         .await
         .map_err(ClientError::InitError)?;
-    
+
     // Use KodegenConnection to wrap service, then extract client
     let connection = KodegenConnection::from_service(service);
     let client = connection.client();
-    
+
     Ok((client, connection))
 }
 
@@ -69,10 +72,12 @@ pub async fn create_sse_client(url: &str) -> Result<(KodegenClient, KodegenConne
 /// # Errors
 ///
 /// Returns `ClientError::InitError` if the MCP initialization fails.
-pub async fn create_streamable_client(url: &str) -> Result<(KodegenClient, KodegenConnection), ClientError> {
+pub async fn create_streamable_client(
+    url: &str,
+) -> Result<(KodegenClient, KodegenConnection), ClientError> {
     // StreamableHttpClientTransport has simpler constructor
     let transport = StreamableHttpClientTransport::from_uri(url);
-    
+
     let client_info = ClientInfo {
         protocol_version: Default::default(),
         capabilities: ClientCapabilities::default(),
@@ -84,14 +89,15 @@ pub async fn create_streamable_client(url: &str) -> Result<(KodegenClient, Kodeg
             icons: None,
         },
     };
-    
-    let service = client_info.serve(transport)
+
+    let service = client_info
+        .serve(transport)
         .await
         .map_err(ClientError::InitError)?;
-    
+
     // Use KodegenConnection to wrap service, then extract client
     let connection = KodegenConnection::from_service(service);
     let client = connection.client();
-    
+
     Ok((client, connection))
 }

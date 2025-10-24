@@ -1,9 +1,9 @@
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
 
 use crate::ProcessId;
@@ -59,15 +59,15 @@ impl Tool for KillProcessTool {
     }
 
     fn read_only() -> bool {
-        false  // Modifies system state
+        false // Modifies system state
     }
 
     fn destructive() -> bool {
-        true  // Terminates processes
+        true // Terminates processes
     }
 
     fn idempotent() -> bool {
-        false  // Killing twice will fail (process no longer exists)
+        false // Killing twice will fail (process no longer exists)
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -76,7 +76,7 @@ impl Tool for KillProcessTool {
         // Validate PID
         if pid == 0 {
             return Err(McpError::InvalidArguments(
-                "Invalid PID 0: cannot kill process with ID 0".to_string()
+                "Invalid PID 0: cannot kill process with ID 0".to_string(),
             ));
         }
 
@@ -161,7 +161,7 @@ impl Tool for KillProcessTool {
                      - success: true if terminated\n\
                      - pid: The terminated process ID\n\
                      - process_name: Name of the terminated process\n\n\
-                     Best practice: Always confirm PID before killing!"
+                     Best practice: Always confirm PID before killing!",
                 ),
             },
         ])

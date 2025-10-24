@@ -56,7 +56,8 @@ impl HookManager {
             if Self::matches(matcher.matcher.as_ref(), tool_name.as_ref()) {
                 // Invoke each hook callback
                 for hook in &matcher.hooks {
-                    let result = hook(event_data.clone(), tool_name.clone(), context.clone()).await?;
+                    let result =
+                        hook(event_data.clone(), tool_name.clone(), context.clone()).await?;
 
                     // Merge hook results
                     if result.decision.is_some() {
@@ -123,9 +124,7 @@ impl HookManager {
         F: Fn(serde_json::Value, Option<String>, HookContext) -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = Result<HookOutput>> + Send + 'static,
     {
-        Arc::new(move |event_data, tool_name, context| {
-            Box::pin(f(event_data, tool_name, context))
-        })
+        Arc::new(move |event_data, tool_name, context| Box::pin(f(event_data, tool_name, context)))
     }
 }
 

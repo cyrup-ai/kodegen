@@ -1,13 +1,19 @@
 // packages/server/src/sse/server.rs
 use anyhow::Result;
+use kodegen_utils::usage_tracker::UsageTracker;
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler,
-    handler::server::router::{tool::ToolRouter, prompt::PromptRouter},
-    model::{ServerInfo, ProtocolVersion, ServerCapabilities, Implementation, CallToolRequestParam, CallToolResult, PaginatedRequestParam, ListToolsResult, GetPromptRequestParam, GetPromptResult, ListPromptsResult, ListResourcesResult, ReadResourceRequestParam, ReadResourceResult, ListResourceTemplatesResult, InitializeRequestParam, InitializeResult},
+    handler::server::router::{prompt::PromptRouter, tool::ToolRouter},
+    model::{
+        CallToolRequestParam, CallToolResult, GetPromptRequestParam, GetPromptResult,
+        Implementation, InitializeRequestParam, InitializeResult, ListPromptsResult,
+        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParam,
+        ProtocolVersion, ReadResourceRequestParam, ReadResourceResult, ServerCapabilities,
+        ServerInfo,
+    },
     service::RequestContext,
 };
 use std::net::SocketAddr;
-use kodegen_utils::usage_tracker::UsageTracker;
 
 /// MCP Server that serves tools via SSE transport
 #[derive(Clone)]
@@ -46,19 +52,23 @@ impl SseServer {
         use rmcp::transport::sse_server::{SseServer as RmcpSseServer, SseServerConfig};
         use tokio::sync::oneshot;
         use tokio_util::sync::CancellationToken;
-        
+
         // Clone managers before moving self
         let managers = self.managers.clone();
-        
-        let protocol = if tls_config.is_some() { "https" } else { "http" };
+
+        let protocol = if tls_config.is_some() {
+            "https"
+        } else {
+            "http"
+        };
         log::info!("Starting SSE server on {protocol}://{addr}");
         log::info!("SSE endpoint: {protocol}://{addr}/sse");
         log::info!("Message endpoint: {protocol}://{addr}/message");
-        
+
         // Create completion channel for graceful shutdown signaling
         let (completion_tx, completion_rx) = oneshot::channel();
         let ct = CancellationToken::new();
-        
+
         // Create rmcp SSE server config
         let sse_config = SseServerConfig {
             bind: addr,
@@ -67,33 +77,31 @@ impl SseServer {
             ct: ct.clone(),
             sse_keep_alive: None,
         };
-        
+
         // Create SSE server and router using new() instead of serve()
         let (sse_server, router) = RmcpSseServer::new(sse_config);
-        
+
         // Create axum-server handle for graceful shutdown
         let axum_handle = axum_server::Handle::new();
         let shutdown_handle = axum_handle.clone();
-        
+
         // Spawn server with or without TLS
         let server_task = if let Some((cert_path, key_path)) = tls_config {
             // TLS/HTTPS mode
             log::info!("Loading TLS certificate from: {cert_path:?}");
             log::info!("Loading TLS private key from: {key_path:?}");
-            
-            let rustls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(
-                cert_path,
-                key_path,
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to load TLS configuration: {e}"))?;
-            
+
+            let rustls_config =
+                axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to load TLS configuration: {e}"))?;
+
             tokio::spawn(async move {
                 let result = axum_server::bind_rustls(addr, rustls_config)
                     .handle(axum_handle)
                     .serve(router.into_make_service())
                     .await;
-                
+
                 if let Err(e) = result {
                     log::error!("SSE server error: {e}");
                 }
@@ -105,41 +113,41 @@ impl SseServer {
                     .handle(axum_handle)
                     .serve(router.into_make_service())
                     .await;
-                
+
                 if let Err(e) = result {
                     log::error!("SSE server error: {e}");
                 }
             })
         };
-        
+
         // Attach our service to handle incoming transports
         let _service_ct = sse_server.with_service_directly(move || self.clone());
-        
+
         // Clone ct for the monitor task (managers already cloned above)
         let ct_clone = ct.clone();
-        
+
         // Spawn monitor task to handle graceful shutdown and completion signaling
         tokio::spawn(async move {
             // Wait for cancellation signal
             ct_clone.cancelled().await;
             let shutdown_start = std::time::Instant::now();
-            
+
             log::debug!("Cancellation token fired, initiating graceful shutdown");
             shutdown_handle.graceful_shutdown(None);
-            
+
             // Wait for server task to actually complete
             let _ = server_task.await;
             let shutdown_duration = shutdown_start.elapsed();
-            
+
             log::debug!(
                 "Server shutdown completed after {shutdown_duration:?}, shutting down managers"
             );
-            
+
             // Shutdown managers (browser, etc.)
             if let Err(e) = managers.shutdown().await {
                 log::error!("Failed to shutdown managers: {e}");
             }
-            
+
             // Signal that shutdown is fully complete
             match completion_tx.send(()) {
                 Ok(()) => {
@@ -153,7 +161,7 @@ impl SseServer {
                 }
             }
         });
-        
+
         Ok(crate::sse::ServerHandle::new(ct, completion_rx))
     }
 }
@@ -179,22 +187,18 @@ impl ServerHandler for SseServer {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tool_name = request.name.clone();
-        let tcc = rmcp::handler::server::tool::ToolCallContext::new(
-            self, 
-            request, 
-            context
-        );
-        
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+
         // ACTUAL TOOL EXECUTION via router
         let result = self.tool_router.call(tcc).await;
-        
+
         // Track usage metrics
         if result.is_ok() {
             self.usage_tracker.track_success(&tool_name);
         } else {
             self.usage_tracker.track_failure(&tool_name);
         }
-        
+
         result
     }
 
@@ -270,10 +274,14 @@ impl ServerHandler for SseServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, McpError> {
         // Capture client information from MCP handshake
-        if let Err(e) = self.config_manager.set_client_info(request.client_info).await {
+        if let Err(e) = self
+            .config_manager
+            .set_client_info(request.client_info)
+            .await
+        {
             log::warn!("Failed to store client info: {e:?}");
         }
-        
+
         Ok(self.get_info())
     }
 }

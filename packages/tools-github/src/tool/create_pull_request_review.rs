@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use octocrab::models::pulls::ReviewAction;
 use anyhow;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use octocrab::models::pulls::ReviewAction;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Tool for creating a review on a pull request
 #[derive(Clone)]
@@ -15,20 +15,20 @@ pub struct CreatePullRequestReviewTool;
 pub struct CreatePullRequestReviewArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Pull request number
     pub pull_number: u64,
-    
+
     /// Review action: "APPROVE", "`REQUEST_CHANGES`", or "COMMENT"
     pub event: String,
-    
+
     /// Review comment/body text (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<String>,
-    
+
     /// Specific commit SHA to review (optional, defaults to latest)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_id: Option<String>,
@@ -41,94 +41,91 @@ pub struct CreatePullRequestReviewPromptArgs {}
 impl Tool for CreatePullRequestReviewTool {
     type Args = CreatePullRequestReviewArgs;
     type PromptArgs = CreatePullRequestReviewPromptArgs;
-    
+
     fn name() -> &'static str {
         "create_pull_request_review"
     }
-    
+
     fn description() -> &'static str {
         "Create a review on a pull request (approve, request changes, or comment). \
          Requires GITHUB_TOKEN environment variable with repo permissions."
     }
-    
+
     fn read_only() -> bool {
-        false  // Creates data
+        false // Creates data
     }
-    
+
     fn destructive() -> bool {
-        false  // Doesn't delete anything
+        false // Doesn't delete anything
     }
-    
+
     fn idempotent() -> bool {
-        false  // Multiple reviews can be submitted
+        false // Multiple reviews can be submitted
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Convert string event to ReviewAction enum
         let event = match args.event.to_uppercase().as_str() {
             "APPROVE" => ReviewAction::Approve,
             "REQUEST_CHANGES" => ReviewAction::RequestChanges,
             "COMMENT" => ReviewAction::Comment,
-            _ => return Err(McpError::InvalidArguments(
-                format!("Invalid event '{}'. Must be APPROVE, REQUEST_CHANGES, or COMMENT", args.event)
-            )),
+            _ => {
+                return Err(McpError::InvalidArguments(format!(
+                    "Invalid event '{}'. Must be APPROVE, REQUEST_CHANGES, or COMMENT",
+                    args.event
+                )));
+            }
         };
-        
+
         // Build options struct
         let options = crate::CreatePullRequestReviewOptions {
             event,
             body: args.body,
             commit_id: args.commit_id,
-            comments: None,  // Inline comments not supported in this tool
+            comments: None, // Inline comments not supported in this tool
         };
-        
+
         // Call API wrapper (returns AsyncTask<Result<Review, GitHubError>>)
-        let task_result = client.create_pull_request_review(
-            args.owner,
-            args.repo,
-            args.pull_number,
-            options,
-        ).await;
-        
+        let task_result = client
+            .create_pull_request_review(args.owner, args.repo, args.pull_number, options)
+            .await;
+
         // Handle outer Result (channel error)
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
-        
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+
         // Handle inner Result (GitHub API error)
-        let review = api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
-        
+        let review =
+            api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+
         // Return serialized review
         Ok(serde_json::to_value(&review)?)
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I approve a pull request?"
-                ),
+                content: PromptMessageContent::text("How do I approve a pull request?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -188,7 +185,7 @@ impl Tool for CreatePullRequestReviewTool {
                      - GITHUB_TOKEN environment variable must be set\n\
                      - Token needs 'repo' scope for private repos\n\
                      - User must have write access to the repository\n\
-                     - For APPROVE: User must be authorized reviewer if required reviews are configured"
+                     - For APPROVE: User must be authorized reviewer if required reviews are configured",
                 ),
             },
         ])

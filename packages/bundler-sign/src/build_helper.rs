@@ -216,9 +216,9 @@ int main(int argc, char *argv[]) {
 
     // Write C source to temporary file
     // Create secure temporary directory with 0700 permissions
-    let temp_dir = TempDir::new()
-        .map_err(|e| format!("Failed to create secure temp directory: {e}"))?;
-    
+    let temp_dir =
+        TempDir::new().map_err(|e| format!("Failed to create secure temp directory: {e}"))?;
+
     let c_source_path = temp_dir.path().join("helper.c");
     fs::write(&c_source_path, helper_code)?;
 
@@ -329,7 +329,7 @@ pub fn validate_helper_structure(helper_dir: &Path) -> Result<(), Box<dyn std::e
 }
 
 /// Check if helper app is properly signed
-#[must_use] 
+#[must_use]
 pub fn is_helper_signed(helper_dir: &Path) -> bool {
     let executable_path = helper_dir.join("Contents/MacOS/KodegenHelper");
 

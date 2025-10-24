@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::Tool;
 use crate::manager::AgentManager;
 use crate::types::prompt_input::PromptInput;
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::time::Duration;
 
@@ -16,51 +16,57 @@ use tokio::time::Duration;
 pub struct SpawnClaudeAgentArgs {
     /// Instructions and context for the spawned Claude agent. Describes the task to be performed autonomously. Can be a plain string or template with parameters.
     pub prompt: PromptInput,
-    
+
     /// Number of identical agents to spawn (default: 1)
     #[serde(default = "default_worker_count")]
     pub worker_count: u32,
-    
+
     /// System prompt to define agent behavior
     #[serde(default)]
     pub system_prompt: Option<String>,
-    
+
     /// Tools the agent CAN use (allowlist)
     #[serde(default)]
     pub allowed_tools: Vec<String>,
-    
+
     /// Tools the agent CANNOT use (blocklist)
     #[serde(default)]
     pub disallowed_tools: Vec<String>,
-    
+
     /// Max conversation turns (default: 10)
     #[serde(default = "default_max_turns")]
     pub max_turns: u32,
-    
+
     /// AI model to use
     #[serde(default)]
     pub model: Option<String>,
-    
+
     /// Working directory for agent operations
     #[serde(default)]
     pub cwd: Option<String>,
-    
+
     /// Additional context directories
     #[serde(default)]
     pub add_dirs: Vec<String>,
-    
+
     /// Initial delay before returning (ms, default: 500)
     #[serde(default = "default_initial_delay")]
     pub initial_delay_ms: u64,
-    
+
     /// Session label prefix (appends -1, -2, etc.)
     #[serde(default)]
     pub label: Option<String>,
 }
 
-fn default_worker_count() -> u32 { 1 }
-fn default_max_turns() -> u32 { 10 }
-fn default_initial_delay() -> u64 { 500 }
+fn default_worker_count() -> u32 {
+    1
+}
+fn default_max_turns() -> u32 {
+    10
+}
+fn default_initial_delay() -> u64 {
+    500
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SpawnClaudeAgentPromptArgs {}
@@ -78,12 +84,15 @@ pub struct SpawnClaudeAgentTool {
 
 impl SpawnClaudeAgentTool {
     /// Create a new spawn agent tool with required dependencies
-    #[must_use] 
+    #[must_use]
     pub fn new(
         agent_manager: Arc<AgentManager>,
         prompt_manager: Arc<kodegen_tools_prompt::PromptManager>,
     ) -> Self {
-        Self { agent_manager, prompt_manager }
+        Self {
+            agent_manager,
+            prompt_manager,
+        }
     }
 }
 
@@ -124,16 +133,20 @@ impl Tool for SpawnClaudeAgentTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
         // Resolve prompt (render template if needed)
-        let resolved_prompt = args.prompt
+        let resolved_prompt = args
+            .prompt
             .resolve(&self.prompt_manager)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         let mut results = Vec::new();
         let mut session_ids = Vec::new();
-        
+
         for i in 0..args.worker_count {
-            let label = args.label.as_ref().map_or_else(|| format!("Agent-{}", i + 1), |l| format!("{}-{}", l, i + 1));
+            let label = args.label.as_ref().map_or_else(
+                || format!("Agent-{}", i + 1),
+                |l| format!("{}-{}", l, i + 1),
+            );
 
             let request = crate::manager::SpawnSessionRequest {
                 prompt: resolved_prompt.clone(),
@@ -147,23 +160,25 @@ impl Tool for SpawnClaudeAgentTool {
                 label,
             };
 
-            let session_id = self.agent_manager
+            let session_id = self
+                .agent_manager
                 .spawn_session(request)
                 .await
                 .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-            
+
             session_ids.push(session_id.clone());
-            
+
             tokio::time::sleep(Duration::from_millis(args.initial_delay_ms)).await;
-            
-            let info = self.agent_manager
+
+            let info = self
+                .agent_manager
                 .get_session_info(&session_id)
                 .await
                 .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-            
+
             results.push(info);
         }
-        
+
         Ok(json!({
             "session_ids": session_ids,
             "worker_count": args.worker_count,
@@ -175,7 +190,10 @@ impl Tool for SpawnClaudeAgentTool {
         vec![]
     }
 
-    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
+    async fn prompt(
+        &self,
+        _args: Self::PromptArgs,
+    ) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
         Ok(vec![PromptMessage {
             role: PromptMessageRole::User,
             content: PromptMessageContent::Text {

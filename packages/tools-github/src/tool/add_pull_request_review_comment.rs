@@ -1,9 +1,9 @@
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Tool for adding inline review comments to a pull request
 #[derive(Clone)]
@@ -14,44 +14,44 @@ pub struct AddPullRequestReviewCommentTool;
 pub struct AddPullRequestReviewCommentArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Pull request number
     pub pull_number: u64,
-    
+
     /// Comment body text
     pub body: String,
-    
+
     /// Commit SHA to comment on (required for new comments)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_id: Option<String>,
-    
+
     /// File path to comment on (required for new comments)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
-    
+
     /// Line number in the diff to comment on
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,
-    
+
     /// Side of diff: "LEFT" or "RIGHT" (default: RIGHT)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub side: Option<String>,
-    
+
     /// Start line for multi-line comment
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_line: Option<u32>,
-    
+
     /// Side of start line: "LEFT" or "RIGHT"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_side: Option<String>,
-    
+
     /// Subject type (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_type: Option<String>,
-    
+
     /// Comment ID to reply to (for threaded replies)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub in_reply_to: Option<u64>,
@@ -64,45 +64,44 @@ pub struct AddPullRequestReviewCommentPromptArgs {}
 impl Tool for AddPullRequestReviewCommentTool {
     type Args = AddPullRequestReviewCommentArgs;
     type PromptArgs = AddPullRequestReviewCommentPromptArgs;
-    
+
     fn name() -> &'static str {
         "add_pull_request_review_comment"
     }
-    
+
     fn description() -> &'static str {
         "Add an inline review comment to a pull request (comment on specific lines of code). \
          Supports single-line, multi-line, and threaded comments. Requires GITHUB_TOKEN."
     }
-    
+
     fn read_only() -> bool {
-        false  // Creates data
+        false // Creates data
     }
-    
+
     fn destructive() -> bool {
-        false  // Doesn't delete anything
+        false // Doesn't delete anything
     }
-    
+
     fn idempotent() -> bool {
-        false  // Multiple comments can be created
+        false // Multiple comments can be created
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Build request
         let request = crate::github::AddPullRequestReviewCommentRequest {
             owner: args.owner,
@@ -121,30 +120,28 @@ impl Tool for AddPullRequestReviewCommentTool {
 
         // Call API wrapper (returns AsyncTask<Result<ReviewComment, GitHubError>>)
         let task_result = client.add_pull_request_review_comment(request).await;
-        
+
         // Handle outer Result (channel error)
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
-        
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+
         // Handle inner Result (GitHub API error)
-        let comment = api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
-        
+        let comment =
+            api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+
         // Return serialized comment
         Ok(serde_json::to_value(&comment)?)
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I add an inline comment to a PR?"
-                ),
+                content: PromptMessageContent::text("How do I add an inline comment to a PR?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -216,7 +213,7 @@ impl Tool for AddPullRequestReviewCommentTool {
                      - Token needs 'repo' scope for private repos\n\
                      - User must have write access to the repository\n\
                      - For new comments: commit must be part of the PR\n\
-                     - For replies: parent comment must exist"
+                     - For replies: parent comment must exist",
                 ),
             },
         ])

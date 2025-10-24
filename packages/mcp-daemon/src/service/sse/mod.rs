@@ -23,8 +23,8 @@ pub mod events;
 pub mod server;
 pub mod session;
 
-use std::net::SocketAddr;
 use anyhow::Result;
+use std::net::SocketAddr;
 
 // Re-export only the main server type for external use
 pub use server::SseServer;
@@ -45,7 +45,7 @@ pub struct SseConfig {
     pub session_timeout: u64,
     /// CORS allowed origins
     pub cors_origins: Vec<String>,
-    
+
     // MCP Bridge HTTP client configuration
     /// Request timeout in seconds
     pub mcp_timeout: u64,
@@ -55,7 +55,7 @@ pub struct SseConfig {
     pub mcp_max_idle_connections: usize,
     /// HTTP User-Agent header
     pub mcp_user_agent: String,
-    
+
     // Retry configuration for transient failures
     /// Max retry attempts for critical operations
     pub mcp_max_retries: u32,
@@ -72,13 +72,13 @@ impl Default for SseConfig {
             ping_interval: 30,
             session_timeout: 300,
             cors_origins: vec!["*".to_string()],
-            
+
             // MCP Bridge defaults
             mcp_timeout: 30,
             mcp_keepalive_timeout: 90,
             mcp_max_idle_connections: 10,
             mcp_user_agent: "Kodegen-Daemon/1.0".to_string(),
-            
+
             // Retry defaults
             mcp_max_retries: 3,
             mcp_retry_delay_ms: 100,

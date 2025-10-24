@@ -2,7 +2,7 @@
 
 use crate::github::error::GitHubError;
 use crate::runtime::{AsyncStream, EmitterBuilder};
-use octocrab::{models::repos::DiffEntry as PrFile, Octocrab, Page};
+use octocrab::{Octocrab, Page, models::repos::DiffEntry as PrFile};
 use std::sync::Arc;
 
 /// Stream files changed in a PR.

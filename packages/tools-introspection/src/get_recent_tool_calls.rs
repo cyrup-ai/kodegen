@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::tool_history;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -16,17 +16,17 @@ pub struct GetRecentToolCallsArgs {
     /// Ignored when offset is negative
     #[serde(default = "default_max_results")]
     pub max_results: usize,
-    
+
     /// Offset for pagination (default: 0)
     /// Positive: Start from result N (0-based, oldest to newest)
     /// Negative: Read last N results from end (tail behavior, most recent)
     #[serde(default)]
     pub offset: i64,
-    
+
     /// Filter by specific tool name (optional)
     #[serde(default)]
     pub tool_name: Option<String>,
-    
+
     /// Only return calls since this timestamp (ISO 8601 format)
     #[serde(default)]
     pub since: Option<String>,
@@ -38,7 +38,6 @@ fn default_max_results() -> usize {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GetRecentToolCallsPromptArgs {}
-
 
 // ============================================================================
 // TOOL STRUCT
@@ -95,21 +94,22 @@ impl Tool for GetRecentToolCallsTool {
         false
     }
 
-
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         let history = tool_history::get_global_history()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Tool history not initialized")))?;
-        
+
         // Get filtered calls
-        let calls = history.get_recent_calls(
-            args.max_results,
-            args.offset,
-            args.tool_name.as_deref(),
-            args.since.as_deref(),
-        ).await;
-        
+        let calls = history
+            .get_recent_calls(
+                args.max_results,
+                args.offset,
+                args.tool_name.as_deref(),
+                args.since.as_deref(),
+            )
+            .await;
+
         let stats = history.get_stats().await;
-        
+
         Ok(json!({
             "summary": format!(
                 "Tool Call History ({} results, {} total in memory)",
@@ -124,13 +124,12 @@ impl Tool for GetRecentToolCallsTool {
         vec![]
     }
 
-
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use get_recent_tool_calls to see what work has been done?"
+                    "How do I use get_recent_tool_calls to see what work has been done?",
                 ),
             },
             PromptMessage {
@@ -168,7 +167,7 @@ impl Tool for GetRecentToolCallsTool {
                      - Output received\n\
                      - Execution duration in milliseconds\n\n\
                      Note: History is kept in memory (last 1000 calls) and persisted to \
-                     ~/.config/kodegen-mcp/tool-history.jsonl for durability across restarts."
+                     ~/.config/kodegen-mcp/tool-history.jsonl for durability across restarts.",
                 ),
             },
         ])

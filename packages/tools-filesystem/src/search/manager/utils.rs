@@ -3,8 +3,8 @@
 //! This module provides common helper functions to reduce code duplication
 //! between `file_search` and `content_search` modules.
 
-use super::super::rg::flags::lowargs::{TypeChange, CaseMode as RgCaseMode};
-use super::super::types::{SearchSessionOptions, CaseMode as MyCaseMode};
+use super::super::rg::flags::lowargs::{CaseMode as RgCaseMode, TypeChange};
+use super::super::types::{CaseMode as MyCaseMode, SearchSessionOptions};
 use ignore::WalkBuilder;
 
 /// Build ripgrep `TypeChange` vector from `SearchSessionOptions`
@@ -18,21 +18,19 @@ use ignore::WalkBuilder;
 /// # Returns
 /// Vector of `TypeChange` entries for ripgrep configuration
 pub(super) fn build_type_changes(options: &SearchSessionOptions) -> Vec<TypeChange> {
-    let mut type_changes = Vec::with_capacity(
-        options.r#type.len() + options.type_not.len()
-    );
+    let mut type_changes = Vec::with_capacity(options.r#type.len() + options.type_not.len());
 
     // Add selected types (--type rust, --type python, etc.)
     for type_name in &options.r#type {
         type_changes.push(TypeChange::Select {
-            name: type_name.clone()
+            name: type_name.clone(),
         });
     }
 
     // Add negated types (--type-not test, --type-not json, etc.)
     for type_name in &options.type_not {
         type_changes.push(TypeChange::Negate {
-            name: type_name.clone()
+            name: type_name.clone(),
         });
     }
 
@@ -69,7 +67,11 @@ pub(super) fn configure_walker(
     walker: &mut WalkBuilder,
     hi_args: &super::super::rg::flags::hiargs::HiArgs,
 ) {
-    log::debug!("configure_walker: hi_args.hidden = {}, setting walker.hidden({})", hi_args.hidden, !hi_args.hidden);
+    log::debug!(
+        "configure_walker: hi_args.hidden = {}, setting walker.hidden({})",
+        hi_args.hidden,
+        !hi_args.hidden
+    );
     walker
         .hidden(!hi_args.hidden)
         .parents(!hi_args.no_ignore_parent)

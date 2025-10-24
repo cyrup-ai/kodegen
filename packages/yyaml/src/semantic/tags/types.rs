@@ -171,7 +171,7 @@ pub type TypeResolverFn = fn(&str) -> Option<YamlType>;
 impl YamlType {
     /// Create tag resolution failed error with zero allocation where possible
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn tag_resolution_failed_error(
         tag: &str,
         message: &'static str,
@@ -186,7 +186,7 @@ impl YamlType {
 
     /// Create unknown tag error with zero allocation where possible
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn unknown_tag_error(tag: &str, position: Position) -> SemanticError {
         SemanticError::UnknownTag {
             tag: tag.to_string(),
@@ -196,7 +196,7 @@ impl YamlType {
 
     /// Create unknown custom tag error with zero allocation where possible
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn unknown_custom_tag_error(tag: &str, position: Position) -> SemanticError {
         SemanticError::UnknownCustomTag {
             tag: tag.to_string(),
@@ -206,7 +206,7 @@ impl YamlType {
 
     /// Create unknown tag handle error with zero allocation where possible
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn unknown_tag_handle_error(handle: &str, position: Position) -> SemanticError {
         SemanticError::UnknownTagHandle {
             handle: handle.to_string(),
@@ -216,7 +216,7 @@ impl YamlType {
 
     /// Create custom tag resolution failed error with zero allocation where possible
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn custom_tag_resolution_failed_error(
         tag: &str,
         message: &str,
@@ -268,7 +268,7 @@ impl Default for YamlType {
 impl<'input> ResolvedTag<'input> {
     /// Create a new resolved tag
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(
         full_tag: String,
         local_tag: Cow<'input, str>,
@@ -299,7 +299,7 @@ impl<'input> ResolvedTag<'input> {
 
     /// Check if this tag is frequently used
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_frequent(&self) -> bool {
         self.access_count > 10
     }
@@ -307,7 +307,7 @@ impl<'input> ResolvedTag<'input> {
 
 impl TagValidationWarning {
     /// Get warning message for display
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::DeprecatedTag {
@@ -355,7 +355,7 @@ impl TagValidationWarning {
     }
 
     /// Get warning position
-    #[must_use] 
+    #[must_use]
     pub const fn position(&self) -> Position {
         match self {
             Self::DeprecatedTag { position, .. }
@@ -368,7 +368,7 @@ impl TagValidationWarning {
 
     /// Get warning severity level
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn severity(&self) -> WarningSeverity {
         match self {
             Self::DeprecatedTag { .. } => WarningSeverity::Warning,
@@ -424,7 +424,7 @@ impl Default for TagMetrics {
 impl YamlType {
     /// Check if this is a scalar type
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_scalar(&self) -> bool {
         matches!(
             self,
@@ -440,7 +440,7 @@ impl YamlType {
 
     /// Check if this is a collection type
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_collection(&self) -> bool {
         matches!(
             self,
@@ -450,13 +450,13 @@ impl YamlType {
 
     /// Check if this is a standard YAML 1.2 type
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_standard(&self) -> bool {
         !matches!(self, Self::Custom(_) | Self::Unknown)
     }
 
     /// Get the standard tag URI for this type
-    #[must_use] 
+    #[must_use]
     pub const fn standard_tag_uri(&self) -> Option<&'static str> {
         match self {
             Self::Null => Some("tag:yaml.org,2002:null"),

@@ -8,8 +8,8 @@ use std::path::PathBuf;
 
 use super::agent::{AgentDefinition, SystemPrompt};
 use super::hooks::{HookEvent, HookMatcher};
-use super::mcp::{McpServerConfig, McpServers};
 use super::identifiers::{SessionId, ToolName};
+use super::mcp::{McpServerConfig, McpServers};
 use super::permissions::{CanUseToolCallback, PermissionMode, SettingSource};
 
 // ============================================================================
@@ -170,9 +170,10 @@ impl ClaudeAgentOptionsBuilder {
     #[must_use]
     pub fn max_turns(mut self, turns: u32) -> Self {
         const MAX_ALLOWED_TURNS: u32 = 1000;
-        assert!(turns <= MAX_ALLOWED_TURNS, 
-                "max_turns {turns} exceeds maximum allowed: {MAX_ALLOWED_TURNS}"
-            );
+        assert!(
+            turns <= MAX_ALLOWED_TURNS,
+            "max_turns {turns} exceeds maximum allowed: {MAX_ALLOWED_TURNS}"
+        );
         self.options.max_turns = Some(turns);
         self
     }

@@ -3,16 +3,16 @@
 //! This module provides comprehensive state tracking and persistence for release operations,
 //! enabling resume capabilities and ensuring atomic operations.
 
-mod release_state;
 mod manager;
+mod release_state;
 
-pub use release_state::{
-    ReleaseState, ReleasePhase, ReleaseCheckpoint, VersionState, GitState, PublishState,
-    ReleaseError, ReleaseConfig, VersionUpdateInfo, GitCommitInfo, GitTagInfo, GitPushInfo,
-    PublishPackageInfo, FileBackup, STATE_FORMAT_VERSION,
-};
 pub use manager::{
-    StateManager, StateConfig, LoadStateResult, SaveStateResult, StateFileInfo, FileInfo,
+    FileInfo, LoadStateResult, SaveStateResult, StateConfig, StateFileInfo, StateManager,
+};
+pub use release_state::{
+    FileBackup, GitCommitInfo, GitPushInfo, GitState, GitTagInfo, PublishPackageInfo, PublishState,
+    ReleaseCheckpoint, ReleaseConfig, ReleaseError, ReleasePhase, ReleaseState,
+    STATE_FORMAT_VERSION, VersionState, VersionUpdateInfo,
 };
 
 use crate::error::Result;
@@ -65,7 +65,10 @@ pub async fn save_release_state(state: &ReleaseState) -> Result<SaveStateResult>
 }
 
 /// Save release state to custom location
-pub async fn save_release_state_to<P: AsRef<Path>>(path: P, state: &ReleaseState) -> Result<SaveStateResult> {
+pub async fn save_release_state_to<P: AsRef<Path>>(
+    path: P,
+    state: &ReleaseState,
+) -> Result<SaveStateResult> {
     let mut manager = StateManager::new(path)?;
     manager.save_state(state).await
 }

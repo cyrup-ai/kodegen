@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::SearchManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -134,7 +134,7 @@ impl Tool for StopSearchTool {
                      After termination:\n\
                      - Session remains in memory for 5 minutes\n\
                      - Can still call get_more_search_results\n\
-                     - Automatic cleanup removes old sessions"
+                     - Automatic cleanup removes old sessions",
                 ),
             },
         ])

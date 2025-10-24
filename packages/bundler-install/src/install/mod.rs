@@ -43,8 +43,6 @@ pub async fn install_daemon_async(builder: InstallerBuilder) -> Result<(), Insta
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
         let _ = builder;
-        Err(InstallerError::System(
-            "Unsupported platform".to_string(),
-        ))
+        Err(InstallerError::System("Unsupported platform".to_string()))
     }
 }

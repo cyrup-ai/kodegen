@@ -5,7 +5,7 @@
 
 use crate::error::ScanError;
 use crate::parser::character_productions::CharacterProductions;
-use crate::parser::grammar::{ChompingMode, YamlContext, ParametricContext};
+use crate::parser::grammar::{ChompingMode, ParametricContext, YamlContext};
 use crate::scanner::state::ScannerState;
 use crate::scanner::utils::{consume_line_break, skip_whitespace_and_comments};
 
@@ -88,7 +88,9 @@ impl StructuralProductions {
             YamlContext::BlockOut | YamlContext::BlockIn => {
                 Self::process_block_line_prefix(state, context, n)
             }
-            YamlContext::FlowOut | YamlContext::FlowIn => Self::process_flow_line_prefix(state, context, n),
+            YamlContext::FlowOut | YamlContext::FlowIn => {
+                Self::process_flow_line_prefix(state, context, n)
+            }
             _ => Ok(()),
         }
     }
@@ -147,7 +149,7 @@ impl StructuralProductions {
     }
 
     /// [71-74] Line folding productions - USE existing scalar folding
-    #[must_use] 
+    #[must_use]
     pub fn apply_line_folding(
         lines: &[String],
         chomping: ChompingMode,

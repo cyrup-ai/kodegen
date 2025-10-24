@@ -3,7 +3,7 @@
 //! This module provides robust cargo publish operations with rate limiting,
 //! retry logic, and comprehensive error handling for crates.io publishing.
 
-use crate::error::{Result, PublishError};
+use crate::error::{PublishError, Result};
 use crate::workspace::PackageInfo;
 use regex::Regex;
 use semver::Version;
@@ -88,11 +88,7 @@ impl CargoPublisher {
     }
 
     /// Create a cargo publisher with custom retry configuration
-    pub fn with_retry_config(
-        max_retries: usize,
-        base_delay: Duration,
-        timeout: Duration,
-    ) -> Self {
+    pub fn with_retry_config(max_retries: usize, base_delay: Duration, timeout: Duration) -> Self {
         Self {
             max_retries,
             base_retry_delay: base_delay,
@@ -109,8 +105,8 @@ impl CargoPublisher {
     ) -> Result<PublishResult> {
         let start_time = std::time::Instant::now();
         let package_name = &package_info.name;
-        let version = Version::parse(&package_info.version)
-            .map_err(|e| PublishError::PublishFailed {
+        let version =
+            Version::parse(&package_info.version).map_err(|e| PublishError::PublishFailed {
                 package: package_name.clone(),
                 reason: format!("Invalid version '{}': {}", package_info.version, e),
             })?;
@@ -119,7 +115,7 @@ impl CargoPublisher {
         let mut retry_attempts = 0;
 
         // Note: cargo publish performs validation automatically before publishing.
-        // We don't validate separately because it would fail for packages with 
+        // We don't validate separately because it would fail for packages with
         // unpublished workspace dependencies (checks crates.io, not local workspace).
         // The publish operation is atomic - if validation fails, nothing gets published.
 
@@ -128,7 +124,8 @@ impl CargoPublisher {
             || self.attempt_publish(package_info, config),
             &mut retry_attempts,
             &mut warnings,
-        ).await?;
+        )
+        .await?;
 
         let duration = start_time.elapsed();
 
@@ -150,8 +147,8 @@ impl CargoPublisher {
     ) -> Result<PublishResult> {
         let start_time = std::time::Instant::now();
         let package_name = &package_info.name;
-        let version = Version::parse(&package_info.version)
-            .map_err(|e| PublishError::DryRunFailed {
+        let version =
+            Version::parse(&package_info.version).map_err(|e| PublishError::DryRunFailed {
                 package: package_name.clone(),
                 reason: format!("Invalid version '{}': {}", package_info.version, e),
             })?;
@@ -159,7 +156,8 @@ impl CargoPublisher {
         let mut cmd = self.build_publish_command(package_info, config);
         cmd.arg("--dry-run");
 
-        let output = timeout(self.operation_timeout, cmd.output()).await
+        let output = timeout(self.operation_timeout, cmd.output())
+            .await
             .map_err(|_| PublishError::DryRunFailed {
                 package: package_name.clone(),
                 reason: "Dry run timed out".to_string(),
@@ -174,7 +172,8 @@ impl CargoPublisher {
             return Err(PublishError::DryRunFailed {
                 package: package_name.clone(),
                 reason: stderr.to_string(),
-            }.into());
+            }
+            .into());
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -219,7 +218,8 @@ impl CargoPublisher {
             cmd.arg("--token").arg(token);
         }
 
-        let output = timeout(self.operation_timeout, cmd.output()).await
+        let output = timeout(self.operation_timeout, cmd.output())
+            .await
             .map_err(|_| PublishError::YankFailed {
                 package: package_name.to_string(),
                 version: version.to_string(),
@@ -238,7 +238,8 @@ impl CargoPublisher {
                 package: package_name.to_string(),
                 version: version.to_string(),
                 reason: stderr.to_string(),
-            }.into());
+            }
+            .into());
         }
 
         let duration = start_time.elapsed();
@@ -259,7 +260,8 @@ impl CargoPublisher {
     ) -> Result<()> {
         let mut cmd = self.build_publish_command(package_info, config);
 
-        let output = timeout(self.operation_timeout, cmd.output()).await
+        let output = timeout(self.operation_timeout, cmd.output())
+            .await
             .map_err(|_| PublishError::PublishFailed {
                 package: package_info.name.clone(),
                 reason: "Publish operation timed out".to_string(),
@@ -271,22 +273,24 @@ impl CargoPublisher {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            
+
             // Check for specific error types
             if stderr.contains("rate limit") || stderr.contains("too many requests") {
                 let retry_after = self.parse_retry_after(&stderr).unwrap_or(60);
                 return Err(PublishError::RateLimitExceeded {
                     retry_after_seconds: retry_after,
-                }.into());
+                }
+                .into());
             }
-            
+
             if stderr.contains("already published") {
                 return Err(PublishError::AlreadyPublished {
                     package: package_info.name.clone(),
                     version: package_info.version.clone(),
-                }.into());
+                }
+                .into());
             }
-            
+
             if stderr.contains("authentication") || stderr.contains("unauthorized") {
                 return Err(PublishError::AuthenticationError.into());
             }
@@ -294,18 +298,15 @@ impl CargoPublisher {
             return Err(PublishError::PublishFailed {
                 package: package_info.name.clone(),
                 reason: stderr.to_string(),
-            }.into());
+            }
+            .into());
         }
 
         Ok(())
     }
 
     /// Build cargo publish command
-    fn build_publish_command(
-        &self,
-        package_info: &PackageInfo,
-        config: &PublishConfig,
-    ) -> Command {
+    fn build_publish_command(&self, package_info: &PackageInfo, config: &PublishConfig) -> Command {
         let mut cmd = Command::new("cargo");
         cmd.arg("publish")
             .arg("--manifest-path")
@@ -363,8 +364,11 @@ impl CargoPublisher {
 
                     // Check if this is a rate limit error with specific retry-after
                     let wait_time = if let crate::error::ReleaseError::Publish(
-                        PublishError::RateLimitExceeded { retry_after_seconds }
-                    ) = &e {
+                        PublishError::RateLimitExceeded {
+                            retry_after_seconds,
+                        },
+                    ) = &e
+                    {
                         Duration::from_secs(*retry_after_seconds)
                     } else {
                         // Use exponential backoff for other errors
@@ -401,8 +405,7 @@ impl CargoPublisher {
             crate::error::ReleaseError::Publish(publish_error) => {
                 matches!(
                     publish_error,
-                    PublishError::NetworkError { .. } |
-                    PublishError::RateLimitExceeded { .. }
+                    PublishError::NetworkError { .. } | PublishError::RateLimitExceeded { .. }
                 )
             }
             _ => false,
@@ -432,7 +435,8 @@ impl CargoPublisher {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let output = timeout(Duration::from_secs(30), cmd.output()).await
+        let output = timeout(Duration::from_secs(30), cmd.output())
+            .await
             .map_err(|_| PublishError::NetworkError {
                 reason: "Search operation timed out".to_string(),
             })?
@@ -445,7 +449,7 @@ impl CargoPublisher {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        
+
         // Parse search output to check if exact version exists
         for line in stdout.lines() {
             if line.starts_with(package_name) && line.contains(&format!("= \"{}\"", version)) {
@@ -466,7 +470,8 @@ impl CargoPublisher {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let output = timeout(Duration::from_secs(30), cmd.output()).await
+        let output = timeout(Duration::from_secs(30), cmd.output())
+            .await
             .map_err(|_| PublishError::NetworkError {
                 reason: "Search operation timed out".to_string(),
             })?
@@ -486,9 +491,10 @@ impl CargoPublisher {
             if line.starts_with(package_name)
                 && let Some(version_part) = line.split("= \"").nth(1)
                 && let Some(version_str) = version_part.split('"').next()
-                && let Ok(version) = Version::parse(version_str) {
-                    versions.push(version);
-                }
+                && let Ok(version) = Version::parse(version_str)
+            {
+                versions.push(version);
+            }
         }
 
         Ok(versions)
@@ -523,7 +529,11 @@ impl PublishResult {
 
     /// Get a summary of the publish operation
     pub fn summary(&self) -> String {
-        let status = if self.dry_run { "validated" } else { "published" };
+        let status = if self.dry_run {
+            "validated"
+        } else {
+            "published"
+        };
         let retry_info = if self.retry_attempts > 0 {
             format!(" (after {} retries)", self.retry_attempts)
         } else {
@@ -543,7 +553,7 @@ impl PublishResult {
     /// Format detailed report
     pub fn format_report(&self) -> String {
         let mut report = self.summary();
-        
+
         if !self.warnings.is_empty() {
             report.push_str("\nWarnings:\n");
             for warning in &self.warnings {
@@ -566,11 +576,7 @@ impl YankResult {
                 self.duration.as_secs_f64()
             )
         } else {
-            format!(
-                "❌ Failed to yank {}@{}",
-                self.package_name,
-                self.version
-            )
+            format!("❌ Failed to yank {}@{}", self.package_name, self.version)
         }
     }
 }

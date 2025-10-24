@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::CombinedStatus, Octocrab};
+use octocrab::{Octocrab, models::CombinedStatus};
 use std::sync::Arc;
 
 /// Get combined status for a PR (via HEAD SHA).

@@ -25,18 +25,36 @@ pub use github::{
 };
 
 // Re-export release asset upload types
-pub use github::upload_release_asset::{upload_release_asset, UploadAssetOptions};
+pub use github::upload_release_asset::{UploadAssetOptions, upload_release_asset};
 
 // Re-export GitHub types for public API
 pub use github::{
+    ActivityMetrics,
+    CiCdMetrics,
+    CodeQualityMetrics,
+    DependencyMetrics,
+    DocumentationMetrics,
+    GithubSearch,
+    LocalMetrics,
+    MetadataInfo,
+    Output as SearchOutput,
+    QualityMetrics,
+    ReadmeMetrics,
+    RepositoryResult,
+    SearchConfig,
+    SearchError,
     // User search types
-    SearchOrder, UserSearchSort,
+    SearchOrder,
+    SearchProvider,
+    SearchQuery,
+    SearchSession,
+    SecurityMetrics,
+    StructureMetrics,
+    TestMetrics,
+    UserSearchSort,
     // Search functionality - both convenience functions and types
-    search_repositories, search_repositories_with_config, ActivityMetrics, CiCdMetrics,
-    CodeQualityMetrics, DependencyMetrics, DocumentationMetrics, GithubSearch, LocalMetrics,
-    MetadataInfo, Output as SearchOutput, QualityMetrics, ReadmeMetrics, RepositoryResult,
-    SearchConfig, SearchError, SearchProvider, SearchQuery, SearchSession, SecurityMetrics,
-    StructureMetrics, TestMetrics,
+    search_repositories,
+    search_repositories_with_config,
 };
 
 // MCP Tools (conditional compilation)
@@ -45,29 +63,17 @@ pub mod tool;
 
 #[cfg(feature = "mcp")]
 pub use tool::{
-    CreateIssueTool, CreateIssueArgs,
-    GetIssueTool, GetIssueArgs,
-    ListIssuesTool, ListIssuesArgs,
-    UpdateIssueTool, UpdateIssueArgs,
-    SearchIssuesTool, SearchIssuesArgs,
-    AddIssueCommentTool, AddIssueCommentArgs,
-    GetIssueCommentsTool, GetIssueCommentsArgs,
-    CreatePullRequestTool, CreatePullRequestArgs,
-    UpdatePullRequestTool, UpdatePullRequestArgs,
-    MergePullRequestTool, MergePullRequestArgs,
-    GetPullRequestStatusTool, GetPullRequestStatusArgs,
-    GetPullRequestFilesTool, GetPullRequestFilesArgs,
-    GetPullRequestReviewsTool, GetPullRequestReviewsArgs,
-    CreatePullRequestReviewTool, CreatePullRequestReviewArgs,
-    AddPullRequestReviewCommentTool, AddPullRequestReviewCommentArgs,
-    RequestCopilotReviewTool, RequestCopilotReviewArgs,
-    CreateRepositoryTool, CreateRepositoryArgs,
-    ForkRepositoryTool, ForkRepositoryArgs,
-    ListBranchesTool, ListBranchesArgs,
-    CreateBranchTool, CreateBranchArgs,
-    ListCommitsTool, ListCommitsArgs,
-    GetCommitTool, GetCommitArgs,
-    SearchCodeTool, SearchCodeArgs,
-    SearchRepositoriesTool, SearchRepositoriesArgs,
-    SearchUsersTool, SearchUsersArgs,
+    AddIssueCommentArgs, AddIssueCommentTool, AddPullRequestReviewCommentArgs,
+    AddPullRequestReviewCommentTool, CreateBranchArgs, CreateBranchTool, CreateIssueArgs,
+    CreateIssueTool, CreatePullRequestArgs, CreatePullRequestReviewArgs,
+    CreatePullRequestReviewTool, CreatePullRequestTool, CreateRepositoryArgs, CreateRepositoryTool,
+    ForkRepositoryArgs, ForkRepositoryTool, GetCommitArgs, GetCommitTool, GetIssueArgs,
+    GetIssueCommentsArgs, GetIssueCommentsTool, GetIssueTool, GetPullRequestFilesArgs,
+    GetPullRequestFilesTool, GetPullRequestReviewsArgs, GetPullRequestReviewsTool,
+    GetPullRequestStatusArgs, GetPullRequestStatusTool, ListBranchesArgs, ListBranchesTool,
+    ListCommitsArgs, ListCommitsTool, ListIssuesArgs, ListIssuesTool, MergePullRequestArgs,
+    MergePullRequestTool, RequestCopilotReviewArgs, RequestCopilotReviewTool, SearchCodeArgs,
+    SearchCodeTool, SearchIssuesArgs, SearchIssuesTool, SearchRepositoriesArgs,
+    SearchRepositoriesTool, SearchUsersArgs, SearchUsersTool, UpdateIssueArgs, UpdateIssueTool,
+    UpdatePullRequestArgs, UpdatePullRequestTool,
 };

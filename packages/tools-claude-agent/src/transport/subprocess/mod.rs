@@ -3,8 +3,8 @@
 //! This module provides a transport implementation that spawns the Claude Code CLI
 //! as a subprocess and communicates with it via stdin/stdout.
 
-mod config;
 mod command;
+mod config;
 mod lifecycle;
 mod reader;
 mod transport;

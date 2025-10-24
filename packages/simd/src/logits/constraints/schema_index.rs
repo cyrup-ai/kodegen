@@ -6,9 +6,12 @@
 
 use anyhow::{Context, Result as AnyResult};
 use regex_automata::{
-    dfa::{dense::{Builder, Config, DFA}, Automaton},
-    util::primitives::StateID as AutomataStateId,
     Anchored, MatchKind,
+    dfa::{
+        Automaton,
+        dense::{Builder, Config, DFA},
+    },
+    util::primitives::StateID as AutomataStateId,
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::sync::Arc;
@@ -51,7 +54,7 @@ impl SchemaIndex {
                 Config::new()
                     .match_kind(MatchKind::All)
                     .minimize(true)
-                    .byte_classes(true)
+                    .byte_classes(true),
             )
             .build(regex_pattern)
             .context("Failed to build DFA from regex pattern")?;
@@ -65,14 +68,19 @@ impl SchemaIndex {
             dead_state: u32::MAX,
         };
 
-        index.build_transitions(&dfa, vocabulary)
+        index
+            .build_transitions(&dfa, vocabulary)
             .context("Failed to build transition table")?;
 
         Ok(index)
     }
 
     /// Build the complete state transition table from the DFA
-    fn build_transitions(&mut self, dfa: &DFA<Vec<u32>>, vocabulary: &SchemaVocabulary) -> AnyResult<()> {
+    fn build_transitions(
+        &mut self,
+        dfa: &DFA<Vec<u32>>,
+        vocabulary: &SchemaVocabulary,
+    ) -> AnyResult<()> {
         let initial_state_id = dfa.universal_start_state(Anchored::Yes).unwrap_or_else(|| {
             // Fallback to creating a basic start state
             AutomataStateId::from_ne_bytes([0, 0, 0, 0]).unwrap_or(AutomataStateId::ZERO)
@@ -105,7 +113,9 @@ impl SchemaIndex {
             // Test each token in vocabulary for valid transitions
             for token_id in 0..self.vocab_size as u32 {
                 if let Some(token_bytes) = vocabulary.token_bytes(token_id)
-                    && let Some(next_state) = self.compute_transition(dfa, current_state, token_bytes)? {
+                    && let Some(next_state) =
+                        self.compute_transition(dfa, current_state, token_bytes)?
+                {
                     let next_id = next_state.as_u32();
 
                     // Only add non-dead state transitions
@@ -211,7 +221,9 @@ impl SchemaIndex {
     /// Get statistics about the index
     #[must_use]
     pub fn stats(&self) -> IndexStats {
-        let total_transitions: usize = self.transitions.values()
+        let total_transitions: usize = self
+            .transitions
+            .values()
             .map(|transitions| transitions.len())
             .sum();
 
@@ -308,13 +320,12 @@ impl SchemaVocabulary {
         }
 
         // Fallback: use token ID 0 or search for likely candidates
-        tokenizer.get_vocab(false)
+        tokenizer
+            .get_vocab(false)
             .iter()
             .find(|(token, _)| {
                 let token_lower = token.to_lowercase();
-                token_lower.contains("eos") ||
-                token_lower.contains("end") ||
-                token_lower == "</s>"
+                token_lower.contains("eos") || token_lower.contains("end") || token_lower == "</s>"
             })
             .map(|(_, &token_id)| token_id)
             .unwrap_or(0)
@@ -457,7 +468,10 @@ impl SchemaConstraint {
     /// Get allowed tokens for current state (zero-allocation)
     #[inline]
     #[must_use]
-    pub fn get_allowed_tokens(&self, state: &SchemaConstraintState) -> Option<&HashMap<TokenId, StateId>> {
+    pub fn get_allowed_tokens(
+        &self,
+        state: &SchemaConstraintState,
+    ) -> Option<&HashMap<TokenId, StateId>> {
         self.index.allowed_tokens(state.current_state())
     }
 
@@ -465,7 +479,9 @@ impl SchemaConstraint {
     #[inline]
     #[must_use]
     pub fn is_token_allowed(&self, state: &SchemaConstraintState, token_id: TokenId) -> bool {
-        self.index.next_state(state.current_state(), token_id).is_some()
+        self.index
+            .next_state(state.current_state(), token_id)
+            .is_some()
     }
 
     /// Get vocabulary reference
@@ -510,7 +526,7 @@ impl GenerationConstraint for SchemaConstraint {
     fn try_next(&self, state: &Self::State, token: u32) -> AnyResult<bool> {
         let current_state = state.current_state();
         let eos_token_id = self.vocabulary.eos_token_id();
-        
+
         // Special handling for EOS token based on allow_partial mode
         if token == eos_token_id {
             if self.allow_partial {
@@ -609,9 +625,7 @@ pub mod utils {
         let regex = match (min, max) {
             (Some(min_val), Some(max_val)) if min_val >= 0 && max_val <= 9999 => {
                 // Small positive range - enumerate values
-                let values: Vec<String> = (min_val..=max_val)
-                    .map(|n| n.to_string())
-                    .collect();
+                let values: Vec<String> = (min_val..=max_val).map(|n| n.to_string()).collect();
                 values.join("|")
             }
             (Some(0), None) => r"(0|[1-9][0-9]*)".to_string(),
@@ -645,9 +659,9 @@ mod tests {
             b"false".to_vec(),
             b"null".to_vec(),
             b"123".to_vec(),
-            b"\"".to_vec(),           // Quote character for strings
-            b"\"hello\"".to_vec(),    // Quoted strings for enum test
-            b"\"world\"".to_vec(),    // Quoted strings for enum test
+            b"\"".to_vec(),        // Quote character for strings
+            b"\"hello\"".to_vec(), // Quoted strings for enum test
+            b"\"world\"".to_vec(), // Quoted strings for enum test
         ];
         SchemaVocabulary::from_tokens(token_to_bytes, 0)
     }
@@ -663,16 +677,28 @@ mod tests {
         let state = constraint.new_state();
 
         // Test valid boolean tokens
-        assert!(constraint.try_next(&state, 2)
-            .unwrap_or_else(|e| panic!("Failed to check 'true' token: {}", e))); // "true"
-        assert!(constraint.try_next(&state, 3)
-            .unwrap_or_else(|e| panic!("Failed to check 'false' token: {}", e))); // "false"
+        assert!(
+            constraint
+                .try_next(&state, 2)
+                .unwrap_or_else(|e| panic!("Failed to check 'true' token: {}", e))
+        ); // "true"
+        assert!(
+            constraint
+                .try_next(&state, 3)
+                .unwrap_or_else(|e| panic!("Failed to check 'false' token: {}", e))
+        ); // "false"
 
         // Test invalid tokens
-        assert!(!constraint.try_next(&state, 0)
-            .unwrap_or_else(|e| panic!("Failed to check 'hello' token: {}", e))); // "hello"
-        assert!(!constraint.try_next(&state, 5)
-            .unwrap_or_else(|e| panic!("Failed to check '123' token: {}", e))); // "123"
+        assert!(
+            !constraint
+                .try_next(&state, 0)
+                .unwrap_or_else(|e| panic!("Failed to check 'hello' token: {}", e))
+        ); // "hello"
+        assert!(
+            !constraint
+                .try_next(&state, 5)
+                .unwrap_or_else(|e| panic!("Failed to check '123' token: {}", e))
+        ); // "123"
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::Branch, Octocrab};
+use octocrab::{Octocrab, models::repos::Branch};
 use std::sync::Arc;
 
 /// List branches in a repository.
@@ -19,21 +19,17 @@ pub(crate) fn list_branches(
     spawn_task(async move {
         let repos_handler = inner.repos(&owner, &repo);
         let mut request = repos_handler.list_branches();
-        
+
         if let Some(p) = page {
             request = request.page(p);
         }
-        
+
         if let Some(pp) = per_page {
             request = request.per_page(pp);
         }
-        
-        let branches = request
-            .send()
-            .await
-            .map_err(GitHubError::from)?
-            .items;
-        
+
+        let branches = request.send().await.map_err(GitHubError::from)?.items;
+
         Ok(branches)
     })
 }

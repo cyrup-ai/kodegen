@@ -1,45 +1,40 @@
-use std::fmt;
 use thiserror::Error;
 
-use crate::browser::BrowserError;
 use crate::agent::AgentError;
+use crate::browser::BrowserError;
 
 /// Errors that can occur in utility functions
 #[derive(Error, Debug)]
 pub enum UtilsError {
     #[error("Missing API key: {0}")]
+    #[allow(dead_code)] // Reserved for future LLM provider integrations
     MissingApiKey(String),
-    
+
     #[error("Unsupported provider: {0}")]
+    #[allow(dead_code)] // Reserved for future LLM provider integrations
     UnsupportedProvider(String),
-    
+
     #[error("LLM error: {0}")]
     LlmError(String),
-    
+
     #[error("Model error: {0}")]
+    #[allow(dead_code)] // Reserved for future model-specific error handling
     ModelError(String),
-    
+
     #[error("IO error: {0}")]
     IoError(String),
-    
+
     #[error("Browser error: {0}")]
     BrowserError(String),
-    
+
     #[error("Agent error: {0}")]
     AgentError(String),
-    
+
     #[error("JSON parse error: {0}")]
     JsonParseError(String),
-    
+
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),
-}
-
-/// Implement From<crate::utils::llm::LlmError> for UtilsError
-impl From<crate::utils::llm::LlmError> for UtilsError {
-    fn from(err: crate::utils::llm::LlmError) -> Self {
-        UtilsError::LlmError(err.to_string())
-    }
 }
 
 /// Implement From<BrowserError> for UtilsError

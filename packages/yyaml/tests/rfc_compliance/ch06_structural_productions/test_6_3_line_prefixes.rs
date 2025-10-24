@@ -15,7 +15,10 @@ root:
     nested: value
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert_eq!(docs[0]["root"]["child"]["nested"].as_str().unwrap(), "value");
+    assert_eq!(
+        docs[0]["root"]["child"]["nested"].as_str().unwrap(),
+        "value"
+    );
 }
 
 /// Test [68] s-block-line-prefix(n) - block line prefix

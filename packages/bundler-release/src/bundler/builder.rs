@@ -39,8 +39,8 @@
 //! # }
 //! ```
 
-use crate::bundler::{Settings, BundledArtifact, Result, PackageType};
 use crate::bail;
+use crate::bundler::{BundledArtifact, PackageType, Result, Settings};
 
 /// Main bundler orchestrator.
 ///
@@ -84,7 +84,10 @@ impl std::fmt::Debug for Bundler {
         let mut debug_struct = f.debug_struct("Bundler");
         debug_struct.field("settings", &self.settings);
         #[cfg(target_os = "macos")]
-        debug_struct.field("_temp_keychain", &self._temp_keychain.as_ref().map(|_| "<TempKeychain>"));
+        debug_struct.field(
+            "_temp_keychain",
+            &self._temp_keychain.as_ref().map(|_| "<TempKeychain>"),
+        );
         debug_struct.finish()
     }
 }
@@ -133,19 +136,26 @@ impl Bundler {
         // Import certificate if APPLE_CERTIFICATE is set
         if let (Ok(cert_b64), Ok(password)) = (
             std::env::var("APPLE_CERTIFICATE"),
-            std::env::var("APPLE_CERTIFICATE_PASSWORD").map(|p| p.trim().to_string())
+            std::env::var("APPLE_CERTIFICATE_PASSWORD").map(|p| p.trim().to_string()),
         ) {
             use base64::Engine;
-            let cert_bytes = base64::engine::general_purpose::STANDARD.decode(cert_b64)
-                .map_err(|e| crate::bundler::Error::GenericError(format!(
-                    "Invalid APPLE_CERTIFICATE (not valid base64): {}", e
-                )))?;
+            let cert_bytes = base64::engine::general_purpose::STANDARD
+                .decode(cert_b64)
+                .map_err(|e| {
+                    crate::bundler::Error::GenericError(format!(
+                        "Invalid APPLE_CERTIFICATE (not valid base64): {}",
+                        e
+                    ))
+                })?;
 
             log::info!("Importing certificate from APPLE_CERTIFICATE environment variable");
-            let keychain = kodegen_bundler_sign::macos::TempKeychain::from_certificate_bytes(&cert_bytes, &password)
-                .map_err(|e| crate::bundler::Error::GenericError(format!(
-                    "Failed to import certificate: {}", e
-                )))?;
+            let keychain = kodegen_bundler_sign::macos::TempKeychain::from_certificate_bytes(
+                &cert_bytes,
+                &password,
+            )
+            .map_err(|e| {
+                crate::bundler::Error::GenericError(format!("Failed to import certificate: {}", e))
+            })?;
 
             log::info!("✓ Certificate imported to temporary keychain");
             return Ok(Some(keychain));
@@ -232,7 +242,7 @@ impl Bundler {
     /// will return an error.
     pub fn bundle_types(&self, types: &[PackageType]) -> Result<Vec<BundledArtifact>> {
         let mut artifacts = Vec::new();
-        
+
         for package_type in types {
             let paths = match package_type {
                 #[cfg(target_os = "linux")]
@@ -265,25 +275,31 @@ impl Bundler {
                 }
                 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
                 _ => {
-                    bail!("Package type {:?} not supported on this platform", package_type);
+                    bail!(
+                        "Package type {:?} not supported on this platform",
+                        package_type
+                    );
                 }
                 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
                 _ => {
-                    bail!("Package type {:?} not supported on this platform", package_type);
+                    bail!(
+                        "Package type {:?} not supported on this platform",
+                        package_type
+                    );
                 }
             };
-            
+
             // Calculate artifact metadata
             let size = paths.iter().fold(0u64, |acc, p| {
                 acc + std::fs::metadata(p).map(|m| m.len()).unwrap_or(0)
             });
-            
+
             let checksum = if !paths.is_empty() {
                 calculate_sha256(&paths[0])?
             } else {
                 String::new()
             };
-            
+
             artifacts.push(BundledArtifact {
                 package_type: *package_type,
                 paths,
@@ -291,7 +307,7 @@ impl Bundler {
                 checksum,
             });
         }
-        
+
         Ok(artifacts)
     }
 
@@ -299,7 +315,7 @@ impl Bundler {
     pub fn settings(&self) -> &Settings {
         &self.settings
     }
-    
+
     /// Determines which package types to build based on host platform.
     ///
     /// Returns explicit types from settings if specified, otherwise returns
@@ -309,7 +325,7 @@ impl Bundler {
         if let Some(types) = self.settings.package_types() {
             return types.to_vec();
         }
-        
+
         // Otherwise default to current platform
         if cfg!(target_os = "linux") {
             vec![PackageType::Deb, PackageType::AppImage]
@@ -337,26 +353,27 @@ impl Bundler {
 /// * `Ok(String)` - Hex-encoded SHA-256 hash (64 characters)
 /// * `Err` - If path cannot be read or is neither file nor directory
 fn calculate_sha256(path: &std::path::Path) -> Result<String> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     use std::io::Read;
-    
-    let metadata = std::fs::metadata(path)
-        .map_err(crate::bundler::Error::IoError)?;
-    
+
+    let metadata = std::fs::metadata(path).map_err(crate::bundler::Error::IoError)?;
+
     if metadata.is_file() {
         // Hash a single file
-        let mut file = std::fs::File::open(path)
-            .map_err(crate::bundler::Error::IoError)?;
+        let mut file = std::fs::File::open(path).map_err(crate::bundler::Error::IoError)?;
         let mut hasher = Sha256::new();
         let mut buffer = [0; 8192];
-        
+
         loop {
-            let n = file.read(&mut buffer)
+            let n = file
+                .read(&mut buffer)
                 .map_err(crate::bundler::Error::IoError)?;
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             hasher.update(&buffer[..n]);
         }
-        
+
         Ok(format!("{:x}", hasher.finalize()))
     } else if metadata.is_dir() {
         // Hash directory tree (e.g., macOS .app bundles)
@@ -388,9 +405,9 @@ fn calculate_sha256(path: &std::path::Path) -> Result<String> {
 /// * `Ok(String)` - Hex-encoded SHA-256 hash of entire directory tree
 /// * `Err` - If directory cannot be traversed
 fn calculate_directory_sha256(dir_path: &std::path::Path) -> Result<String> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     use std::io::Read;
-    
+
     // Collect all files recursively
     let mut entries: Vec<_> = walkdir::WalkDir::new(dir_path)
         .follow_links(false)
@@ -398,19 +415,19 @@ fn calculate_directory_sha256(dir_path: &std::path::Path) -> Result<String> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .collect();
-    
+
     // Sort by path for deterministic ordering
     entries.sort_by_key(|e| e.path().to_path_buf());
-    
+
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
-    
+
     for entry in entries {
         // Include relative path in hash (preserves directory structure)
         if let Ok(rel_path) = entry.path().strip_prefix(dir_path) {
             hasher.update(rel_path.to_string_lossy().as_bytes());
         }
-        
+
         // Hash file content
         if let Ok(mut file) = std::fs::File::open(entry.path()) {
             loop {
@@ -422,6 +439,6 @@ fn calculate_directory_sha256(dir_path: &std::path::Path) -> Result<String> {
             }
         }
     }
-    
+
     Ok(format!("{:x}", hasher.finalize()))
 }

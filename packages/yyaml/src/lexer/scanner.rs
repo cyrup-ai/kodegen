@@ -28,7 +28,7 @@ pub struct Scanner<'input> {
 impl<'input> Scanner<'input> {
     /// Create a new scanner for the given input
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         let normalized = normalization::remove_bom(input);
         Self {
@@ -685,10 +685,7 @@ impl<'input> Scanner<'input> {
     }
 
     /// Scan directive value
-    fn scan_directive_value(
-        &mut self,
-        position: &mut PositionTracker,
-    ) -> &'input str {
+    fn scan_directive_value(&mut self, position: &mut PositionTracker) -> &'input str {
         let start_offset = self.current_offset;
 
         while let Some(&ch) = self.chars.peek() {
@@ -878,10 +875,7 @@ impl<'input> Scanner<'input> {
     }
 
     /// Scan line break
-    fn scan_line_break(
-        &mut self,
-        position: &mut PositionTracker,
-    ) -> Token<'input> {
+    fn scan_line_break(&mut self, position: &mut PositionTracker) -> Token<'input> {
         let start_pos = position.current();
 
         if self.check_char('\r') {

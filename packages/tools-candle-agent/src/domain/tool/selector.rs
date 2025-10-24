@@ -70,22 +70,23 @@ impl ToolSelector {
         let prompt = format!(
             "User query: {user_query}\n\nAvailable tools:\n{tool_list}\n\nSelect 2-3 most relevant tools:"
         );
-        
+
         // 3. Create constraint from ToolSelectionResponse schema
         let tokenizer = self.model.tokenizer();
         let constraint = constraint_for_type::<ToolSelectionResponse>(tokenizer)
             .context("Failed to create constraint for tool selection")?;
-        
+
         // 4. Run constrained inference to guarantee valid JSON
-        let response = self.model
+        let response = self
+            .model
             .prompt_with_context(prompt, constraint)
             .await
             .context("Failed to generate tool selection")?;
-        
+
         // 5. Parse response (guaranteed valid due to constraints)
-        let selection: ToolSelectionResponse = serde_json::from_str(&response)
-            .context("Failed to parse tool selection response")?;
-        
+        let selection: ToolSelectionResponse =
+            serde_json::from_str(&response).context("Failed to parse tool selection response")?;
+
         Ok(selection.selected_tools)
     }
 
@@ -97,7 +98,8 @@ impl ToolSelector {
         tools
             .iter()
             .map(|t| {
-                let first_line = t.description
+                let first_line = t
+                    .description
                     .as_ref()
                     .and_then(|d| d.lines().next())
                     .unwrap_or("");

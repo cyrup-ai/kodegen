@@ -53,4 +53,3 @@ pub use ops::{argmax, scale_temperature, softmax};
 pub use runtime::{CpuFeatures, CpuInfo, get_cpu_features, get_cpu_info, should_use_simd};
 pub use similarity::{cosine_similarity, simd_cosine_similarity, smart_cosine_similarity};
 pub use utils::simd_available;
-

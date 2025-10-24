@@ -3,8 +3,8 @@
 use super::check_file_size;
 use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::types::CiCdMetrics;
-use std::path::Path;
 use log::warn;
+use std::path::Path;
 use walkdir::WalkDir;
 
 /// Collects CI/CD metrics
@@ -33,7 +33,10 @@ pub(crate) async fn collect_ci_cd_metrics(
         }
 
         // Scan workflow files
-        for entry in WalkDir::new(&gh_actions).into_iter().filter_map(std::result::Result::ok) {
+        for entry in WalkDir::new(&gh_actions)
+            .into_iter()
+            .filter_map(std::result::Result::ok)
+        {
             if entry.file_type().is_file() {
                 // Check file size before reading
                 if let Err(e) = check_file_size(entry.path(), config.max_file_size) {

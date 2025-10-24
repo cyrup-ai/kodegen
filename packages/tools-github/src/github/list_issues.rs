@@ -2,9 +2,9 @@
 
 use crate::github::error::GitHubError;
 use crate::runtime::{AsyncStream, EmitterBuilder};
-use octocrab::models::issues::Issue;
 use octocrab::models::IssueState;
-use octocrab::{params, Octocrab, Page};
+use octocrab::models::issues::Issue;
+use octocrab::{Octocrab, Page, params};
 use std::sync::Arc;
 
 /// Request parameters for listing issues

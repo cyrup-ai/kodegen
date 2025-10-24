@@ -18,7 +18,7 @@ second: document
 ---
 third: document
 "#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs.len(), 3);
     assert_eq!(docs[0]["first"].as_str().unwrap(), "document");
@@ -34,7 +34,7 @@ fn test_document_separators() {
 ...
 ---
 second"#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs.len(), 2);
     assert_eq!(docs[0].as_str().unwrap(), "first");
@@ -51,25 +51,26 @@ fn test_spec_example_9_6_stream() {
 %YAML 1.2
 ---
 matches %: 20"#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs.len(), 3);
     assert_eq!(docs[0].as_str().unwrap(), "Document");
     assert!(docs[1].is_null()); // Empty document
     assert_eq!(docs[2]["matches %"].as_i64().unwrap(), 20);
-}/// Test well-formed stream requirement
+}
+/// Test well-formed stream requirement
 #[test]
 fn test_well_formed_stream_compliance() {
     // Empty stream
     let docs = YamlLoader::load_from_str("").unwrap();
     assert_eq!(docs.len(), 1);
     assert!(docs[0].is_null());
-    
+
     // Stream with only comments
     let docs = YamlLoader::load_from_str("# Just a comment").unwrap();
     assert_eq!(docs.len(), 1);
     assert!(docs[0].is_null());
-    
+
     // Stream with BOM
     let docs = YamlLoader::load_from_str("\u{FEFF}content").unwrap();
     assert_eq!(docs.len(), 1);

@@ -92,7 +92,7 @@ impl UnicodeProcessor {
     }
 
     /// Escape a string for YAML output
-    #[must_use] 
+    #[must_use]
     pub fn escape_string(input: &str, style: EscapeStyle) -> String {
         let mut result = String::with_capacity(input.len() + 2);
 
@@ -186,28 +186,28 @@ impl std::error::Error for EscapeError {}
 pub mod chars {
     /// Check if a character is a YAML line break
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_break(ch: char) -> bool {
         matches!(ch, '\n' | '\r')
     }
 
     /// Check if a character is YAML whitespace (space or tab)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_space(ch: char) -> bool {
         matches!(ch, ' ' | '\t')
     }
 
     /// Check if a character is YAML blank (whitespace or line break)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_blank(ch: char) -> bool {
         is_space(ch) || is_break(ch)
     }
 
     /// Check if a character can start a plain scalar
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn can_start_plain_scalar(ch: char) -> bool {
         !matches!(
             ch,
@@ -238,28 +238,28 @@ pub mod chars {
 
     /// Check if a character can continue a plain scalar
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn can_continue_plain_scalar(ch: char) -> bool {
         !is_blank(ch) && ch != '#'
     }
 
     /// Check if a character is a valid YAML identifier character
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_yaml_identifier(ch: char) -> bool {
         ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-')
     }
 
     /// Check if a character is a valid anchor/alias character
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_anchor_char(ch: char) -> bool {
         !is_blank(ch) && !matches!(ch, ',' | '[' | ']' | '{' | '}')
     }
 
     /// Check if a character is a valid tag character
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_tag_char(ch: char) -> bool {
         ch.is_ascii_alphanumeric()
             || matches!(
@@ -290,28 +290,28 @@ pub mod chars {
 
     /// Check if a character needs URI encoding in a tag
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn needs_uri_encoding(ch: char) -> bool {
         !is_tag_char(ch)
     }
 
     /// Check if a character is a white space (space or tab)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_white(ch: char) -> bool {
         ch == ' ' || ch == '\t'
     }
 
     /// Check if a character is a word character (alphanumeric or hyphen)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_word_char(ch: char) -> bool {
         ch.is_ascii_alphanumeric() || ch == '-'
     }
 
     /// Check if a character is a URI character
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_uri_char(ch: char) -> bool {
         ch.is_ascii_alphanumeric()
             || matches!(
@@ -342,7 +342,7 @@ pub mod chars {
 
     /// Check if a character is printable for YAML
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_printable(ch: char) -> bool {
         ch == '\t'
             || ch == '\n'
@@ -360,7 +360,7 @@ pub mod normalization {
     use std::borrow::Cow;
 
     /// Normalize line endings to LF
-    #[must_use] 
+    #[must_use]
     pub fn normalize_line_endings(input: &str) -> Cow<'_, str> {
         if !input.contains('\r') {
             return Cow::Borrowed(input);
@@ -390,7 +390,7 @@ pub mod normalization {
     }
 
     /// Remove BOM if present
-    #[must_use] 
+    #[must_use]
     pub fn remove_bom(input: &str) -> &str {
         input.strip_prefix('\u{FEFF}').unwrap_or(input)
     }

@@ -64,27 +64,27 @@ pub use error::{Error, Result};
 pub use patch::patch_binary;
 pub use platform::PackageType;
 pub use settings::{
-    // Main configuration types
-    Settings,
-    BundleSettings,
-    PackageSettings,
-    SettingsBuilder,
-    // Binary configuration
-    BundleBinary,
+    AppImageSettings,
     // Architecture detection
     Arch,
+    // Binary configuration
+    BundleBinary,
+    BundleSettings,
     // Platform-specific settings
     DebianSettings,
-    RpmSettings,
-    AppImageSettings,
-    MacOsSettings,
     DmgSettings,
-    WindowsSettings,
-    WixSettings,
-    NsisSettings,
+    MacOsSettings,
     // NSIS enums
     NSISInstallerMode,
     NsisCompression,
+    NsisSettings,
+    PackageSettings,
+    RpmSettings,
+    // Main configuration types
+    Settings,
+    SettingsBuilder,
+    WindowsSettings,
+    WixSettings,
 };
 
 /// A bundled artifact result containing metadata about created installers.
@@ -113,8 +113,8 @@ pub use settings::{
 /// let artifacts = bundler.bundle()?;
 ///
 /// for artifact in artifacts {
-///     println!("Created {}: {} bytes", 
-///         artifact.package_type, 
+///     println!("Created {}: {} bytes",
+///         artifact.package_type,
 ///         artifact.size
 ///     );
 ///     println!("SHA256: {}", artifact.checksum);
@@ -126,16 +126,16 @@ pub use settings::{
 pub struct BundledArtifact {
     /// The package type that was created (e.g., Deb, Rpm, Dmg, Msi).
     pub package_type: PackageType,
-    
+
     /// Paths to all files created as part of this bundle.
     ///
     /// Typically includes the main installer package plus any metadata files
     /// (checksums, signatures, etc.).
     pub paths: Vec<std::path::PathBuf>,
-    
+
     /// Total size of the main artifact in bytes.
     pub size: u64,
-    
+
     /// SHA-256 checksum of the main artifact for integrity verification.
     ///
     /// This can be published alongside the artifact for users to verify downloads.

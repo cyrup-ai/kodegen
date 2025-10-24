@@ -1,11 +1,11 @@
 //! Helper types and utility functions
 
 use super::*;
+use crate::capability::registry::TextToTextModel;
+use crate::capability::text_to_text::qwen3_quantized::LoadedQwen3QuantizedModel;
 use crate::domain::agent::core::AGENT_STATS;
 use crate::domain::completion::types::ToolInfo;
 use crate::domain::tool::{CandleToolRouter, ToolSelector};
-use crate::capability::text_to_text::qwen3_quantized::LoadedQwen3QuantizedModel;
-use crate::capability::registry::TextToTextModel;
 use kodegen_mcp_client::create_sse_client;
 
 pub struct CandleAgentRoleAgent {
@@ -55,20 +55,29 @@ impl CandleAgentRoleAgent {
                 let on_tool_result_handler = state.on_tool_result_handler.clone();
 
                 // Connect to kodegen MCP daemon for real tool execution
-                let tool_router = match create_sse_client("https://mcp.kodegen.ai:30437/sse").await {
+                let tool_router = match create_sse_client("https://mcp.kodegen.ai:30437/sse").await
+                {
                     Ok((client, _connection)) => {
                         // Connection established - client is cheaply clone-able
                         // _connection dropped here but that's OK - we only need tools for this inference cycle
-                        let tool_count = client.list_tools().await
+                        let tool_count = client
+                            .list_tools()
+                            .await
                             .map(|tools| tools.len())
                             .unwrap_or(0);
-                        
-                        log::info!("✅ Connected to MCP daemon - {} tools available", tool_count);
+
+                        log::info!(
+                            "✅ Connected to MCP daemon - {} tools available",
+                            tool_count
+                        );
                         Some(CandleToolRouter::new(Some(client)))
                     }
                     Err(e) => {
                         // Daemon unavailable - agent will work without tools
-                        log::warn!("⚠️  MCP daemon unavailable: {} - Agent will work without tools", e);
+                        log::warn!(
+                            "⚠️  MCP daemon unavailable: {} - Agent will work without tools",
+                            e
+                        );
                         None
                     }
                 };
@@ -98,7 +107,8 @@ impl CandleAgentRoleAgent {
                         // ═══════════════════════════════════════════════════════════
                         let final_tools = if all_tools.len() > 3 {
                             // Extract model from enum
-                            let TextToTextModel::Qwen3Quantized(base_model) = &state.text_to_text_model;
+                            let TextToTextModel::Qwen3Quantized(base_model) =
+                                &state.text_to_text_model;
 
                             // Load model for tool selection
                             match LoadedQwen3QuantizedModel::load(base_model).await {
@@ -109,17 +119,27 @@ impl CandleAgentRoleAgent {
                                             // Filter to selected tools only
                                             all_tools
                                                 .into_iter()
-                                                .filter(|t| selected_names.iter().any(|n| n.as_str() == t.name.as_ref()))
+                                                .filter(|t| {
+                                                    selected_names
+                                                        .iter()
+                                                        .any(|n| n.as_str() == t.name.as_ref())
+                                                })
                                                 .collect()
                                         }
                                         Err(e) => {
-                                            log::warn!("Tool selection failed: {}, using all tools", e);
+                                            log::warn!(
+                                                "Tool selection failed: {}, using all tools",
+                                                e
+                                            );
                                             all_tools
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    log::warn!("Failed to load model for tool selection: {}, using all tools", e);
+                                    log::warn!(
+                                        "Failed to load model for tool selection: {}, using all tools",
+                                        e
+                                    );
                                     all_tools
                                 }
                             }
@@ -127,7 +147,7 @@ impl CandleAgentRoleAgent {
                             // 3 or fewer tools - no selection needed
                             all_tools
                         };
-                        
+
                         params.tools = Some(ZeroOneOrMany::from(final_tools));
                     }
                 }
@@ -354,7 +374,7 @@ impl CandleFluentAi {
     pub fn agent_role(name: impl Into<String>) -> impl CandleAgentRoleBuilder {
         CandleAgentRoleBuilderImpl::new(name)
     }
-    
+
     /// Create a new vision builder - entry point for vision operations
     pub fn vision() -> impl crate::builders::vision::CandleVisionBuilder {
         crate::builders::vision::VisionBuilderImpl::new()

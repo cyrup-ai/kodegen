@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::pulls::PullRequest, Octocrab, params};
+use octocrab::{Octocrab, models::pulls::PullRequest, params};
 use std::sync::Arc;
 
 /// Options for updating a pull request.

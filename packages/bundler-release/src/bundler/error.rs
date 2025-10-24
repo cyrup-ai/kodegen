@@ -16,7 +16,7 @@
 //! # use std::path::{Path, PathBuf};
 //! # use serde::Deserialize;
 //! # type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-//! # 
+//! #
 //! # // Mock ErrorExt trait
 //! # trait ErrorExt<T> {
 //! #     fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T>;
@@ -227,7 +227,6 @@ pub enum Error {
     SemverError(#[from] semver::Error),
 
     // ============= Platform-Specific Errors =============
-
     /// Windows SignTool not found in Windows SDK.
     #[cfg(windows)]
     #[error("SignTool not found in Windows SDK")]
@@ -321,7 +320,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// ```
 /// # use std::path::PathBuf;
 /// # type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-/// # 
+/// #
 /// # // Mock Context trait
 /// # trait Context<T> {
 /// #     fn context<C: std::fmt::Display>(self, context: C) -> Result<T>;

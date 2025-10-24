@@ -1,26 +1,27 @@
 mod common;
 
 use anyhow::Context;
-use kodegen_mcp_client::{tools, responses::SequentialThinkingResponse};
+use kodegen_mcp_client::{responses::SequentialThinkingResponse, tools};
 use serde_json::json;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     info!("Starting sequential thinking tool example - comprehensive feature testing");
 
     // Connect to kodegen server with sequential_thinking category
-    let (conn, mut server) = common::connect_to_server_with_categories(
-        Some(vec![common::ToolCategory::SequentialThinking])
-    ).await?;
+    let (conn, mut server) = common::connect_to_server_with_categories(Some(vec![
+        common::ToolCategory::SequentialThinking,
+    ]))
+    .await?;
 
     // Wrap client with logging
-    let log_path = std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/sequential_thinking.log");
+    let log_path = std::path::PathBuf::from(
+        "/Volumes/samsung_t9/kodegen/tmp/mcp-client/sequential_thinking.log",
+    );
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;
@@ -31,31 +32,40 @@ async fn main() -> anyhow::Result<()> {
     // TEST 1: Basic sequential thinking - solve a math problem
     // ========================================================================
     info!("1. Testing basic sequential thinking (3 thoughts)");
-    
-    let t1: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "thought": "I need to calculate 15 * 24. Let me break this down step by step.",
-            "thought_number": 1,
-            "total_thoughts": 3,
-            "next_thought_needed": true
-        })
-    ).await.context("Failed on thought 1")?;
-    
-    info!("✅ Thought 1: session_id={}, history_length={}", t1.session_id, t1.thought_history_length);
+
+    let t1: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "thought": "I need to calculate 15 * 24. Let me break this down step by step.",
+                "thought_number": 1,
+                "total_thoughts": 3,
+                "next_thought_needed": true
+            }),
+        )
+        .await
+        .context("Failed on thought 1")?;
+
+    info!(
+        "✅ Thought 1: session_id={}, history_length={}",
+        t1.session_id, t1.thought_history_length
+    );
     let session_id = t1.session_id.clone(); // Save for reuse
 
-    let t2: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "session_id": session_id,
-            "thought": "Using distribution: 15 * 24 = 15 * (20 + 4) = (15*20) + (15*4)",
-            "thought_number": 2,
-            "total_thoughts": 3,
-            "next_thought_needed": true
-        })
-    ).await.context("Failed on thought 2")?;
-    
+    let t2: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "session_id": session_id,
+                "thought": "Using distribution: 15 * 24 = 15 * (20 + 4) = (15*20) + (15*4)",
+                "thought_number": 2,
+                "total_thoughts": 3,
+                "next_thought_needed": true
+            }),
+        )
+        .await
+        .context("Failed on thought 2")?;
+
     info!("✅ Thought 2: history_length={}", t2.thought_history_length);
 
     let t3: SequentialThinkingResponse = client.call_tool_typed(
@@ -68,15 +78,17 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": false
         })
     ).await.context("Failed on thought 3")?;
-    
-    info!("✅ Thought 3 (final): history_length={}, next_needed={}", 
-        t3.thought_history_length, t3.next_thought_needed);
+
+    info!(
+        "✅ Thought 3 (final): history_length={}, next_needed={}",
+        t3.thought_history_length, t3.next_thought_needed
+    );
 
     // ========================================================================
     // TEST 2: Dynamic adjustment - realizing more thoughts needed
     // ========================================================================
     info!("\n2. Testing dynamic adjustment (expanding total_thoughts)");
-    
+
     let d1: SequentialThinkingResponse = client.call_tool_typed(
         tools::SEQUENTIAL_THINKING,
         json!({
@@ -86,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": true
         })
     ).await.context("Failed on dynamic thought 1")?;
-    
+
     info!("✅ Dynamic 1: new session_id={}", d1.session_id);
     let dynamic_session = d1.session_id.clone();
 
@@ -101,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
             "needs_more_thoughts": true
         })
     ).await.context("Failed on dynamic thought 2")?;
-    
+
     info!("✅ Dynamic 2: Signaled need for more thoughts");
 
     let d3: SequentialThinkingResponse = client.call_tool_typed(
@@ -114,8 +126,11 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": true
         })
     ).await.context("Failed on dynamic thought 3")?;
-    
-    info!("✅ Dynamic 3: Expanded to {} total thoughts", d3.total_thoughts);
+
+    info!(
+        "✅ Dynamic 3: Expanded to {} total thoughts",
+        d3.total_thoughts
+    );
 
     let d4: SequentialThinkingResponse = client.call_tool_typed(
         tools::SEQUENTIAL_THINKING,
@@ -127,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": true
         })
     ).await.context("Failed on dynamic thought 4")?;
-    
+
     info!("✅ Dynamic 4: history_length={}", d4.thought_history_length);
 
     let d5: SequentialThinkingResponse = client.call_tool_typed(
@@ -140,25 +155,30 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": false
         })
     ).await.context("Failed on dynamic thought 5")?;
-    
-    info!("✅ Dynamic 5 (final): Successfully expanded from 3 to 5 thoughts, history_length={}",
-        d5.thought_history_length);
+
+    info!(
+        "✅ Dynamic 5 (final): Successfully expanded from 3 to 5 thoughts, history_length={}",
+        d5.thought_history_length
+    );
 
     // ========================================================================
     // TEST 3: Revision feature - correcting a previous thought
     // ========================================================================
     info!("\n3. Testing revision feature");
-    
-    let r1: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "thought": "The capital of Australia is Sydney.",
-            "thought_number": 1,
-            "total_thoughts": 3,
-            "next_thought_needed": true
-        })
-    ).await.context("Failed on revision thought 1")?;
-    
+
+    let r1: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "thought": "The capital of Australia is Sydney.",
+                "thought_number": 1,
+                "total_thoughts": 3,
+                "next_thought_needed": true
+            }),
+        )
+        .await
+        .context("Failed on revision thought 1")?;
+
     info!("✅ Revision 1: session_id={}", r1.session_id);
     let revision_session = r1.session_id.clone();
 
@@ -174,28 +194,33 @@ async fn main() -> anyhow::Result<()> {
             "revises_thought": 1
         })
     ).await.context("Failed on revision thought 2")?;
-    
+
     info!("✅ Revision 2: Marked as revision of thought 1");
 
-    let r3: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "session_id": revision_session,
-            "thought": "The correct answer is Canberra, which became the capital in 1913.",
-            "thought_number": 3,
-            "total_thoughts": 3,
-            "next_thought_needed": false
-        })
-    ).await.context("Failed on revision thought 3")?;
-    
-    info!("✅ Revision 3 (final): Successfully revised thought 1, history_length={}",
-        r3.thought_history_length);
+    let r3: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "session_id": revision_session,
+                "thought": "The correct answer is Canberra, which became the capital in 1913.",
+                "thought_number": 3,
+                "total_thoughts": 3,
+                "next_thought_needed": false
+            }),
+        )
+        .await
+        .context("Failed on revision thought 3")?;
+
+    info!(
+        "✅ Revision 3 (final): Successfully revised thought 1, history_length={}",
+        r3.thought_history_length
+    );
 
     // ========================================================================
     // TEST 4: Branching feature - exploring alternative approaches
     // ========================================================================
     info!("\n4. Testing branching feature");
-    
+
     let b1: SequentialThinkingResponse = client.call_tool_typed(
         tools::SEQUENTIAL_THINKING,
         json!({
@@ -205,38 +230,47 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": true
         })
     ).await.context("Failed on branch thought 1")?;
-    
+
     info!("✅ Branch 1: session_id={}", b1.session_id);
     let branch_session = b1.session_id.clone();
 
-    let _b2: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "session_id": branch_session,
-            "thought": "Let me explore the indexing approach first.",
-            "thought_number": 2,
-            "total_thoughts": 3,
-            "next_thought_needed": true
-        })
-    ).await.context("Failed on branch thought 2")?;
-    
+    let _b2: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "session_id": branch_session,
+                "thought": "Let me explore the indexing approach first.",
+                "thought_number": 2,
+                "total_thoughts": 3,
+                "next_thought_needed": true
+            }),
+        )
+        .await
+        .context("Failed on branch thought 2")?;
+
     info!("✅ Branch 2: Chose indexing path");
 
     // Create a branch to explore alternative approach
-    let b2_alt: SequentialThinkingResponse = client.call_tool_typed(
-        tools::SEQUENTIAL_THINKING,
-        json!({
-            "session_id": branch_session,
-            "thought": "Actually, let me also explore denormalization as an alternative.",
-            "thought_number": 2,
-            "total_thoughts": 3,
-            "next_thought_needed": true,
-            "branch_from_thought": 1,
-            "branch_id": "denormalize"
-        })
-    ).await.context("Failed on branch thought 2 alt")?;
-    
-    info!("✅ Branch 2 (alt): Created branch 'denormalize', branches={:?}", b2_alt.branches);
+    let b2_alt: SequentialThinkingResponse = client
+        .call_tool_typed(
+            tools::SEQUENTIAL_THINKING,
+            json!({
+                "session_id": branch_session,
+                "thought": "Actually, let me also explore denormalization as an alternative.",
+                "thought_number": 2,
+                "total_thoughts": 3,
+                "next_thought_needed": true,
+                "branch_from_thought": 1,
+                "branch_id": "denormalize"
+            }),
+        )
+        .await
+        .context("Failed on branch thought 2 alt")?;
+
+    info!(
+        "✅ Branch 2 (alt): Created branch 'denormalize', branches={:?}",
+        b2_alt.branches
+    );
 
     // Continue main branch
     let _b3: SequentialThinkingResponse = client.call_tool_typed(
@@ -249,7 +283,7 @@ async fn main() -> anyhow::Result<()> {
             "next_thought_needed": false
         })
     ).await.context("Failed on branch thought 3")?;
-    
+
     info!("✅ Branch 3 (main path final): Completed main branch analysis");
 
     // Continue alternative branch
@@ -264,25 +298,39 @@ async fn main() -> anyhow::Result<()> {
             "branch_id": "denormalize"
         })
     ).await.context("Failed on branch thought 3 alt")?;
-    
-    info!("✅ Branch 3 (denormalize path final): Completed alternative branch, branches={:?}",
-        b3_alt.branches);
+
+    info!(
+        "✅ Branch 3 (denormalize path final): Completed alternative branch, branches={:?}",
+        b3_alt.branches
+    );
 
     // ========================================================================
     // TEST 5: Session continuity verification
     // ========================================================================
     info!("\n5. Verifying session continuity and history tracking");
-    
-    info!("   Session 1 (basic math): {} thoughts in history", t3.thought_history_length);
-    info!("   Session 2 (dynamic): {} thoughts in history", d5.thought_history_length);
-    info!("   Session 3 (revision): {} thoughts in history", r3.thought_history_length);
-    info!("   Session 4 (branching): {} thoughts in history, branches={:?}",
-        b3_alt.thought_history_length, b3_alt.branches);
 
-    if t3.thought_history_length == 3 &&
-       d5.thought_history_length == 5 &&
-       r3.thought_history_length == 3 &&
-       b3_alt.thought_history_length >= 3 {
+    info!(
+        "   Session 1 (basic math): {} thoughts in history",
+        t3.thought_history_length
+    );
+    info!(
+        "   Session 2 (dynamic): {} thoughts in history",
+        d5.thought_history_length
+    );
+    info!(
+        "   Session 3 (revision): {} thoughts in history",
+        r3.thought_history_length
+    );
+    info!(
+        "   Session 4 (branching): {} thoughts in history, branches={:?}",
+        b3_alt.thought_history_length, b3_alt.branches
+    );
+
+    if t3.thought_history_length == 3
+        && d5.thought_history_length == 5
+        && r3.thought_history_length == 3
+        && b3_alt.thought_history_length >= 3
+    {
         info!("✅ All session histories tracked correctly");
     } else {
         error!("❌ Session history mismatch detected");

@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use log::{debug, info, warn};
 use tokio::sync::RwLock;
 use tokio::time::interval;
-use log::{debug, info, warn};
 use uuid::Uuid;
 
 /// Information about an active SSE session
@@ -40,7 +40,7 @@ pub struct ClientInfo {
 
 impl SseSession {
     /// Create a new session with given client info
-    #[must_use] 
+    #[must_use]
     pub fn new(client_info: ClientInfo) -> Self {
         let now = Instant::now();
         Self {
@@ -57,13 +57,13 @@ impl SseSession {
     }
 
     /// Check if the session has timed out
-    #[must_use] 
+    #[must_use]
     pub fn is_expired(&self, timeout: Duration) -> bool {
         self.last_activity.elapsed() > timeout
     }
 
     /// Get session age
-    #[must_use] 
+    #[must_use]
     pub fn age(&self) -> Duration {
         self.created_at.elapsed()
     }
@@ -85,7 +85,7 @@ pub struct SessionManager {
 
 impl SessionManager {
     /// Create a new session manager
-    #[must_use] 
+    #[must_use]
     pub fn new(max_sessions: usize, timeout: Duration) -> Self {
         Self {
             sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -216,7 +216,7 @@ impl SessionManager {
     /// Start a background cleanup task
     ///
     /// Spawns a background task that periodically cleans up expired sessions.
-    #[must_use] 
+    #[must_use]
     pub fn start_cleanup_task(&self, cleanup_interval: Duration) -> tokio::task::JoinHandle<()> {
         let sessions = self.sessions.clone();
         let timeout = self.timeout;
@@ -248,5 +248,3 @@ impl Default for SessionManager {
         Self::new(100, Duration::from_secs(300)) // 100 sessions, 5 minute timeout
     }
 }
-
-

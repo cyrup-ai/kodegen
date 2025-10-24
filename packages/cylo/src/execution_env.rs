@@ -399,12 +399,14 @@ pub fn validate_instance_name(name: &str) -> CyloResult<()> {
     }
 
     // Check first and last characters
-    let first_char = name.chars().next().ok_or_else(|| {
-        CyloError::validation("Instance name cannot be empty")
-    })?;
-    let last_char = name.chars().last().ok_or_else(|| {
-        CyloError::validation("Instance name cannot be empty")
-    })?;
+    let first_char = name
+        .chars()
+        .next()
+        .ok_or_else(|| CyloError::validation("Instance name cannot be empty"))?;
+    let last_char = name
+        .chars()
+        .last()
+        .ok_or_else(|| CyloError::validation("Instance name cannot be empty"))?;
 
     if first_char == '-' || first_char == '_' {
         return Err(CyloError::validation(

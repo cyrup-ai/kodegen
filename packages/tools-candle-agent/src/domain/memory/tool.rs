@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 use super::Error as MemoryError;
 use crate::memory::core::{MemoryNode, MemoryType, SurrealDBMemoryManager};
 // Removed unused imports: AsyncStream, AsyncTask, spawn_async
-use crate::domain::error::ZeroAllocError;
 use crate::domain::completion::types::ToolInfo;
+use crate::domain::error::ZeroAllocError;
 
 /// Type alias for memory node result queue channel pair
 type MemoryNodeQueue = (
@@ -136,11 +136,13 @@ impl MemoryTool {
             "required": ["operation"]
         });
         let schema_map = schema_json.as_object().unwrap().clone();
-        
+
         let data = ToolInfo {
             name: "memory".into(),
             title: None,
-            description: Some("Memory management tool for storing and retrieving information".into()),
+            description: Some(
+                "Memory management tool for storing and retrieving information".into(),
+            ),
             input_schema: Arc::new(schema_map),
             output_schema: None,
             annotations: None,

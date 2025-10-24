@@ -24,7 +24,7 @@ pub struct ReferenceGraph<'input> {
 impl<'input> ReferenceGraph<'input> {
     /// Create new reference graph with optimized capacity
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             nodes: HashMap::with_capacity(256),
@@ -137,7 +137,7 @@ impl<'input> ReferenceGraph<'input> {
 
     /// Get node by ID
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_node(&self, node_id: ReferenceId) -> Option<&ReferenceNode<'input>> {
         self.nodes.get(&node_id)
     }
@@ -150,28 +150,28 @@ impl<'input> ReferenceGraph<'input> {
 
     /// Get edges from a node
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_edges(&self, node_id: ReferenceId) -> Option<&Vec<ReferenceEdge>> {
         self.adjacency_list.get(&node_id)
     }
 
     /// Get incoming edges to a node
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_incoming_edges(&self, node_id: ReferenceId) -> Option<&Vec<ReferenceId>> {
         self.reverse_adjacency.get(&node_id)
     }
 
     /// Get all node IDs
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_all_node_ids(&self) -> Vec<ReferenceId> {
         self.nodes.keys().copied().collect()
     }
 
     /// Get node degree (total incoming + outgoing edges)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_node_degree(&self, node_id: ReferenceId) -> usize {
         let outgoing = self
             .adjacency_list
@@ -186,7 +186,7 @@ impl<'input> ReferenceGraph<'input> {
 
     /// Get outgoing degree only
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_out_degree(&self, node_id: ReferenceId) -> usize {
         self.adjacency_list
             .get(&node_id)
@@ -195,7 +195,7 @@ impl<'input> ReferenceGraph<'input> {
 
     /// Get incoming degree only
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_in_degree(&self, node_id: ReferenceId) -> usize {
         self.reverse_adjacency
             .get(&node_id)
@@ -203,7 +203,7 @@ impl<'input> ReferenceGraph<'input> {
     }
 
     /// Check if there's a path between two nodes
-    #[must_use] 
+    #[must_use]
     pub fn has_path(&self, from: ReferenceId, to: ReferenceId) -> bool {
         if from == to {
             return true;
@@ -232,7 +232,7 @@ impl<'input> ReferenceGraph<'input> {
     }
 
     /// Get shortest path between two nodes (BFS)
-    #[must_use] 
+    #[must_use]
     pub fn get_shortest_path(
         &self,
         from: ReferenceId,
@@ -277,7 +277,7 @@ impl<'input> ReferenceGraph<'input> {
     }
 
     /// Get all paths between two nodes (DFS with path tracking)
-    #[must_use] 
+    #[must_use]
     pub fn get_all_paths(
         &self,
         from: ReferenceId,
@@ -331,7 +331,7 @@ impl<'input> ReferenceGraph<'input> {
     }
 
     /// Get connected components
-    #[must_use] 
+    #[must_use]
     pub fn get_connected_components(&self) -> Vec<Vec<ReferenceId>> {
         let mut visited = HashSet::new();
         let mut components = Vec::new();
@@ -377,7 +377,7 @@ impl<'input> ReferenceGraph<'input> {
     }
 
     /// Calculate graph statistics
-    #[must_use] 
+    #[must_use]
     pub fn calculate_statistics(&self) -> GraphStatistics {
         let node_count = self.nodes.len();
         let edge_count: usize = self.adjacency_list.values().map(|edges| edges.len()).sum();
@@ -498,28 +498,28 @@ impl<'input> ReferenceGraph<'input> {
 
     /// Get graph metadata
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_metadata(&self) -> &GraphMetadata {
         &self.metadata
     }
 
     /// Check if graph is empty
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
     /// Get number of nodes
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }
 
     /// Get number of edges
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn edge_count(&self) -> usize {
         self.adjacency_list.values().map(|edges| edges.len()).sum()
     }

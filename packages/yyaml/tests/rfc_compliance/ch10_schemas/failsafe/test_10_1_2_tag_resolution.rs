@@ -10,14 +10,14 @@ use yyaml::YamlLoader;
 fn test_failsafe_string_resolution() {
     // In strict Failsafe schema, all plain scalars resolve to strings
     let test_cases = vec![
-        "123",           // Should be string, not integer
-        "true",          // Should be string, not boolean
-        "null",          // Should be string, not null
-        "3.14",          // Should be string, not float
-        "yes",           // Should be string, not boolean
-        "on",            // Should be string, not boolean
+        "123",  // Should be string, not integer
+        "true", // Should be string, not boolean
+        "null", // Should be string, not null
+        "3.14", // Should be string, not float
+        "yes",  // Should be string, not boolean
+        "on",   // Should be string, not boolean
     ];
-    
+
     for case in test_cases {
         let yaml = format!("value: {}", case);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();

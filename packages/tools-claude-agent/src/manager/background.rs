@@ -8,11 +8,11 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{Mutex, mpsc};
 
+use super::commands::SessionCommand;
+use super::helpers::serialize_message;
 use crate::client::ClaudeSDKClient;
 use crate::types::agent::SerializedMessage;
 use crate::types::messages::Message;
-use super::commands::SessionCommand;
-use super::helpers::serialize_message;
 
 /// Circular buffer capacity for messages
 const BUFFER_SIZE: usize = 1000;
@@ -73,7 +73,7 @@ pub(super) fn spawn_message_collector(
                         Ok(msg) => {
                             // Convert Message to SerializedMessage
                             let serialized = serialize_message(&msg);
-                            
+
                             // Push to circular buffer
                             {
                                 let mut messages = ctx.messages.lock().await;
@@ -82,14 +82,14 @@ pub(super) fn spawn_message_collector(
                                 }
                                 messages.push_back(serialized);
                             }
-                            
+
                             // Update timestamp
                             *ctx.last_message.lock().await = Instant::now();
-                            
+
                             // Check for completion
                             if let Message::Result { num_turns, .. } = msg {
                                 *ctx.turn_count.lock().await = num_turns;
-                                
+
                                 // Only mark complete if we've reached ctx.max_turns
                                 if num_turns >= ctx.max_turns {
                                     *ctx.is_complete.lock().await = true;

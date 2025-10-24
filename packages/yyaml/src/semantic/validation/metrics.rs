@@ -20,7 +20,7 @@ pub struct ComplexityMetrics {
 impl ComplexityMetrics {
     /// Calculate a complexity score based on the metrics
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn calculate_complexity_score(&self) -> f32 {
         let base_score = (self.total_nodes as f32).log2();
         let depth_factor = (self.max_depth as f32) * 0.5;
@@ -32,7 +32,7 @@ impl ComplexityMetrics {
 
     /// Check if document is considered complex
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_complex(&self) -> bool {
         self.calculate_complexity_score() > 10.0
             || self.max_depth > 10

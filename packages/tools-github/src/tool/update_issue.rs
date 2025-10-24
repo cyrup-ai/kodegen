@@ -1,11 +1,11 @@
 //! GitHub issue update tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::github::UpdateIssueRequest;
 
@@ -18,29 +18,29 @@ pub struct UpdateIssueTool;
 pub struct UpdateIssueArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Issue number to update
     pub issue_number: u64,
-    
+
     /// New title (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    
+
     /// New body/description (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<String>,
-    
+
     /// New state: "open" or "closed" (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
-    
+
     /// Replace labels (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<String>>,
-    
+
     /// Replace assignees (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignees: Option<Vec<String>>,
@@ -53,53 +53,55 @@ pub struct UpdateIssuePromptArgs {}
 impl Tool for UpdateIssueTool {
     type Args = UpdateIssueArgs;
     type PromptArgs = UpdateIssuePromptArgs;
-    
+
     fn name() -> &'static str {
         "update_issue"
     }
-    
+
     fn description() -> &'static str {
         "Update an existing GitHub issue. Supports partial updates - only specified fields \
          will be modified. Can update title, body, state (open/closed), labels, and assignees. \
          Requires GITHUB_TOKEN environment variable with write access."
     }
-    
+
     fn read_only() -> bool {
-        false  // Modifies data
+        false // Modifies data
     }
-    
+
     fn destructive() -> bool {
-        false  // Modifies, doesn't delete
+        false // Modifies, doesn't delete
     }
-    
+
     fn idempotent() -> bool {
-        false  // Multiple updates may differ
+        false // Multiple updates may differ
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Convert state string to IssueState enum
-        let state = args.state.as_ref().and_then(|s| match s.to_lowercase().as_str() {
-            "open" => Some(octocrab::models::IssueState::Open),
-            "closed" => Some(octocrab::models::IssueState::Closed),
-            _ => None,
-        });
-        
+        let state = args
+            .state
+            .as_ref()
+            .and_then(|s| match s.to_lowercase().as_str() {
+                "open" => Some(octocrab::models::IssueState::Open),
+                "closed" => Some(octocrab::models::IssueState::Closed),
+                _ => None,
+            });
+
         // Build request
         let request = UpdateIssueRequest {
             owner: args.owner,
@@ -112,34 +114,32 @@ impl Tool for UpdateIssueTool {
             assignees: args.assignees,
             milestone: None,
         };
-        
+
         // Call API wrapper (returns AsyncTask<Result<Issue, GitHubError>>)
         // The .await returns Result<Result<Issue, GitHubError>, RecvError>
         let task_result = client.update_issue(request).await;
-        
+
         // Handle outer Result (channel error)
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
-        
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+
         // Handle inner Result (GitHub API error)
-        let issue = api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
-        
+        let issue =
+            api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+
         // Return serialized issue
         Ok(serde_json::to_value(&issue)?)
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I update a GitHub issue?"
-                ),
+                content: PromptMessageContent::text("How do I update a GitHub issue?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -175,7 +175,7 @@ impl Tool for UpdateIssueTool {
                      - assignees: REPLACES all existing assignees (not additive)\n\
                      - To clear labels or assignees, pass empty array: []\n\
                      - Requires write access to the repository\n\
-                     - GITHUB_TOKEN environment variable must be set"
+                     - GITHUB_TOKEN environment variable must be set",
                 ),
             },
         ])

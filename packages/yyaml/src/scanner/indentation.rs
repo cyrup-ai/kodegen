@@ -44,7 +44,7 @@ pub enum BlockType {
 impl IndentationTracker {
     /// Create new indentation tracker
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             levels: Vec::with_capacity(16),
@@ -63,21 +63,21 @@ impl IndentationTracker {
 
     /// Get current indentation level
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn current_level(&self) -> i32 {
         self.current_base
     }
 
     /// Check if at root level
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn at_root_level(&self) -> bool {
         self.levels.is_empty()
     }
 
     /// Get current block type
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn current_block_type(&self) -> BlockType {
         self.levels
             .last()
@@ -140,7 +140,7 @@ impl IndentationTracker {
 
     /// Check if simple key is allowed at current level
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn simple_key_allowed(&self) -> bool {
         self.levels
             .last()
@@ -158,7 +158,7 @@ impl IndentationTracker {
 
     /// Check if column is valid for current context
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_valid_column(&self, column: i32, block_type: BlockType) -> bool {
         match block_type {
             BlockType::Sequence | BlockType::Mapping => {
@@ -178,14 +178,14 @@ impl IndentationTracker {
 
     /// Get depth of nesting
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn depth(&self) -> usize {
         self.levels.len()
     }
 
     /// Get minimum required indentation for new block
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn min_indent_for_block(&self, block_type: BlockType) -> i32 {
         match block_type {
             BlockType::Root => 0,
@@ -327,7 +327,7 @@ pub fn validate_indentation_consistency(
 
 /// Calculate effective indentation considering tab stops
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn effective_indentation(spaces: usize, has_tabs: bool, _tab_width: usize) -> usize {
     if has_tabs {
         // This is approximation - actual calculation depends on where tabs occur

@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
-use std::collections::{HashSet, HashMap};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
-use std::time::{SystemTime, Instant};
+use std::time::{Instant, SystemTime};
 use tokio::sync::{RwLock, watch};
 
 /// Data stored per file in `CountPerFile` mode
@@ -191,40 +191,40 @@ pub enum SearchResultType {
 pub struct SearchResult {
     /// File path
     pub file: String,
-    
+
     /// Line number (content search only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,
-    
+
     /// Matching line content (content search only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#match: Option<String>,
-    
+
     /// Result type
     pub r#type: SearchResultType,
-    
+
     /// True if this is a context line, false if actual match
     #[serde(default)]
     pub is_context: bool,
-    
+
     /// Whether this result came from a binary file
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_binary: Option<bool>,
-    
+
     /// Whether binary content was suppressed in this result
     #[serde(skip_serializing_if = "Option::is_none")]
     pub binary_suppressed: Option<bool>,
-    
+
     /// File modification time (if available and sorting is enabled)
     #[serde(skip_serializing_if = "Option::is_none", skip_deserializing)]
     #[schemars(skip)]
     pub modified: Option<SystemTime>,
-    
+
     /// File access time (if available and sorting is enabled)
     #[serde(skip_serializing_if = "Option::is_none", skip_deserializing)]
     #[schemars(skip)]
     pub accessed: Option<SystemTime>,
-    
+
     /// File creation time (if available and sorting is enabled)
     #[serde(skip_serializing_if = "Option::is_none", skip_deserializing)]
     #[schemars(skip)]
@@ -236,10 +236,10 @@ pub struct SearchResult {
 pub struct SearchError {
     /// Path where error occurred
     pub path: String,
-    
+
     /// Error message
     pub message: String,
-    
+
     /// Error category for filtering
     #[serde(rename = "type")]
     pub error_type: String,
@@ -350,7 +350,7 @@ pub struct SearchSessionInfo {
     /// Timeout in milliseconds (if specified)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u64>,
-    
+
     /// Whether search was stopped due to timeout or cancellation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub was_incomplete: Option<bool>,

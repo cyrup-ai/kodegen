@@ -121,23 +121,23 @@ impl Tool for GetTableIndexesTool {
                 // MySQL: Single query returns all index-column rows
                 // Group by index_name in Rust to avoid GROUP_CONCAT truncation
                 use std::collections::HashMap;
-                
+
                 // HashMap: index_name -> (columns, is_unique, is_primary)
                 let mut index_map: HashMap<String, (Vec<String>, bool, bool)> = HashMap::new();
-                
+
                 for row in rows.iter() {
                     let index_name: String = row.try_get("index_name").unwrap_or_default();
                     let column_name: String = row.try_get("column_name").unwrap_or_default();
                     let is_unique: bool = row.try_get("is_unique").unwrap_or(false);
                     let is_primary: bool = row.try_get("is_primary").unwrap_or(false);
-                    
+
                     index_map
                         .entry(index_name)
                         .or_insert_with(|| (Vec::new(), is_unique, is_primary))
                         .0
                         .push(column_name);
                 }
-                
+
                 // Convert HashMap to Vec<TableIndex>
                 for (index_name, (column_names, is_unique, is_primary)) in index_map {
                     indexes.push(TableIndex {

@@ -28,11 +28,11 @@ pub(crate) fn merge_pull_request(
 ) -> AsyncTask<Result<serde_json::Value, GitHubError>> {
     let owner = owner.into();
     let repo = repo.into();
-    
+
     spawn_task(async move {
         // Build the request body
         let mut body = serde_json::json!({});
-        
+
         if let Some(title) = options.commit_title {
             body["commit_title"] = serde_json::json!(title);
         }
@@ -45,14 +45,14 @@ pub(crate) fn merge_pull_request(
         if let Some(method) = options.merge_method {
             body["merge_method"] = serde_json::json!(method);
         }
-        
+
         let url = format!("/repos/{owner}/{repo}/pulls/{pull_number}/merge");
-        
+
         let result: serde_json::Value = inner
             .put(url, Some(&body))
             .await
             .map_err(GitHubError::from)?;
-        
+
         Ok(result)
     })
 }

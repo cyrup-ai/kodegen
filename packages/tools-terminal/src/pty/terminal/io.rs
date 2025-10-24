@@ -1,5 +1,5 @@
-use std::io;
 use bytes::Bytes;
+use std::io;
 
 use super::types::{KeyCode, Terminal};
 
@@ -15,9 +15,12 @@ impl Terminal {
 
     /// Send input bytes to the terminal
     pub async fn send_input(&self, bytes: Bytes) -> io::Result<()> {
-        let sender = self.sender.as_ref()
+        let sender = self
+            .sender
+            .as_ref()
             .ok_or_else(|| io::Error::other("Terminal has been closed"))?;
-        sender.send(bytes)
+        sender
+            .send(bytes)
             .await
             .map_err(|e| io::Error::other(format!("Failed to send input: {e}")))
     }

@@ -3,18 +3,18 @@
 //! This module provides comprehensive Git integration using the gix library,
 //! offering atomic operations, rollback capabilities, and release coordination.
 
-mod operations;
-mod manager;
 mod git_adapter;
+mod manager;
+mod operations;
 
-pub use operations::{
-    GitOperations, CommitInfo, TagInfo, PushInfo, BranchInfo, RemoteInfo,
-    ResetType, ValidationResult,
-};
-pub use manager::{
-    GitManager, GitConfig, ReleaseResult, RollbackResult, BackupPoint, RepositoryStats,
-};
 pub use git_adapter::KodegenGitOperations;
+pub use manager::{
+    BackupPoint, GitConfig, GitManager, ReleaseResult, RepositoryStats, RollbackResult,
+};
+pub use operations::{
+    BranchInfo, CommitInfo, GitOperations, PushInfo, RemoteInfo, ResetType, TagInfo,
+    ValidationResult,
+};
 
 use crate::error::Result;
 

@@ -1,9 +1,12 @@
 use crate::state::StateManager;
-use crate::strategies::base::{AsyncPath, BaseStrategy, ClearedSignal, MetricStream, Reasoning, Strategy, AsyncTask, TaskStream};
-use crate::types::{ReasoningRequest, ReasoningResponse, StrategyMetrics, ThoughtNode, CONFIG};
+use crate::strategies::base::{
+    AsyncPath, AsyncTask, BaseStrategy, ClearedSignal, MetricStream, Reasoning, Strategy,
+    TaskStream,
+};
+use crate::types::{CONFIG, ReasoningRequest, ReasoningResponse, StrategyMetrics, ThoughtNode};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 use uuid::Uuid;
 
 pub struct BeamSearchStrategy {
@@ -55,15 +58,15 @@ impl Strategy for BeamSearchStrategy {
         tokio::spawn(async move {
             let node_id = Uuid::new_v4().to_string();
             let parent_node = match &request.parent_id {
-                Some(parent_id) => {
-                    match self_clone.base.get_node(parent_id).await {
-                        Ok(node) => node,
-                        Err(e) => {
-                            let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
-                                format!("Failed to get parent node: {}", e)
-                            )));
-                            return;
-                        }
+                Some(parent_id) => match self_clone.base.get_node(parent_id).await {
+                    Ok(node) => node,
+                    Err(e) => {
+                        let _ = tx
+                            .send(Err(crate::strategies::base::ReasoningError::Other(
+                                format!("Failed to get parent node: {}", e),
+                            )))
+                            .await;
+                        return;
                     }
                 },
                 None => None,
@@ -85,9 +88,11 @@ impl Strategy for BeamSearchStrategy {
                 .evaluate_thought(&node, parent_node.as_ref())
                 .await;
             if let Err(e) = self_clone.base.save_node(node.clone()).await {
-                let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
-                    format!("Failed to save node: {}", e)
-                )));
+                let _ = tx
+                    .send(Err(crate::strategies::base::ReasoningError::Other(
+                        format!("Failed to save node: {}", e),
+                    )))
+                    .await;
                 return;
             }
 
@@ -95,9 +100,11 @@ impl Strategy for BeamSearchStrategy {
             if let Some(mut parent) = parent_node {
                 parent.children.push(node.id.clone());
                 if let Err(e) = self_clone.base.save_node(parent).await {
-                    let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
-                        format!("Failed to save parent node: {}", e)
-                    )));
+                    let _ = tx
+                        .send(Err(crate::strategies::base::ReasoningError::Other(
+                            format!("Failed to save parent node: {}", e),
+                        )))
+                        .await;
                     return;
                 }
             }
@@ -150,7 +157,7 @@ impl Strategy for BeamSearchStrategy {
                 strategy_used: None, // Will be set by reasoner
             };
 
-            if let Err(_) = tx.send(Ok(response)).await {
+            if (tx.send(Ok(response)).await).is_err() {
                 // Channel closed, receiver dropped
             }
         });
@@ -168,29 +175,28 @@ impl Strategy for BeamSearchStrategy {
             // Find the deepest beam
             let max_depth = beams.keys().max().copied();
 
-            if let Some(depth) = max_depth {
-                if let Some(deepest_beam) = beams.get(&depth) {
-                    if !deepest_beam.is_empty() {
-                        // Get the best scoring node from deepest beam
-                        let best_node_id = deepest_beam
-                            .iter()
-                            .max_by(|a, b| {
-                                match a.score.partial_cmp(&b.score) {
-                                    Some(ordering) => ordering,
-                                    None => std::cmp::Ordering::Equal, // Handle NaN values
-                                }
-                            })
-                            // APPROVED BY DAVID MAPLE 09/30/2025: Panic is appropriate for logic invariant violation
-                            .expect("Deepest beam should contain at least one element")
-                            .id
-                            .clone();
+            if let Some(depth) = max_depth
+                && let Some(deepest_beam) = beams.get(&depth)
+                && !deepest_beam.is_empty()
+            {
+                // Get the best scoring node from deepest beam
+                let best_node_id = deepest_beam
+                    .iter()
+                    .max_by(|a, b| {
+                        match a.score.partial_cmp(&b.score) {
+                            Some(ordering) => ordering,
+                            None => std::cmp::Ordering::Equal, // Handle NaN values
+                        }
+                    })
+                    // APPROVED BY DAVID MAPLE 09/30/2025: Panic is appropriate for logic invariant violation
+                    .expect("Deepest beam should contain at least one element")
+                    .id
+                    .clone();
 
-                        drop(beams);
-                        let path = self_clone.base.state_manager.get_path(&best_node_id).await;
-                        let _ = tx.send(Ok(path));
-                        return;
-                    }
-                }
+                drop(beams);
+                let path = self_clone.base.state_manager.get_path(&best_node_id).await;
+                let _ = tx.send(Ok(path));
+                return;
             }
 
             let _ = tx.send(Ok(vec![]));
@@ -235,7 +241,7 @@ impl Strategy for BeamSearchStrategy {
                 .extra
                 .insert("total_beam_nodes".to_string(), total_beam_nodes.into());
 
-            if let Err(_) = tx.send(Ok(metrics)).await {
+            if (tx.send(Ok(metrics)).await).is_err() {
                 // Channel closed, receiver dropped
             }
         });

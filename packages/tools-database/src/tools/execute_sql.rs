@@ -5,9 +5,9 @@
 
 use crate::{
     DatabaseType, apply_row_limit, error::DatabaseError, split_sql_statements,
-    validate_readonly_sql, tools::timeout::execute_with_timeout,
+    tools::timeout::execute_with_timeout, validate_readonly_sql,
 };
-use base64::Engine as _;  // For base64 encoding of binary data
+use base64::Engine as _; // For base64 encoding of binary data
 use kodegen_mcp_tool::{Tool, error::McpError};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
@@ -86,7 +86,10 @@ impl ExecuteSQLTool {
                 let sql = sql_owned.clone();
                 async move { sqlx::query(&sql).fetch_all(&*pool).await }
             },
-            &format!("Executing SQL: {}", sql.chars().take(50).collect::<String>()),
+            &format!(
+                "Executing SQL: {}",
+                sql.chars().take(50).collect::<String>()
+            ),
         )
         .await?;
 
@@ -126,18 +129,23 @@ impl ExecuteSQLTool {
 
         for (index, statement) in statements.iter().enumerate() {
             // Execute each statement with timeout (no retry - statements within transactions are atomic)
-            let timeout_duration = self.config
+            let timeout_duration = self
+                .config
                 .get_value("db_query_timeout_secs")
                 .and_then(|v| match v {
-                    kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
+                    kodegen_tools_config::ConfigValue::Number(n) => {
+                        Some(Duration::from_secs(n as u64))
+                    }
                     _ => None,
                 })
                 .unwrap_or(Duration::from_secs(60));
-            
+
             let rows_result = match tokio::time::timeout(
                 timeout_duration,
-                sqlx::query(statement).fetch_all(&mut *tx)
-            ).await {
+                sqlx::query(statement).fetch_all(&mut *tx),
+            )
+            .await
+            {
                 Ok(Ok(rows)) => Ok(rows),
                 Ok(Err(e)) => Err(e),
                 Err(_) => Err(sqlx::Error::PoolTimedOut),
@@ -148,7 +156,8 @@ impl ExecuteSQLTool {
                     executed_statements += 1;
                     if !rows.is_empty() {
                         for row in &rows {
-                            let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
+                            let json_row =
+                                row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
                             all_rows.push(json_row);
                         }
                     }
@@ -156,7 +165,7 @@ impl ExecuteSQLTool {
                 Err(e) => {
                     // Rollback transaction
                     let _ = tx.rollback().await;
-                    
+
                     // Return error WITHOUT uncommitted data (transaction was rolled back)
                     return Ok(json!({
                         "success": false,
@@ -173,18 +182,27 @@ impl ExecuteSQLTool {
         }
 
         // Commit transaction with timeout (no retry - transaction commit is atomic)
-        let timeout_duration = self.config
+        let timeout_duration = self
+            .config
             .get_value("db_query_timeout_secs")
             .and_then(|v| match v {
                 kodegen_tools_config::ConfigValue::Number(n) => Some(Duration::from_secs(n as u64)),
                 _ => None,
             })
             .unwrap_or(Duration::from_secs(30));
-        
+
         match tokio::time::timeout(timeout_duration, tx.commit()).await {
-            Ok(Ok(_)) => {},
-            Ok(Err(e)) => return Err(DatabaseError::QueryError(format!("Transaction commit failed: {}", e)).into()),
-            Err(_) => return Err(DatabaseError::QueryError("Transaction commit timed out".to_string()).into()),
+            Ok(Ok(_)) => {}
+            Ok(Err(e)) => {
+                return Err(
+                    DatabaseError::QueryError(format!("Transaction commit failed: {}", e)).into(),
+                );
+            }
+            Err(_) => {
+                return Err(
+                    DatabaseError::QueryError("Transaction commit timed out".to_string()).into(),
+                );
+            }
         }
 
         Ok(json!({
@@ -197,7 +215,10 @@ impl ExecuteSQLTool {
 
     /// Execute multiple SQL statements WITHOUT transaction
     /// Continues execution on error, collecting all results and errors
-    async fn execute_multi_non_transactional(&self, statements: &[String]) -> Result<Value, McpError> {
+    async fn execute_multi_non_transactional(
+        &self,
+        statements: &[String],
+    ) -> Result<Value, McpError> {
         let mut all_rows = Vec::new();
         let mut errors = Vec::new();
         let mut executed_statements = 0;
@@ -215,7 +236,10 @@ impl ExecuteSQLTool {
                     let stmt = statement_owned.clone();
                     async move { sqlx::query(&stmt).fetch_all(&*pool).await }
                 },
-                &format!("Executing: {}", statement.chars().take(50).collect::<String>()),
+                &format!(
+                    "Executing: {}",
+                    statement.chars().take(50).collect::<String>()
+                ),
             )
             .await;
 
@@ -224,7 +248,8 @@ impl ExecuteSQLTool {
                     executed_statements += 1;
                     if !rows.is_empty() {
                         for row in &rows {
-                            let json_row = row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
+                            let json_row =
+                                row_to_json(row).map_err(|e| anyhow::anyhow!("{}", e))?;
                             all_rows.push(json_row);
                         }
                     }
@@ -258,7 +283,7 @@ impl ExecuteSQLTool {
 /// Determine if statements contain write operations requiring transaction
 fn should_use_transaction(statements: &[String], db_type: DatabaseType) -> bool {
     use crate::extract_first_keyword;
-    
+
     statements.iter().any(|stmt| {
         if let Ok(keyword) = extract_first_keyword(stmt, db_type) {
             matches!(
@@ -301,43 +326,48 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                 match row.try_get::<Option<String>, _>(ordinal) {
                     Ok(Some(s)) => Value::String(s),
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as TEXT: {}",
-                        name, e
-                    ))),
+                    Err(e) => {
+                        return Err(DatabaseError::QueryError(format!(
+                            "Failed to extract column '{}' as TEXT: {}",
+                            name, e
+                        )));
+                    }
                 }
             }
             // Integer types
-            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT" | "SERIAL" | "BIGSERIAL" => {
-                match row.try_get::<Option<i64>, _>(ordinal) {
-                    Ok(Some(v)) => json!(v),
-                    Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
+            "INTEGER" | "INT" | "INT2" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" | "MEDIUMINT"
+            | "SERIAL" | "BIGSERIAL" => match row.try_get::<Option<i64>, _>(ordinal) {
+                Ok(Some(v)) => json!(v),
+                Ok(None) => Value::Null,
+                Err(e) => {
+                    return Err(DatabaseError::QueryError(format!(
                         "Failed to extract column '{}' as INTEGER: {}",
                         name, e
-                    ))),
+                    )));
                 }
-            }
+            },
             // Boolean types
-            "BOOLEAN" | "BOOL" | "TINYINT(1)" => {
-                match row.try_get::<Option<bool>, _>(ordinal) {
-                    Ok(Some(b)) => Value::Bool(b),
-                    Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
+            "BOOLEAN" | "BOOL" | "TINYINT(1)" => match row.try_get::<Option<bool>, _>(ordinal) {
+                Ok(Some(b)) => Value::Bool(b),
+                Ok(None) => Value::Null,
+                Err(e) => {
+                    return Err(DatabaseError::QueryError(format!(
                         "Failed to extract column '{}' as BOOLEAN: {}",
                         name, e
-                    ))),
+                    )));
                 }
-            }
+            },
             // Float types
             "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "DOUBLE PRECISION" => {
                 match row.try_get::<Option<f64>, _>(ordinal) {
                     Ok(Some(v)) => json!(v),
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as FLOAT: {}",
-                        name, e
-                    ))),
+                    Err(e) => {
+                        return Err(DatabaseError::QueryError(format!(
+                            "Failed to extract column '{}' as FLOAT: {}",
+                            name, e
+                        )));
+                    }
                 }
             }
             // DECIMAL/NUMERIC - sqlx::any doesn't support these types
@@ -351,11 +381,13 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                         match row.try_get::<Option<String>, _>(ordinal) {
                             Ok(Some(s)) => Value::String(s),
                             Ok(None) => Value::Null,
-                            Err(e) => return Err(DatabaseError::QueryError(format!(
-                                "Failed to extract column '{}' as DECIMAL (tried f64 and string): {}. \
+                            Err(e) => {
+                                return Err(DatabaseError::QueryError(format!(
+                                    "Failed to extract column '{}' as DECIMAL (tried f64 and string): {}. \
                                  Consider using CAST({} AS TEXT) in your query.",
-                                name, e, name
-                            ))),
+                                    name, e, name
+                                )));
+                            }
                         }
                     }
                 }
@@ -366,14 +398,16 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                     Ok(Some(json_str)) => {
                         serde_json::from_str(&json_str).unwrap_or_else(|e| {
                             log::warn!("Failed to parse JSON column '{}': {}", name, e);
-                            Value::String(json_str)  // Fallback to raw string
+                            Value::String(json_str) // Fallback to raw string
                         })
                     }
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as JSON: {}",
-                        name, e
-                    ))),
+                    Err(e) => {
+                        return Err(DatabaseError::QueryError(format!(
+                            "Failed to extract column '{}' as JSON: {}",
+                            name, e
+                        )));
+                    }
                 }
             }
             // Binary types - encode as base64 string
@@ -387,10 +421,12 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                         })
                     }
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as BYTEA: {}",
-                        name, e
-                    ))),
+                    Err(e) => {
+                        return Err(DatabaseError::QueryError(format!(
+                            "Failed to extract column '{}' as BYTEA: {}",
+                            name, e
+                        )));
+                    }
                 }
             }
             // Date/Time types - extract as strings
@@ -398,23 +434,25 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                 match row.try_get::<Option<String>, _>(ordinal) {
                     Ok(Some(s)) => Value::String(s),
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as {}: {}",
-                        name, type_name, e
-                    ))),
+                    Err(e) => {
+                        return Err(DatabaseError::QueryError(format!(
+                            "Failed to extract column '{}' as {}: {}",
+                            name, type_name, e
+                        )));
+                    }
                 }
             }
             // UUID - extract as string
-            "UUID" => {
-                match row.try_get::<Option<String>, _>(ordinal) {
-                    Ok(Some(s)) => Value::String(s),
-                    Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
+            "UUID" => match row.try_get::<Option<String>, _>(ordinal) {
+                Ok(Some(s)) => Value::String(s),
+                Ok(None) => Value::Null,
+                Err(e) => {
+                    return Err(DatabaseError::QueryError(format!(
                         "Failed to extract column '{}' as UUID: {}",
                         name, e
-                    ))),
+                    )));
                 }
-            }
+            },
             // Fallback for unsupported types
             _ => {
                 return Err(DatabaseError::QueryError(format!(
@@ -423,7 +461,7 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                      NUMERIC, DECIMAL, JSON, JSONB, BYTEA, BLOB, TIMESTAMP, DATE, TIME, UUID. \
                      Consider casting this column in your query: CAST({} AS TEXT)",
                     type_name, name, name
-                )))
+                )));
             }
         };
 

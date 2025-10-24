@@ -7,12 +7,13 @@ use std::{convert::Infallible, net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use axum::{
+    Json, Router,
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::Sse,
     routing::{get, post},
-    Json, Router,
 };
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::oneshot;
@@ -21,14 +22,15 @@ use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
-use log::{debug, error, info, warn};
 
 use crate::service::sse::{
-    bridge::{create_invalid_request_response, validate_json_rpc_request, McpBridge, McpBridgeBuilder},
+    SseConfig,
+    bridge::{
+        McpBridge, McpBridgeBuilder, create_invalid_request_response, validate_json_rpc_request,
+    },
     encoder::SseEncoder,
     events::SseEvent,
     session::{ClientInfo, SessionManager},
-    SseConfig,
 };
 
 /// SSE server state shared across handlers
@@ -58,7 +60,7 @@ pub struct SseServer {
 
 impl SseServer {
     /// Create a new SSE server with given configuration
-    #[must_use] 
+    #[must_use]
     pub fn new(config: SseConfig) -> Self {
         Self { config }
     }
@@ -187,10 +189,10 @@ async fn handle_sse_endpoint(
     };
 
     // Create new session
-    let session = if let Some(session) = state.session_manager.create_session(client_info).await { session } else {
-        warn!(
-            "Rejected SSE connection from {remote_addr} (session limit reached)"
-        );
+    let session = if let Some(session) = state.session_manager.create_session(client_info).await {
+        session
+    } else {
+        warn!("Rejected SSE connection from {remote_addr} (session limit reached)");
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
 
@@ -228,8 +230,7 @@ async fn handle_sse_endpoint(
 
                 // Create ping event
                 let timestamp = chrono::Utc::now().to_rfc3339();
-                let ping_event =
-                    SseEvent::ping(timestamp).with_id(format!("ping-{event_counter}"));
+                let ping_event = SseEvent::ping(timestamp).with_id(format!("ping-{event_counter}"));
                 let encoded = encoder.encode(&ping_event);
                 let event = axum::response::sse::Event::default().data(encoded.trim_end());
 
@@ -256,29 +257,33 @@ async fn handle_sse_endpoint(
 async fn handle_messages_endpoint(
     State(state): State<ServerState>,
     Query(query): Query<MessagesQuery>,
-    body: String,  // Accept raw string instead of Json<Value>
+    body: String, // Accept raw string instead of Json<Value>
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     // Validate session exists
-    let session = if let Some(session) = state.session_manager.get_session(&query.session_id).await { session } else {
+    let session = if let Some(session) = state.session_manager.get_session(&query.session_id).await
+    {
+        session
+    } else {
         warn!("Message for unknown session: {}", query.session_id);
-        return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({
-            "error": "Session not found"
-        }))));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Session not found"
+            })),
+        ));
     };
 
     // Touch session to update activity
     state.session_manager.touch_session(&session.id).await;
 
     // Validate request size (DoS protection)
-    if let Err(size_error) = 
-        crate::service::sse::bridge::validation::validate_request_size(&body) 
-    {
+    if let Err(size_error) = crate::service::sse::bridge::validation::validate_request_size(&body) {
         warn!("Request size validation failed: {size_error}");
         return Err((
             StatusCode::PAYLOAD_TOO_LARGE,
             Json(serde_json::json!({
                 "error": "Request exceeds maximum size of 1MB"
-            }))
+            })),
         ));
     }
 
@@ -287,20 +292,21 @@ async fn handle_messages_endpoint(
         Ok(req) => req,
         Err(parse_error) => {
             warn!("Failed to parse JSON: {parse_error}");
-            
+
             // Try to extract ID from malformed request
             let id = crate::service::sse::bridge::validation::extract_request_id(&body);
-            
-            let error_response = 
+
+            let error_response =
                 crate::service::sse::bridge::validation::create_parse_error_response(id);
-            
+
             return Err((StatusCode::BAD_REQUEST, Json(error_response)));
         }
     };
 
     log::debug!(
         "Received message for session {}: {}",
-        query.session_id, request
+        query.session_id,
+        request
     );
 
     // Validate JSON-RPC format
@@ -315,11 +321,14 @@ async fn handle_messages_endpoint(
 
     // Forward request with appropriate handling
     let response = if is_critical {
-        state.mcp_bridge.forward_request_with_retry(
-            request,
-            state.config.mcp_max_retries,
-            Duration::from_millis(state.config.mcp_retry_delay_ms)
-        ).await
+        state
+            .mcp_bridge
+            .forward_request_with_retry(
+                request,
+                state.config.mcp_max_retries,
+                Duration::from_millis(state.config.mcp_retry_delay_ms),
+            )
+            .await
     } else {
         state.mcp_bridge.forward_request(request).await
     };
@@ -336,22 +345,33 @@ async fn handle_streaming_messages_endpoint(
 ) -> Sse<impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, Infallible>>> {
     use tokio::sync::mpsc;
     use tokio_stream::wrappers::UnboundedReceiverStream;
-    
-    log::debug!("Received streaming request for session {}", query.session_id);
-    
+
+    log::debug!(
+        "Received streaming request for session {}",
+        query.session_id
+    );
+
     // Create channel for streaming SSE events (not raw Values)
     let (tx, rx) = mpsc::unbounded_channel::<Result<axum::response::sse::Event, Infallible>>();
-    
+
     // Validate session (same as regular messages)
-    if state.session_manager.get_session(&query.session_id).await.is_none() {
-        warn!("Streaming request for unknown session: {}", query.session_id);
+    if state
+        .session_manager
+        .get_session(&query.session_id)
+        .await
+        .is_none()
+    {
+        warn!(
+            "Streaming request for unknown session: {}",
+            query.session_id
+        );
         // Return empty stream on invalid session - channel already closed
         return Sse::new(UnboundedReceiverStream::new(rx));
     }
-    
+
     // Touch session
     state.session_manager.touch_session(&query.session_id).await;
-    
+
     // Spawn forwarding task
     let bridge = state.mcp_bridge.clone();
     tokio::spawn(async move {
@@ -360,12 +380,12 @@ async fn handle_streaming_messages_endpoint(
             let event = Ok(axum::response::sse::Event::default().data(data));
             let _ = tx.send(event);
         };
-        
+
         if let Err(e) = bridge.forward_streaming_request(request, callback).await {
             error!("Streaming request failed: {e}");
         }
     });
-    
+
     Sse::new(UnboundedReceiverStream::new(rx))
 }
 
@@ -376,25 +396,23 @@ async fn handle_batch_messages_endpoint(
     body: String,
 ) -> Result<Json<Vec<Value>>, (StatusCode, String)> {
     // Validate session exists
-    let session = if let Some(session) = state.session_manager.get_session(&query.session_id).await { session } else {
+    let session = if let Some(session) = state.session_manager.get_session(&query.session_id).await
+    {
+        session
+    } else {
         warn!("Batch message for unknown session: {}", query.session_id);
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Session not found".to_string()
-        ));
+        return Err((StatusCode::BAD_REQUEST, "Session not found".to_string()));
     };
 
     // Touch session to update activity
     state.session_manager.touch_session(&session.id).await;
 
     // Validate request size
-    if let Err(size_error) = 
-        crate::service::sse::bridge::validation::validate_request_size(&body) 
-    {
+    if let Err(size_error) = crate::service::sse::bridge::validation::validate_request_size(&body) {
         warn!("Batch request size validation failed: {size_error}");
         return Err((
             StatusCode::PAYLOAD_TOO_LARGE,
-            "Batch request exceeds maximum size of 1MB".to_string()
+            "Batch request exceeds maximum size of 1MB".to_string(),
         ));
     }
 
@@ -405,27 +423,28 @@ async fn handle_batch_messages_endpoint(
             warn!("Failed to parse batch JSON: {parse_error}");
             return Err((
                 StatusCode::BAD_REQUEST,
-                format!("Invalid JSON in batch request: {parse_error}")
+                format!("Invalid JSON in batch request: {parse_error}"),
             ));
         }
     };
 
     debug!(
         "Received batch of {} requests for session {}",
-        requests.len(), query.session_id
+        requests.len(),
+        query.session_id
     );
 
     // Validate batch
-    let validation_results = 
+    let validation_results =
         crate::service::sse::bridge::validation::validate_batch_requests(&requests);
-    
+
     // Return first validation error if any exist
     for result in validation_results {
         if let Err(validation_error) = result {
             warn!("Batch validation failed: {validation_error}");
             return Err((
                 StatusCode::BAD_REQUEST,
-                format!("Batch validation failed: {validation_error}")
+                format!("Batch validation failed: {validation_error}"),
             ));
         }
     }
@@ -435,7 +454,8 @@ async fn handle_batch_messages_endpoint(
 
     debug!(
         "Returning {} responses for session {}",
-        responses.len(), query.session_id
+        responses.len(),
+        query.session_id
     );
     Ok(Json(responses))
 }
@@ -447,7 +467,7 @@ async fn handle_health_endpoint(
     let session_count = state.session_manager.session_count().await;
     let mcp_healthy = state.mcp_bridge.health_check().await.unwrap_or(false);
     let stats = state.mcp_bridge.get_forwarding_stats();
-    
+
     // Combined health: MCP reachable AND stats indicate healthy performance
     let is_healthy = mcp_healthy && stats.is_healthy();
 
@@ -470,13 +490,11 @@ async fn handle_health_endpoint(
 }
 
 /// Handle GET /metrics endpoint - performance metrics
-async fn handle_metrics_endpoint(
-    State(state): State<ServerState>,
-) -> Json<MetricsResponse> {
+async fn handle_metrics_endpoint(State(state): State<ServerState>) -> Json<MetricsResponse> {
     let conn_stats = state.mcp_bridge.get_connection_stats();
     let fwd_stats = state.mcp_bridge.get_forwarding_stats();
     let session_count = state.session_manager.session_count().await;
-    
+
     Json(MetricsResponse {
         bridge_stats: BridgeStats {
             total_requests: conn_stats.total_requests,
@@ -544,5 +562,3 @@ fn is_critical_operation(request: &Value) -> bool {
         Some("tools/call_tool" | "resources/read" | "prompts/get")
     )
 }
-
-

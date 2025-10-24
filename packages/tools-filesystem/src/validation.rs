@@ -1,8 +1,8 @@
 use kodegen_mcp_tool::error::McpError;
+use log::warn;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::time::{Duration, timeout};
-use log::warn;
 
 /// Normalize all paths consistently
 fn normalize_path(p: &str) -> String {
@@ -20,7 +20,9 @@ fn expand_home(filepath: &str) -> String {
 }
 
 /// Recursively validates parent directories until it finds a valid one
-fn validate_parent_directories(directory_path: &Path) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + '_>> {
+fn validate_parent_directories(
+    directory_path: &Path,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + '_>> {
     Box::pin(async move {
         if let Some(parent_dir) = directory_path.parent() {
             // Base case: we've reached the root
@@ -53,8 +55,8 @@ fn get_denied_dirs(config: &kodegen_tools_config::ServerConfig) -> &[String] {
 /// Returns (`is_allowed`, `restriction_reason`)
 /// `restriction_reason` is `Some(message)` if denied, `None` if allowed
 fn is_path_allowed(
-    path_to_check: &str, 
-    config: &kodegen_tools_config::ServerConfig
+    path_to_check: &str,
+    config: &kodegen_tools_config::ServerConfig,
 ) -> (bool, Option<String>) {
     let allowed_dirs = get_allowed_dirs(config);
     let denied_dirs = get_denied_dirs(config);
@@ -160,7 +162,7 @@ pub async fn validate_path(
     let validation_operation = async {
         // Get current config
         let config = config_manager.get_config();
-        
+
         // Expand home directory if present
         let expanded_path = expand_home(requested_path);
 
@@ -174,11 +176,11 @@ pub async fn validate_path(
         };
 
         // Check if path is allowed (get detailed error)
-        let (is_allowed, restriction_reason) = is_path_allowed(&absolute.to_string_lossy(), &config);
+        let (is_allowed, restriction_reason) =
+            is_path_allowed(&absolute.to_string_lossy(), &config);
         if !is_allowed {
-            let error_msg = restriction_reason.unwrap_or_else(|| {
-                format!("Path not allowed: {requested_path}")
-            });
+            let error_msg =
+                restriction_reason.unwrap_or_else(|| format!("Path not allowed: {requested_path}"));
             warn!("Path access denied: {requested_path}");
             return Err(McpError::PermissionDenied(error_msg));
         }
@@ -209,7 +211,8 @@ pub async fn validate_path(
         Duration::from_millis(PATH_VALIDATION_TIMEOUT),
         validation_operation,
     )
-    .await {
+    .await
+    {
         result
     } else {
         warn!("Path validation timeout for: {requested_path}");

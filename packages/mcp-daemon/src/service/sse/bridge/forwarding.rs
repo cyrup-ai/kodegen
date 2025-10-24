@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use futures::StreamExt;
-use serde_json::Value;
 use log::{debug, error, warn};
+use serde_json::Value;
 
 use super::core::McpBridge;
 
@@ -37,14 +37,14 @@ fn find_event_boundary(buffer: &[u8]) -> Option<(usize, usize)> {
     let lf_lf = buffer.windows(2).position(|w| w == b"\n\n");
     let crlf_crlf = buffer.windows(4).position(|w| w == b"\r\n\r\n");
     let cr_cr = buffer.windows(2).position(|w| w == b"\r\r");
-    
+
     // Find the earliest boundary
     let mut earliest: Option<(usize, usize)> = None;
-    
+
     if let Some(pos) = lf_lf {
         earliest = Some((pos, 2));
     }
-    
+
     if let Some(pos) = crlf_crlf {
         match earliest {
             None => earliest = Some((pos, 4)),
@@ -52,7 +52,7 @@ fn find_event_boundary(buffer: &[u8]) -> Option<(usize, usize)> {
             _ => {}
         }
     }
-    
+
     if let Some(pos) = cr_cr {
         match earliest {
             None => earliest = Some((pos, 2)),
@@ -60,13 +60,13 @@ fn find_event_boundary(buffer: &[u8]) -> Option<(usize, usize)> {
             _ => {}
         }
     }
-    
+
     earliest
 }
 
 impl McpBridge {
     /// Parse a complete SSE event from the buffer
-    /// 
+    ///
     /// SSE format:
     /// event: <type>
     /// data: <line1>
@@ -76,21 +76,21 @@ impl McpBridge {
     fn parse_sse_event(buffer: &mut Vec<u8>) -> Result<Option<super::super::events::SseEvent>> {
         // Look for event boundary (double newline - any SSE-compliant type)
         let boundary = find_event_boundary(buffer);
-        
+
         let (pos, boundary_len) = match boundary {
             Some((p, len)) => (p, len),
             None => return Ok(None), // Incomplete event, need more data
         };
-        
+
         // Extract complete event
         let event_bytes: Vec<u8> = buffer.drain(..pos + boundary_len).collect();
         let event_text = String::from_utf8_lossy(&event_bytes);
-        
+
         // Parse SSE fields
         let mut event_type = None;
         let mut data_lines = Vec::new();
         let mut id = None;
-        
+
         for line in event_text.lines() {
             if let Some(value) = line.strip_prefix("event: ") {
                 event_type = Some(value.trim().to_string());
@@ -101,25 +101,23 @@ impl McpBridge {
             }
             // Ignore comment lines starting with ':'
         }
-        
+
         // Reconstruct multiline data
         if data_lines.is_empty() {
             return Ok(None); // No data, skip this event
         }
-        
+
         let data = data_lines.join("\n");
-        
+
         // Convert event_type string to EventType enum if present
-        let parsed_event_type = event_type.and_then(|et| {
-            match et.as_str() {
-                "endpoint" => Some(super::super::events::EventType::Endpoint),
-                "message" => Some(super::super::events::EventType::Message),
-                "ping" => Some(super::super::events::EventType::Ping),
-                "error" => Some(super::super::events::EventType::Error),
-                _ => None,
-            }
+        let parsed_event_type = event_type.and_then(|et| match et.as_str() {
+            "endpoint" => Some(super::super::events::EventType::Endpoint),
+            "message" => Some(super::super::events::EventType::Message),
+            "ping" => Some(super::super::events::EventType::Ping),
+            "error" => Some(super::super::events::EventType::Error),
+            _ => None,
         });
-        
+
         Ok(Some(super::super::events::SseEvent {
             event_type: parsed_event_type,
             data,
@@ -134,9 +132,7 @@ impl McpBridge {
     pub async fn forward_request(&self, json_rpc_request: Value) -> Value {
         let start_time = Instant::now();
 
-        debug!(
-            "Forwarding JSON-RPC request to MCP server: {json_rpc_request}"
-        );
+        debug!("Forwarding JSON-RPC request to MCP server: {json_rpc_request}");
 
         // Validate request structure
         if let Err(validation_error) =
@@ -147,41 +143,41 @@ impl McpBridge {
         }
 
         // Validate security (path traversal, injection, nesting depth)
-        if let Err(security_error) =
-            super::validation::validate_security(&json_rpc_request)
-        {
+        if let Err(security_error) = super::validation::validate_security(&json_rpc_request) {
             error!("Security validation failed: {security_error}");
             return super::validation::create_invalid_params_response(
                 json_rpc_request.get("id").cloned(),
-                &security_error.to_string()
+                &security_error.to_string(),
             );
         }
 
         match self.send_request(json_rpc_request.clone()).await {
             Ok(mut response) => {
                 let duration = start_time.elapsed();
-                
+
                 // Validate response structure
-                if let Err(validation_error) = super::validation::validate_json_rpc_response(&response) {
+                if let Err(validation_error) =
+                    super::validation::validate_json_rpc_response(&response)
+                {
                     warn!("Invalid JSON-RPC response from MCP server: {validation_error}");
                     return super::validation::create_internal_error_response(
                         json_rpc_request.get("id").cloned(),
-                        Some(&format!("Invalid response from MCP server: {validation_error}"))
+                        Some(&format!(
+                            "Invalid response from MCP server: {validation_error}"
+                        )),
                     );
                 }
-                
+
                 // Process and normalize response
                 response = self.process_response(response, &json_rpc_request);
-                
+
                 // Validate processed response structure
                 if let Err(validation_error) = self.validate_response(&response) {
                     warn!("Processed response failed validation: {validation_error}");
                     return self.create_error_response(&json_rpc_request, validation_error);
                 }
-                
-                debug!(
-                    "Received and validated response from MCP server in {duration:?}"
-                );
+
+                debug!("Received and validated response from MCP server in {duration:?}");
 
                 // Log slow requests
                 if duration > Duration::from_millis(1000) {
@@ -198,9 +194,7 @@ impl McpBridge {
             }
             Err(error) => {
                 let duration = start_time.elapsed();
-                error!(
-                    "Failed to forward request to MCP server after {duration:?}: {error}"
-                );
+                error!("Failed to forward request to MCP server after {duration:?}: {error}");
                 self.create_error_response(&json_rpc_request, error)
             }
         }
@@ -324,11 +318,11 @@ impl McpBridge {
         response_callback: impl Fn(Value) + Send + Sync + 'static,
     ) -> Result<()> {
         debug!("Forwarding streaming request with SSE");
-        
+
         // Serialize the JSON-RPC request
         let request_body = serde_json::to_string(&json_rpc_request)
             .context("Failed to serialize JSON-RPC request")?;
-        
+
         // Make SSE-enabled POST request
         let response = self
             .client
@@ -339,7 +333,7 @@ impl McpBridge {
             .send()
             .await
             .context("Failed to send streaming request to MCP server")?;
-        
+
         // Check response status
         if !response.status().is_success() {
             let status = response.status();
@@ -347,24 +341,24 @@ impl McpBridge {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            
+
             return Err(anyhow::anyhow!(
                 "SSE request failed with status {status}: {error_body}"
             ));
         }
-        
+
         // Process SSE stream
         let mut stream = response.bytes_stream();
         let mut buffer = Vec::new();
-        
+
         // Track stream statistics
         let mut events_processed: usize = 0;
         let mut events_dropped: usize = 0;
-        
+
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.context("Failed to read chunk from SSE stream")?;
             buffer.extend_from_slice(&chunk);
-            
+
             // Check buffer size to prevent DoS attacks
             if buffer.len() > MAX_SSE_EVENT_SIZE {
                 return Err(anyhow::anyhow!(
@@ -374,7 +368,7 @@ impl McpBridge {
                     MAX_SSE_EVENT_SIZE / (1024 * 1024)
                 ));
             }
-            
+
             // Parse all complete events from buffer
             while let Some(event) = Self::parse_sse_event(&mut buffer)? {
                 // Skip ping and endpoint events, process message events
@@ -411,7 +405,7 @@ impl McpBridge {
                 }
             }
         }
-        
+
         debug!(
             "SSE stream completed. Processed {events_processed} events, dropped {events_dropped} events"
         );
@@ -419,17 +413,17 @@ impl McpBridge {
     }
 
     /// Get forwarding statistics
-    #[must_use] 
+    #[must_use]
     pub fn get_forwarding_stats(&self) -> ForwardingStats {
         let stats = self.get_connection_stats();
-        
+
         // Calculate average response time (avoid division by zero)
         let average_response_time_ms = if stats.successful_requests > 0 {
             stats.total_response_time_ms as f64 / stats.successful_requests as f64
         } else {
             0.0
         };
-        
+
         ForwardingStats {
             total_requests: stats.total_requests,
             successful_requests: stats.successful_requests,
@@ -440,7 +434,7 @@ impl McpBridge {
     }
 
     /// Process response and apply transformations if needed
-    #[must_use] 
+    #[must_use]
     pub fn process_response(&self, response: Value, original_request: &Value) -> Value {
         // Apply any necessary response transformations
         let mut processed_response = response;
@@ -525,8 +519,9 @@ impl McpBridge {
         }
 
         // SAFETY: We just checked is_object() above, so as_object() will return Some
-        let obj = response.as_object()
-            .expect("BUG: as_object() returned None after is_object() check - this should never happen");
+        let obj = response.as_object().expect(
+            "BUG: as_object() returned None after is_object() check - this should never happen",
+        );
 
         // Check for required jsonrpc field
         match obj.get("jsonrpc") {
@@ -572,7 +567,7 @@ pub struct ForwardingStats {
 
 impl ForwardingStats {
     /// Calculate success rate as percentage
-    #[must_use] 
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.total_requests == 0 {
             0.0
@@ -582,13 +577,13 @@ impl ForwardingStats {
     }
 
     /// Calculate failure rate as percentage
-    #[must_use] 
+    #[must_use]
     pub fn failure_rate(&self) -> f64 {
         100.0 - self.success_rate()
     }
 
     /// Check if performance is acceptable
-    #[must_use] 
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         self.success_rate() >= 95.0 && self.average_response_time_ms < 1000.0
     }

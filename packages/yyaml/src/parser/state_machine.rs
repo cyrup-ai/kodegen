@@ -1,8 +1,10 @@
 use crate::error::ScanError;
-use crate::events::{TokenType, TScalarStyle};
+use crate::events::{TScalarStyle, TokenType};
 use crate::linked_hash_map::LinkedHashMap;
-use crate::parser::grammar::{YamlContext, ParametricContext};
+use crate::parser::grammar::{ParametricContext, YamlContext};
 use crate::scanner::Scanner;
+use crate::semantic::tags::schema::SchemaProcessor;
+use crate::semantic::tags::types::{SchemaType, YamlType};
 use crate::yaml::Yaml;
 use std::collections::HashMap;
 
@@ -45,6 +47,8 @@ pub struct StateMachine<T: Iterator<Item = char>> {
     pub context: ParametricContext,
     yaml_version: Option<(u32, u32)>,
     tag_handles: HashMap<String, String>,
+    schema_processor: SchemaProcessor<'static>,
+    active_schema: SchemaType,
 }
 
 /// Builder for constructing Yaml AST during parsing
@@ -57,6 +61,20 @@ enum YamlBuilder {
 
 impl<T: Iterator<Item = char>> StateMachine<T> {
     pub fn new(src: T) -> Self {
+        Self::new_with_schema(src, SchemaType::Core)
+    }
+
+    pub fn new_with_schema(src: T, schema: SchemaType) -> Self {
+        let mut processor = SchemaProcessor::<'static>::new();
+        processor.set_schema(schema);
+        Self::new_with_processor(src, schema, processor)
+    }
+
+    pub fn new_with_processor(
+        src: T,
+        schema: SchemaType,
+        schema_processor: SchemaProcessor<'static>,
+    ) -> Self {
         Self {
             scanner: Scanner::new(src),
             states: Vec::new(),
@@ -72,6 +90,8 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             context: ParametricContext::new(),
             yaml_version: None,
             tag_handles: HashMap::new(),
+            schema_processor,
+            active_schema: schema,
         }
     }
 
@@ -81,6 +101,100 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     pub fn pop_indent(&mut self) {
         self.indents.pop();
+    }
+
+    /// Get the schema type configured for this parser
+    #[must_use]
+    pub fn schema(&self) -> SchemaType {
+        self.active_schema
+    }
+
+    fn resolve_plain_scalar(&mut self, value: &str) -> Yaml {
+        Self::convert_scalar(&mut self.schema_processor, value)
+    }
+
+    fn resolve_tagged_scalar(&mut self, handle: &str, suffix: &str, value: &str) -> Yaml {
+        if handle == "!!" {
+            match suffix {
+                "bool" => match value.parse::<bool>() {
+                    Ok(b) => Yaml::Boolean(b),
+                    Err(_) => Yaml::BadValue,
+                },
+                "int" => match value.parse::<i64>() {
+                    Ok(i) => Yaml::Integer(i),
+                    Err(_) => Yaml::BadValue,
+                },
+                "float" => match value.parse::<f64>() {
+                    Ok(_) => Yaml::Real(value.to_string()),
+                    Err(_) => Yaml::BadValue,
+                },
+                "null" => {
+                    if value == "~" || value.eq_ignore_ascii_case("null") {
+                        Yaml::Null
+                    } else {
+                        Yaml::BadValue
+                    }
+                }
+                _ => Yaml::String(value.to_string()),
+            }
+        } else {
+            let tag_name = if handle.is_empty() {
+                suffix.to_string()
+            } else {
+                format!("{}{}", handle, suffix)
+            };
+            let inner_value = Self::convert_scalar(&mut self.schema_processor, value);
+            Yaml::Tagged(tag_name, Box::new(inner_value))
+        }
+    }
+
+    fn convert_scalar(processor: &mut SchemaProcessor<'static>, raw: &str) -> Yaml {
+        let trimmed = raw.trim();
+
+        if trimmed.len() >= 2
+            && ((trimmed.starts_with('"') && trimmed.ends_with('"'))
+                || (trimmed.starts_with('\'') && trimmed.ends_with('\'')))
+        {
+            return Yaml::String(trimmed[1..trimmed.len() - 1].to_string());
+        }
+
+        match processor.infer_scalar_type(trimmed) {
+            YamlType::Null => Yaml::Null,
+            YamlType::Bool => match trimmed.to_ascii_lowercase().as_str() {
+                "true" | "yes" | "on" => Yaml::Boolean(true),
+                "false" | "no" | "off" => Yaml::Boolean(false),
+                _ => Yaml::String(trimmed.to_string()),
+            },
+            YamlType::Int => trimmed
+                .parse::<i64>()
+                .map(Yaml::Integer)
+                .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+            YamlType::Float => match trimmed.to_ascii_lowercase().as_str() {
+                ".inf" | "+.inf" => Yaml::Real("+.inf".to_string()),
+                "-.inf" => Yaml::Real("-.inf".to_string()),
+                ".nan" => Yaml::Real(".nan".to_string()),
+                _ => trimmed
+                    .parse::<f64>()
+                    .map(|f| Yaml::Real(f.to_string()))
+                    .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+            },
+            YamlType::Seq | YamlType::Map => Yaml::String(trimmed.to_string()),
+            YamlType::Str
+            | YamlType::Unknown
+            | YamlType::Custom(_)
+            | YamlType::Binary
+            | YamlType::Timestamp => Yaml::String(trimmed.to_string()),
+            YamlType::Pairs
+            | YamlType::Set
+            | YamlType::Omap
+            | YamlType::Merge
+            | YamlType::Value => Yaml::String(trimmed.to_string()),
+        }
+    }
+
+    fn switch_schema(&mut self, schema: SchemaType) {
+        self.schema_processor.set_schema(schema);
+        self.active_schema = schema;
     }
 
     pub fn pop_state(&mut self) {
@@ -102,7 +216,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                     self.add_mapping_pair(yaml);
                 }
             }
-            
+
             // Check if we're leaving a context scope
             match (self.state, state) {
                 (State::FlowSequenceEntry, State::BlockNode)
@@ -151,8 +265,11 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             State::DocumentStart => {
                 self.handle_document_start();
                 Ok(())
-            },
-            State::DocumentContent => { self.handle_document_content(); Ok(()) },
+            }
+            State::DocumentContent => {
+                self.handle_document_content();
+                Ok(())
+            }
             State::DocumentEnd => self.handle_document_end(),
             State::NextDocument => self.handle_next_document(),
             State::BlockNode => self.handle_block_content_with_structure(),
@@ -225,17 +342,19 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
                             if matches!(next_token.1, TokenType::Value) {
                                 // This is a mapping key
-                                let key = Yaml::parse_str(value);
-                                
+                                let key = Self::convert_scalar(&mut self.schema_processor, value);
+
                                 // Check if we already have a mapping in progress
-                                if let Some(YamlBuilder::Mapping(_, current_key)) = self.ast_stack.last_mut()
-                                    && current_key.is_none() {
-                                        // We have a mapping waiting for a key
-                                        *current_key = Some(key);
-                                        self.state = State::BlockMappingValue;
-                                        return Ok(());
-                                    }
-                                
+                                if let Some(YamlBuilder::Mapping(_, current_key)) =
+                                    self.ast_stack.last_mut()
+                                    && current_key.is_none()
+                                {
+                                    // We have a mapping waiting for a key
+                                    *current_key = Some(key);
+                                    self.state = State::BlockMappingValue;
+                                    return Ok(());
+                                }
+
                                 // No mapping in progress, create a new one
                                 self.ast_stack
                                     .push(YamlBuilder::Mapping(LinkedHashMap::new(), Some(key)));
@@ -243,7 +362,10 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                                 return Ok(());
                             } else {
                                 // Just a scalar value
-                                Yaml::parse_str(value)
+                                let scalar = Self::convert_scalar(&mut self.schema_processor, value);
+                                self.push_yaml(scalar);
+                                self.pop_state();
+                                return Ok(());
                             }
                         }
                     };
@@ -329,12 +451,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         }
     }
 
-    
-
-    
-
-    
-
     fn handle_block_mapping_first_key(&mut self) -> Result<(), ScanError> {
         // Block mapping key uses BLOCK-KEY context at n+1
         let n = self.context.current_indent();
@@ -353,7 +469,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         match &token.1 {
             TokenType::Scalar(_, value) => {
                 self.scanner.fetch_token();
-                let key = Yaml::parse_str(value);
+                let key = Self::convert_scalar(&mut self.schema_processor, value);
                 if let Some(YamlBuilder::Mapping(_, current_key)) = self.ast_stack.last_mut() {
                     *current_key = Some(key);
                 }
@@ -417,7 +533,8 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
                 // Use EXISTING calculate_block_indent method from ParametricContext
                 let value_indent = self.context.calculate_block_indent(key_indent, 1); // n+1 minimum
-                self.context.push_context(YamlContext::BlockIn, value_indent);
+                self.context
+                    .push_context(YamlContext::BlockIn, value_indent);
 
                 // Handle tags and other tokens after the colon
                 loop {
@@ -433,7 +550,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                         TokenType::Scalar(style, value) => {
                             // Consume the scalar first
                             self.scanner.fetch_token();
-                            
+
                             // Check what token follows this scalar
                             let next_token = self.scanner.peek_token()?;
 
@@ -444,10 +561,15 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                                 self.tag_stack.push(saved_tag);
 
                                 // Create a new mapping and add this key to it
-                                let key = Yaml::parse_str(value);
+                                let key = Self::convert_scalar(&mut self.schema_processor, value);
                                 let nested_map = crate::linked_hash_map::LinkedHashMap::new();
 
-                                self.ast_stack.push(crate::parser::state_machine::YamlBuilder::Mapping(nested_map, Some(key)));
+                                self.ast_stack.push(
+                                    crate::parser::state_machine::YamlBuilder::Mapping(
+                                        nested_map,
+                                        Some(key),
+                                    ),
+                                );
                                 self.context.increment_depth()?;
                                 self.push_state(State::BlockMappingKey);
                                 self.state = State::BlockMappingValue; // Parse the value for this key
@@ -463,7 +585,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                                 }
                                 _ => {
                                     // Handle other scalar styles with existing logic
-                                    Yaml::parse_str(value)
+                                    Self::convert_scalar(&mut self.schema_processor, value)
                                 }
                             };
 
@@ -515,19 +637,26 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                 break;
             }
             let this_indent = peeked;
-            if key_indent.is_none() {
+            if let Some(expected_indent) = key_indent {
+                if this_indent != expected_indent {
+                    return Err(ScanError::new(
+                        self.scanner.mark(),
+                        "All block mapping entries must have the same indentation",
+                    ));
+                }
+            } else {
                 key_indent = Some(this_indent);
-                self.context.push_context(YamlContext::BlockKey, this_indent as i32);
+                self.context
+                    .push_context(YamlContext::BlockKey, this_indent as i32);
                 has_entries = true;
-            } else if this_indent != key_indent.unwrap() {
-                return Err(ScanError::new(self.scanner.mark(), "All block mapping entries must have the same indentation"));
             }
             // Consume the indentation
             for _ in 0..this_indent {
                 self.scanner.consume_char()?;
             }
             self.handle_parametric_block_mapping_entry(&mut map, this_indent)?;
-            self.scanner.process_structural_separation(&mut self.context, this_indent as i32)?;
+            self.scanner
+                .process_structural_separation(&mut self.context, this_indent as i32)?;
         }
         if has_entries {
             self.context.pop_context();
@@ -536,7 +665,11 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         Ok(())
     }
 
-    fn handle_parametric_block_mapping_entry(&mut self, map: &mut LinkedHashMap<Yaml, Yaml>, key_indent: usize) -> Result<(), ScanError> {
+    fn handle_parametric_block_mapping_entry(
+        &mut self,
+        map: &mut LinkedHashMap<Yaml, Yaml>,
+        key_indent: usize,
+    ) -> Result<(), ScanError> {
         let token_pos = self.scanner.mark();
         let token = self.scanner.peek_token()?;
         let key_yaml = match &token.1 {
@@ -558,14 +691,21 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                 self.scanner.fetch_token(); // consume :
                 Yaml::Null
             }
-            _ => return Err(ScanError::new(token_pos, "Invalid start of block mapping entry")),
+            _ => {
+                return Err(ScanError::new(
+                    token_pos,
+                    "Invalid start of block mapping entry",
+                ));
+            }
         };
         // Common value parsing after key and colon
-        self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+        self.scanner
+            .process_structural_separation(&mut self.context, key_indent as i32)?;
         let _value_pos = self.scanner.mark();
         let value_indent = self.scanner.peek_line_indent()?;
         let value_yaml = if value_indent > key_indent {
-            self.context.push_context(YamlContext::BlockIn, value_indent as i32);
+            self.context
+                .push_context(YamlContext::BlockIn, value_indent as i32);
             let vy = self.parse_node_in_context(YamlContext::BlockIn, value_indent)?;
             self.context.pop_context();
             vy
@@ -576,22 +716,30 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         Ok(())
     }
 
-        fn handle_colon_after_key(&mut self, key_indent: usize, expected_msg: &str) -> Result<(), ScanError> {
-        if let Ok(next_token) = self.scanner.peek_token() {
-            if matches!(&next_token.1, TokenType::Value) {
-                self.scanner.fetch_token();
-                return Ok(());
-            }
+    fn handle_colon_after_key(
+        &mut self,
+        key_indent: usize,
+        expected_msg: &str,
+    ) -> Result<(), ScanError> {
+        if let Ok(next_token) = self.scanner.peek_token()
+            && matches!(&next_token.1, TokenType::Value)
+        {
+            self.scanner.fetch_token();
+            return Ok(());
         }
         // Block colon on next line
-        self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+        self.scanner
+            .process_structural_separation(&mut self.context, key_indent as i32)?;
         let colon_pos = self.scanner.mark();
         let colon_indent = self.scanner.peek_line_indent()?;
         if colon_indent != key_indent {
-            return Err(ScanError::new(colon_pos, &format!(
-                "{} (expected indent {}, found {})", 
-                expected_msg, key_indent, colon_indent
-            )));
+            return Err(ScanError::new(
+                colon_pos,
+                &format!(
+                    "{} (expected indent {}, found {})",
+                    expected_msg, key_indent, colon_indent
+                ),
+            ));
         }
         for _ in 0..key_indent {
             self.scanner.consume_char()?;
@@ -604,7 +752,11 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
         Ok(())
     }
 
-fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Yaml, ScanError> {
+    fn parse_node_in_context(
+        &mut self,
+        ctx: YamlContext,
+        indent: usize,
+    ) -> Result<Yaml, ScanError> {
         let saved_state = self.state;
         let saved_ast_len = self.ast_stack.len();
         let saved_context_len = self.context.context_stack.len();
@@ -642,7 +794,8 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
     fn handle_flow_sequence_first_entry(&mut self) -> Result<(), ScanError> {
         // Flow sequence switches to FLOW-IN context
         let current_indent = self.context.current_indent();
-        self.context.push_context(YamlContext::FlowIn, current_indent);
+        self.context
+            .push_context(YamlContext::FlowIn, current_indent);
 
         self.state = State::FlowSequenceEntry;
         Ok(())
@@ -703,9 +856,9 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
                             &self.context,
                             self.context.current_indent(),
                         )?;
-                        Yaml::String(parsed)
+                        Self::convert_scalar(&mut self.schema_processor, &parsed)
                     }
-                    _ => Yaml::parse_str(value), // Fallback for other styles
+                    _ => Self::convert_scalar(&mut self.schema_processor, value), // Schema-aware fallback
                 };
 
                 if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
@@ -768,9 +921,9 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
                     }
                     TScalarStyle::Plain => {
                         // Use token value directly to avoid re-parsing
-                        Yaml::String(value.clone())
+                        Self::convert_scalar(&mut self.schema_processor, value)
                     }
-                    _ => Yaml::parse_str(value), // Fallback for other styles
+                    _ => Self::convert_scalar(&mut self.schema_processor, value), // Schema-aware fallback
                 };
 
                 if let Some(YamlBuilder::Mapping(_, current_key)) = self.ast_stack.last_mut() {
@@ -819,9 +972,9 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
                             }
                             TScalarStyle::Plain => {
                                 // Use token value directly - scanner already parsed correctly
-                                Yaml::String(value.clone())
+                                Self::convert_scalar(&mut self.schema_processor, value)
                             }
-                            _ => Yaml::parse_str(value), // Fallback for other styles
+                            _ => Self::convert_scalar(&mut self.schema_processor, value), // Schema-aware fallback
                         };
 
                         self.add_mapping_pair(yaml_value);
@@ -976,12 +1129,18 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
         if major != 1 || (minor != 1 && minor != 2) {
             return Err(ScanError::new(
                 self.scanner.mark(),
-                &format!("Unsupported YAML version: {}.{}", major, minor)
+                &format!("Unsupported YAML version: {}.{}", major, minor),
             ));
         }
 
         // Store for document processing
         self.yaml_version = Some((major, minor));
+        let new_schema = if (major, minor) >= (1, 2) {
+            SchemaType::Core
+        } else {
+            SchemaType::Failsafe
+        };
+        self.switch_schema(new_schema);
         Ok(())
     }
 
@@ -992,29 +1151,33 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
         Ok(())
     }
 
-fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
-    if handle == "!!" {
-        format!("tag:yaml.org,2002:{}", suffix)
-    } else if handle == "!" {
-        format!("!{}", suffix)
-    } else if let Some(prefix) = self.tag_handles.get(handle) {
-        format!("{}{}", prefix, suffix)
-    } else {
-        format!("{}{}", handle, suffix)
+    fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
+        if handle == "!!" {
+            format!("tag:yaml.org,2002:{}", suffix)
+        } else if handle == "!" {
+            format!("!{}", suffix)
+        } else if let Some(prefix) = self.tag_handles.get(handle) {
+            format!("{}{}", prefix, suffix)
+        } else {
+            format!("{}{}", handle, suffix)
+        }
     }
-}
 
     fn handle_parametric_block_sequence(&mut self) -> Result<(), ScanError> {
         let n = self.context.current_indent();
         let entry_indent = (n + 1) as usize;
-        self.context.push_context(YamlContext::BlockIn, entry_indent as i32);
+        self.context
+            .push_context(YamlContext::BlockIn, entry_indent as i32);
         loop {
             let peeked_indent = self.scanner.peek_line_indent()?;
             if peeked_indent < entry_indent {
                 break;
             }
             if peeked_indent != entry_indent {
-                return Err(ScanError::new(self.scanner.mark(), "Invalid indentation for sequence entry"));
+                return Err(ScanError::new(
+                    self.scanner.mark(),
+                    "Invalid indentation for sequence entry",
+                ));
             }
             for _ in 0..entry_indent {
                 self.scanner.consume_char()?;
@@ -1024,10 +1187,14 @@ fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
             if !matches!(token.1, TokenType::BlockEntry) {
                 return Err(ScanError::new(token.0, "Expected - for sequence entry"));
             }
-            self.scanner.process_structural_separation(&mut self.context, entry_indent as i32)?;
+            self.scanner
+                .process_structural_separation(&mut self.context, entry_indent as i32)?;
             let next_token = self.scanner.peek_token()?;
             match next_token.1 {
-                TokenType::Scalar(_, _) | TokenType::FlowSequenceStart | TokenType::FlowMappingStart | TokenType::Key => {
+                TokenType::Scalar(_, _)
+                | TokenType::FlowSequenceStart
+                | TokenType::FlowMappingStart
+                | TokenType::Key => {
                     // Compact
                     self.handle_block_node()?;
                 }
@@ -1035,7 +1202,8 @@ fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
                     // Not compact
                     let value_indent = self.scanner.peek_line_indent()?;
                     if value_indent > entry_indent {
-                        self.context.push_context(YamlContext::BlockIn, value_indent as i32);
+                        self.context
+                            .push_context(YamlContext::BlockIn, value_indent as i32);
                         self.handle_block_node()?;
                         self.context.pop_context();
                     } else {
@@ -1099,8 +1267,6 @@ fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

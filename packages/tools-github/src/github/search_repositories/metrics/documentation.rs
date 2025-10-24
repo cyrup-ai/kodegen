@@ -16,7 +16,10 @@ pub(crate) async fn collect_documentation_metrics(
 
     let mut docs_files_count = 0u32;
     if has_docs_folder {
-        for entry in WalkDir::new(&docs_dir).into_iter().filter_map(std::result::Result::ok) {
+        for entry in WalkDir::new(&docs_dir)
+            .into_iter()
+            .filter_map(std::result::Result::ok)
+        {
             if entry.file_type().is_file() {
                 let path = entry.path();
                 if let Some(ext) = path.extension()

@@ -3,8 +3,11 @@
 //! This module provides high-level Git management for release workflows,
 //! coordinating commits, tags, pushes, and rollbacks.
 
-use crate::error::{Result, GitError};
-use crate::git::{GitOperations, KodegenGitOperations, CommitInfo, TagInfo, PushInfo, BranchInfo, ValidationResult};
+use crate::error::{GitError, Result};
+use crate::git::{
+    BranchInfo, CommitInfo, GitOperations, KodegenGitOperations, PushInfo, TagInfo,
+    ValidationResult,
+};
 use semver::Version;
 use std::path::Path;
 
@@ -124,7 +127,7 @@ impl GitManager {
     }
 
     /// Perform a complete automated release operation
-    /// 
+    ///
     /// This method handles the full release workflow from ANY starting state:
     /// 1. Commits any uncommitted work on the current branch (never leaves work dirty)
     /// 2. Switches to main branch
@@ -134,7 +137,11 @@ impl GitManager {
     /// 6. Creates version tag
     /// 7. Pushes release branch with tags to remote (if requested)
     /// 8. ALWAYS returns to main branch (using checkout, never reset)
-    pub async fn perform_release(&mut self, version: &Version, push_to_remote: bool) -> Result<ReleaseResult> {
+    pub async fn perform_release(
+        &mut self,
+        version: &Version,
+        push_to_remote: bool,
+    ) -> Result<ReleaseResult> {
         let start_time = std::time::Instant::now();
 
         // Step 1: Save starting state - record current branch name
@@ -145,7 +152,11 @@ impl GitManager {
         // This ensures we NEVER have uncommitted changes that could be lost
         let is_clean = self.repository.is_working_directory_clean().await?;
         if !is_clean {
-            match self.repository.commit_all_changes("WIP: Auto-commit before release").await {
+            match self
+                .repository
+                .commit_all_changes("WIP: Auto-commit before release")
+                .await
+            {
                 Ok(_wip_commit) => {
                     // WIP committed successfully
                 }
@@ -154,7 +165,8 @@ impl GitManager {
                     let _ = self.repository.checkout_branch("main").await;
                     return Err(GitError::CommitFailed {
                         reason: format!("Failed to commit work-in-progress: {}", e),
-                    }.into());
+                    }
+                    .into());
                 }
             }
         }
@@ -164,19 +176,26 @@ impl GitManager {
             let _ = self.repository.checkout_branch("main").await;
             return Err(GitError::BranchOperationFailed {
                 reason: format!("Failed to checkout main branch: {}", e),
-            }.into());
+            }
+            .into());
         }
 
         // Step 4: Merge work from original branch (ONLY if not already on main AND not a release branch)
         // Release branches (starting with 'v') should NOT be merged back into main
         let is_release_branch = original_branch_name.starts_with('v');
-        if original_branch_name != "main" && !is_release_branch
-            && let Err(e) = self.repository.merge_branch(&original_branch_name).await {
-                let _ = self.repository.checkout_branch("main").await;
-                return Err(GitError::BranchOperationFailed {
-                    reason: format!("Failed to merge branch '{}' into main: {}", original_branch_name, e),
-                }.into());
+        if original_branch_name != "main"
+            && !is_release_branch
+            && let Err(e) = self.repository.merge_branch(&original_branch_name).await
+        {
+            let _ = self.repository.checkout_branch("main").await;
+            return Err(GitError::BranchOperationFailed {
+                reason: format!(
+                    "Failed to merge branch '{}' into main: {}",
+                    original_branch_name, e
+                ),
             }
+            .into());
+        }
 
         // Step 5: Create release branch matching the bumped version
         let release_branch = match self.repository.create_release_branch(version).await {
@@ -185,32 +204,43 @@ impl GitManager {
                 let _ = self.repository.checkout_branch("main").await;
                 return Err(GitError::BranchOperationFailed {
                     reason: format!("Failed to create release branch: {}", e),
-                }.into());
+                }
+                .into());
             }
         };
 
         // Step 6: Commit version changes on release branch
         let commit_message = self.generate_commit_message(version);
-        let commit = match self.repository.create_release_commit(version, Some(commit_message)).await {
+        let commit = match self
+            .repository
+            .create_release_commit(version, Some(commit_message))
+            .await
+        {
             Ok(c) => c,
             Err(e) => {
                 let _ = self.repository.checkout_branch("main").await;
                 return Err(GitError::CommitFailed {
                     reason: format!("Failed to create release commit: {}", e),
-                }.into());
+                }
+                .into());
             }
         };
         self.release_state.release_commit = Some(commit.clone());
 
         // Step 7: Create version tag on release branch
         let tag_message = self.generate_tag_message(version);
-        let tag = match self.repository.create_version_tag(version, Some(tag_message)).await {
+        let tag = match self
+            .repository
+            .create_version_tag(version, Some(tag_message))
+            .await
+        {
             Ok(t) => t,
             Err(e) => {
                 let _ = self.repository.checkout_branch("main").await;
                 return Err(GitError::CommitFailed {
                     reason: format!("Failed to create version tag: {}", e),
-                }.into());
+                }
+                .into());
             }
         };
         self.release_state.release_tag = Some(tag.clone());
@@ -218,7 +248,11 @@ impl GitManager {
         // Step 8: Push release branch with tags to remote (if requested)
         let release_branch_push_info = if push_to_remote {
             let branch_name = format!("v{}", version);
-            match self.repository.push_branch_with_tags(&branch_name, Some(&self.config.default_remote)).await {
+            match self
+                .repository
+                .push_branch_with_tags(&branch_name, Some(&self.config.default_remote))
+                .await
+            {
                 Ok(push_info) => {
                     self.release_state.tags_pushed = true;
                     Some(push_info)
@@ -226,8 +260,12 @@ impl GitManager {
                 Err(e) => {
                     let _ = self.repository.checkout_branch("main").await;
                     return Err(GitError::PushFailed {
-                        reason: format!("Failed to push release branch: {}. Local changes preserved.", e),
-                    }.into());
+                        reason: format!(
+                            "Failed to push release branch: {}. Local changes preserved.",
+                            e
+                        ),
+                    }
+                    .into());
                 }
             }
         } else {
@@ -243,7 +281,7 @@ impl GitManager {
             version: version.clone(),
             commit,
             tag,
-            push_info: None,  // No longer pushing main branch separately
+            push_info: None, // No longer pushing main branch separately
             release_branch,
             release_branch_push_info,
             duration,
@@ -253,14 +291,16 @@ impl GitManager {
     /// Push main branch to remote (without tags)
     #[allow(dead_code)]
     async fn push_main_branch(&self) -> Result<PushInfo> {
-        self.repository.push_to_remote(
-            Some(&self.config.default_remote),
-            false,  // Don't push tags yet - tags will be pushed with release branch
-        ).await
+        self.repository
+            .push_to_remote(
+                Some(&self.config.default_remote),
+                false, // Don't push tags yet - tags will be pushed with release branch
+            )
+            .await
     }
 
     /// Rollback a release operation
-    /// 
+    ///
     /// SAFE ROLLBACK: Only deletes tags, never uses git reset
     /// All work is preserved in commits - nothing is destroyed
     pub async fn rollback_release(&mut self) -> Result<RollbackResult> {
@@ -273,16 +313,20 @@ impl GitManager {
 
         // 1. Delete remote tag if it was pushed
         if self.release_state.tags_pushed
-            && let Some(ref tag_info) = self.release_state.release_tag {
-                match self.repository.delete_tag(&tag_info.name, true).await {
-                    Ok(()) => {
-                        rolled_back_operations.push(format!("Deleted remote tag {}", tag_info.name));
-                    }
-                    Err(e) => {
-                        warnings.push(format!("Failed to delete remote tag {}: {}", tag_info.name, e));
-                    }
+            && let Some(ref tag_info) = self.release_state.release_tag
+        {
+            match self.repository.delete_tag(&tag_info.name, true).await {
+                Ok(()) => {
+                    rolled_back_operations.push(format!("Deleted remote tag {}", tag_info.name));
+                }
+                Err(e) => {
+                    warnings.push(format!(
+                        "Failed to delete remote tag {}: {}",
+                        tag_info.name, e
+                    ));
                 }
             }
+        }
 
         // 2. Delete local tag
         if let Some(ref tag_info) = self.release_state.release_tag {
@@ -291,7 +335,10 @@ impl GitManager {
                     rolled_back_operations.push(format!("Deleted local tag {}", tag_info.name));
                 }
                 Err(e) => {
-                    warnings.push(format!("Failed to delete local tag {}: {}", tag_info.name, e));
+                    warnings.push(format!(
+                        "Failed to delete local tag {}: {}",
+                        tag_info.name, e
+                    ));
                     success = false;
                 }
             }
@@ -324,7 +371,7 @@ impl GitManager {
     #[allow(dead_code)]
     async fn validate_for_release(&self) -> Result<()> {
         let validation = self.repository.validate_release_readiness().await?;
-        
+
         if !validation.is_ready {
             return Err(GitError::DirtyWorkingDirectory.into());
         }
@@ -410,7 +457,7 @@ impl GitManager {
     pub async fn create_backup_point(&mut self) -> Result<BackupPoint> {
         let current_branch = self.repository.get_current_branch().await?;
         let recent_commits = self.repository.get_recent_commits(5).await?;
-        
+
         Ok(BackupPoint {
             branch_name: current_branch.name,
             commit_hash: current_branch.commit_hash,
@@ -420,7 +467,7 @@ impl GitManager {
     }
 
     /// Restore from a backup point
-    /// 
+    ///
     /// SAFE RESTORE: Checks out the branch instead of using destructive reset
     /// All work is preserved - this just switches to the backup branch
     pub async fn restore_from_backup(&self, backup: &BackupPoint) -> Result<()> {
@@ -477,22 +524,40 @@ impl ReleaseResult {
     /// Format result for display
     pub fn format_result(&self) -> String {
         let mut result = format!("🎉 Release v{} completed successfully!\n", self.version);
-        result.push_str(&format!("📦 Commit: {} ({})\n", self.commit.short_hash, self.commit.message));
-        result.push_str(&format!("🌿 Release Branch: {}\n", self.release_branch.name));
-        result.push_str(&format!("🏷️  Tag: {} (on branch {})\n", self.tag.name, self.release_branch.name));
+        result.push_str(&format!(
+            "📦 Commit: {} ({})\n",
+            self.commit.short_hash, self.commit.message
+        ));
+        result.push_str(&format!(
+            "🌿 Release Branch: {}\n",
+            self.release_branch.name
+        ));
+        result.push_str(&format!(
+            "🏷️  Tag: {} (on branch {})\n",
+            self.tag.name, self.release_branch.name
+        ));
 
         if let Some(ref push_info) = self.push_info {
-            result.push_str(&format!("📤 Pushed main to {}: {} commits\n",
-                push_info.remote_name, push_info.commits_pushed));
+            result.push_str(&format!(
+                "📤 Pushed main to {}: {} commits\n",
+                push_info.remote_name, push_info.commits_pushed
+            ));
         }
 
         if let Some(ref branch_push_info) = self.release_branch_push_info {
-            result.push_str(&format!("📤 Pushed {} to {}: {} commits, {} tags\n",
-                self.release_branch.name, branch_push_info.remote_name,
-                branch_push_info.commits_pushed, branch_push_info.tags_pushed));
+            result.push_str(&format!(
+                "📤 Pushed {} to {}: {} commits, {} tags\n",
+                self.release_branch.name,
+                branch_push_info.remote_name,
+                branch_push_info.commits_pushed,
+                branch_push_info.tags_pushed
+            ));
         }
 
-        result.push_str(&format!("⏱️  Duration: {:.2}s\n", self.duration.as_secs_f64()));
+        result.push_str(&format!(
+            "⏱️  Duration: {:.2}s\n",
+            self.duration.as_secs_f64()
+        ));
 
         result
     }
@@ -503,23 +568,26 @@ impl RollbackResult {
     pub fn format_result(&self) -> String {
         let status = if self.success { "✅" } else { "⚠️" };
         let mut result = format!("{} Rollback completed\n", status);
-        
+
         if !self.rolled_back_operations.is_empty() {
             result.push_str("🔄 Operations rolled back:\n");
             for op in &self.rolled_back_operations {
                 result.push_str(&format!("  - {}\n", op));
             }
         }
-        
+
         if !self.warnings.is_empty() {
             result.push_str("⚠️  Warnings:\n");
             for warning in &self.warnings {
                 result.push_str(&format!("  - {}\n", warning));
             }
         }
-        
-        result.push_str(&format!("⏱️  Duration: {:.2}s\n", self.duration.as_secs_f64()));
-        
+
+        result.push_str(&format!(
+            "⏱️  Duration: {:.2}s\n",
+            self.duration.as_secs_f64()
+        ));
+
         result
     }
 }
@@ -527,9 +595,17 @@ impl RollbackResult {
 impl RepositoryStats {
     /// Format stats for display
     pub fn format_stats(&self) -> String {
-        let clean_status = if self.is_clean { "✅ Clean" } else { "❌ Dirty" };
-        let upstream_status = if self.has_upstream { "✅ Has upstream" } else { "⚠️ No upstream" };
-        
+        let clean_status = if self.is_clean {
+            "✅ Clean"
+        } else {
+            "❌ Dirty"
+        };
+        let upstream_status = if self.has_upstream {
+            "✅ Has upstream"
+        } else {
+            "⚠️ No upstream"
+        };
+
         format!(
             "📊 Repository Stats:\n\
              Branch: {} ({})\n\

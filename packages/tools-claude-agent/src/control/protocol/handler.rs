@@ -1,9 +1,9 @@
 //! Protocol handler for managing control protocol communication
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use tokio::sync::{Mutex, mpsc, oneshot};
 
 use crate::error::{ClaudeError, Result};
 use crate::types::hooks::HookEvent;
@@ -11,9 +11,7 @@ use crate::types::identifiers::RequestId;
 use crate::types::permissions::{PermissionRequest, PermissionResult};
 
 use super::capabilities::ClientCapabilities;
-use super::messages::{
-    ControlMessage, ControlRequest, ControlResponse, InitRequest, InitResponse,
-};
+use super::messages::{ControlMessage, ControlRequest, ControlResponse, InitRequest, InitResponse};
 
 /// Pending request awaiting response
 struct PendingRequest {
@@ -49,7 +47,10 @@ impl ProtocolHandler {
     }
 
     /// Set hook callback channel
-    pub fn set_hook_channel(&mut self, tx: mpsc::UnboundedSender<(String, HookEvent, serde_json::Value)>) {
+    pub fn set_hook_channel(
+        &mut self,
+        tx: mpsc::UnboundedSender<(String, HookEvent, serde_json::Value)>,
+    ) {
         self.hook_tx = Some(tx);
     }
 
@@ -171,7 +172,11 @@ impl ProtocolHandler {
                 }
                 Ok(())
             }
-            ControlResponse::Hook { id, event, event_data } => {
+            ControlResponse::Hook {
+                id,
+                event,
+                event_data,
+            } => {
                 if let Some(ref tx) = self.hook_tx {
                     // Default to empty object if no event data provided
                     let data = event_data.clone().unwrap_or_else(|| serde_json::json!({}));
@@ -193,9 +198,7 @@ impl ProtocolHandler {
     /// Create interrupt request
     #[must_use]
     pub fn create_interrupt_request(&self) -> ControlRequest {
-        ControlRequest::Interrupt {
-            id: self.next_id(),
-        }
+        ControlRequest::Interrupt { id: self.next_id() }
     }
 
     /// Create send message request

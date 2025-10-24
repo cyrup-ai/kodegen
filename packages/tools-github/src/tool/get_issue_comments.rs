@@ -1,12 +1,12 @@
 //! GitHub issue comments retrieval tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use futures::StreamExt;
 use anyhow;
+use futures::StreamExt;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 /// Tool for fetching all comments on a GitHub issue
 #[derive(Clone)]
@@ -17,10 +17,10 @@ pub struct GetIssueCommentsTool;
 pub struct GetIssueCommentsArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Issue number to fetch comments for
     pub issue_number: u64,
 }
@@ -32,75 +32,71 @@ pub struct GetIssueCommentsPromptArgs {}
 impl Tool for GetIssueCommentsTool {
     type Args = GetIssueCommentsArgs;
     type PromptArgs = GetIssueCommentsPromptArgs;
-    
+
     fn name() -> &'static str {
         "get_issue_comments"
     }
-    
+
     fn description() -> &'static str {
         "Fetch all comments for a GitHub issue. Returns an array of comment objects \
          including author, body, timestamps, and metadata. Comments are returned in \
          chronological order. Requires GITHUB_TOKEN environment variable."
     }
-    
+
     fn read_only() -> bool {
         true
     }
-    
+
     fn destructive() -> bool {
         false
     }
-    
+
     fn idempotent() -> bool {
         true
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Call API wrapper (returns AsyncStream)
-        let mut comment_stream = client.get_issue_comments(
-            args.owner,
-            args.repo,
-            args.issue_number,
-        );
-        
+        let mut comment_stream =
+            client.get_issue_comments(args.owner, args.repo, args.issue_number);
+
         // Collect stream results
         let mut comments = Vec::new();
         while let Some(result) = comment_stream.next().await {
-            let comment = result
-                .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+            let comment =
+                result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
             comments.push(comment);
         }
-        
+
         // Return serialized comments
         Ok(json!({ "comments": comments, "count": comments.len() }))
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I fetch all comments for a GitHub issue?"
+                    "How do I fetch all comments for a GitHub issue?",
                 ),
             },
             PromptMessage {
@@ -134,7 +130,7 @@ impl Tool for GetIssueCommentsTool {
                      Requirements:\n\
                      - GITHUB_TOKEN environment variable must be set\n\
                      - Token needs 'repo' scope for private repos\n\
-                     - Works for both issues and pull requests"
+                     - Works for both issues and pull requests",
                 ),
             },
         ])

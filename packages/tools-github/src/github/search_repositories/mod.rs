@@ -28,9 +28,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::stream::{self, StreamExt};
 use futures::Stream;
-use octocrab::{models::Repository, Octocrab};
+use futures::stream::{self, StreamExt};
+use octocrab::{Octocrab, models::Repository};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{Mutex, RwLock, Semaphore};
 use tokio_stream::wrappers::ReceiverStream;
@@ -221,7 +221,7 @@ impl GithubSearch {
                     Err(_) => {
                         return Err(SearchError::LocalAnalysisError(
                             "Concurrency limit reached".to_string(),
-                        ))
+                        ));
                     }
                 };
 

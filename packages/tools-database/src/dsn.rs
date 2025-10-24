@@ -58,19 +58,19 @@ impl std::fmt::Debug for DSNInfo {
 impl std::fmt::Display for DSNInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}://", self.protocol)?;
-        
+
         if let Some(ref user) = self.username {
-            write!(f, "{}:***@", user)?;  // Show username, mask password
+            write!(f, "{}:***@", user)?; // Show username, mask password
         }
-        
+
         write!(f, "{}", self.hostname)?;
-        
+
         if let Some(port) = self.port {
             write!(f, ":{}", port)?;
         }
-        
+
         write!(f, "/{}", self.database)?;
-        
+
         if !self.query_params.is_empty() {
             write!(f, "?")?;
             let params: Vec<String> = self
@@ -80,7 +80,7 @@ impl std::fmt::Display for DSNInfo {
                 .collect();
             write!(f, "{}", params.join("&"))?;
         }
-        
+
         Ok(())
     }
 }
@@ -206,7 +206,7 @@ impl DSNInfo {
     ///     database: "mydb".to_string(),
     ///     query_params: HashMap::new(),
     /// };
-    /// 
+    ///
     /// assert_eq!(
     ///     info.to_safe_dsn(),
     ///     "postgres://myuser:***@db.example.com:5432/mydb"
@@ -394,7 +394,7 @@ pub fn validate_dsn(dsn: &str) -> Result<String> {
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let original = "postgres://user:pass@remote.db.com:5432/mydb?sslmode=require";
 /// let rewritten = rewrite_dsn_for_tunnel(original, 54321)?;
-/// 
+///
 /// // Verify tunneling to localhost
 /// let dsn_str = rewritten.expose_secret();
 /// assert!(dsn_str.contains("127.0.0.1:54321"));

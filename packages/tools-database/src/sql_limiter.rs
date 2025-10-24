@@ -3,7 +3,7 @@
 use crate::error::DatabaseError;
 use crate::sql_parser::extract_first_keyword;
 use crate::types::DatabaseType;
-use lazy_regex::{lazy_regex, Lazy, Regex};
+use lazy_regex::{Lazy, Regex, lazy_regex};
 
 // Compile-time validated regexes
 static LIMIT_REGEX: Lazy<Regex> = lazy_regex!(r"(?i)\bLIMIT\s+(\d+)");

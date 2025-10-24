@@ -1,4 +1,4 @@
-use kodegen_daemon::service::sse::session::{SseSession, SessionManager, ClientInfo};
+use kodegen_daemon::service::sse::session::{ClientInfo, SessionManager, SseSession};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 

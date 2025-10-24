@@ -1,6 +1,10 @@
 //! macOS platform implementation using osascript and launchd.
 
-use std::{collections::HashMap, path::{Path, PathBuf}, process::Command};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
@@ -36,11 +40,13 @@ impl PlatformExecutor {
         let plist_content = Self::generate_plist(&b)?;
 
         // Convert paths to strings with error handling
-        let plist_dir_str = plist_dir.to_str()
+        let plist_dir_str = plist_dir
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid plist directory path".to_string()))?;
-        let bin_dir_str = bin_dir.to_str()
+        let bin_dir_str = bin_dir
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid bin directory path".to_string()))?;
-        
+
         // Build the installation commands using CommandBuilder
         let mkdir_cmd = CommandBuilder::new("mkdir").args([
             "-p",
@@ -50,13 +56,14 @@ impl PlatformExecutor {
         ]);
 
         let bin_path = bin_dir.join(&b.label);
-        let bin_path_str = bin_path.to_str()
+        let bin_path_str = bin_path
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid binary path".to_string()))?;
-        let temp_path_str = temp_path.to_str()
+        let temp_path_str = temp_path
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid temp path".to_string()))?;
-        
-        let cp_cmd =
-            CommandBuilder::new("cp").args([temp_path_str, bin_path_str]);
+
+        let cp_cmd = CommandBuilder::new("cp").args([temp_path_str, bin_path_str]);
 
         let chown_cmd = if needs_sudo {
             CommandBuilder::new("chown").args(["root:wheel", bin_path_str])
@@ -65,8 +72,7 @@ impl PlatformExecutor {
             CommandBuilder::new("true").args::<[&str; 0], &str>([])
         };
 
-        let chmod_cmd =
-            CommandBuilder::new("chmod").args(["755", bin_path_str]);
+        let chmod_cmd = CommandBuilder::new("chmod").args(["755", bin_path_str]);
 
         let rm_cmd = CommandBuilder::new("rm").args(["-f", temp_path_str]);
 
@@ -76,9 +82,11 @@ impl PlatformExecutor {
             .map_err(|e| InstallerError::System(format!("Failed to write temp plist: {e}")))?;
 
         let plist_file = plist_dir.join(format!("{}.plist", b.label));
-        let plist_file_str = plist_file.to_str()
+        let plist_file_str = plist_file
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid plist file path".to_string()))?;
-        let temp_plist_str = temp_plist.to_str()
+        let temp_plist_str = temp_plist
+            .to_str()
             .ok_or_else(|| InstallerError::System("Invalid temp plist path".to_string()))?;
 
         let mut script = format!("set -e\n{}", Self::command_to_script(&mkdir_cmd));
@@ -92,7 +100,8 @@ impl PlatformExecutor {
 
         // Set plist permissions (only for system-wide installs)
         if needs_sudo {
-            let plist_perms_chown = CommandBuilder::new("chown").args(["root:wheel", plist_file_str]);
+            let plist_perms_chown =
+                CommandBuilder::new("chown").args(["root:wheel", plist_file_str]);
             let plist_perms_chmod = CommandBuilder::new("chmod").args(["644", plist_file_str]);
 
             script.push_str(&format!(
@@ -122,8 +131,9 @@ impl PlatformExecutor {
                 std::fs::write(&temp_service, &service_toml).map_err(|e| {
                     InstallerError::System(format!("Failed to write temp service: {e}"))
                 })?;
-                let temp_service_str = temp_service.to_str()
-                    .ok_or_else(|| InstallerError::System("Invalid temp service path".to_string()))?;
+                let temp_service_str = temp_service.to_str().ok_or_else(|| {
+                    InstallerError::System("Invalid temp service path".to_string())
+                })?;
 
                 let service_file = format!("/etc/kodegend/services/{}.toml", service.name);
                 script.push_str(&format!(" && mv {temp_service_str} {service_file}"));
@@ -147,11 +157,7 @@ impl PlatformExecutor {
 
         // Load the daemon using CommandBuilder (only if auto_start is enabled)
         if b.auto_start {
-            let load_daemon = CommandBuilder::new("launchctl").args([
-                "load",
-                "-w",
-                plist_file_str,
-            ]);
+            let load_daemon = CommandBuilder::new("launchctl").args(["load", "-w", plist_file_str]);
 
             script.push_str(&format!(" && {}", Self::command_to_script(&load_daemon)));
         }
@@ -165,15 +171,17 @@ impl PlatformExecutor {
                 .arg("-c")
                 .arg(&script)
                 .output()
-                .map_err(|e| InstallerError::System(format!("Failed to execute install script: {e}")))?;
-            
+                .map_err(|e| {
+                    InstallerError::System(format!("Failed to execute install script: {e}"))
+                })?;
+
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(InstallerError::System(format!(
                     "Installation script failed: {stderr}"
                 )));
             }
-            
+
             Ok(())
         }
     }
@@ -724,7 +732,7 @@ impl PlatformExecutor {
         let mut buf = Vec::new();
         plist::to_writer_xml(&mut buf, &Value::Dictionary(plist.into_iter().collect()))
             .map_err(|e| InstallerError::System(format!("Failed to generate plist: {e}")))?;
-        
+
         String::from_utf8(buf)
             .map_err(|e| InstallerError::System(format!("Plist contains invalid UTF-8: {e}")))
     }
@@ -734,9 +742,8 @@ impl PlatformExecutor {
         // Escape the script for AppleScript
         let escaped_script = script.replace('\\', "\\\\").replace('"', "\\\"");
 
-        let applescript = format!(
-            r#"do shell script "{escaped_script}" with administrator privileges"#
-        );
+        let applescript =
+            format!(r#"do shell script "{escaped_script}" with administrator privileges"#);
 
         let output = Command::new("osascript")
             .arg("-e")
@@ -774,9 +781,8 @@ impl PlatformExecutor {
             .replace('\\', "\\\\")
             .replace('"', "\\\"");
 
-        let applescript = format!(
-            r#"do shell script "\"{escaped_helper}\"" with administrator privileges"#
-        );
+        let applescript =
+            format!(r#"do shell script "\"{escaped_helper}\"" with administrator privileges"#);
 
         // Start the helper process with admin privileges
         let mut child = Command::new("osascript")

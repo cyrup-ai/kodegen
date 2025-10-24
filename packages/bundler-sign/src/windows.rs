@@ -1,7 +1,7 @@
 //! Windows setup - validates `SignTool` and certificates
 
-use crate::error::Result;
 use crate::config::WindowsSetupConfig;
+use crate::error::Result;
 use std::io::Write;
 use std::process::Command;
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
@@ -33,7 +33,10 @@ use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 pub fn show_config() -> Result<()> {
     let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
     let mut buffer = bufwtr.buffer();
-    let _ = writeln!(&mut buffer, "Windows signing uses Authenticode. Check certificates in certmgr.msc.");
+    let _ = writeln!(
+        &mut buffer,
+        "Windows signing uses Authenticode. Check certificates in certmgr.msc."
+    );
     let _ = bufwtr.print(&buffer);
     Ok(())
 }
@@ -42,9 +45,15 @@ pub fn interactive_setup() -> Result<()> {
     let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
     let mut buffer = bufwtr.buffer();
     let _ = writeln!(&mut buffer, "\n🪟 Windows Setup");
-    let _ = writeln!(&mut buffer, "Windows code signing uses Authenticode certificates.");
+    let _ = writeln!(
+        &mut buffer,
+        "Windows code signing uses Authenticode certificates."
+    );
     let _ = writeln!(&mut buffer, "\nTo import a certificate:");
-    let _ = writeln!(&mut buffer, "  certutil -user -importpfx code_signing_cert.pfx");
+    let _ = writeln!(
+        &mut buffer,
+        "  certutil -user -importpfx code_signing_cert.pfx"
+    );
     let _ = writeln!(&mut buffer, "\nTo view installed certificates:");
     let _ = writeln!(&mut buffer, "  certmgr.msc");
     let _ = bufwtr.print(&buffer);
@@ -58,7 +67,7 @@ pub fn setup_from_config(config: &WindowsSetupConfig, _dry_run: bool, verbose: b
         let _ = writeln!(&mut buffer, "🪟 Windows Setup Validation\n");
         let _ = bufwtr.print(&buffer);
     }
-    
+
     if config.validate_signtool {
         // Check if signtool.exe is available
         match Command::new("signtool.exe").output() {
@@ -73,14 +82,14 @@ pub fn setup_from_config(config: &WindowsSetupConfig, _dry_run: bool, verbose: b
                     let _ = writeln!(&mut buffer, "signtool.exe found in PATH");
                     let _ = bufwtr.print(&buffer);
                 }
-                
+
                 // Try to check for certificates using certutil
                 if let Ok(cert_output) = Command::new("certutil")
                     .args(["-store", "-user", "My"])
-                    .output() 
+                    .output()
                 {
                     let cert_str = String::from_utf8_lossy(&cert_output.stdout);
-                    
+
                     if cert_str.contains("Certificate") {
                         let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
                         let mut buffer = bufwtr.buffer();
@@ -88,22 +97,34 @@ pub fn setup_from_config(config: &WindowsSetupConfig, _dry_run: bool, verbose: b
                         let _ = write!(&mut buffer, "✓ ");
                         let _ = buffer.reset();
                         let _ = writeln!(&mut buffer, "User certificates found in store");
-                        
-                        if cert_str.contains("Code Signing") || cert_str.contains("1.3.6.1.5.5.7.3.3") {
+
+                        if cert_str.contains("Code Signing")
+                            || cert_str.contains("1.3.6.1.5.5.7.3.3")
+                        {
                             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
                             let _ = write!(&mut buffer, "✓ ");
                             let _ = buffer.reset();
                             let _ = writeln!(&mut buffer, "Code signing certificate detected");
                         } else {
                             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
-                            let _ = writeln!(&mut buffer, "⚠️  No obvious code signing certificates found");
+                            let _ = writeln!(
+                                &mut buffer,
+                                "⚠️  No obvious code signing certificates found"
+                            );
                             let _ = buffer.reset();
                             let _ = writeln!(&mut buffer, "   View certificates: certmgr.msc");
-                            let _ = writeln!(&mut buffer, "   Import .pfx: certutil -user -importpfx cert.pfx");
+                            let _ = writeln!(
+                                &mut buffer,
+                                "   Import .pfx: certutil -user -importpfx cert.pfx"
+                            );
                         }
-                        
+
                         if verbose {
-                            let _ = writeln!(&mut buffer, "\nCertificate store contents:\n{}", cert_str.trim());
+                            let _ = writeln!(
+                                &mut buffer,
+                                "\nCertificate store contents:\n{}",
+                                cert_str.trim()
+                            );
                         }
                         let _ = bufwtr.print(&buffer);
                     } else {
@@ -113,7 +134,8 @@ pub fn setup_from_config(config: &WindowsSetupConfig, _dry_run: bool, verbose: b
                         let _ = writeln!(&mut buffer, "⚠️  No certificates found in user store");
                         let _ = buffer.reset();
                         let _ = writeln!(&mut buffer, "   Import code signing certificate:");
-                        let _ = writeln!(&mut buffer, "   certutil -user -importpfx code_signing.pfx");
+                        let _ =
+                            writeln!(&mut buffer, "   certutil -user -importpfx code_signing.pfx");
                         let _ = bufwtr.print(&buffer);
                     }
                 } else if verbose {
@@ -138,19 +160,20 @@ pub fn setup_from_config(config: &WindowsSetupConfig, _dry_run: bool, verbose: b
                      After installation, signtool.exe is typically at:\n\
                      C:\\Program Files (x86)\\Windows Kits\\10\\bin\\<version>\\x64\\signtool.exe\n\
                      \n\
-                     Then run 'kodegen_sign --interactive' for guided setup.".to_string()
+                     Then run 'kodegen_sign --interactive' for guided setup."
+                        .to_string(),
                 ));
             }
         }
     }
-    
+
     let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
     let mut buffer = bufwtr.buffer();
     let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(&mut buffer, "\n✅ Windows validation complete");
     let _ = buffer.reset();
     let _ = bufwtr.print(&buffer);
-    
+
     Ok(())
 }
 
@@ -192,14 +215,17 @@ impl Default for SignConfig {
 fn find_osslsigncode() -> Result<String> {
     which::which("osslsigncode")
         .map(|p| p.to_string_lossy().to_string())
-        .map_err(|_| crate::error::SetupError::MissingDependency(
-            "osslsigncode not found. Install with:\n\
+        .map_err(|_| {
+            crate::error::SetupError::MissingDependency(
+                "osslsigncode not found. Install with:\n\
              \n\
              macOS:    brew install osslsigncode\n\
              Linux:    Build from source: https://github.com/mtrojnar/osslsigncode\n\
              \n\
-             osslsigncode enables Windows Authenticode signing from non-Windows platforms.".to_string()
-        ))
+             osslsigncode enables Windows Authenticode signing from non-Windows platforms."
+                    .to_string(),
+            )
+        })
 }
 
 /// Sign a binary file with Authenticode using osslsigncode (cross-platform)
@@ -239,23 +265,22 @@ fn find_osslsigncode() -> Result<String> {
 /// };
 /// sign_binary(Path::new("myapp.exe"), &config)?;
 /// ```
-pub fn sign_binary(
-    binary_path: &std::path::Path,
-    config: &SignConfig,
-) -> Result<()> {
+pub fn sign_binary(binary_path: &std::path::Path, config: &SignConfig) -> Result<()> {
     let osslsigncode = find_osslsigncode()?;
     let mut args = vec!["sign".to_string()];
-    
+
     // Detect certificate format: PKCS#12 (.pfx) or separate cert/key
-    let is_pkcs12 = config.cert_path.extension()
+    let is_pkcs12 = config
+        .cert_path
+        .extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext == "pfx" || ext == "p12");
-    
+
     if is_pkcs12 {
         // PKCS#12 format: osslsigncode sign -pkcs12 cert.pfx -pass password ...
         args.push("-pkcs12".to_string());
         args.push(config.cert_path.to_string_lossy().to_string());
-        
+
         if let Some(password) = &config.password {
             args.push("-pass".to_string());
             args.push(password.clone());
@@ -264,64 +289,64 @@ pub fn sign_binary(
         // Separate cert/key: osslsigncode sign -certs cert.pem -key key.pem -pass password ...
         args.push("-certs".to_string());
         args.push(config.cert_path.to_string_lossy().to_string());
-        
+
         if let Some(key_path) = &config.key_path {
             args.push("-key".to_string());
             args.push(key_path.to_string_lossy().to_string());
-            
+
             if let Some(password) = &config.password {
                 args.push("-pass".to_string());
                 args.push(password.clone());
             }
         } else {
             return Err(crate::error::SetupError::InvalidConfig(
-                "key_path must be provided when not using PKCS#12 certificate".to_string()
+                "key_path must be provided when not using PKCS#12 certificate".to_string(),
             ));
         }
     }
-    
+
     // Add application name if provided
     if let Some(app_name) = &config.app_name {
         args.push("-n".to_string());
         args.push(app_name.clone());
     }
-    
+
     // Add application URL if provided
     if let Some(app_url) = &config.app_url {
         args.push("-i".to_string());
         args.push(app_url.clone());
     }
-    
+
     // Add timestamp server (highly recommended)
     if let Some(timestamp_url) = &config.timestamp_url {
         args.push("-t".to_string());
         args.push(timestamp_url.clone());
     }
-    
+
     // Input file
     args.push("-in".to_string());
     args.push(binary_path.to_string_lossy().to_string());
-    
+
     // Output file (in-place signing: overwrite original)
     args.push("-out".to_string());
     args.push(binary_path.to_string_lossy().to_string());
-    
+
     // Execute osslsigncode
     let output = Command::new(&osslsigncode)
         .args(&args)
         .output()
-        .map_err(|e| crate::error::SetupError::CommandExecution(
-            format!("Failed to execute osslsigncode: {e}")
-        ))?;
-    
+        .map_err(|e| {
+            crate::error::SetupError::CommandExecution(format!(
+                "Failed to execute osslsigncode: {e}"
+            ))
+        })?;
+
     if !output.status.success() {
-        let stderr = std::str::from_utf8(&output.stderr)
-            .unwrap_or("(non-UTF-8 error message)");
-        let stdout = std::str::from_utf8(&output.stdout)
-            .unwrap_or("(non-UTF-8 output)");
-        
-        return Err(crate::error::SetupError::CommandExecution(
-            format!("Authenticode signing failed:\n\
+        let stderr = std::str::from_utf8(&output.stderr).unwrap_or("(non-UTF-8 error message)");
+        let stdout = std::str::from_utf8(&output.stdout).unwrap_or("(non-UTF-8 output)");
+
+        return Err(crate::error::SetupError::CommandExecution(format!(
+            "Authenticode signing failed:\n\
                     Command: osslsigncode {}\n\
                     \n\
                     Output:\n{}\n\
@@ -333,10 +358,12 @@ pub fn sign_binary(
                     - Wrong password\n\
                     - Certificate expired\n\
                     - Timestamp server unreachable",
-                    args.join(" "), stdout.trim(), stderr.trim())
-        ));
+            args.join(" "),
+            stdout.trim(),
+            stderr.trim()
+        )));
     }
-    
+
     Ok(())
 }
 
@@ -358,20 +385,18 @@ pub fn sign_binary(
 /// ```
 pub fn generate_integrity_hash(binary_path: &std::path::Path) -> Result<String> {
     use sha2::{Digest, Sha256};
-    
-    let binary_data = std::fs::read(binary_path)
-        .map_err(crate::error::SetupError::Io)?;
-    
+
+    let binary_data = std::fs::read(binary_path).map_err(crate::error::SetupError::Io)?;
+
     let mut hasher = Sha256::new();
     hasher.update(&binary_data);
     let hash = hasher.finalize();
-    
+
     let hash_hex = hex::encode(hash);
     let hash_path = binary_path.with_extension("exe.sha256");
-    
-    std::fs::write(&hash_path, &hash_hex)
-        .map_err(crate::error::SetupError::Io)?;
-    
+
+    std::fs::write(&hash_path, &hash_hex).map_err(crate::error::SetupError::Io)?;
+
     Ok(hash_hex)
 }
 
@@ -387,10 +412,7 @@ const TIMESTAMP_SERVERS: &[&str] = &[
 ];
 
 /// Sign binary with timestamp server fallback
-pub fn sign_binary_with_fallback(
-    binary_path: &std::path::Path,
-    config: &SignConfig,
-) -> Result<()> {
+pub fn sign_binary_with_fallback(binary_path: &std::path::Path, config: &SignConfig) -> Result<()> {
     // Try configured timestamp server first
     if config.timestamp_url.is_some() {
         match sign_binary(binary_path, config) {
@@ -400,14 +422,19 @@ pub fn sign_binary_with_fallback(
             }
         }
     }
-    
+
     // Fallback to alternative timestamp servers
     for (i, timestamp_url) in TIMESTAMP_SERVERS.iter().enumerate() {
-        eprintln!("Trying timestamp server {}/{}: {}", i+1, TIMESTAMP_SERVERS.len(), timestamp_url);
-        
+        eprintln!(
+            "Trying timestamp server {}/{}: {}",
+            i + 1,
+            TIMESTAMP_SERVERS.len(),
+            timestamp_url
+        );
+
         let mut fallback_config = config.clone();
         fallback_config.timestamp_url = Some((*timestamp_url).to_string());
-        
+
         match sign_binary(binary_path, &fallback_config) {
             Ok(()) => {
                 eprintln!("✓ Signed with timestamp server: {timestamp_url}");
@@ -419,7 +446,7 @@ pub fn sign_binary_with_fallback(
             }
         }
     }
-    
+
     // All timestamp servers failed - sign without timestamp as last resort
     eprintln!("⚠️  All timestamp servers failed. Signing without timestamp.");
     let mut no_timestamp_config = config.clone();

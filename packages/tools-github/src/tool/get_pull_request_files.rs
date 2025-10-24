@@ -1,10 +1,10 @@
+use anyhow;
 use futures::StreamExt;
 use kodegen_mcp_tool::{McpError, Tool};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use anyhow;
+use serde_json::{Value, json};
 
 use crate::GitHubClient;
 
@@ -51,10 +51,9 @@ impl Tool for GetPullRequestFilesTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
 
         let client = GitHubClient::builder()
             .personal_token(token)
@@ -65,8 +64,8 @@ impl Tool for GetPullRequestFilesTool {
 
         let mut files = Vec::new();
         while let Some(result) = file_stream.next().await {
-            let file = result
-                .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+            let file =
+                result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
             files.push(file);
         }
 

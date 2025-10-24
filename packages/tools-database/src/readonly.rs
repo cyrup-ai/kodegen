@@ -195,10 +195,7 @@ fn validate_cte_readonly(cte: &Cte, db_type: DatabaseType) -> Result<(), Databas
 }
 
 /// Validate a SetExpr (query body or set operation)
-fn validate_set_expr_readonly(
-    expr: &SetExpr,
-    db_type: DatabaseType,
-) -> Result<(), DatabaseError> {
+fn validate_set_expr_readonly(expr: &SetExpr, db_type: DatabaseType) -> Result<(), DatabaseError> {
     match expr {
         SetExpr::Select(select) => {
             validate_select_readonly(select, db_type)?;
@@ -422,7 +419,9 @@ fn validate_function_arg_readonly(
     db_type: DatabaseType,
 ) -> Result<(), DatabaseError> {
     match arg {
-        FunctionArg::Unnamed(arg_expr) | FunctionArg::Named { arg: arg_expr, .. } | FunctionArg::ExprNamed { arg: arg_expr, .. } => {
+        FunctionArg::Unnamed(arg_expr)
+        | FunctionArg::Named { arg: arg_expr, .. }
+        | FunctionArg::ExprNamed { arg: arg_expr, .. } => {
             // Extract the actual Expr from FunctionArgExpr
             if let FunctionArgExpr::Expr(expr) = arg_expr {
                 validate_expr_readonly(expr, db_type)?;
@@ -602,7 +601,8 @@ mod tests {
     // Attack Vector 1: CTEs with Write Operations
     #[test]
     fn test_blocks_cte_with_delete() {
-        let sql = "WITH deleted AS (DELETE FROM users WHERE id = 1 RETURNING *) SELECT * FROM deleted";
+        let sql =
+            "WITH deleted AS (DELETE FROM users WHERE id = 1 RETURNING *) SELECT * FROM deleted";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
         assert!(result.is_err(), "Should block DELETE in CTE");
         assert!(result.unwrap_err().to_string().contains("DELETE"));
@@ -610,7 +610,8 @@ mod tests {
 
     #[test]
     fn test_blocks_cte_with_insert() {
-        let sql = "WITH inserted AS (INSERT INTO logs VALUES (1) RETURNING *) SELECT * FROM inserted";
+        let sql =
+            "WITH inserted AS (INSERT INTO logs VALUES (1) RETURNING *) SELECT * FROM inserted";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
         assert!(result.is_err(), "Should block INSERT in CTE");
         assert!(result.unwrap_err().to_string().contains("INSERT"));
@@ -618,7 +619,8 @@ mod tests {
 
     #[test]
     fn test_blocks_cte_with_update() {
-        let sql = "WITH updated AS (UPDATE users SET active = false RETURNING *) SELECT * FROM updated";
+        let sql =
+            "WITH updated AS (UPDATE users SET active = false RETURNING *) SELECT * FROM updated";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
         assert!(result.is_err(), "Should block UPDATE in CTE");
         assert!(result.unwrap_err().to_string().contains("UPDATE"));
@@ -645,35 +647,53 @@ mod tests {
     fn test_blocks_derived_table_with_delete() {
         let sql = "SELECT * FROM (DELETE FROM temp WHERE created < NOW() RETURNING id) AS cleaned";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
-        assert!(result.is_err(), "Should block DELETE in derived table: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Should block DELETE in derived table: {:?}",
+            result
+        );
     }
 
     // Attack Vector 3: Expression Subqueries
     #[test]
     fn test_blocks_expression_subquery_with_insert() {
-        let sql = "SELECT * FROM users WHERE id IN (INSERT INTO audit VALUES (NOW()) RETURNING user_id)";
+        let sql =
+            "SELECT * FROM users WHERE id IN (INSERT INTO audit VALUES (NOW()) RETURNING user_id)";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
-        assert!(result.is_err(), "Should block INSERT in WHERE subquery: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Should block INSERT in WHERE subquery: {:?}",
+            result
+        );
     }
 
     #[test]
     fn test_blocks_expression_subquery_with_delete() {
         let sql = "SELECT * FROM orders WHERE id = (DELETE FROM temp_orders WHERE id = 1 RETURNING order_id)";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
-        assert!(result.is_err(), "Should block DELETE in expression subquery: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Should block DELETE in expression subquery: {:?}",
+            result
+        );
     }
 
     #[test]
     fn test_blocks_expression_subquery_with_update() {
         let sql = "SELECT COUNT(*) FROM users WHERE active = (UPDATE settings SET value = 'true' RETURNING value)";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
-        assert!(result.is_err(), "Should block UPDATE in expression subquery: {:?}", result);
+        assert!(
+            result.is_err(),
+            "Should block UPDATE in expression subquery: {:?}",
+            result
+        );
     }
 
     // Attack Vector 4: SetExpr Direct Writes
     #[test]
     fn test_blocks_setexpr_insert_in_union() {
-        let sql = "SELECT * FROM users UNION ALL (INSERT INTO logs VALUES (1, 'injected') RETURNING *)";
+        let sql =
+            "SELECT * FROM users UNION ALL (INSERT INTO logs VALUES (1, 'injected') RETURNING *)";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
         assert!(result.is_err(), "Should block INSERT in UNION");
         assert!(result.unwrap_err().to_string().contains("INSERT"));
@@ -708,7 +728,10 @@ mod tests {
     fn test_blocks_write_in_subquery_in_select_list() {
         let sql = "SELECT id, (SELECT * FROM (INSERT INTO audit VALUES (1) RETURNING id)) AS audit_id FROM users";
         let result = validate_readonly_sql(sql, DatabaseType::Postgres);
-        assert!(result.is_err(), "Should block INSERT in SELECT list subquery");
+        assert!(
+            result.is_err(),
+            "Should block INSERT in SELECT list subquery"
+        );
     }
 
     #[test]

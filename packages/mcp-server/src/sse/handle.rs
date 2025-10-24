@@ -56,7 +56,7 @@ use tokio_util::sync::CancellationToken;
 pub struct ServerHandle {
     /// Token for signaling cancellation
     cancel_token: CancellationToken,
-    
+
     /// Receiver for completion notification
     completion_rx: oneshot::Receiver<()>,
 }
@@ -73,10 +73,7 @@ impl ServerHandle {
     ///
     /// This function is zero-allocation and completes in O(1) time.
     #[inline]
-    pub fn new(
-        cancel_token: CancellationToken,
-        completion_rx: oneshot::Receiver<()>,
-    ) -> Self {
+    pub fn new(cancel_token: CancellationToken, completion_rx: oneshot::Receiver<()>) -> Self {
         Self {
             cancel_token,
             completion_rx,
@@ -192,12 +189,12 @@ mod tests {
     async fn test_immediate_completion() {
         let cancel_token = CancellationToken::new();
         let (completion_tx, completion_rx) = oneshot::channel();
-        
+
         let handle = ServerHandle::new(cancel_token, completion_rx);
-        
+
         // Signal completion immediately
         completion_tx.send(()).expect("send failed");
-        
+
         // Should complete instantly
         let result = handle.wait_for_completion(Duration::from_secs(10)).await;
         assert!(result.is_ok(), "should complete successfully");
@@ -207,9 +204,9 @@ mod tests {
     async fn test_timeout() {
         let cancel_token = CancellationToken::new();
         let (_completion_tx, completion_rx) = oneshot::channel();
-        
+
         let handle = ServerHandle::new(cancel_token, completion_rx);
-        
+
         // Never send completion signal
         // Should timeout
         let result = handle.wait_for_completion(Duration::from_millis(100)).await;
@@ -221,12 +218,12 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let token_clone = cancel_token.clone();
         let (_completion_tx, completion_rx) = oneshot::channel();
-        
+
         let handle = ServerHandle::new(cancel_token, completion_rx);
-        
+
         // Cancel should propagate to cloned token
         handle.cancel();
-        
+
         assert!(token_clone.is_cancelled(), "cancellation should propagate");
     }
 
@@ -234,22 +231,25 @@ mod tests {
     async fn test_channel_closed_before_send() {
         let cancel_token = CancellationToken::new();
         let (completion_tx, completion_rx) = oneshot::channel();
-        
+
         let handle = ServerHandle::new(cancel_token, completion_rx);
-        
+
         // Drop sender (close channel)
         drop(completion_tx);
-        
+
         // Should treat as successful completion
         let result = handle.wait_for_completion(Duration::from_secs(10)).await;
-        assert!(result.is_ok(), "closed channel should be treated as success");
+        assert!(
+            result.is_ok(),
+            "closed channel should be treated as success"
+        );
     }
 
     #[tokio::test]
     async fn test_completion_signal_race() {
         let cancel_token = CancellationToken::new();
         let (completion_tx, completion_rx) = oneshot::channel();
-        
+
         let monitor_ct = cancel_token.clone();
         tokio::spawn(async move {
             monitor_ct.cancelled().await;
@@ -257,19 +257,19 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(100)).await;
             let _ = completion_tx.send(());
         });
-        
+
         let handle = ServerHandle::new(cancel_token, completion_rx);
         handle.cancel();
-        
+
         // Timeout before monitor can send
         let result = handle.wait_for_completion(Duration::from_millis(10)).await;
-        
+
         // Should timeout, but send failure should be logged
         assert!(result.is_err(), "should timeout before monitor can signal");
-        
+
         // Give monitor task time to attempt send
         tokio::time::sleep(Duration::from_millis(200)).await;
-        
+
         // If we reach here without panic, the race condition was handled gracefully
     }
 }

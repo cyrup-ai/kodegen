@@ -1,6 +1,6 @@
 //! Shared utilities for Stella embedding model
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use candle_core::{DType, Device};
 use candle_nn::VarBuilder;
 use candle_transformers::models::stella_en_v5::{Config, EmbedDim, ModelVariant};

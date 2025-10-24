@@ -3,9 +3,9 @@
 //! This module coordinates the publishing of multiple packages in dependency order
 //! with proper timing, error handling, and rollback capabilities.
 
-use crate::error::{Result, PublishError};
+use crate::error::{PublishError, Result};
 use crate::publish::{CargoPublisher, PublishConfig, PublishResult, YankResult};
-use crate::workspace::{SharedWorkspaceInfo, DependencyGraph, PublishTier};
+use crate::workspace::{DependencyGraph, PublishTier, SharedWorkspaceInfo};
 use semver::Version;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -135,9 +135,12 @@ impl Publisher {
     }
 
     /// Publish all packages in dependency order
-    pub async fn publish_all_packages(&mut self, runtime_config: &crate::cli::RuntimeConfig) -> Result<PublishingResult> {
+    pub async fn publish_all_packages(
+        &mut self,
+        runtime_config: &crate::cli::RuntimeConfig,
+    ) -> Result<PublishingResult> {
         self.publish_state.start_time = Some(std::time::Instant::now());
-        
+
         // Get publishing order
         let publish_order = self.dependency_graph.publish_order()?;
         self.publish_state.total_tiers = publish_order.tier_count();
@@ -148,7 +151,7 @@ impl Publisher {
         // Publish packages tier by tier
         for (tier_index, tier) in publish_order.tiers.iter().enumerate() {
             self.publish_state.current_tier = tier_index;
-            
+
             match self.publish_tier(tier, runtime_config).await {
                 Ok(()) => {
                     // Add delay between tiers (except after the last tier)
@@ -158,7 +161,8 @@ impl Publisher {
                 }
                 Err(e) if self.config.continue_on_failure => {
                     // Log error but continue with next tier
-                    runtime_config.warn(&format!("Tier {} failed but continuing: {}", tier_index, e));
+                    runtime_config
+                        .warn(&format!("Tier {} failed but continuing: {}", tier_index, e));
                 }
                 Err(e) => {
                     // Fail fast - stop publishing
@@ -167,7 +171,9 @@ impl Publisher {
             }
         }
 
-        let total_duration = self.publish_state.start_time
+        let total_duration = self
+            .publish_state
+            .start_time
             .map(|start| start.elapsed())
             .unwrap_or_default();
 
@@ -183,18 +189,24 @@ impl Publisher {
     }
 
     /// Publish a single tier of packages
-    async fn publish_tier(&mut self, tier: &PublishTier, runtime_config: &crate::cli::RuntimeConfig) -> Result<()> {
+    async fn publish_tier(
+        &mut self,
+        tier: &PublishTier,
+        runtime_config: &crate::cli::RuntimeConfig,
+    ) -> Result<()> {
         let publish_config = self.create_publish_config();
-        
+
         // Handle single package or parallel publishing
         if tier.packages.len() == 1 {
             // Single package - publish directly
             let package_name = &tier.packages[0];
-            self.publish_single_package(package_name, &publish_config, runtime_config).await?;
+            self.publish_single_package(package_name, &publish_config, runtime_config)
+                .await?;
         } else {
             // Multiple packages - publish with controlled concurrency
-            self.publish_packages_concurrently(&tier.packages, &publish_config, runtime_config).await?;
-            
+            self.publish_packages_concurrently(&tier.packages, &publish_config, runtime_config)
+                .await?;
+
             // Add delay after concurrent publishes to avoid rate limiting the next tier
             sleep(self.config.inter_package_delay).await;
         }
@@ -210,22 +222,34 @@ impl Publisher {
         runtime_config: &crate::cli::RuntimeConfig,
     ) -> Result<()> {
         let package_info = self.workspace.get_package(package_name)?;
-        
-        runtime_config.progress(&format!("Publishing {} v{}...", package_name, package_info.version));
-        
-        match self.cargo_publisher.publish_package(package_info, publish_config).await {
+
+        runtime_config.progress(&format!(
+            "Publishing {} v{}...",
+            package_name, package_info.version
+        ));
+
+        match self
+            .cargo_publisher
+            .publish_package(package_info, publish_config)
+            .await
+        {
             Ok(result) => {
                 runtime_config.success(&result.summary());
-                self.publish_state.completed_publishes.insert(package_name.to_string(), result);
+                self.publish_state
+                    .completed_publishes
+                    .insert(package_name.to_string(), result);
                 Ok(())
             }
             Err(e) => {
                 let error_msg = format!("Failed to publish {}: {}", package_name, e);
-                self.publish_state.failed_packages.insert(package_name.to_string(), error_msg.clone());
+                self.publish_state
+                    .failed_packages
+                    .insert(package_name.to_string(), error_msg.clone());
                 Err(PublishError::PublishFailed {
                     package: package_name.to_string(),
                     reason: error_msg,
-                }.into())
+                }
+                .into())
             }
         }
     }
@@ -237,13 +261,13 @@ impl Publisher {
         publish_config: &PublishConfig,
         runtime_config: &crate::cli::RuntimeConfig,
     ) -> Result<()> {
-        use tokio::sync::{mpsc, Semaphore};
         use std::sync::Arc;
-        
+        use tokio::sync::{Semaphore, mpsc};
+
         // Unbounded channel for results (bounded would risk deadlock with semaphore)
         let (tx, mut rx) = mpsc::unbounded_channel();
         let semaphore = Arc::new(Semaphore::new(self.config.max_concurrent_per_tier));
-        
+
         // Spawn all tasks (they'll complete at different times)
         for package_name in package_names {
             let package_info = self.workspace.get_package(package_name)?.clone();
@@ -267,46 +291,54 @@ impl Publisher {
                         return;
                     }
                 };
-                
+
                 let result = publisher.publish_package(&package_info, &config).await;
-                
+
                 // Send result through channel (non-blocking)
                 let _ = tx.send((package_name, result));
-                
+
                 // Explicitly drop permit to release semaphore slot
                 drop(permit);
             });
         }
-        
+
         // Drop original sender so rx.recv() knows when all tasks are done
         drop(tx);
-        
+
         // Process results as they complete (incremental progress!)
         while let Some((package_name, result)) = rx.recv().await {
             match result {
                 Ok(publish_result) => {
                     runtime_config.success(&publish_result.summary());
-                    self.publish_state.completed_publishes.insert(package_name, publish_result);
+                    self.publish_state
+                        .completed_publishes
+                        .insert(package_name, publish_result);
                 }
                 Err(e) => {
                     let error_msg = format!("Failed to publish {}: {}", package_name, e);
-                    self.publish_state.failed_packages.insert(package_name.clone(), error_msg.clone());
-                    
+                    self.publish_state
+                        .failed_packages
+                        .insert(package_name.clone(), error_msg.clone());
+
                     if !self.config.continue_on_failure {
                         return Err(PublishError::PublishFailed {
                             package: package_name,
                             reason: error_msg,
-                        }.into());
+                        }
+                        .into());
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Rollback published packages by yanking them
-    pub async fn rollback_published_packages(&self, runtime_config: &crate::cli::RuntimeConfig) -> Result<RollbackResult> {
+    pub async fn rollback_published_packages(
+        &self,
+        runtime_config: &crate::cli::RuntimeConfig,
+    ) -> Result<RollbackResult> {
         let start_time = std::time::Instant::now();
         let mut yanked_packages = HashMap::new();
         let mut yank_failures = HashMap::new();
@@ -319,13 +351,16 @@ impl Publisher {
 
         for package_name in packages_to_yank {
             if let Some(publish_result) = self.publish_state.completed_publishes.get(package_name) {
-                runtime_config.progress(&format!("Yanking {} v{}...", package_name, publish_result.version));
-                
-                match self.cargo_publisher.yank_package(
-                    package_name,
-                    &publish_result.version,
-                    &publish_config,
-                ).await {
+                runtime_config.progress(&format!(
+                    "Yanking {} v{}...",
+                    package_name, publish_result.version
+                ));
+
+                match self
+                    .cargo_publisher
+                    .yank_package(package_name, &publish_result.version, &publish_config)
+                    .await
+                {
                     Ok(yank_result) => {
                         runtime_config.success(&yank_result.format_result());
                         yanked_packages.insert(package_name.to_string(), yank_result);
@@ -366,13 +401,16 @@ impl Publisher {
         let mut results = HashMap::new();
 
         for (package_name, package_info) in &self.workspace.packages {
-            let version = Version::parse(&package_info.version)
-                .map_err(|e| PublishError::PublishFailed {
+            let version =
+                Version::parse(&package_info.version).map_err(|e| PublishError::PublishFailed {
                     package: package_name.clone(),
                     reason: format!("Invalid version: {}", e),
                 })?;
 
-            let is_published = self.cargo_publisher.is_package_published(package_name, &version).await?;
+            let is_published = self
+                .cargo_publisher
+                .is_package_published(package_name, &version)
+                .await?;
             results.insert(package_name.clone(), is_published);
         }
 
@@ -482,7 +520,11 @@ impl PublishingResult {
 impl RollbackResult {
     /// Format rollback summary
     pub fn format_summary(&self) -> String {
-        let status = if self.fully_successful { "✅" } else { "⚠️" };
+        let status = if self.fully_successful {
+            "✅"
+        } else {
+            "⚠️"
+        };
         format!(
             "{} Rollback completed: {}/{} packages yanked in {:.2}s",
             status,
@@ -499,13 +541,15 @@ impl PublishProgress {
         if self.total_packages == 0 {
             100.0
         } else {
-            ((self.completed_packages + self.failed_packages) as f64 / self.total_packages as f64) * 100.0
+            ((self.completed_packages + self.failed_packages) as f64 / self.total_packages as f64)
+                * 100.0
         }
     }
 
     /// Format progress for display
     pub fn format_progress(&self) -> String {
-        let elapsed = self.elapsed_time
+        let elapsed = self
+            .elapsed_time
             .map(|d| format!(" ({}s)", d.as_secs()))
             .unwrap_or_default();
 

@@ -20,7 +20,7 @@ pub(super) enum SessionCommand {
         /// Channel to send the operation result back
         response_tx: oneshot::Sender<Result<()>>,
     },
-    
+
     /// Shutdown the agent session gracefully
     Shutdown {
         /// Channel to send the shutdown confirmation back

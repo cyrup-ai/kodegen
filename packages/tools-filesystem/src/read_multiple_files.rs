@@ -1,11 +1,11 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::ReadFileTool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use futures::future;
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use futures::future;
+use serde_json::{Value, json};
 
 // ============================================================================
 // HELPER TYPES
@@ -68,7 +68,10 @@ pub struct ReadMultipleFilesTool {
 
 impl ReadMultipleFilesTool {
     #[must_use]
-    pub fn new(default_line_limit: usize, config_manager: kodegen_tools_config::ConfigManager) -> Self {
+    pub fn new(
+        default_line_limit: usize,
+        config_manager: kodegen_tools_config::ConfigManager,
+    ) -> Self {
         Self {
             read_file_tool: ReadFileTool::new(default_line_limit, config_manager),
         }
@@ -95,8 +98,14 @@ impl ReadMultipleFilesTool {
                 // Extract fields from the JSON result
                 MultiFileResult {
                     path,
-                    content: result.get("content").and_then(|v| v.as_str()).map(String::from),
-                    mime_type: result.get("mime_type").and_then(|v| v.as_str()).map(String::from),
+                    content: result
+                        .get("content")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    mime_type: result
+                        .get("mime_type")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                     is_image: result.get("is_image").and_then(serde_json::Value::as_bool),
                     error: None,
                 }
@@ -136,20 +145,21 @@ impl Tool for ReadMultipleFilesTool {
     }
 
     fn open_world() -> bool {
-        false  // Only reads local files, not URLs
+        false // Only reads local files, not URLs
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         if args.paths.is_empty() {
             return Err(McpError::InvalidArguments(
-                "No paths provided. Please provide at least one file path.".to_string()
+                "No paths provided. Please provide at least one file path.".to_string(),
             ));
         }
 
         // Create futures for all file reads
-        let read_futures = args.paths.into_iter().map(|path| {
-            self.read_one_file(path, args.offset, args.length)
-        });
+        let read_futures = args
+            .paths
+            .into_iter()
+            .map(|path| self.read_one_file(path, args.offset, args.length));
 
         // Execute all reads in parallel
         let results = future::join_all(read_futures).await;
@@ -177,9 +187,7 @@ impl Tool for ReadMultipleFilesTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I read multiple files at once?"
-                ),
+                content: PromptMessageContent::text("How do I read multiple files at once?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -210,7 +218,7 @@ impl Tool for ReadMultipleFilesTool {
                      Response format:\n\
                      - results: Array of file results\n\
                      - summary: Total, successful, and failed counts\n\n\
-                     Use this instead of calling read_file multiple times sequentially."
+                     Use this instead of calling read_file multiple times sequentially.",
                 ),
             },
         ])

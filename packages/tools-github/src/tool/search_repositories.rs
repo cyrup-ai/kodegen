@@ -1,10 +1,10 @@
+use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use octocrab::Octocrab;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use anyhow;
-use octocrab::Octocrab;
 
 /// Arguments for searching repositories
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -57,10 +57,9 @@ impl Tool for SearchRepositoriesTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
 
         // Create octocrab instance directly
         let octocrab = Octocrab::builder()

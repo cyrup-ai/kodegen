@@ -1,12 +1,12 @@
-use kodegen_mcp_tool::error::McpError;
 use crate::system_info::{ClientInfo, ClientRecord, SystemInfo, get_system_info};
+use kodegen_mcp_tool::error::McpError;
 use parking_lot::RwLock;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 // ============================================================================
 // DEFAULT VALUE FUNCTIONS
@@ -70,7 +70,7 @@ pub struct ServerConfig {
     /// History of all clients that have connected
     #[serde(default)]
     pub client_history: Vec<ClientRecord>,
-    
+
     /// System diagnostic information (populated on every `get_config` call)
     pub system_info: SystemInfo,
 }
@@ -123,14 +123,15 @@ impl Default for ServerConfig {
 /// Format: Colon-separated on Unix/macOS, semicolon-separated on Windows
 fn load_allowed_dirs_from_env() -> Vec<String> {
     let separator = if cfg!(windows) { ';' } else { ':' };
-    
+
     std::env::var("KODEGEN_ALLOWED_DIRS")
         .ok()
-        .map(|dirs| dirs
-            .split(separator)
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect())
+        .map(|dirs| {
+            dirs.split(separator)
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -138,14 +139,15 @@ fn load_allowed_dirs_from_env() -> Vec<String> {
 /// Format: Colon-separated on Unix/macOS, semicolon-separated on Windows
 fn load_denied_dirs_from_env() -> Vec<String> {
     let separator = if cfg!(windows) { ';' } else { ':' };
-    
+
     std::env::var("KODEGEN_DENIED_DIRS")
         .ok()
-        .map(|dirs| dirs
-            .split(separator)
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect())
+        .map(|dirs| {
+            dirs.split(separator)
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -203,10 +205,8 @@ impl ConfigValue {
     pub fn into_array(self) -> Result<Vec<String>, McpError> {
         match self {
             ConfigValue::Array(arr) => Ok(arr),
-            ConfigValue::String(s) if s.starts_with('[') => {
-                serde_json::from_str(&s)
-                    .map_err(|_| McpError::InvalidArguments("Invalid array format".to_string()))
-            }
+            ConfigValue::String(s) if s.starts_with('[') => serde_json::from_str(&s)
+                .map_err(|_| McpError::InvalidArguments("Invalid array format".to_string())),
             _ => Err(McpError::InvalidArguments("Expected array".to_string())),
         }
     }
@@ -220,7 +220,7 @@ impl ConfigValue {
 pub struct ConfigManager {
     config: Arc<RwLock<ServerConfig>>,
     config_path: PathBuf,
-    
+
     // Debouncing field for fire-and-forget saves
     save_sender: tokio::sync::mpsc::UnboundedSender<()>,
 }
@@ -233,19 +233,19 @@ impl ConfigManager {
             None => PathBuf::from(".kodegen"),
         };
         let config_path = config_dir.join("config.json");
-        
+
         // Create channel for debounced saves
         let (save_sender, save_receiver) = tokio::sync::mpsc::unbounded_channel();
-        
+
         let manager = Self {
             config: Arc::new(RwLock::new(ServerConfig::default())),
             config_path: config_path.clone(),
             save_sender,
         };
-        
+
         // Start background saver task
         manager.start_background_saver(save_receiver);
-        
+
         manager
     }
 
@@ -257,29 +257,33 @@ impl ConfigManager {
         if let Some(config_dir) = self.config_path.parent() {
             tokio::fs::create_dir_all(config_dir).await?;
         }
-        
+
         // Load from disk or use defaults
         let mut loaded_config = match tokio::fs::read_to_string(&self.config_path).await {
             Ok(content) => serde_json::from_str::<ServerConfig>(&content)?,
             Err(_) => ServerConfig::default(),
         };
-        
+
         // OVERRIDE with environment variables (for security)
         let env_allowed = load_allowed_dirs_from_env();
         let env_denied = load_denied_dirs_from_env();
-        
+
         if !env_allowed.is_empty() {
             loaded_config.allowed_directories = env_allowed;
-            log::info!("Loaded {} allowed directories from KODEGEN_ALLOWED_DIRS", 
-                loaded_config.allowed_directories.len());
+            log::info!(
+                "Loaded {} allowed directories from KODEGEN_ALLOWED_DIRS",
+                loaded_config.allowed_directories.len()
+            );
         }
-        
+
         if !env_denied.is_empty() {
             loaded_config.denied_directories = env_denied;
-            log::info!("Loaded {} denied directories from KODEGEN_DENIED_DIRS", 
-                loaded_config.denied_directories.len());
+            log::info!(
+                "Loaded {} denied directories from KODEGEN_DENIED_DIRS",
+                loaded_config.denied_directories.len()
+            );
         }
-        
+
         *self.config.write() = loaded_config;
         self.save_to_disk().await?;
         Ok(())
@@ -323,13 +327,17 @@ impl ConfigManager {
             "default_shell" => Some(ConfigValue::String(config.default_shell.clone())),
             "allowed_directories" => Some(ConfigValue::Array(config.allowed_directories.clone())),
             "denied_directories" => Some(ConfigValue::Array(config.denied_directories.clone())),
-            "file_read_line_limit" => Some(ConfigValue::Number(i64::try_from(config.file_read_line_limit).unwrap_or(i64::MAX))),
-            "file_write_line_limit" => Some(ConfigValue::Number(i64::try_from(config.file_write_line_limit).unwrap_or(i64::MAX))),
+            "file_read_line_limit" => Some(ConfigValue::Number(
+                i64::try_from(config.file_read_line_limit).unwrap_or(i64::MAX),
+            )),
+            "file_write_line_limit" => Some(ConfigValue::Number(
+                i64::try_from(config.file_write_line_limit).unwrap_or(i64::MAX),
+            )),
             "fuzzy_search_threshold" => Some(ConfigValue::Number(
-                (config.fuzzy_search_threshold * 100.0) as i64
+                (config.fuzzy_search_threshold * 100.0) as i64,
             )),
             "sse_connection_timeout_secs" => Some(ConfigValue::Number(
-                i64::try_from(config.sse_connection_timeout_secs).unwrap_or(i64::MAX)
+                i64::try_from(config.sse_connection_timeout_secs).unwrap_or(i64::MAX),
             )),
             _ => None,
         }
@@ -359,31 +367,33 @@ impl ConfigManager {
                     let num = value.into_number()?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
-                            "file_read_line_limit must be positive".to_string()
+                            "file_read_line_limit must be positive".to_string(),
                         ));
                     }
-                    config.file_read_line_limit = usize::try_from(num)
-                        .map_err(|_| McpError::InvalidArguments(
-                            "file_read_line_limit value out of range".to_string()
-                        ))?;
+                    config.file_read_line_limit = usize::try_from(num).map_err(|_| {
+                        McpError::InvalidArguments(
+                            "file_read_line_limit value out of range".to_string(),
+                        )
+                    })?;
                 }
                 "file_write_line_limit" => {
                     let num = value.into_number()?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
-                            "file_write_line_limit must be positive".to_string()
+                            "file_write_line_limit must be positive".to_string(),
                         ));
                     }
-                    config.file_write_line_limit = usize::try_from(num)
-                        .map_err(|_| McpError::InvalidArguments(
-                            "file_write_line_limit value out of range".to_string()
-                        ))?;
+                    config.file_write_line_limit = usize::try_from(num).map_err(|_| {
+                        McpError::InvalidArguments(
+                            "file_write_line_limit value out of range".to_string(),
+                        )
+                    })?;
                 }
                 "fuzzy_search_threshold" => {
                     let num = value.into_number()?;
                     if !(0..=100).contains(&num) {
                         return Err(McpError::InvalidArguments(
-                            "fuzzy_search_threshold must be between 0 and 100".to_string()
+                            "fuzzy_search_threshold must be between 0 and 100".to_string(),
                         ));
                     }
                     config.fuzzy_search_threshold = (num as f64) / 100.0;
@@ -392,22 +402,23 @@ impl ConfigManager {
                     let num = value.into_number()?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
-                            "sse_connection_timeout_secs must be positive".to_string()
+                            "sse_connection_timeout_secs must be positive".to_string(),
                         ));
                     }
-                    config.sse_connection_timeout_secs = u64::try_from(num)
-                        .map_err(|_| McpError::InvalidArguments(
-                            "sse_connection_timeout_secs value out of range".to_string()
-                        ))?;
+                    config.sse_connection_timeout_secs = u64::try_from(num).map_err(|_| {
+                        McpError::InvalidArguments(
+                            "sse_connection_timeout_secs value out of range".to_string(),
+                        )
+                    })?;
                 }
                 _ => {
-                    return Err(McpError::InvalidArguments(
-                        format!("Unknown config key: {key}")
-                    ));
+                    return Err(McpError::InvalidArguments(format!(
+                        "Unknown config key: {key}"
+                    )));
                 }
             }
         }
-        
+
         // Fire-and-forget debounced save
         let _ = self.save_sender.send(());
         Ok(())
@@ -417,17 +428,17 @@ impl ConfigManager {
         // Profiling instrumentation
         let start_time = CONFIG_WRITE_START.get_or_init(std::time::Instant::now);
         let count = CONFIG_WRITE_COUNT.fetch_add(1, Ordering::Relaxed);
-        
+
         if count.is_multiple_of(10) {
             let elapsed = start_time.elapsed().as_secs();
-            let rate = if elapsed > 0 { 
-                f64::from(u32::try_from(count).unwrap_or(u32::MAX)) / elapsed as f64 * 60.0 
-            } else { 
-                0.0 
+            let rate = if elapsed > 0 {
+                f64::from(u32::try_from(count).unwrap_or(u32::MAX)) / elapsed as f64 * 60.0
+            } else {
+                0.0
             };
             log::info!("Config writes: {count} total ({rate:.2}/min)");
         }
-        
+
         // Existing save logic
         let json = {
             let config = self.config.read();
@@ -438,22 +449,19 @@ impl ConfigManager {
     }
 
     /// Background task that debounces config saves
-    /// 
+    ///
     /// Pattern copied from packages/utils/src/usage_tracker.rs:154-234
-    fn start_background_saver(
-        &self,
-        mut save_receiver: tokio::sync::mpsc::UnboundedReceiver<()>
-    ) {
+    fn start_background_saver(&self, mut save_receiver: tokio::sync::mpsc::UnboundedReceiver<()>) {
         let config = Arc::clone(&self.config);
         let config_path = self.config_path.clone();
-        
+
         tokio::spawn(async move {
             // Debounce: wait 300ms after last change
             const DEBOUNCE_MS: u64 = 300;
-            
+
             let mut has_pending_save = false;
             let mut last_save_request = std::time::Instant::now();
-            
+
             loop {
                 tokio::select! {
                     // Receive save request from set_value() or set_client_info()
@@ -461,7 +469,7 @@ impl ConfigManager {
                         has_pending_save = true;
                         last_save_request = std::time::Instant::now();
                     }
-                    
+
                     // Check every 100ms if debounce period has passed
                     () = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
                         if has_pending_save && last_save_request.elapsed().as_millis() >= u128::from(DEBOUNCE_MS) {
@@ -476,15 +484,15 @@ impl ConfigManager {
                                     }
                                 }
                             };
-                            
+
                             if let Err(e) = tokio::fs::write(&config_path, json).await {
                                 log::error!("Failed to save config: {e}");
                             }
-                            
+
                             has_pending_save = false;
                         }
                     }
-                    
+
                     // Channel closed (server shutdown)
                     else => {
                         // Final flush before exit
@@ -510,13 +518,13 @@ impl ConfigManager {
         {
             let mut config = self.config.write();
             let now = chrono::Utc::now();
-            
+
             // Update or create client history record
-            let existing = config.client_history
-                .iter_mut()
-                .find(|r| r.client_info.name == client_info.name 
-                       && r.client_info.version == client_info.version);
-            
+            let existing = config.client_history.iter_mut().find(|r| {
+                r.client_info.name == client_info.name
+                    && r.client_info.version == client_info.version
+            });
+
             if let Some(record) = existing {
                 // Update existing record's last_seen timestamp
                 record.last_seen = now;
@@ -528,22 +536,22 @@ impl ConfigManager {
                     last_seen: now,
                 });
             }
-            
+
             // Set as current client
             config.current_client = Some(client_info);
         }
-        
+
         // Fire-and-forget debounced save
         let _ = self.save_sender.send(());
         Ok(())
     }
-    
+
     /// Get current client information
     #[must_use]
     pub fn get_client_info(&self) -> Option<ClientInfo> {
         self.config.read().current_client.clone()
     }
-    
+
     /// Get client connection history
     #[must_use]
     pub fn get_client_history(&self) -> Vec<ClientRecord> {

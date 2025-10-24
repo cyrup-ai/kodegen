@@ -1,5 +1,5 @@
-pub mod types;
-pub mod install;
 pub mod daemon;
+pub mod install;
+pub mod types;
 
 pub use types::*;

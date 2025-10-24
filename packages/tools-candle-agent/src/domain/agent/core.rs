@@ -5,9 +5,9 @@ use std::sync::{
     atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use rmcp::model::Tool as ToolInfo;
 use serde_json::Value;
 use std::pin::Pin;
-use rmcp::model::Tool as ToolInfo;
 use tokio_stream::Stream;
 
 use crate::core::EngineError;

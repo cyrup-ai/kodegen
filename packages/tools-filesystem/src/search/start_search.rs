@@ -1,12 +1,14 @@
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
-use super::{SearchManager, SearchSessionOptions, SearchType, CaseMode, SearchOutputMode, BoundaryMode};
+use super::{
+    BoundaryMode, CaseMode, SearchManager, SearchOutputMode, SearchSessionOptions, SearchType,
+};
 
 // ============================================================================
 // HELPERS
@@ -24,14 +26,14 @@ fn default_search_type() -> SearchType {
 pub struct StartSearchArgs {
     /// Root directory to search
     pub path: String,
-    
+
     /// Pattern to search for
     pub pattern: String,
-    
+
     /// Search type: "files" or "content"
     #[serde(default = "default_search_type")]
     pub search_type: SearchType,
-    
+
     /// File pattern filter (e.g., "*.rs", "*.{ts,js}")
     #[serde(default)]
     pub file_pattern: Option<String>,
@@ -58,11 +60,11 @@ pub struct StartSearchArgs {
     /// If set, overrides `case_mode`: true → Insensitive, false → Sensitive
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ignore_case: Option<bool>,
-    
+
     /// Maximum number of results
     #[serde(default)]
     pub max_results: Option<u32>,
-    
+
     /// Include hidden files
     #[serde(default)]
     pub include_hidden: bool,
@@ -91,15 +93,15 @@ pub struct StartSearchArgs {
     /// Timeout in milliseconds
     #[serde(default)]
     pub timeout_ms: Option<u64>,
-    
+
     /// Stop early when exact filename match found (files only)
     #[serde(default)]
     pub early_termination: Option<bool>,
-    
+
     /// Force literal string matching instead of regex (default: false)
     #[serde(default)]
     pub literal_search: bool,
-    
+
     /// Boundary mode for pattern matching: "word", "line", or null (default: null)
     /// - null/omitted: Match pattern anywhere (substring matching)
     /// - "word": Match whole words only - uses \b anchors
@@ -108,11 +110,11 @@ pub struct StartSearchArgs {
     /// - "line": Match complete lines only - uses ^ and $ anchors
     ///   * Content search: "error" matches "error" (alone) but not "this error happened"
     ///   * File search: Less useful, but supported for API completeness
-    /// 
+    ///
     /// Replaces the deprecated `word_boundary` boolean parameter
     #[serde(default)]
     pub boundary_mode: Option<String>,
-    
+
     /// DEPRECATED: Use `boundary_mode="word`" instead. Provided for backward compatibility.
     /// If set to true, overrides `boundary_mode` to "word"
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -141,23 +143,23 @@ pub struct StartSearchArgs {
     /// PCRE2 supports backreferences and look-around assertions
     #[serde(default)]
     pub engine: super::EngineChoice,
-    
+
     /// Preprocessor command to run on files before searching
     /// The command receives the file path as first argument
     /// Example: "pandoc" to search Markdown as plain text
     #[serde(default)]
     pub preprocessor: Option<String>,
-    
+
     /// Glob patterns for files to run through preprocessor
     /// If empty, all files are preprocessed
     /// Example: ["*.md", "*.rst"]
     #[serde(default)]
     pub preprocessor_globs: Vec<String>,
-    
+
     /// Search inside compressed files (.gz, .zip, .bz2, .xz)
     #[serde(default)]
     pub search_zip: bool,
-    
+
     /// Binary file handling mode: "auto", "binary", or "text" (default: "auto")
     /// Matches ripgrep's --binary and -a/--text flags
     /// auto: automatically skip binary files (default rg behavior)
@@ -165,21 +167,21 @@ pub struct StartSearchArgs {
     /// text: treat all files as text (rg -a/--text)
     #[serde(default)]
     pub binary_mode: super::BinaryMode,
-    
+
     /// Enable multiline mode - allows patterns to match across line boundaries
     /// Matches ripgrep's --multiline flag
     /// When enabled, the '.' metacharacter matches newlines
     /// Essential for complex code structure patterns
     #[serde(default)]
     pub multiline: bool,
-    
+
     /// Skip files larger than this size in bytes (None = unlimited)
     /// Matches ripgrep's --max-filesize flag
     /// Recommended: 1048576 (1MB) to skip minified bundles and lock files
     /// Essential for performance: avoids searching huge generated/minified files
     #[serde(default)]
     pub max_filesize: Option<u64>,
-    
+
     /// Maximum directory depth to traverse (0 = root only, None = unlimited)
     /// Matches ripgrep's --max-depth flag
     /// Essential for performance in monorepos with deep dependency trees
@@ -247,7 +249,6 @@ impl StartSearchTool {
 impl Tool for StartSearchTool {
     type Args = StartSearchArgs;
     type PromptArgs = StartSearchPromptArgs;
-
 
     fn name() -> &'static str {
         "start_search"
@@ -386,7 +387,7 @@ impl Tool for StartSearchTool {
         } else {
             args.case_mode
         };
-        
+
         // Handle backward compatibility: word_boundary overrides boundary_mode if present
         let boundary_mode = if let Some(true) = args.word_boundary {
             log::warn!("word_boundary is deprecated, use boundary_mode='word' instead");
@@ -398,32 +399,32 @@ impl Tool for StartSearchTool {
                 Some("word") => Some(BoundaryMode::Word),
                 Some("line") => Some(BoundaryMode::Line),
                 Some(other) => {
-                    return Err(McpError::InvalidArguments(
-                        format!(
-                            "Invalid boundary_mode '{other}'. Must be 'word', 'line', or null"
-                        )
-                    ));
+                    return Err(McpError::InvalidArguments(format!(
+                        "Invalid boundary_mode '{other}'. Must be 'word', 'line', or null"
+                    )));
                 }
             }
         };
-        
+
         // Validate files_with_matches only works with content search (deprecated parameter)
         if args.files_with_matches == Some(true) && args.search_type != SearchType::Content {
             return Err(McpError::InvalidArguments(
-                "files_with_matches can only be used with search_type 'content'".to_string()
+                "files_with_matches can only be used with search_type 'content'".to_string(),
             ));
         }
-        
+
         // Validate only_matching only works with content search
         if args.only_matching && args.search_type != SearchType::Content {
             return Err(McpError::InvalidArguments(
-                "only_matching can only be used with search_type 'content'".to_string()
+                "only_matching can only be used with search_type 'content'".to_string(),
             ));
         }
-        
+
         // Warn if only_matching + invert_match (illogical combination)
         if args.only_matching && args.invert_match {
-            log::warn!("only_matching + invert_match: nothing to extract from non-matches, ignoring only_matching");
+            log::warn!(
+                "only_matching + invert_match: nothing to extract from non-matches, ignoring only_matching"
+            );
         }
         // Handle deprecated files_with_matches - convert to output_mode
         let output_mode = if let Some(true) = args.files_with_matches {
@@ -432,12 +433,14 @@ impl Tool for StartSearchTool {
         } else {
             args.output_mode
         };
-        
+
         // Warn if only_matching with non-Full output mode (only_matching has no effect)
         if args.only_matching && output_mode != SearchOutputMode::Full {
-            log::warn!("only_matching with output_mode={output_mode:?}: non-Full modes don't have match text, ignoring only_matching");
+            log::warn!(
+                "only_matching with output_mode={output_mode:?}: non-Full modes don't have match text, ignoring only_matching"
+            );
         }
-        
+
         let options = SearchSessionOptions {
             root_path: args.path,
             pattern: args.pattern,
@@ -445,7 +448,7 @@ impl Tool for StartSearchTool {
             file_pattern: args.file_pattern,
             r#type: args.r#type,
             type_not: args.type_not,
-            case_mode,  // Changed from ignore_case
+            case_mode, // Changed from ignore_case
             max_results: args.max_results,
             include_hidden: args.include_hidden,
             no_ignore: args.no_ignore,
@@ -455,7 +458,7 @@ impl Tool for StartSearchTool {
             timeout_ms: args.timeout_ms,
             early_termination: args.early_termination,
             literal_search: args.literal_search,
-            boundary_mode,  // Changed from word_boundary
+            boundary_mode, // Changed from word_boundary
             output_mode,
             invert_match: args.invert_match,
             engine: args.engine,
@@ -472,9 +475,9 @@ impl Tool for StartSearchTool {
             sort_direction: args.sort_direction,
             encoding: args.encoding,
         };
-        
+
         let response = self.manager.start_search(options).await?;
-        
+
         Ok(json!({
             "session_id": response.session_id,
             "is_complete": response.is_complete,
@@ -515,7 +518,7 @@ impl Tool for StartSearchTool {
                           \"search_type\": \"content\",\n\
                           \"file_pattern\": \"*.rs\"\n\
                         })\n\n\
-                     Returns session_id immediately. Use get_more_search_results to fetch results."
+                     Returns session_id immediately. Use get_more_search_results to fetch results.",
                 ),
             },
         ])

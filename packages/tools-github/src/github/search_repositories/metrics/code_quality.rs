@@ -4,10 +4,10 @@ use super::check_file_size;
 use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::helpers::{is_git_dir, is_hidden, is_vendor_dir};
 use crate::github::search_repositories::types::CodeQualityMetrics;
+use log::warn;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use log::warn;
 use walkdir::WalkDir;
 
 /// Collects code quality metrics

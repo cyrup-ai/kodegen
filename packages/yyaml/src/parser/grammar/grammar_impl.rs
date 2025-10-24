@@ -1,6 +1,6 @@
 //! Grammar validation and decision utilities
 
-use super::context_types::{YamlContext, ParseContext};
+use super::context_types::{ParseContext, YamlContext};
 use super::parametric_context::ParametricContext;
 use super::productions::Production;
 use super::productions::{ParseError, ParseErrorKind};

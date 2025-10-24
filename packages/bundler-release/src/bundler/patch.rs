@@ -57,8 +57,7 @@ pub fn patch_binary(binary_path: &Path, package_type: &PackageType) -> Result<()
     // Read entire binary into memory
     // Performance note: For typical desktop apps (1-50 MB), this is acceptable.
     // For very large binaries (100+ MB), this could be optimized with memory mapping.
-    let mut data = std::fs::read(binary_path)
-        .fs_context("reading binary file", binary_path)?;
+    let mut data = std::fs::read(binary_path).fs_context("reading binary file", binary_path)?;
 
     // Check minimum size for format detection
     if data.len() < 16 {
@@ -114,8 +113,7 @@ pub fn patch_binary(binary_path: &Path, package_type: &PackageType) -> Result<()
     }
 
     // Write patched binary back to disk
-    std::fs::write(binary_path, data)
-        .fs_context("writing patched binary", binary_path)?;
+    std::fs::write(binary_path, data).fs_context("writing patched binary", binary_path)?;
 
     log::info!(
         "Successfully patched binary {:?} with package type: {}",
@@ -147,11 +145,7 @@ pub fn patch_binary(binary_path: &Path, package_type: &PackageType) -> Result<()
 /// # Note
 ///
 /// If marker not found, logs debug message and returns Ok(). This is not an error.
-fn patch_binary_data(
-    data: &mut [u8],
-    package_type: &PackageType,
-    format_name: &str,
-) -> Result<()> {
+fn patch_binary_data(data: &mut [u8], package_type: &PackageType, format_name: &str) -> Result<()> {
     const MARKER: &[u8] = b"__CYRUP_BUNDLE_TYPE";
     let package_type_bytes = package_type.short_name().as_bytes();
 

@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::secret_scanning_alert::SecretScanningAlert, Octocrab};
+use octocrab::{Octocrab, models::repos::secret_scanning_alert::SecretScanningAlert};
 use std::sync::Arc;
 
 /// Get a specific secret scanning alert.
@@ -41,7 +41,7 @@ pub(crate) fn list_secret_scanning_alerts(
     spawn_task(async move {
         let repos = inner.repos(&owner, &repo);
         let mut handler = repos.secrets_scanning();
-        
+
         if let Some(s) = state {
             handler = handler.state(s);
         }
@@ -52,12 +52,9 @@ pub(crate) fn list_secret_scanning_alerts(
             // Note: octocrab's resolution takes Vec<String>
             handler = handler.resolution(vec![r]);
         }
-        
-        let page = handler
-            .get_alerts()
-            .await
-            .map_err(GitHubError::from)?;
-        
+
+        let page = handler.get_alerts().await.map_err(GitHubError::from)?;
+
         Ok(page.items)
     })
 }

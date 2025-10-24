@@ -32,7 +32,7 @@ pub fn main() {
             .map(std::path::PathBuf::from)
             .expect("OUT_DIR must be set");
         let zip_path = out_dir.join("KodegenHelper.app.zip");
-        
+
         if let Err(e) = packaging::create_functional_zip(&zip_path) {
             eprintln!("Error: Failed to build macOS helper app: {e}");
             eprintln!("Build failed - macOS helper is required for proper installation");

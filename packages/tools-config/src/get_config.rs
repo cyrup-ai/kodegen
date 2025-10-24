@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
 use crate::{ConfigManager, get_system_info};
 use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -60,10 +60,10 @@ impl Tool for GetConfigTool {
 
     async fn execute(&self, _args: Self::Args) -> Result<Value, McpError> {
         let mut config = self.config_manager.get_config();
-        
+
         // Refresh system info with current values (especially memory usage)
         config.system_info = get_system_info();
-        
+
         Ok(json!(config))
     }
 

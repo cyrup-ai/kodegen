@@ -13,7 +13,7 @@ use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 use crate::macos::keychain::TempKeychain;
 
 /// Sign the helper app with developer certificate
-/// 
+///
 /// This uses the proven signing infrastructure and automatically:
 /// 1. Imports certificate from `APPLE_CERTIFICATE` env var if present
 /// 2. Falls back to keychain certificate if available
@@ -34,10 +34,8 @@ pub fn sign_helper_app(helper_dir: &Path) -> Result<(), Box<dyn std::error::Erro
     };
 
     // Create entitlements in temp directory with unique name
-    let entitlements_path = env::temp_dir().join(format!(
-        "kodegen_entitlements_{}.plist",
-        std::process::id()
-    ));
+    let entitlements_path =
+        env::temp_dir().join(format!("kodegen_entitlements_{}.plist", std::process::id()));
     create_entitlements_file(&entitlements_path)?;
 
     // Sign executable using proven signing function from macos::keychain
@@ -47,7 +45,8 @@ pub fn sign_helper_app(helper_dir: &Path) -> Result<(), Box<dyn std::error::Erro
         &signing_identity,
         Some(&entitlements_path),
         true, // hardened runtime
-    ).map_err(|e| format!("Failed to sign executable: {e}"))?;
+    )
+    .map_err(|e| format!("Failed to sign executable: {e}"))?;
 
     // Sign the entire app bundle
     sign_app_bundle(helper_dir, &signing_identity)?;
@@ -72,24 +71,28 @@ fn setup_certificate_from_env() -> Result<Option<TempKeychain>, Box<dyn std::err
     // Check for APPLE_CERTIFICATE and APPLE_CERTIFICATE_PASSWORD (base64 .p12)
     if let (Ok(cert_base64), Ok(password)) = (
         std::env::var("APPLE_CERTIFICATE"),
-        std::env::var("APPLE_CERTIFICATE_PASSWORD")
+        std::env::var("APPLE_CERTIFICATE_PASSWORD"),
     ) {
         // Use proven certificate import from macos::keychain
         use base64::Engine;
-        let cert_bytes = base64::engine::general_purpose::STANDARD.decode(cert_base64)
+        let cert_bytes = base64::engine::general_purpose::STANDARD
+            .decode(cert_base64)
             .map_err(|e| format!("Invalid APPLE_CERTIFICATE (not valid base64): {e}"))?;
-        
+
         let temp_keychain = TempKeychain::from_certificate_bytes(&cert_bytes, &password)
             .map_err(|e| format!("Failed to import certificate: {e}"))?;
-        
+
         let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
         let mut buffer = bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
         let _ = write!(&mut buffer, "✓ ");
         let _ = buffer.reset();
-        let _ = writeln!(&mut buffer, "Imported certificate from APPLE_CERTIFICATE env var");
+        let _ = writeln!(
+            &mut buffer,
+            "Imported certificate from APPLE_CERTIFICATE env var"
+        );
         let _ = bufwtr.print(&buffer);
-        
+
         Ok(Some(temp_keychain))
     } else {
         Ok(None) // No env vars set
@@ -101,20 +104,23 @@ fn get_system_signing_identity() -> Result<String, Box<dyn std::error::Error>> {
     let output = Command::new("security")
         .args(["find-identity", "-v", "-p", "codesigning"])
         .output()?;
-    
+
     let identities = String::from_utf8_lossy(&output.stdout);
-    
+
     if identities.contains("Developer ID Application") {
         let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
         let mut buffer = bufwtr.buffer();
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
         let _ = write!(&mut buffer, "✓ ");
         let _ = buffer.reset();
-        let _ = writeln!(&mut buffer, "Found Developer ID certificate in system keychain");
+        let _ = writeln!(
+            &mut buffer,
+            "Found Developer ID certificate in system keychain"
+        );
         let _ = bufwtr.print(&buffer);
         return Ok("Developer ID Application".to_string());
     }
-    
+
     // CRITICAL: No certificate = BUILD FAILURE
     // Ad-hoc signing must NEVER be allowed for releases
     let bufwtr = BufferWriter::stderr(ColorChoice::Auto);
@@ -124,11 +130,20 @@ fn get_system_signing_identity() -> Result<String, Box<dyn std::error::Error>> {
     let _ = buffer.reset();
     let _ = writeln!(&mut buffer, "\nRELEASE BUILD REQUIRES VALID CERTIFICATE");
     let _ = writeln!(&mut buffer, "\nOptions:");
-    let _ = writeln!(&mut buffer, "  1. Set APPLE_CERTIFICATE + APPLE_CERTIFICATE_PASSWORD env vars (CI/CD)");
-    let _ = writeln!(&mut buffer, "  2. Run: cargo run --package kodegen_sign --bin kodegen-setup -- --interactive");
-    let _ = writeln!(&mut buffer, "\nUnsigned releases are NEVER allowed - customer trust depends on it!");
+    let _ = writeln!(
+        &mut buffer,
+        "  1. Set APPLE_CERTIFICATE + APPLE_CERTIFICATE_PASSWORD env vars (CI/CD)"
+    );
+    let _ = writeln!(
+        &mut buffer,
+        "  2. Run: cargo run --package kodegen_sign --bin kodegen-setup -- --interactive"
+    );
+    let _ = writeln!(
+        &mut buffer,
+        "\nUnsigned releases are NEVER allowed - customer trust depends on it!"
+    );
     let _ = bufwtr.print(&buffer);
-    
+
     Err("No valid code signing certificate available. Release build cannot proceed.".into())
 }
 
@@ -175,14 +190,14 @@ fn verify_signature(app_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let _ = writeln!(&mut buffer, "Helper app signature verified successfully");
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        
+
         let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
         let _ = write!(&mut buffer, "⚠️  Warning: ");
         let _ = buffer.reset();
         let _ = writeln!(&mut buffer, "Signature verification failed: {stderr}");
         let _ = writeln!(&mut buffer, "This is expected for development builds");
     }
-    
+
     let _ = bufwtr.print(&buffer);
     Ok(())
 }
@@ -214,24 +229,30 @@ pub fn validate_signing_requirements() -> Result<(), Box<dyn std::error::Error>>
         Ok(output) if output.status.success() => {
             let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
             let mut buffer = bufwtr.buffer();
-            
+
             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
             let _ = write!(&mut buffer, "✓ ");
             let _ = buffer.reset();
-            let _ = writeln!(&mut buffer, "codesign available: {}", 
-                String::from_utf8_lossy(&output.stdout).trim());
+            let _ = writeln!(
+                &mut buffer,
+                "codesign available: {}",
+                String::from_utf8_lossy(&output.stdout).trim()
+            );
             let _ = bufwtr.print(&buffer);
         }
         _ => {
             let bufwtr = BufferWriter::stderr(ColorChoice::Auto);
             let mut buffer = bufwtr.buffer();
-            
+
             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
             let _ = write!(&mut buffer, "⚠️  Warning: ");
             let _ = buffer.reset();
-            let _ = writeln!(&mut buffer, "codesign not available, helper app will be unsigned");
+            let _ = writeln!(
+                &mut buffer,
+                "codesign not available, helper app will be unsigned"
+            );
             let _ = bufwtr.print(&buffer);
-            
+
             return Ok(()); // Don't fail the build, just warn
         }
     }
@@ -246,7 +267,7 @@ pub fn validate_signing_requirements() -> Result<(), Box<dyn std::error::Error>>
             let identities = String::from_utf8_lossy(&output.stdout);
             let bufwtr = BufferWriter::stdout(ColorChoice::Auto);
             let mut buffer = bufwtr.buffer();
-            
+
             if identities.contains("Developer ID Application") {
                 let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
                 let _ = write!(&mut buffer, "✓ ");
@@ -254,17 +275,23 @@ pub fn validate_signing_requirements() -> Result<(), Box<dyn std::error::Error>>
                 let _ = writeln!(&mut buffer, "Developer ID signing identity found");
             } else {
                 let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
-                let _ = writeln!(&mut buffer, "⚠️  WARNING: No Developer ID Application identity found");
+                let _ = writeln!(
+                    &mut buffer,
+                    "⚠️  WARNING: No Developer ID Application identity found"
+                );
                 let _ = buffer.reset();
-                let _ = writeln!(&mut buffer, "Helper app will be signed with ad-hoc signature");
+                let _ = writeln!(
+                    &mut buffer,
+                    "Helper app will be signed with ad-hoc signature"
+                );
             }
-            
+
             let _ = bufwtr.print(&buffer);
         }
         _ => {
             let bufwtr = BufferWriter::stderr(ColorChoice::Auto);
             let mut buffer = bufwtr.buffer();
-            
+
             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
             let _ = write!(&mut buffer, "⚠️  Warning: ");
             let _ = buffer.reset();

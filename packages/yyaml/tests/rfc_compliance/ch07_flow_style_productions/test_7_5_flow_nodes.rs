@@ -12,12 +12,12 @@ fn test_flow_nodes() {
     let yaml = r#"[1, 2, 3]"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_vec().unwrap().len(), 3);
-    
+
     // Flow mapping as root node
     let yaml = r#"{key: value}"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["key"].as_str().unwrap(), "value");
-    
+
     // Flow scalar as root node
     let yaml = r#""quoted string""#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
@@ -35,7 +35,7 @@ copy: *anchor
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["reference"]["key"].as_str().unwrap(), "value");
     assert_eq!(docs[0]["copy"]["key"].as_str().unwrap(), "value");
-    
+
     // Flow node with explicit tag
     let yaml = r#"tagged: !!str [1, 2, 3]"#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();

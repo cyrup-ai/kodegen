@@ -28,8 +28,7 @@ use std::sync::Arc;
 use tokenizers::Tokenizer;
 
 use crate::logits::constraints::{
-    JsonConstraint,
-    SchemaConstraint, SchemaVocabulary, regex_from_schema, regex_from_value,
+    JsonConstraint, SchemaConstraint, SchemaVocabulary, regex_from_schema, regex_from_value,
 };
 
 /// Create a JSON constraint from a serde type with `JsonSchema` derive
@@ -66,8 +65,7 @@ where
     T: JsonSchema + serde::Serialize,
 {
     let vocabulary = Arc::new(SchemaVocabulary::from_tokenizer(tokenizer)?);
-    let regex_pattern = regex_from_schema::<T>()
-        .context("Failed to generate regex from type")?;
+    let regex_pattern = regex_from_schema::<T>().context("Failed to generate regex from type")?;
 
     SchemaConstraint::new(&regex_pattern, vocabulary, false)
         .context("Failed to create schema constraint from type")
@@ -105,12 +103,12 @@ pub fn constraint_for_schema(
     schema_json: &str,
     tokenizer: &Tokenizer,
 ) -> AnyResult<SchemaConstraint> {
-    let schema: serde_json::Value = serde_json::from_str(schema_json)
-        .context("Failed to parse JSON schema")?;
+    let schema: serde_json::Value =
+        serde_json::from_str(schema_json).context("Failed to parse JSON schema")?;
 
     let vocabulary = Arc::new(SchemaVocabulary::from_tokenizer(tokenizer)?);
-    let regex_pattern = regex_from_value(&schema, None, None)
-        .context("Failed to generate regex from schema")?;
+    let regex_pattern =
+        regex_from_value(&schema, None, None).context("Failed to generate regex from schema")?;
 
     SchemaConstraint::new(&regex_pattern, vocabulary, false)
         .context("Failed to create schema constraint from JSON")
@@ -137,8 +135,7 @@ pub fn constraint_for_schema(
 /// // Ensures valid JSON syntax but allows any structure
 /// ```
 pub fn basic_json_constraint(tokenizer: &Tokenizer) -> AnyResult<JsonConstraint<'_>> {
-    JsonConstraint::new(tokenizer)
-        .context("Failed to create basic JSON constraint")
+    JsonConstraint::new(tokenizer).context("Failed to create basic JSON constraint")
 }
 
 /// Builder for creating complex constraints with multiple options
@@ -197,8 +194,8 @@ impl<'a> ConstraintBuilder<'a> {
     /// # Arguments
     /// * `schema_json` - JSON schema as a string
     pub fn with_schema(mut self, schema_json: &str) -> AnyResult<Self> {
-        let schema: serde_json::Value = serde_json::from_str(schema_json)
-            .context("Failed to parse JSON schema in builder")?;
+        let schema: serde_json::Value =
+            serde_json::from_str(schema_json).context("Failed to parse JSON schema in builder")?;
         self.schema = Some(schema);
         Ok(self)
     }
@@ -234,7 +231,8 @@ impl<'a> ConstraintBuilder<'a> {
     /// * `Ok(SchemaConstraint)` - Configured constraint ready for use
     /// * `Err(anyhow::Error)` - If constraint creation fails
     pub fn build(self) -> AnyResult<SchemaConstraint> {
-        let schema = self.schema
+        let schema = self
+            .schema
             .ok_or_else(|| anyhow::anyhow!("No schema specified in constraint builder"))?;
 
         let vocabulary = Arc::new(SchemaVocabulary::from_tokenizer(self.tokenizer)?);
@@ -259,8 +257,7 @@ impl<'a> ConstraintBuilder<'a> {
     /// * `Ok(JsonConstraint)` - JSON syntax constraint
     /// * `Err(anyhow::Error)` - If constraint creation fails
     pub fn build_json_only(self) -> AnyResult<JsonConstraint<'a>> {
-        JsonConstraint::new(self.tokenizer)
-            .context("Failed to build JSON constraint")
+        JsonConstraint::new(self.tokenizer).context("Failed to build JSON constraint")
     }
 }
 
@@ -320,4 +317,3 @@ pub mod presets {
         constraint_for_schema(schema_json, tokenizer)
     }
 }
-

@@ -67,7 +67,7 @@ impl SseEvent {
     }
 
     /// Create an endpoint event with the messages URL for a session
-    #[must_use] 
+    #[must_use]
     pub fn endpoint(session_id: &str, base_url: &str) -> Self {
         let messages_url = format!("{base_url}/messages?session_id={session_id}");
         Self::new(EventType::Endpoint, messages_url)
@@ -98,16 +98,15 @@ impl SseEvent {
 
     /// Check if this is a ping event
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn is_ping(&self) -> bool {
         matches!(self.event_type, Some(EventType::Ping))
     }
 
     /// Check if this is an error event
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn is_error(&self) -> bool {
         matches!(self.event_type, Some(EventType::Error))
     }
 }
-

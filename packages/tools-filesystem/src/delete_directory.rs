@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -50,18 +50,18 @@ impl Tool for DeleteDirectoryTool {
     }
 
     fn destructive() -> bool {
-        true  // Permanently deletes data recursively
+        true // Permanently deletes data recursively
     }
 
     fn idempotent() -> bool {
-        false  // Deleting twice will fail
+        false // Deleting twice will fail
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Safety check: require explicit recursive flag
         if !args.recursive {
             return Err(McpError::InvalidArguments(
-                "Must set recursive=true to delete a directory and its contents".to_string()
+                "Must set recursive=true to delete a directory and its contents".to_string(),
             ));
         }
 
@@ -74,7 +74,7 @@ impl Tool for DeleteDirectoryTool {
 
         if !metadata.is_dir() {
             return Err(McpError::InvalidArguments(
-                "Path is not a directory. Use delete_file to remove files.".to_string()
+                "Path is not a directory. Use delete_file to remove files.".to_string(),
             ));
         }
 
@@ -110,7 +110,7 @@ impl Tool for DeleteDirectoryTool {
                      - Deletes ALL contents recursively (files and subdirectories)\n\n\
                      IMPORTANT: This operation is permanent and cannot be undone!\n\
                      All files and subdirectories will be permanently deleted.\n\n\
-                     To delete individual files, use delete_file instead."
+                     To delete individual files, use delete_file instead.",
                 ),
             },
         ])

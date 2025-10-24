@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
+use crate::manager::{CommandManager, TerminalManager};
 use kodegen_mcp_tool::Tool;
-use crate::manager::{TerminalManager, CommandManager};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -161,7 +161,7 @@ impl Tool for StartTerminalCommandTool {
                      Security:\n\
                      - Blocked commands: rm, sudo, chmod, kill, wget, curl, etc.\n\
                      - Complex command parsing handles pipes, redirects, subshells\n\
-                     - Safe error handling throughout"
+                     - Safe error handling throughout",
                 ),
             },
         ])

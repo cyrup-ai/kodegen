@@ -16,7 +16,7 @@ pub struct Token<'input> {
 
 impl<'input> Token<'input> {
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn new(kind: TokenKind<'input>, position: Position, length: usize) -> Self {
         Self {
             kind,
@@ -27,7 +27,7 @@ impl<'input> Token<'input> {
 
     /// Get the end position of this token
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn end_position(&self) -> Position {
         Position::new(
             self.position.line,
@@ -125,7 +125,7 @@ pub enum ScalarStyle {
 impl<'input> TokenKind<'input> {
     /// Check if this token can start a value
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn can_start_value(&self) -> bool {
         matches!(
             self,
@@ -140,14 +140,14 @@ impl<'input> TokenKind<'input> {
 
     /// Check if this token ends a flow context
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn ends_flow(&self) -> bool {
         matches!(self, TokenKind::FlowSequenceEnd | TokenKind::FlowMappingEnd)
     }
 
     /// Check if this token is structural (affects parsing state)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_structural(&self) -> bool {
         matches!(
             self,
@@ -171,7 +171,7 @@ impl<'input> TokenKind<'input> {
 
     /// Check if this token is content (carries actual data)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_content(&self) -> bool {
         matches!(
             self,
@@ -184,7 +184,7 @@ impl<'input> TokenKind<'input> {
 
     /// Check if this token is formatting/whitespace
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_formatting(&self) -> bool {
         matches!(
             self,
@@ -193,7 +193,7 @@ impl<'input> TokenKind<'input> {
     }
 
     /// Get the display name for this token type
-    #[must_use] 
+    #[must_use]
     pub const fn type_name(&self) -> &'static str {
         match self {
             TokenKind::StreamStart => "stream-start",
@@ -242,7 +242,7 @@ impl std::fmt::Display for ScalarStyle {
 impl<'input> TokenKind<'input> {
     /// Get the precedence of this token for parsing decisions
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn precedence(&self) -> u8 {
         match self {
             TokenKind::StreamStart | TokenKind::StreamEnd => 0,

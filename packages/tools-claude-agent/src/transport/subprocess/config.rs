@@ -22,12 +22,7 @@ pub const DANGEROUS_ENV_VARS: &[&str] = &[
 /// Allowed extra CLI flags (allowlist approach)
 ///
 /// Only these flags can be passed through the `extra_args` option.
-pub const ALLOWED_EXTRA_FLAGS: &[&str] = &[
-    "timeout",
-    "retries",
-    "log-level",
-    "cache-dir",
-];
+pub const ALLOWED_EXTRA_FLAGS: &[&str] = &["timeout", "retries", "log-level", "cache-dir"];
 
 /// Prompt input type
 #[derive(Debug)]

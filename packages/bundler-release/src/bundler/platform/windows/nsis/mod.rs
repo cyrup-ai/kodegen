@@ -224,8 +224,7 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
 
     // Sign the installer if configured
     if sign::should_sign(settings) {
-        sign::sign_file(&installer_path, settings)
-            .context("signing NSIS installer")?;
+        sign::sign_file(&installer_path, settings).context("signing NSIS installer")?;
     }
 
     log::info!("✓ Created NSIS installer: {}", installer_path.display());
@@ -273,9 +272,9 @@ fn get_nsis_toolset() -> Result<PathBuf> {
                 .fs_context("renaming NSIS directory", &extracted)?;
         } else {
             // Try to find any nsis-* folder
-            let entries = std::fs::read_dir(&tools_dir)
-                .fs_context("reading tools directory", &tools_dir)?;
-            
+            let entries =
+                std::fs::read_dir(&tools_dir).fs_context("reading tools directory", &tools_dir)?;
+
             let mut found = false;
             for entry in entries {
                 if let Ok(entry) = entry {
@@ -288,10 +287,10 @@ fn get_nsis_toolset() -> Result<PathBuf> {
                     }
                 }
             }
-            
+
             if !found {
                 return Err(Error::GenericError(
-                    "NSIS extraction failed: no nsis folder found in archive".into()
+                    "NSIS extraction failed: no nsis folder found in archive".into(),
                 ));
             }
         }
@@ -329,7 +328,7 @@ fn get_nsis_toolset() -> Result<PathBuf> {
 fn format_version_for_nsis(version: &str) -> Result<String> {
     // Parse version components
     let parts: Vec<&str> = version.split('.').collect();
-    
+
     match parts.len() {
         1 => Ok(format!("{}.0.0.0", parts[0])),
         2 => Ok(format!("{}.{}.0.0", parts[0], parts[1])),
@@ -337,7 +336,10 @@ fn format_version_for_nsis(version: &str) -> Result<String> {
         4 => Ok(version.to_string()),
         _ => {
             // More than 4 parts, take first 4
-            Ok(format!("{}.{}.{}.{}", parts[0], parts[1], parts[2], parts[3]))
+            Ok(format!(
+                "{}.{}.{}.{}",
+                parts[0], parts[1], parts[2], parts[3]
+            ))
         }
     }
 }
@@ -355,11 +357,11 @@ fn generate_nsi_script(settings: &Settings, arch: &str, output_dir: &Path) -> Re
     // Basic metadata
     data.insert("product_name", settings.product_name().to_string());
     data.insert("version", settings.version_string().to_string());
-    
+
     // Format version for NSIS VIProductVersion (requires exactly 4 parts)
     let version_nsis = format_version_for_nsis(settings.version_string())?;
     data.insert("version_nsis", version_nsis);
-    
+
     data.insert("arch", arch.to_string());
 
     // Publisher/manufacturer
@@ -392,9 +394,18 @@ fn generate_nsi_script(settings: &Settings, arch: &str, output_dir: &Path) -> Re
         .ok_or_else(|| Error::GenericError("kodegend binary not found".into()))?;
 
     // Insert binary paths for template
-    data.insert("kodegen_install_path", settings.binary_path(kodegen_install).display().to_string());
-    data.insert("kodegen_path", settings.binary_path(kodegen).display().to_string());
-    data.insert("kodegend_path", settings.binary_path(kodegend).display().to_string());
+    data.insert(
+        "kodegen_install_path",
+        settings.binary_path(kodegen_install).display().to_string(),
+    );
+    data.insert(
+        "kodegen_path",
+        settings.binary_path(kodegen).display().to_string(),
+    );
+    data.insert(
+        "kodegend_path",
+        settings.binary_path(kodegend).display().to_string(),
+    );
 
     // Keep binary_name for backward compatibility with other template sections
     data.insert("binary_name", "kodegen".to_string());
@@ -421,15 +432,15 @@ fn generate_nsi_script(settings: &Settings, arch: &str, output_dir: &Path) -> Re
 
     // Custom branding images
     let nsis_settings = &settings.bundle_settings().windows.nsis;
-    
+
     if let Some(header) = &nsis_settings.header_image {
         data.insert("header_image", header.display().to_string());
     }
-    
+
     if let Some(sidebar) = &nsis_settings.sidebar_image {
         data.insert("sidebar_image", sidebar.display().to_string());
     }
-    
+
     if let Some(icon) = &nsis_settings.installer_icon {
         data.insert("installer_icon", icon.display().to_string());
     }
@@ -486,9 +497,7 @@ fn run_makensis(nsis_path: &Path, nsi_path: &Path, output_path: &Path) -> Result
         })?;
 
     if !status.success() {
-        return Err(Error::GenericError(
-            "makensis compilation failed".into(),
-        ));
+        return Err(Error::GenericError("makensis compilation failed".into()));
     }
 
     Ok(())

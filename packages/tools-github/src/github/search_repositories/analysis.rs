@@ -1,21 +1,24 @@
 //! Repository analysis logic
 
 use chrono::Utc;
+use log::{info, warn};
 use octocrab::{
-    models::{repos::RepoCommit, Repository},
-    params, Octocrab,
+    Octocrab,
+    models::{Repository, repos::RepoCommit},
+    params,
 };
 use std::collections::HashSet;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::{Mutex, RwLock};
-use log::{info, warn};
 
 use crate::github::search_repositories::cache::SearchCache;
 use crate::github::search_repositories::config::SearchConfig;
-use crate::github::search_repositories::metrics::{collect_local_metrics, MetricsCollectionContext};
+use crate::github::search_repositories::metrics::{
+    MetricsCollectionContext, collect_local_metrics,
+};
 use crate::github::search_repositories::rate_limiter::RateLimiter;
 use crate::github::search_repositories::types::{
     ActivityMetrics, LocalScores, QualityMetrics, RepositoryResult, SearchError, SearchResult,
@@ -240,9 +243,7 @@ pub(crate) async fn compute_activity(
             })
             .count() as u32,
         Err(e) => {
-            warn!(
-                "Failed to fetch pull requests for {owner}/{repo}: {e}"
-            );
+            warn!("Failed to fetch pull requests for {owner}/{repo}: {e}");
             0
         }
     };

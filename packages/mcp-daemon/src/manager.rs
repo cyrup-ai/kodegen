@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use crossbeam_channel::{bounded, select, tick, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded, select, tick};
 use log::{error, info};
 use tokio::sync::oneshot;
 
@@ -57,45 +57,43 @@ impl ServiceManager {
             && let Ok(entries) = std::fs::read_dir(services_dir)
         {
             for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.extension().and_then(|s| s.to_str()) == Some("toml") {
-                        match std::fs::read_to_string(&path) {
-                            Ok(content) => {
-                                match toml::from_str::<crate::config::ServiceDefinition>(&content) {
-                                    Ok(def) => {
-                                        match crate::service::spawn(def.clone(), bus_tx.clone()) {
-                                            Ok(tx) => {
-                                                info!(
-                                                    "Loaded service '{}' from {}",
-                                                    def.name,
-                                                    path.display()
-                                                );
-                                                workers.insert(def.name.clone(), tx);
-                                            }
-                                            Err(e) => {
-                                                error!(
-                                                    "Failed to spawn service '{}' from {}: {}",
-                                                    def.name,
-                                                    path.display(),
-                                                    e
-                                                );
-                                                // Continue loading other services
-                                            }
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+                    match std::fs::read_to_string(&path) {
+                        Ok(content) => {
+                            match toml::from_str::<crate::config::ServiceDefinition>(&content) {
+                                Ok(def) => {
+                                    match crate::service::spawn(def.clone(), bus_tx.clone()) {
+                                        Ok(tx) => {
+                                            info!(
+                                                "Loaded service '{}' from {}",
+                                                def.name,
+                                                path.display()
+                                            );
+                                            workers.insert(def.name.clone(), tx);
+                                        }
+                                        Err(e) => {
+                                            error!(
+                                                "Failed to spawn service '{}' from {}: {}",
+                                                def.name,
+                                                path.display(),
+                                                e
+                                            );
+                                            // Continue loading other services
                                         }
                                     }
-                                    Err(e) => error!(
-                                        "Failed to parse service file {}: {}",
-                                        path.display(),
-                                        e
-                                    ),
+                                }
+                                Err(e) => {
+                                    error!("Failed to parse service file {}: {}", path.display(), e)
                                 }
                             }
-                            Err(e) => {
-                                error!("Failed to read service file {}: {}", path.display(), e);
-                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to read service file {}: {}", path.display(), e);
                         }
                     }
                 }
+            }
         }
 
         Ok(Self {
@@ -124,9 +122,7 @@ impl ServiceManager {
             let addr: SocketAddr = ([127, 0, 0, 1], sse_config.port).into();
 
             let task = tokio::spawn(async move {
-                if let Err(e) =
-                    crate::service::sse::start_sse_server(sse_cfg, shutdown_rx).await
-                {
+                if let Err(e) = crate::service::sse::start_sse_server(sse_cfg, shutdown_rx).await {
                     error!("SSE server error: {e}");
                 }
             });
@@ -141,7 +137,8 @@ impl ServiceManager {
 
     /// Start the kodegen SSE server if configured
     pub async fn start_kodegen_sse_server(&mut self, cfg: &ServiceConfig) -> Result<()> {
-        let mut service = crate::service::kodegen_sse::KodegenSseService::new(cfg.kodegen_sse.clone());
+        let mut service =
+            crate::service::kodegen_sse::KodegenSseService::new(cfg.kodegen_sse.clone());
         service.start().await?;
         self.kodegen_sse_service = Some(service);
         Ok(())
@@ -319,9 +316,7 @@ impl ServiceManager {
                 },
             );
 
-            info!(
-                "Scheduled restart for {service} in {delay_ms}ms (attempt #{attempts})"
-            );
+            info!("Scheduled restart for {service} in {delay_ms}ms (attempt #{attempts})");
         }
     }
 
@@ -375,7 +370,9 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .expect("Failed to register SIGINT handler - signal handling is required for daemon operation");
+        .expect(
+            "Failed to register SIGINT handler - signal handling is required for daemon operation",
+        );
         signal::sigaction(
             Signal::SIGTERM,
             &signal::SigAction::new(
@@ -384,7 +381,9 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .expect("Failed to register SIGTERM handler - signal handling is required for daemon operation");
+        .expect(
+            "Failed to register SIGTERM handler - signal handling is required for daemon operation",
+        );
     }
 }
 

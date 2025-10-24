@@ -46,16 +46,13 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     info!("Starting database tools example");
 
     // Connect to kodegen server with database DSN
-    let (conn, mut server) = connect_to_database_server(
-        "postgres://testuser:testpass@localhost:5432/testdb"
-    ).await?;
+    let (conn, mut server) =
+        connect_to_database_server("postgres://testuser:testpass@localhost:5432/testdb").await?;
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from("/tmp/kodegen/mcp-client/database.log");
@@ -82,19 +79,27 @@ async fn main() -> Result<()> {
 async fn connect_to_database_server(
     database_dsn: &str,
 ) -> Result<(kodegen_mcp_client::KodegenConnection, common::ServerHandle)> {
-    let workspace_root = common::find_workspace_root()
-        .context("Failed to find workspace root")?;
+    let workspace_root = common::find_workspace_root().context("Failed to find workspace root")?;
 
     // Spawn SSE server with database connection
     let mut cmd = Command::new("cargo");
     cmd.current_dir(workspace_root);
     cmd.args([
-        "run", "--package", "kodegen", "--bin", "kodegen",
-        "--no-default-features", "--features", "database",
+        "run",
+        "--package",
+        "kodegen",
+        "--bin",
+        "kodegen",
+        "--no-default-features",
+        "--features",
+        "database",
         "--",
-        "--sse", "127.0.0.1:18080",
-        "--tools", "database",
-        "--database-dsn", database_dsn,
+        "--sse",
+        "127.0.0.1:18080",
+        "--tools",
+        "database",
+        "--database-dsn",
+        database_dsn,
     ]);
 
     // Clean up any stale servers
@@ -102,8 +107,7 @@ async fn connect_to_database_server(
 
     eprintln!("🚀 Starting SSE server with database connection...");
 
-    let child = cmd.spawn()
-        .context("Failed to spawn SSE server")?;
+    let child = cmd.spawn().context("Failed to spawn SSE server")?;
 
     let server_handle = common::ServerHandle::new(child);
 
@@ -148,47 +152,39 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     info!("\n{:=<70}", "");
     info!(" Testing PostgreSQL Database");
     info!("{:=<70}", "");
-    
+
     // Tool 1: LIST_SCHEMAS
     info!("\n[1/8] Testing list_schemas...");
-    client.call_tool(
-        tools::LIST_SCHEMAS,
-        json!({})
-    )
-    .await
-    .context("list_schemas failed")?;
+    client
+        .call_tool(tools::LIST_SCHEMAS, json!({}))
+        .await
+        .context("list_schemas failed")?;
     info!("✅ list_schemas completed");
-    
-    // Tool 2: LIST_TABLES  
+
+    // Tool 2: LIST_TABLES
     info!("\n[2/8] Testing list_tables...");
-    client.call_tool(
-        tools::LIST_TABLES,
-        json!({})
-    )
-    .await
-    .context("list_tables failed")?;
+    client
+        .call_tool(tools::LIST_TABLES, json!({}))
+        .await
+        .context("list_tables failed")?;
     info!("✅ list_tables completed");
-    
+
     // Tool 3: GET_TABLE_SCHEMA
     info!("\n[3/8] Testing get_table_schema on 'employees' table...");
-    client.call_tool(
-        tools::GET_TABLE_SCHEMA,
-        json!({ "table": "employees" })
-    )
-    .await
-    .context("get_table_schema failed")?;
+    client
+        .call_tool(tools::GET_TABLE_SCHEMA, json!({ "table": "employees" }))
+        .await
+        .context("get_table_schema failed")?;
     info!("✅ get_table_schema completed");
-    
+
     // Tool 4: GET_TABLE_INDEXES
     info!("\n[4/8] Testing get_table_indexes on 'employees' table...");
-    client.call_tool(
-        tools::GET_TABLE_INDEXES,
-        json!({ "table": "employees" })
-    )
-    .await
-    .context("get_table_indexes failed")?;
+    client
+        .call_tool(tools::GET_TABLE_INDEXES, json!({ "table": "employees" }))
+        .await
+        .context("get_table_indexes failed")?;
     info!("✅ get_table_indexes completed");
-    
+
     // Tool 5: EXECUTE_SQL (SELECT)
     info!("\n[5/8] Testing execute_sql with SELECT...");
     client.call_tool(
@@ -200,7 +196,7 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     .await
     .context("execute_sql (SELECT) failed")?;
     info!("✅ execute_sql (SELECT) completed");
-    
+
     // Tool 6: EXECUTE_SQL (JOIN)
     info!("\n[6/8] Testing execute_sql with JOIN...");
     client.call_tool(
@@ -215,26 +211,22 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     .await
     .context("execute_sql (JOIN) failed")?;
     info!("✅ execute_sql (JOIN) completed");
-    
+
     // Tool 7: GET_POOL_STATS
     info!("\n[7/8] Testing get_pool_stats...");
-    client.call_tool(
-        tools::GET_POOL_STATS,
-        json!({})
-    )
-    .await
-    .context("get_pool_stats failed")?;
+    client
+        .call_tool(tools::GET_POOL_STATS, json!({}))
+        .await
+        .context("get_pool_stats failed")?;
     info!("✅ get_pool_stats completed");
-    
+
     // Tool 8: GET_STORED_PROCEDURES
     info!("\n[8/8] Testing get_stored_procedures...");
-    client.call_tool(
-        tools::GET_STORED_PROCEDURES,
-        json!({})
-    )
-    .await
-    .context("get_stored_procedures failed")?;
+    client
+        .call_tool(tools::GET_STORED_PROCEDURES, json!({}))
+        .await
+        .context("get_stored_procedures failed")?;
     info!("✅ get_stored_procedures completed");
-    
+
     Ok(())
 }

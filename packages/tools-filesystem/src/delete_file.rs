@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -46,11 +46,11 @@ impl Tool for DeleteFileTool {
     }
 
     fn destructive() -> bool {
-        true  // Permanently deletes data
+        true // Permanently deletes data
     }
 
     fn idempotent() -> bool {
-        false  // Deleting twice will fail (file no longer exists)
+        false // Deleting twice will fail (file no longer exists)
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -63,7 +63,7 @@ impl Tool for DeleteFileTool {
 
         if !metadata.is_file() {
             return Err(McpError::InvalidArguments(
-                "Path is not a file. Use delete_directory to remove directories.".to_string()
+                "Path is not a file. Use delete_directory to remove directories.".to_string(),
             ));
         }
 
@@ -97,7 +97,7 @@ impl Tool for DeleteFileTool {
                      - Validates path is within allowed directories\n\
                      - Returns clear error if file doesn't exist\n\n\
                      IMPORTANT: This operation is permanent and cannot be undone!\n\n\
-                     To delete directories, use delete_directory instead."
+                     To delete directories, use delete_directory instead.",
                 ),
             },
         ])

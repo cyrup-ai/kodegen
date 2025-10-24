@@ -21,7 +21,9 @@ pub(crate) struct HaystackBuilder {
 impl HaystackBuilder {
     /// Return a new haystack builder with a default configuration.
     pub(crate) fn new() -> HaystackBuilder {
-        HaystackBuilder { strip_dot_prefix: false }
+        HaystackBuilder {
+            strip_dot_prefix: false,
+        }
     }
 
     /// Create a new haystack using this builder's configuration.
@@ -30,7 +32,10 @@ impl HaystackBuilder {
     /// searched, then this returns `None` after emitting any relevant log
     /// messages.
     pub(crate) fn build(&self, dent: ignore::DirEntry) -> Option<Haystack> {
-        let hay = Haystack { dent, strip_dot_prefix: self.strip_dot_prefix };
+        let hay = Haystack {
+            dent,
+            strip_dot_prefix: self.strip_dot_prefix,
+        };
         // Silently skip DirEntry errors (non-fatal warnings)
         // If this entry was explicitly provided by an end user, then we always
         // want to search it.
@@ -63,10 +68,7 @@ impl HaystackBuilder {
     /// stripped.
     ///
     /// This is useful when implicitly searching the current working directory.
-    pub(crate) fn strip_dot_prefix(
-        &mut self,
-        yes: bool,
-    ) -> &mut HaystackBuilder {
+    pub(crate) fn strip_dot_prefix(&mut self, yes: bool) -> &mut HaystackBuilder {
         self.strip_dot_prefix = yes;
         self
     }
@@ -89,8 +91,9 @@ impl Haystack {
     pub(crate) fn path(&self) -> &Path {
         if self.strip_dot_prefix && self.dent.path().starts_with("./") {
             // SAFETY: We just checked starts_with("./"), so strip_prefix("./") will succeed
-            self.dent.path().strip_prefix("./")
-                .expect("BUG: strip_prefix failed after starts_with check - this should never happen")
+            self.dent.path().strip_prefix("./").expect(
+                "BUG: strip_prefix failed after starts_with check - this should never happen",
+            )
         } else {
             self.dent.path()
         }

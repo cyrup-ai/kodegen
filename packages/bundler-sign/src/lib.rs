@@ -17,53 +17,60 @@ use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 /// * `description` - Human-readable description of what's being cleaned up
 pub fn cleanup_path<P: AsRef<std::path::Path>>(path: P, description: &str) {
     let path = path.as_ref();
-    
+
     // If path doesn't exist, nothing to clean up
     if !path.exists() {
         return;
     }
-    
+
     // Attempt removal based on type
     let result = if path.is_dir() {
         std::fs::remove_dir_all(path)
     } else {
         std::fs::remove_file(path)
     };
-    
+
     // Log warnings on failure
     if let Err(e) = result {
         // NotFound is OK - race condition where file was already removed
         if e.kind() != std::io::ErrorKind::NotFound {
             let bufwtr = BufferWriter::stderr(ColorChoice::Auto);
             let mut buffer = bufwtr.buffer();
-            
+
             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
             let _ = writeln!(&mut buffer, "⚠️  Warning: Failed to cleanup {description}");
             let _ = buffer.reset();
             let _ = writeln!(&mut buffer, "   Path: {}", path.display());
             let _ = writeln!(&mut buffer, "   Error: {e}");
-            
+
             // Provide actionable suggestions based on error kind
             match e.kind() {
                 std::io::ErrorKind::PermissionDenied => {
-                    let _ = writeln!(&mut buffer, "   Suggestion: Check file permissions or try: sudo rm -rf {}", path.display());
+                    let _ = writeln!(
+                        &mut buffer,
+                        "   Suggestion: Check file permissions or try: sudo rm -rf {}",
+                        path.display()
+                    );
                 }
                 std::io::ErrorKind::DirectoryNotEmpty => {
-                    let _ = writeln!(&mut buffer, "   Suggestion: Directory may contain locked files");
+                    let _ = writeln!(
+                        &mut buffer,
+                        "   Suggestion: Directory may contain locked files"
+                    );
                 }
                 _ => {
                     let _ = writeln!(&mut buffer, "   Suggestion: Manual cleanup may be needed");
                 }
             }
-            
+
             let _ = bufwtr.print(&buffer);
         }
     }
 }
 
-pub mod error;
-pub mod config;
 pub mod apple_api;
+pub mod config;
+pub mod error;
 
 #[cfg(target_os = "macos")]
 #[macro_use]
@@ -86,7 +93,7 @@ pub mod linux;
 pub mod windows;
 
 // Re-export common types
-pub use config::{SetupConfig, PlatformConfig};
+pub use config::{PlatformConfig, SetupConfig};
 pub use error::SetupError;
 pub use windows::sign_binary_with_fallback;
 

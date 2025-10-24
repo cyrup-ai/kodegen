@@ -61,7 +61,7 @@ impl BrowserManager {
     /// - Automatic, no user intervention required
     pub async fn get_or_launch(&self) -> Result<Arc<Mutex<Option<BrowserWrapper>>>> {
         let mut guard = self.browser.lock().await;
-        
+
         // Health check: if browser exists, verify it's alive
         if let Some(wrapper) = guard.as_ref() {
             match wrapper.browser().version().await {
@@ -73,7 +73,7 @@ impl BrowserManager {
                 }
                 Err(e) => {
                     tracing::warn!("Browser health check failed: {}. Triggering recovery...", e);
-                    
+
                     // Take ownership and clean up crashed browser
                     if let Some(mut crashed_wrapper) = guard.take() {
                         // Best-effort cleanup (may fail if process already dead)
@@ -81,19 +81,19 @@ impl BrowserManager {
                         let _ = crashed_wrapper.browser_mut().wait().await;
                         crashed_wrapper.cleanup_temp_dir();
                     }
-                    
+
                     tracing::info!("Crashed browser cleaned up, launching new instance");
                 }
             }
         }
-        
+
         // No browser exists or previous one crashed - launch new one
         tracing::info!("Launching browser (first time or after recovery)");
         let (browser, handler, user_data_dir) = launch_browser().await?;
         let wrapper = BrowserWrapper::new(browser, handler, user_data_dir);
         *guard = Some(wrapper);
         drop(guard);
-        
+
         Ok(self.browser.clone())
     }
 
@@ -109,26 +109,26 @@ impl BrowserManager {
     /// for the pattern.
     pub async fn shutdown(&self) -> Result<()> {
         let mut guard = self.browser.lock().await;
-        
+
         if let Some(mut wrapper) = guard.take() {
             info!("Shutting down web search browser");
-            
+
             // Close browser gracefully
             if let Err(e) = wrapper.browser_mut().close().await {
                 tracing::warn!("Failed to close browser cleanly: {}", e);
             }
-            
+
             // Wait for process to fully exit
             if let Err(e) = wrapper.browser_mut().wait().await {
                 tracing::warn!("Failed to wait for browser exit: {}", e);
             }
-            
+
             // Cleanup temp directory
             wrapper.cleanup_temp_dir();
-            
+
             drop(wrapper);
         }
-        
+
         Ok(())
     }
 }

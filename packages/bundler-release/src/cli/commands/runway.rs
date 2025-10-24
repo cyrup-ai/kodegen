@@ -5,8 +5,8 @@
 //! release attempt failed.
 
 use crate::cli::RuntimeConfig;
-use crate::error::{Result, ReleaseError, GitError};
-use crate::version::{VersionManager, VersionBump, VersionBumper};
+use crate::error::{GitError, ReleaseError, Result};
+use crate::version::{VersionBump, VersionBumper, VersionManager};
 use crate::workspace::SharedWorkspaceInfo;
 use semver::Version;
 
@@ -36,22 +36,22 @@ impl RunwayClearResult {
         }
 
         let mut result = format!("🧹 Cleared runway for v{}:\n", self.version);
-        
+
         if self.branch_deleted {
             result.push_str(&format!("  ✓ Deleted remote branch v{}\n", self.version));
         }
-        
+
         if self.tag_deleted {
             result.push_str(&format!("  ✓ Deleted remote tag v{}\n", self.version));
         }
-        
+
         if !self.warnings.is_empty() {
             result.push_str("  ⚠️ Warnings:\n");
             for warning in &self.warnings {
                 result.push_str(&format!("    • {}\n", warning));
             }
         }
-        
+
         result
     }
 }
@@ -88,23 +88,21 @@ pub async fn clear_runway_for_version(
     // Calculate target version
     let version_manager = VersionManager::new(workspace.clone());
     let current_version = version_manager.current_version()?;
-    
+
     let version_bump = VersionBump::try_from(bump_type.clone())
-        .map_err(|e| ReleaseError::Cli(crate::error::CliError::InvalidArguments {
-            reason: e,
-        }))?;
-    
+        .map_err(|e| ReleaseError::Cli(crate::error::CliError::InvalidArguments { reason: e }))?;
+
     let bumper = VersionBumper::from_version(current_version.clone());
     let target_version = bumper.bump(version_bump)?;
-    
+
     config.verbose_println(&format!(
-        "Checking runway for v{} (current: v{})", 
-        target_version, 
-        current_version
+        "Checking runway for v{} (current: v{})",
+        target_version, current_version
     ));
 
     // Open repository
-    let repo = kodegen_tools_git::discover_repo(workspace_path).await
+    let repo = kodegen_tools_git::discover_repo(workspace_path)
+        .await
         .map_err(|_| ReleaseError::Git(GitError::NotRepository))?
         .map_err(|_| ReleaseError::Git(GitError::NotRepository))?;
 
@@ -136,7 +134,10 @@ pub async fn clear_runway_for_version(
                         ));
                     }
                     Err(e) => {
-                        warnings.push(format!("Failed to delete remote branch '{}': {}", branch_name, e));
+                        warnings.push(format!(
+                            "Failed to delete remote branch '{}': {}",
+                            branch_name, e
+                        ));
                         config.warning_println(&format!(
                             "  Failed to delete remote branch '{}': {}",
                             branch_name, e
@@ -148,7 +149,10 @@ pub async fn clear_runway_for_version(
             }
         }
         Err(e) => {
-            warnings.push(format!("Failed to check remote branch '{}': {}", branch_name, e));
+            warnings.push(format!(
+                "Failed to check remote branch '{}': {}",
+                branch_name, e
+            ));
             config.verbose_println(&format!(
                 "  Could not check remote branch '{}': {}",
                 branch_name, e
@@ -210,10 +214,7 @@ pub async fn clear_runway_for_version(
             result.version
         ));
     } else {
-        config.verbose_println(&format!(
-            "Runway already clear for v{}",
-            result.version
-        ));
+        config.verbose_println(&format!("Runway already clear for v{}", result.version));
     }
 
     Ok(result)

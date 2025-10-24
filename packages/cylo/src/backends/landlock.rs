@@ -403,7 +403,7 @@ impl LandLockBackend {
             // Start background resource monitoring task
             let pid = child.id();
             let (tx, mut rx) = tokio::sync::oneshot::channel();
-            
+
             #[cfg(target_os = "linux")]
             let monitor_handle = tokio::spawn(async move {
                 let mut peak_memory = 0u64;
@@ -411,7 +411,7 @@ impl LandLockBackend {
                 let mut final_process_count = 1usize;
                 let mut final_disk_written = 0u64;
                 let mut final_disk_read = 0u64;
-                
+
                 loop {
                     // Poll every 100ms
                     tokio::select! {
@@ -420,17 +420,17 @@ impl LandLockBackend {
                             if let Ok(mem) = get_memory_usage(pid) {
                                 peak_memory = peak_memory.max(mem);
                             }
-                            
+
                             // Track latest CPU time (cumulative)
                             if let Ok(cpu) = get_process_cpu_time(pid) {
                                 final_cpu_time = cpu;
                             }
-                            
+
                             // Track process count
                             if let Ok(count) = count_process_tree(pid) {
                                 final_process_count = count;
                             }
-                            
+
                             // Track disk I/O
                             if let Ok(written) = get_disk_io_stats(pid) {
                                 final_disk_written = written;
@@ -445,7 +445,7 @@ impl LandLockBackend {
                         }
                     }
                 }
-                
+
                 ResourceUsage {
                     peak_memory,
                     cpu_time_ms: final_cpu_time,
@@ -600,34 +600,30 @@ impl LandLockBackend {
 fn get_process_cpu_time(pid: u32) -> Result<u64, std::io::Error> {
     let stat_path = format!("/proc/{}/stat", pid);
     let stat_content = std::fs::read_to_string(&stat_path)?;
-    
+
     // Parse stat file (space-separated fields)
     let fields: Vec<&str> = stat_content.split_whitespace().collect();
     if fields.len() < 15 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Invalid stat format"
+            "Invalid stat format",
         ));
     }
-    
+
     // Field 13 = utime (user mode jiffies)
     // Field 14 = stime (kernel mode jiffies)
-    let utime: u64 = fields[13].parse()
-        .map_err(|_| std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Invalid utime"
-        ))?;
-    let stime: u64 = fields[14].parse()
-        .map_err(|_| std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Invalid stime"
-        ))?;
-    
+    let utime: u64 = fields[13]
+        .parse()
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid utime"))?;
+    let stime: u64 = fields[14]
+        .parse()
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid stime"))?;
+
     // Convert clock ticks to milliseconds
     let clock_ticks_per_sec = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as u64;
     let total_ticks = utime + stime;
     let cpu_time_ms = (total_ticks * 1000) / clock_ticks_per_sec;
-    
+
     Ok(cpu_time_ms)
 }
 
@@ -647,7 +643,7 @@ fn get_process_cpu_time(_pid: u32) -> Result<u64, std::io::Error> {
 fn count_process_tree(pid: u32) -> Result<usize, std::io::Error> {
     // Count the main process
     let mut count = 1;
-    
+
     // Count threads via /proc/[pid]/task directory
     let task_dir = format!("/proc/{}/task", pid);
     if let Ok(entries) = std::fs::read_dir(&task_dir) {
@@ -656,7 +652,7 @@ fn count_process_tree(pid: u32) -> Result<usize, std::io::Error> {
             count += thread_count - 1; // Don't double-count main thread
         }
     }
-    
+
     // Find child processes from /proc/[pid]/task/[tid]/children
     let children_path = format!("/proc/{}/task/{}/children", pid, pid);
     if let Ok(children_content) = std::fs::read_to_string(&children_path) {
@@ -669,7 +665,7 @@ fn count_process_tree(pid: u32) -> Result<usize, std::io::Error> {
             }
         }
     }
-    
+
     Ok(count)
 }
 
@@ -689,7 +685,7 @@ fn count_process_tree(_pid: u32) -> Result<usize, std::io::Error> {
 fn get_disk_io_stats(pid: u32) -> Result<u64, std::io::Error> {
     let io_path = format!("/proc/{}/io", pid);
     let io_content = std::fs::read_to_string(&io_path)?;
-    
+
     // Parse for write_bytes line
     for line in io_content.lines() {
         if line.starts_with("write_bytes:") {
@@ -700,7 +696,7 @@ fn get_disk_io_stats(pid: u32) -> Result<u64, std::io::Error> {
             }
         }
     }
-    
+
     Ok(0)
 }
 
@@ -720,7 +716,7 @@ fn get_disk_io_stats(_pid: u32) -> Result<u64, std::io::Error> {
 fn get_disk_read_stats(pid: u32) -> Result<u64, std::io::Error> {
     let io_path = format!("/proc/{}/io", pid);
     let io_content = std::fs::read_to_string(&io_path)?;
-    
+
     // Parse for read_bytes line
     for line in io_content.lines() {
         if line.starts_with("read_bytes:") {
@@ -731,7 +727,7 @@ fn get_disk_read_stats(pid: u32) -> Result<u64, std::io::Error> {
             }
         }
     }
-    
+
     Ok(0)
 }
 
@@ -751,7 +747,7 @@ fn get_disk_read_stats(_pid: u32) -> Result<u64, std::io::Error> {
 fn get_memory_usage(pid: u32) -> Result<u64, std::io::Error> {
     let status_path = format!("/proc/{}/status", pid);
     let status_content = std::fs::read_to_string(&status_path)?;
-    
+
     // Parse for VmRSS (Resident Set Size)
     for line in status_content.lines() {
         if line.starts_with("VmRSS:") {
@@ -763,7 +759,7 @@ fn get_memory_usage(pid: u32) -> Result<u64, std::io::Error> {
             }
         }
     }
-    
+
     Ok(0)
 }
 

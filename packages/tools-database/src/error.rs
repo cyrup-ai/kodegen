@@ -84,9 +84,7 @@ impl From<DatabaseError> for McpError {
                 McpError::InvalidArguments(format!("[Feature Not Supported] {}", msg))
             }
             DatabaseError::Sqlx(sqlx_err) => convert_sqlx_error(sqlx_err),
-            DatabaseError::Ssh(ssh_err) => {
-                McpError::Network(format!("[SSH] {}", ssh_err))
-            }
+            DatabaseError::Ssh(ssh_err) => McpError::Network(format!("[SSH] {}", ssh_err)),
             DatabaseError::UrlParse(url_err) => {
                 McpError::InvalidArguments(format!("[URL Parse] {}", url_err))
             }

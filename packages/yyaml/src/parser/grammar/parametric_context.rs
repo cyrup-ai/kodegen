@@ -2,7 +2,7 @@
 
 use crate::error::ScanError;
 
-use super::context_types::{YamlContext, ParseContext, ChompingMode};
+use super::context_types::{ChompingMode, ParseContext, YamlContext};
 
 /// Tracks parametric context during parsing - integrates with existing indentation system
 #[derive(Debug, Clone)]

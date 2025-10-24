@@ -1,16 +1,16 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::manager::PromptManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DeletePromptArgs {
     /// Name of the prompt to delete
     pub name: String,
-    
+
     /// Confirmation flag (must be true)
     #[serde(default)]
     pub confirm: bool,
@@ -50,24 +50,25 @@ impl Tool for DeletePromptTool {
     }
 
     fn destructive() -> bool {
-        true  // Deletes file
+        true // Deletes file
     }
 
     fn idempotent() -> bool {
-        false  // Second deletion will fail (file gone)
+        false // Second deletion will fail (file gone)
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         if !args.confirm {
             return Err(McpError::InvalidArguments(
-                "Must set confirm=true to delete a prompt".into()
+                "Must set confirm=true to delete a prompt".into(),
             ));
         }
-        
-        self.manager.delete_prompt(&args.name)
+
+        self.manager
+            .delete_prompt(&args.name)
             .await
             .map_err(McpError::Other)?;
-        
+
         Ok(json!({
             "success": true,
             "name": args.name,
@@ -102,7 +103,7 @@ impl Tool for DeletePromptTool {
                      - Default prompts will be recreated on next initialization if deleted\n\n\
                      The deletion will fail if:\n\
                      - confirm is not true\n\
-                     - The prompt does not exist"
+                     - The prompt does not exist",
                 ),
             },
         ])

@@ -4,7 +4,7 @@
 //! to handle message reading, control writing, hooks, and permissions.
 
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::control::{ControlMessage, ControlRequest, ProtocolHandler};
 use crate::error::Result;
@@ -35,9 +35,9 @@ impl super::ClaudeSDKClient {
                 Ok(value) => {
                     // Try to parse as control message first
                     let protocol_guard = protocol.lock().await;
-                    if let Ok(control_msg) = protocol_guard.deserialize_message(
-                        &serde_json::to_string(&value).unwrap_or_default(),
-                    ) {
+                    if let Ok(control_msg) = protocol_guard
+                        .deserialize_message(&serde_json::to_string(&value).unwrap_or_default())
+                    {
                         match control_msg {
                             ControlMessage::InitResponse(init_response) => {
                                 if let Err(e) = protocol_guard.handle_init_response(&init_response)
@@ -107,7 +107,7 @@ impl super::ClaudeSDKClient {
                     });
                     serde_json::to_string(&control_json).ok()
                 }
-                
+
                 // Full control protocol for bidirectional messages
                 ControlRequest::HookResponse { .. } | ControlRequest::PermissionResponse { .. } => {
                     let protocol_guard = protocol.lock().await;
@@ -124,7 +124,7 @@ impl super::ClaudeSDKClient {
                 } else {
                     format!("{json_str}\n")
                 };
-                
+
                 let mut transport_guard = transport.lock().await;
                 if transport_guard.write(&formatted).await.is_err() {
                     break;
@@ -145,13 +145,11 @@ impl super::ClaudeSDKClient {
         while let Some((hook_id, event, event_data)) = hook_rx.recv().await {
             // Extract tool name from event data for tool-related events
             let tool_name = match event {
-                HookEvent::PreToolUse | HookEvent::PostToolUse => {
-                    event_data
-                        .get("toolName")
-                        .or_else(|| event_data.get("tool_name"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from)
-                }
+                HookEvent::PreToolUse | HookEvent::PostToolUse => event_data
+                    .get("toolName")
+                    .or_else(|| event_data.get("tool_name"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
                 _ => None,
             };
 
@@ -216,7 +214,8 @@ impl super::ClaudeSDKClient {
 
                     // Send permission response
                     let protocol_guard = protocol.lock().await;
-                    let request = protocol_guard.create_permission_response(request_id.clone(), result.clone());
+                    let request = protocol_guard
+                        .create_permission_response(request_id.clone(), result.clone());
                     drop(protocol_guard);
 
                     if let Err(e) = control_tx.send(request) {

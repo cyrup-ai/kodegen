@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::FileUpdate as FileUpdateResponse, Octocrab};
+use octocrab::{Octocrab, models::repos::FileUpdate as FileUpdateResponse};
 use std::sync::Arc;
 
 /// Request parameters for creating or updating a file
@@ -32,7 +32,12 @@ pub(crate) fn create_or_update_file(
     spawn_task(async move {
         let handler = inner.repos(&request.owner, &request.repo);
         let mut builder = if let Some(existing_sha) = request.sha {
-            handler.update_file(&request.path, &request.message, request.content.as_bytes(), existing_sha)
+            handler.update_file(
+                &request.path,
+                &request.message,
+                request.content.as_bytes(),
+                existing_sha,
+            )
         } else {
             handler.create_file(&request.path, &request.message, request.content.as_bytes())
         };

@@ -9,7 +9,9 @@
 use candle_core::Device;
 use kodegen_candle_agent::capability::registry;
 use kodegen_candle_agent::capability::traits::TextToImageCapable;
-use kodegen_candle_agent::{ImageGenerationChunk, ImageGenerationConfig, StreamExt, tensor_to_image};
+use kodegen_candle_agent::{
+    ImageGenerationChunk, ImageGenerationConfig, StreamExt, tensor_to_image,
+};
 use log::error;
 use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};

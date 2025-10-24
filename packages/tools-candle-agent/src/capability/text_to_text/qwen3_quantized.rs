@@ -18,13 +18,13 @@ use tokio_stream::Stream;
 
 use crate::core::{Engine, EngineConfig};
 
-use crate::domain::completion::{CandleCompletionChunk, CandleCompletionParams};
-use crate::domain::completion::format_tools_for_qwen3;
 use crate::domain::completion::ToolCallParser;
-use uuid::Uuid;
+use crate::domain::completion::format_tools_for_qwen3;
+use crate::domain::completion::{CandleCompletionChunk, CandleCompletionParams};
 use crate::domain::model::{info::CandleModelInfo, traits::CandleModel};
 use crate::domain::prompt::CandlePrompt;
 use kodegen_simd::logits::constraints::GenerationConstraint;
+use uuid::Uuid;
 
 /// Builder trait for Qwen3 Quantized completion providers
 pub trait BuilderCandleQwen3QuantizedModel: Send + Sync + 'static {
@@ -236,17 +236,18 @@ impl LoadedQwen3QuantizedModel {
 
         // Initialize constraint state
         let mut constraint_state = type_constraint.new_state();
-        
+
         // Tokenize prompt
-        let tokens = self.tokenizer
+        let tokens = self
+            .tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("Failed to tokenize prompt: {}", e))?;
         let mut all_tokens = tokens.get_ids().to_vec();
-        
+
         // Generation loop with constraint masking
         let mut generated_text = String::new();
         let max_tokens = 500;
-        
+
         for _ in 0..max_tokens {
             // Get logits from model
             let input_ids = Tensor::new(&all_tokens[..], &self.device)?;
@@ -254,11 +255,11 @@ impl LoadedQwen3QuantizedModel {
                 let mut model = self.model.lock().await;
                 model.forward(&input_ids.unsqueeze(0)?, 0)?
             };
-            
+
             // Extract next token logits
             let logits = logits.i((0, logits.dim(1)? - 1))?;
             let mut logits_vec = logits.to_vec1::<f32>()?;
-            
+
             // Apply temperature for more deterministic selection
             let temperature = 0.3;
             if temperature != 1.0 {
@@ -266,7 +267,7 @@ impl LoadedQwen3QuantizedModel {
                     *logit /= temperature;
                 }
             }
-            
+
             // ═══════════════════════════════════════════════════════════
             // CONSTRAINT MASKING - Insert AFTER penalties, BEFORE sampling
             // ═══════════════════════════════════════════════════════════
@@ -274,37 +275,39 @@ impl LoadedQwen3QuantizedModel {
                 let is_valid = type_constraint
                     .try_next(&constraint_state, token_id as u32)
                     .unwrap_or(false);
-                
+
                 if !is_valid {
                     *logit = f32::NEG_INFINITY; // Mask invalid tokens
                 }
             }
-            
+
             // Sample next token (now guaranteed to be schema-valid)
             let next_token = self.sample_token(&logits_vec)?;
-            
+
             // Update constraint state with accepted token
             let continue_generation = type_constraint
                 .update(&mut constraint_state, next_token)
                 .context("Constraint update failed")?;
-            
+
             // Check if schema is complete
             if !continue_generation || type_constraint.is_done(&constraint_state) {
                 break;
             }
-            
+
             // Decode and append token
             all_tokens.push(next_token);
-            let token_text = self.tokenizer.decode(&[next_token], false)
+            let token_text = self
+                .tokenizer
+                .decode(&[next_token], false)
                 .map_err(|e| anyhow::anyhow!("Failed to decode token: {}", e))?;
             generated_text.push_str(&token_text);
-            
+
             // Stop on EOS
             if Some(next_token) == self.eos_token_id {
                 break;
             }
         }
-        
+
         Ok(generated_text)
     }
 
@@ -324,31 +327,31 @@ impl LoadedQwen3QuantizedModel {
 
         // Convert logits to probabilities via softmax
         let max_logit = logits.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        
+
         // Check for all invalid tokens (all NEG_INFINITY)
         if max_logit.is_infinite() && max_logit.is_sign_negative() {
             anyhow::bail!("All tokens masked - cannot sample");
         }
-        
+
         let exp_sum: f32 = logits.iter().map(|&l| (l - max_logit).exp()).sum();
-        
+
         let probs: Vec<f32> = logits
             .iter()
             .map(|&l| (l - max_logit).exp() / exp_sum)
             .collect();
-        
+
         // Sample from distribution
         let mut rng = rand::rng();
         let sample: f32 = rng.random();
         let mut cumsum = 0.0;
-        
+
         for (i, &prob) in probs.iter().enumerate() {
             cumsum += prob;
             if cumsum >= sample {
                 return Ok(i as u32);
             }
         }
-        
+
         Ok((probs.len() - 1) as u32) // Fallback to last token
     }
 }
@@ -405,7 +408,7 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
         let prompt_text = if let Some(ref tools) = params.tools {
             // Convert ZeroOneOrMany to Vec using Into trait
             let tools_vec: Vec<_> = tools.clone().into();
-            
+
             if tools_vec.is_empty() {
                 // No tools available - standard user prompt
                 format!(
@@ -415,13 +418,12 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
             } else {
                 // Tools available - add system message with tool definitions
                 let tool_defs = format_tools_for_qwen3(&tools_vec);
-                
+
                 log::debug!("Generated prompt with {} tool(s)", tools_vec.len());
-                
+
                 format!(
                     "<|im_start|>system\nYou are a helpful AI assistant with access to tools. When you need to use a tool, output <tool_call>{{\"name\": \"tool_name\", \"arguments\": {{...}}}}</tool_call>\n\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-                    tool_defs, 
-                    prompt.content
+                    tool_defs, prompt.content
                 )
             }
         } else {
@@ -576,7 +578,7 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
                 if let Some(text) = tos.next_token(next_token).ok().flatten() {
                     if let Some(tool_call) = tool_parser.process_token(&text) {
                         log::info!("🔧 Tool call detected: {}", tool_call.name);
-                        
+
                         // Emit ToolCallComplete chunk
                         let _ = tx.send(CandleCompletionChunk::ToolCallComplete {
                             id: Uuid::new_v4().to_string(),
@@ -691,7 +693,7 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
                     if let Some(text) = tos.next_token(next_token).ok().flatten() {
                         if let Some(tool_call) = tool_parser.process_token(&text) {
                             log::info!("🔧 Tool call detected: {}", tool_call.name);
-                            
+
                             // Emit ToolCallComplete chunk
                             let _ = tx.send(CandleCompletionChunk::ToolCallComplete {
                                 id: Uuid::new_v4().to_string(),
@@ -711,7 +713,7 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
                 {
                     if let Some(tool_call) = tool_parser.process_token(&text) {
                         log::info!("🔧 Tool call detected in final flush: {}", tool_call.name);
-                        
+
                         // Emit ToolCallComplete chunk
                         let _ = tx.send(CandleCompletionChunk::ToolCallComplete {
                             id: Uuid::new_v4().to_string(),

@@ -12,7 +12,7 @@ pub use reasoner::Reasoner;
 pub use types::*;
 
 use kodegen_mcp_tool::{Tool, error::McpError};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -125,8 +125,8 @@ impl Tool for SequentialThinkingReasonerTool {
         let response = self.reasoner.process_thought(request).await;
 
         // Convert to JSON
-        Ok(serde_json::to_value(&response)
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Serialization failed: {}", e)))?)
+        serde_json::to_value(&response)
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Serialization failed: {}", e)))
     }
 
     fn prompt_arguments() -> Vec<PromptArgument> {
@@ -138,7 +138,7 @@ impl Tool for SequentialThinkingReasonerTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use the sequential_thinking_reasoner tool with different strategies?"
+                    "How do I use the sequential_thinking_reasoner tool with different strategies?",
                 ),
             },
             PromptMessage {
@@ -175,7 +175,7 @@ impl Tool for SequentialThinkingReasonerTool {
                      - strategyUsed: Which strategy was applied\n\
                      - bestScore: Highest score in current path\n\n\
                      Optional: Set VOYAGE_API_KEY environment variable to enable \n\
-                     semantic coherence scoring using VoyageAI embeddings."
+                     semantic coherence scoring using VoyageAI embeddings.",
                 ),
             },
         ])

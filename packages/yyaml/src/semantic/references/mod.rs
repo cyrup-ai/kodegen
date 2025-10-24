@@ -27,14 +27,14 @@ pub use types::{
 
 /// Create a new reference tracker with optimized default settings
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn new_tracker<'input>() -> ReferenceTracker<'input> {
     ReferenceTracker::new()
 }
 
 /// Create a new reference tracker with custom capacity reservations
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn new_tracker_with_capacity<'input>(
     anchors: usize,
     aliases: usize,

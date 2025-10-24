@@ -19,7 +19,7 @@ pub struct MemoryManager<'input> {
 impl<'input> MemoryManager<'input> {
     /// Create new memory manager with optimized settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             reference_pool: Vec::with_capacity(256), // Pre-allocate for performance
@@ -108,14 +108,14 @@ impl<'input> MemoryManager<'input> {
 
     /// Get memory statistics
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_memory_usage(&self) -> &MemoryUsage {
         &self.memory_usage
     }
 
     /// Get node by index with bounds checking
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_node(&self, index: usize) -> Option<&ReferenceNode<'input>> {
         if index < self.reference_pool.len() && !self.free_indices.contains(&index) {
             Some(&self.reference_pool[index])
@@ -148,7 +148,7 @@ impl<'input> MemoryManager<'input> {
 
     /// Check if compaction should be triggered
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn should_compact(&self) -> bool {
         self.memory_usage.fragmentation_ratio > self.compact_threshold
     }
@@ -176,21 +176,21 @@ impl<'input> MemoryManager<'input> {
 
     /// Get current pool size
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn pool_size(&self) -> usize {
         self.reference_pool.len()
     }
 
     /// Get number of free slots
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn free_slots(&self) -> usize {
         self.free_indices.len()
     }
 
     /// Get number of used slots
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn used_slots(&self) -> usize {
         self.reference_pool.len() - self.free_indices.len()
     }
@@ -212,14 +212,14 @@ impl<'input> MemoryManager<'input> {
 
     /// Check if memory manager is in a healthy state
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         self.memory_usage.fragmentation_ratio < self.compact_threshold * 2.0
     }
 
     /// Get memory efficiency percentage
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn efficiency(&self) -> f64 {
         if self.memory_usage.total_bytes > 0 {
             (self.memory_usage.used_bytes as f64 / self.memory_usage.total_bytes as f64) * 100.0

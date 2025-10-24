@@ -3,7 +3,7 @@
 //! Shared utilities for bundle creation and GitHub upload.
 
 use crate::cli::RuntimeConfig;
-use crate::error::{Result, ReleaseError, CliError};
+use crate::error::{CliError, ReleaseError, Result};
 use crate::git::GitManager;
 
 /// Default product name for bundles
@@ -34,7 +34,8 @@ pub(super) fn discover_binaries_from_workspace(
     // Verify kodegen_install was found and marked as main
     if !binaries.iter().any(|b| b.main()) {
         return Err(ReleaseError::Cli(CliError::InvalidArguments {
-            reason: "kodegen_install binary not found in workspace. Required for bundling.".to_string(),
+            reason: "kodegen_install binary not found in workspace. Required for bundling."
+                .to_string(),
         }));
     }
 
@@ -44,29 +45,37 @@ pub(super) fn discover_binaries_from_workspace(
 /// Check if package has binary targets by parsing Cargo.toml
 fn has_binary_target(package: &crate::workspace::PackageInfo) -> Result<bool> {
     let manifest_path = &package.cargo_toml_path;
-    let manifest_content = std::fs::read_to_string(manifest_path)
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+    let manifest_content = std::fs::read_to_string(manifest_path).map_err(|e| {
+        ReleaseError::Cli(CliError::ExecutionFailed {
             command: "read_manifest".to_string(),
             reason: e.to_string(),
-        }))?;
+        })
+    })?;
 
     // Simple heuristic: look for [[bin]] section or bin flag
-    Ok(manifest_content.contains("[[bin]]") ||
-       (manifest_content.contains("name = ") && !manifest_content.contains("[lib]")))
+    Ok(manifest_content.contains("[[bin]]")
+        || (manifest_content.contains("name = ") && !manifest_content.contains("[lib]")))
 }
 
 /// Build workspace binaries with cargo
-pub(crate) fn build_workspace_binaries(workspace_path: &std::path::Path, release: bool) -> Result<()> {
+pub(crate) fn build_workspace_binaries(
+    workspace_path: &std::path::Path,
+    release: bool,
+) -> Result<()> {
     use std::process::Command;
 
     eprintln!("   Working directory: {}", workspace_path.display());
-    
+
     // Required binaries for kodegen release
     let required_binaries = ["kodegen_install", "kodegen", "kodegend"];
-    
+
     for binary in &required_binaries {
-        eprintln!("   Building binary: {}{}", binary, if release { " (release mode)" } else { "" });
-        
+        eprintln!(
+            "   Building binary: {}{}",
+            binary,
+            if release { " (release mode)" } else { "" }
+        );
+
         let mut cmd = Command::new("cargo");
         cmd.current_dir(workspace_path);
         cmd.arg("build");
@@ -77,11 +86,12 @@ pub(crate) fn build_workspace_binaries(workspace_path: &std::path::Path, release
             cmd.arg("--release");
         }
 
-        let output = cmd.output()
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        let output = cmd.output().map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: format!("cargo_build_{}", binary),
                 reason: e.to_string(),
-            }))?;
+            })
+        })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -90,7 +100,7 @@ pub(crate) fn build_workspace_binaries(workspace_path: &std::path::Path, release
                 reason: format!("Failed to build {}:\n{}", binary, stderr),
             }));
         }
-        
+
         eprintln!("   ✓ {} built successfully", binary);
     }
 
@@ -107,7 +117,7 @@ pub(super) fn create_bundler_settings(
     target_override: &Option<String>,
     platform: Option<&str>,
 ) -> Result<crate::bundler::Settings> {
-    use crate::bundler::{SettingsBuilder, PackageSettings};
+    use crate::bundler::{PackageSettings, SettingsBuilder};
 
     // Use product-level metadata (deterministic and semantically correct)
     let name = DEFAULT_PRODUCT_NAME.to_string();
@@ -142,7 +152,8 @@ pub(super) fn create_bundler_settings(
                 "x86_64-pc-windows-msvc"
             } else {
                 "unknown"
-            }.to_string()
+            }
+            .to_string()
         })
     });
 
@@ -167,13 +178,17 @@ pub(super) fn create_bundler_settings(
     }
 
     // Configure platform-specific settings
+    use crate::bundler::{
+        BundleSettings, DebianSettings, MacOsSettings, RpmSettings, WindowsSettings,
+    };
     use std::path::PathBuf;
-    use crate::bundler::{BundleSettings, DebianSettings, RpmSettings, MacOsSettings, WindowsSettings};
 
     // Read signing configuration from environment variables
     let macos_settings = MacOsSettings {
         signing_identity: std::env::var("MACOS_SIGNING_IDENTITY").ok(),
-        entitlements: std::env::var("MACOS_ENTITLEMENTS_PATH").ok().map(PathBuf::from),
+        entitlements: std::env::var("MACOS_ENTITLEMENTS_PATH")
+            .ok()
+            .map(PathBuf::from),
         skip_notarization: std::env::var("MACOS_SKIP_NOTARIZATION")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -204,7 +219,10 @@ pub(super) fn create_bundler_settings(
     ];
 
     let bundle_settings = BundleSettings {
-        identifier: Some(format!("ai.kodegen.{}", override_name.clone().unwrap_or_else(|| name.clone()))),
+        identifier: Some(format!(
+            "ai.kodegen.{}",
+            override_name.clone().unwrap_or_else(|| name.clone())
+        )),
         icon: Some(icon_paths),
         deb: DebianSettings {
             post_install_script: Some(PathBuf::from("packages/bundler-release/postinst.deb.sh")),
@@ -243,33 +261,38 @@ pub(super) fn create_bundler_settings(
         }
     }
 
-    builder.build()
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+    builder.build().map_err(|e| {
+        ReleaseError::Cli(CliError::ExecutionFailed {
             command: "build_settings".to_string(),
             reason: e.to_string(),
-        }))
+        })
+    })
 }
 
 /// Calculate SHA-256 checksum of a file
 pub(super) fn calculate_artifact_checksum(path: &std::path::Path) -> Result<String> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     use std::io::Read;
 
-    let mut file = std::fs::File::open(path)
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+    let mut file = std::fs::File::open(path).map_err(|e| {
+        ReleaseError::Cli(CliError::ExecutionFailed {
             command: "read_file_for_checksum".to_string(),
             reason: e.to_string(),
-        }))?;
+        })
+    })?;
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
 
     loop {
-        let n = file.read(&mut buffer)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        let n = file.read(&mut buffer).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "read_file_for_checksum".to_string(),
                 reason: e.to_string(),
-            }))?;
-        if n == 0 { break; }
+            })
+        })?;
+        if n == 0 {
+            break;
+        }
         hasher.update(&buffer[..n]);
     }
 
@@ -289,13 +312,19 @@ pub(super) fn parse_package_type(platform_str: &str) -> Result<crate::bundler::P
         "msi" => Ok(PackageType::WindowsMsi),
         "nsis" => Ok(PackageType::Nsis),
         _ => Err(ReleaseError::Cli(CliError::InvalidArguments {
-            reason: format!("Unknown package type: '{}'. Valid: deb, rpm, appimage, app, dmg, msi, nsis", platform_str),
+            reason: format!(
+                "Unknown package type: '{}'. Valid: deb, rpm, appimage, app, dmg, msi, nsis",
+                platform_str
+            ),
         })),
     }
 }
 
 /// Print bundle creation summary
-pub(super) fn print_bundle_summary(artifacts: &[crate::bundler::BundledArtifact], config: &RuntimeConfig) {
+pub(super) fn print_bundle_summary(
+    artifacts: &[crate::bundler::BundledArtifact],
+    config: &RuntimeConfig,
+) {
     if artifacts.is_empty() {
         config.warning_println("No artifacts were created");
         return;
@@ -321,7 +350,7 @@ pub(super) async fn upload_bundles_to_github(
     git_manager: &GitManager,
     config: &RuntimeConfig,
 ) -> Result<()> {
-    use super::super::helpers::{parse_github_repo_string, detect_github_repo};
+    use super::super::helpers::{detect_github_repo, parse_github_repo_string};
 
     config.println("📤 Uploading artifacts to GitHub...");
 
@@ -334,10 +363,15 @@ pub(super) async fn upload_bundles_to_github(
     };
 
     // Get version from workspace
-    let version = workspace.packages.values().next()
-        .ok_or_else(|| ReleaseError::Cli(CliError::InvalidArguments {
-            reason: "No workspace members found".to_string(),
-        }))?
+    let version = workspace
+        .packages
+        .values()
+        .next()
+        .ok_or_else(|| {
+            ReleaseError::Cli(CliError::InvalidArguments {
+                reason: "No workspace members found".to_string(),
+            })
+        })?
         .version
         .clone();
 
@@ -359,19 +393,21 @@ pub(super) async fn upload_bundles_to_github(
 
     // Get or create release
     let client = github_manager.client().inner().clone();
-    let release = kodegen_tools_github::get_release_by_tag(
-        client.clone(),
-        &owner,
-        &repo,
-        &tag_name,
-    ).await
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "get_release_by_tag".to_string(),
-            reason: e.to_string(),
-        }))?;
+    let release =
+        kodegen_tools_github::get_release_by_tag(client.clone(), &owner, &repo, &tag_name)
+            .await
+            .map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "get_release_by_tag".to_string(),
+                    reason: e.to_string(),
+                })
+            })?;
 
     let release_id = if let Some(existing_release) = release {
-        config.verbose_println(&format!("Found existing release: {}", existing_release.html_url));
+        config.verbose_println(&format!(
+            "Found existing release: {}",
+            existing_release.html_url
+        ));
         existing_release.id.0
     } else {
         // Create new release
@@ -381,10 +417,12 @@ pub(super) async fn upload_bundles_to_github(
         let commit_sha = std::process::Command::new("git")
             .args(["rev-parse", "HEAD"])
             .output()
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "git_rev_parse".to_string(),
-                reason: e.to_string(),
-            }))?;
+            .map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "git_rev_parse".to_string(),
+                    reason: e.to_string(),
+                })
+            })?;
 
         if !commit_sha.status.success() {
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
@@ -393,19 +431,20 @@ pub(super) async fn upload_bundles_to_github(
             }));
         }
 
-        let sha = String::from_utf8_lossy(&commit_sha.stdout).trim().to_string();
+        let sha = String::from_utf8_lossy(&commit_sha.stdout)
+            .trim()
+            .to_string();
 
         // Parse version string to semver::Version
-        let semver_version = semver::Version::parse(&version.to_string())
-            .map_err(|e| ReleaseError::Cli(CliError::InvalidArguments {
+        let semver_version = semver::Version::parse(&version.to_string()).map_err(|e| {
+            ReleaseError::Cli(CliError::InvalidArguments {
                 reason: format!("Invalid version '{}': {}", version, e),
-            }))?;
+            })
+        })?;
 
-        let result = github_manager.create_release(
-            &semver_version,
-            &sha,
-            Some(format!("Release {}", version)),
-        ).await?;
+        let result = github_manager
+            .create_release(&semver_version, &sha, Some(format!("Release {}", version)))
+            .await?;
 
         config.success_println(&format!("Created release: {}", result.html_url));
         result.release_id
@@ -419,9 +458,14 @@ pub(super) async fn upload_bundles_to_github(
 
     // Upload artifacts
     config.verbose_println(&format!("Uploading {} files", all_paths.len()));
-    let uploaded_urls = github_manager.upload_artifacts(release_id, &all_paths, config).await?;
+    let uploaded_urls = github_manager
+        .upload_artifacts(release_id, &all_paths, config)
+        .await?;
 
-    config.success_println(&format!("Uploaded {} artifact(s) to GitHub", uploaded_urls.len()));
+    config.success_println(&format!(
+        "Uploaded {} artifact(s) to GitHub",
+        uploaded_urls.len()
+    ));
     for url in &uploaded_urls {
         config.println(&format!("  📦 {}", url));
     }

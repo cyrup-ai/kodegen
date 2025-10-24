@@ -1,14 +1,13 @@
-mod agent;
+mod core;
 pub mod prompts;
 mod views;
 
 use serde::{Deserialize, Serialize};
 
-pub use agent::Agent;
-pub use prompts::{SystemPrompt, AgentMessagePrompt};
-pub use views::{HistoryView, StepView, ActionView, BrowserStateView};
+pub use core::{Agent, AgentConfig, PromptConfig};
+pub use prompts::{AgentMessagePrompt, SystemPrompt};
+pub use views::{ActionView, BrowserStateView, HistoryView, StepView};
 
-use std::fmt;
 use thiserror::Error;
 
 /// Action model for agent protocol - represents an action to execute
@@ -25,6 +24,30 @@ pub struct ActionResult {
     pub success: bool,
     pub extracted_content: Option<String>,
     pub error: Option<String>,
+}
+
+/// Response from browser_extract_text MCP tool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrowserExtractTextResponse {
+    pub success: bool,
+    pub text: String,
+    pub length: usize,
+    #[serde(default)]
+    pub selector: Option<String>,
+    pub source: String,
+    pub message: String,
+}
+
+/// Response from browser_screenshot MCP tool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrowserScreenshotResponse {
+    pub success: bool,
+    pub image: String,
+    pub format: String,
+    pub size_bytes: usize,
+    #[serde(default)]
+    pub selector: Option<String>,
+    pub message: String,
 }
 
 /// Agent LLM protocol-compliant response schema
@@ -49,22 +72,22 @@ pub struct CurrentState {
 pub enum AgentError {
     #[error("LLM error: {0}")]
     LlmError(String),
-    
+
     #[error("Browser error: {0}")]
     BrowserError(String),
-    
+
     #[error("JSON parse error: {0}")]
     JsonParseError(String),
-    
+
     #[error("Step failed: {0}")]
     StepFailed(String),
-    
+
     #[error("Agent stopped")]
     Stopped,
-    
+
     #[error("Channel closed: {0}")]
     ChannelClosed(String),
-    
+
     #[error("Unexpected error: {0}")]
     UnexpectedError(String),
 }
@@ -98,7 +121,7 @@ impl AgentHistoryList {
     pub fn new() -> Self {
         Self { steps: Vec::new() }
     }
-    
+
     /// Add a step to the history (not marking completion)
     pub fn add_step(&mut self, output: AgentOutput) {
         let step = AgentHistory {
@@ -128,17 +151,12 @@ impl AgentHistoryList {
 
     /// Returns the final result if the task is complete
     pub fn final_result(&self) -> Option<String> {
-        if let Some(last) = self.steps.iter().rev().find(|s| s.is_complete) {
-            // Try to extract a result string from the last step's output
-            // (This can be ized as needed)
-            Some(format!(
+        self.steps.iter().rev().find(|s| s.is_complete).map(|last| {
+            format!(
                 "Task completed at step {}. Summary: {}",
-                last.step,
-                last.output.current_state.summary
-            ))
-        } else {
-            None
-        }
+                last.step, last.output.current_state.summary
+            )
+        })
     }
 }
 

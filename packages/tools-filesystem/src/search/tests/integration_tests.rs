@@ -42,29 +42,44 @@ fn attest() { }
     // Search WITHOUT word boundary (substring mode)
     let matcher_no_boundary = build_rust_matcher("test", CaseMode::Sensitive, false, false)
         .expect("Failed to build matcher");
-    
+
     let mut searcher = Searcher::new();
     let mut sink_no_boundary = CountSink::new();
-    searcher.search_slice(&matcher_no_boundary, test_content, &mut sink_no_boundary)
+    searcher
+        .search_slice(&matcher_no_boundary, test_content, &mut sink_no_boundary)
         .expect("Search failed");
-    
+
     // Search WITH word boundary
     let matcher_with_boundary = build_rust_matcher("test", CaseMode::Sensitive, false, true)
         .expect("Failed to build matcher");
-    
+
     let mut sink_with_boundary = CountSink::new();
-    searcher.search_slice(&matcher_with_boundary, test_content, &mut sink_with_boundary)
+    searcher
+        .search_slice(
+            &matcher_with_boundary,
+            test_content,
+            &mut sink_with_boundary,
+        )
         .expect("Search failed");
-    
+
     // Verify that word boundary mode reduces matches
-    assert!(sink_no_boundary.count > sink_with_boundary.count,
+    assert!(
+        sink_no_boundary.count > sink_with_boundary.count,
         "Word boundary should reduce matches (no boundary: {}, with boundary: {})",
-        sink_no_boundary.count, sink_with_boundary.count);
-    
+        sink_no_boundary.count,
+        sink_with_boundary.count
+    );
+
     // Specifically: without boundary should match all 6 lines
     // with boundary should match only 2 lines (fn test() and // test comment)
-    assert_eq!(sink_no_boundary.count, 6, "Without boundary should match 6 lines");
-    assert_eq!(sink_with_boundary.count, 2, "With boundary should match 2 lines");
+    assert_eq!(
+        sink_no_boundary.count, 6,
+        "Without boundary should match 6 lines"
+    );
+    assert_eq!(
+        sink_with_boundary.count, 2,
+        "With boundary should match 2 lines"
+    );
 }
 
 #[test]
@@ -79,12 +94,16 @@ test-log file
     // Test literal search with word boundary for "test.log"
     let matcher = build_rust_matcher("test.log", CaseMode::Sensitive, true, true)
         .expect("Failed to build matcher");
-    
+
     let mut searcher = Searcher::new();
     let mut sink = CountSink::new();
-    searcher.search_slice(&matcher, test_content, &mut sink)
+    searcher
+        .search_slice(&matcher, test_content, &mut sink)
         .expect("Search failed");
-    
+
     // Should only match "test.log" (dot is escaped), not "testXlog"
-    assert_eq!(sink.count, 1, "Literal search should match exactly one line (test.log)");
+    assert_eq!(
+        sink.count, 1,
+        "Literal search should match exactly one line (test.log)"
+    );
 }

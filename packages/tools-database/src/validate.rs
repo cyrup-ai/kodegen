@@ -50,48 +50,50 @@ pub fn validate_sqlite_identifier(name: &str) -> Result<(), DatabaseError> {
     // Rule 1: Check empty
     if name.is_empty() {
         return Err(DatabaseError::QueryError(
-            "Identifier cannot be empty".to_string()
+            "Identifier cannot be empty".to_string(),
         ));
     }
-    
+
     // Rule 2: Check length (64 chars is reasonable limit)
     if name.len() > 64 {
-        return Err(DatabaseError::QueryError(
-            format!("Identifier too long: {} characters (max 64)", name.len())
-        ));
+        return Err(DatabaseError::QueryError(format!(
+            "Identifier too long: {} characters (max 64)",
+            name.len()
+        )));
     }
-    
+
     // Rule 3: Check characters - only alphanumeric and underscore
     if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-        return Err(DatabaseError::QueryError(
-            format!(
-                "Invalid identifier: '{}'. Only alphanumeric and underscore allowed",
-                name
-            )
-        ));
+        return Err(DatabaseError::QueryError(format!(
+            "Invalid identifier: '{}'. Only alphanumeric and underscore allowed",
+            name
+        )));
     }
-    
+
     // Rule 4: Check doesn't start with digit
     if let Some(first_char) = name.chars().next()
-        && first_char.is_ascii_digit() {
-        return Err(DatabaseError::QueryError(
-            format!("Identifier cannot start with digit: '{}'", name)
-        ));
+        && first_char.is_ascii_digit()
+    {
+        return Err(DatabaseError::QueryError(format!(
+            "Identifier cannot start with digit: '{}'",
+            name
+        )));
     }
-    
+
     // Rule 5: Check not a SQL keyword (defense-in-depth)
     // Keywords that could be exploited or cause confusion
     let keywords = [
-        "SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER",
-        "TABLE", "INDEX", "VIEW", "TRIGGER", "PRAGMA", "ATTACH", "DETACH",
-        "BEGIN", "COMMIT", "ROLLBACK", "VACUUM", "ANALYZE",
+        "SELECT", "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TABLE", "INDEX",
+        "VIEW", "TRIGGER", "PRAGMA", "ATTACH", "DETACH", "BEGIN", "COMMIT", "ROLLBACK", "VACUUM",
+        "ANALYZE",
     ];
-    
+
     if keywords.contains(&name.to_uppercase().as_str()) {
-        return Err(DatabaseError::QueryError(
-            format!("Identifier cannot be SQL keyword: '{}'", name)
-        ));
+        return Err(DatabaseError::QueryError(format!(
+            "Identifier cannot be SQL keyword: '{}'",
+            name
+        )));
     }
-    
+
     Ok(())
 }

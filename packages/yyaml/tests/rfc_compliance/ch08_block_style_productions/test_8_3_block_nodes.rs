@@ -15,7 +15,7 @@ fn test_block_nodes() {
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert!(docs[0].as_str().unwrap().contains("This is a literal"));
-    
+
     // Block sequence as root node
     let yaml = r#"
 - item1
@@ -23,7 +23,7 @@ fn test_block_nodes() {
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0].as_vec().unwrap().len(), 2);
-    
+
     // Block mapping as root node
     let yaml = r#"
 key1: value1
@@ -45,7 +45,7 @@ copy: *anchor
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["reference"]["key"].as_str().unwrap(), "value");
     assert_eq!(docs[0]["copy"]["key"].as_str().unwrap(), "value");
-    
+
     // Block node with explicit tag
     let yaml = r#"tagged: !!str
 - item1

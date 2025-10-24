@@ -1,6 +1,6 @@
-use kodegen_mcp_tool::Tool;
 use crate::manager::AgentManager;
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,17 +14,19 @@ use std::sync::Arc;
 pub struct ReadClaudeAgentOutputArgs {
     /// Session ID to read from
     pub session_id: String,
-    
+
     /// Offset for pagination (0=start, negative=tail from end)
     #[serde(default)]
     pub offset: i64,
-    
+
     /// Max messages to return (default: 50)
     #[serde(default = "default_length")]
     pub length: usize,
 }
 
-fn default_length() -> usize { 50 }
+fn default_length() -> usize {
+    50
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReadClaudeAgentOutputPromptArgs {}
@@ -41,7 +43,7 @@ pub struct ReadClaudeAgentOutputTool {
 
 impl ReadClaudeAgentOutputTool {
     /// Create a new read output tool with required dependencies
-    #[must_use] 
+    #[must_use]
     pub fn new(agent_manager: Arc<AgentManager>) -> Self {
         Self { agent_manager }
     }
@@ -83,11 +85,12 @@ impl Tool for ReadClaudeAgentOutputTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
-        let response = self.agent_manager
+        let response = self
+            .agent_manager
             .get_output(&args.session_id, args.offset, args.length)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         serde_json::to_value(response)
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))
     }
@@ -96,7 +99,10 @@ impl Tool for ReadClaudeAgentOutputTool {
         vec![]
     }
 
-    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
+    async fn prompt(
+        &self,
+        _args: Self::PromptArgs,
+    ) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
         Ok(vec![PromptMessage {
             role: PromptMessageRole::User,
             content: PromptMessageContent::Text {

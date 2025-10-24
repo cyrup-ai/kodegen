@@ -102,7 +102,7 @@ pub enum SemanticError {
 
 impl SemanticError {
     /// Get the position associated with this error
-    #[must_use] 
+    #[must_use]
     pub fn position(&self) -> Position {
         match self {
             Self::UnresolvedAlias { position, .. } => *position,
@@ -131,7 +131,7 @@ impl SemanticError {
     }
 
     /// Get human-readable error message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::UnresolvedAlias { alias_name, .. } => {
@@ -223,7 +223,7 @@ impl SemanticError {
 
     /// Create an unresolved alias error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn unresolved_alias(alias_name: String, position: Position) -> Self {
         Self::UnresolvedAlias {
             alias_name,
@@ -233,7 +233,7 @@ impl SemanticError {
 
     /// Create a circular reference error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn circular_reference(alias_name: String, path: String, position: Position) -> Self {
         Self::CircularReference {
             alias_name,
@@ -244,7 +244,7 @@ impl SemanticError {
 
     /// Create a duplicate anchor error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn duplicate_anchor(
         anchor_name: String,
         first_position: Position,
@@ -259,21 +259,21 @@ impl SemanticError {
 
     /// Create an invalid tag handle error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn invalid_tag_handle(handle: String, position: Position) -> Self {
         Self::InvalidTagHandle { handle, position }
     }
 
     /// Create an unknown tag error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn unknown_tag(tag: String, position: Position) -> Self {
         Self::UnknownTag { tag, position }
     }
 
     /// Create a tag resolution failed error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn tag_resolution_failed(tag: String, reason: String, position: Position) -> Self {
         Self::TagResolutionFailed {
             tag,
@@ -284,7 +284,7 @@ impl SemanticError {
 
     /// Create a validation depth exceeded error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn validation_depth_exceeded(
         max_depth: usize,
         current_depth: usize,
@@ -299,15 +299,19 @@ impl SemanticError {
 
     /// Create an unknown tag handle error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn unknown_tag_handle(handle: String, position: Position) -> Self {
         Self::UnknownTagHandle { handle, position }
     }
 
     /// Create a custom tag resolution failed error
     #[inline]
-    #[must_use] 
-    pub const fn custom_tag_resolution_failed(tag: String, error: String, position: Position) -> Self {
+    #[must_use]
+    pub const fn custom_tag_resolution_failed(
+        tag: String,
+        error: String,
+        position: Position,
+    ) -> Self {
         Self::CustomTagResolutionFailed {
             tag,
             error,
@@ -317,21 +321,21 @@ impl SemanticError {
 
     /// Create an unknown custom tag error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn unknown_custom_tag(tag: String, position: Position) -> Self {
         Self::UnknownCustomTag { tag, position }
     }
 
     /// Create an invalid document structure error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn invalid_document_structure(reason: String, position: Position) -> Self {
         Self::InvalidDocumentStructure { reason, position }
     }
 
     /// Create a type mismatch error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn type_mismatch(expected: String, actual: String, position: Position) -> Self {
         Self::TypeMismatch {
             expected,
@@ -342,8 +346,12 @@ impl SemanticError {
 
     /// Create a value validation failed error
     #[inline]
-    #[must_use] 
-    pub const fn value_validation_failed(value: String, constraint: String, position: Position) -> Self {
+    #[must_use]
+    pub const fn value_validation_failed(
+        value: String,
+        constraint: String,
+        position: Position,
+    ) -> Self {
         Self::ValueValidationFailed {
             value,
             constraint,
@@ -353,14 +361,14 @@ impl SemanticError {
 
     /// Create a reference tracking error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn reference_tracking_error(reason: String, position: Position) -> Self {
         Self::ReferenceTrackingError { reason, position }
     }
 
     /// Create an anchor registration failed error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn anchor_registration_failed(
         anchor_name: String,
         reason: String,
@@ -375,7 +383,7 @@ impl SemanticError {
 
     /// Create a validation error
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn validation_error(message: String, position: Position) -> Self {
         Self::ValidationError { message, position }
     }

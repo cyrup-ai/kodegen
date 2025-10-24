@@ -1,8 +1,7 @@
-use crate::agent::{Agent, AgentHistoryList};
-use crate::agent::prompts::{SystemPrompt, AgentMessagePrompt};
+use crate::agent::Agent;
+use crate::agent::prompts::{AgentMessagePrompt, SystemPrompt};
 use crate::manager::BrowserManager;
 use crate::utils::AgentState;
-use kodegen_mcp_client::KodegenClient;
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
@@ -15,48 +14,60 @@ use tokio::sync::Mutex;
 pub struct BrowserAgentArgs {
     /// Task description for the agent to accomplish
     pub task: String,
-    
+
     /// Optional additional context or hints
     #[serde(default)]
     pub additional_info: Option<String>,
-    
+
     /// Optional initial URL to navigate to before starting
     #[serde(default)]
     pub start_url: Option<String>,
-    
+
     /// Maximum steps agent can take (default: 10)
     #[serde(default = "default_max_steps")]
     pub max_steps: u32,
-    
+
     /// Maximum actions per step (default: 3)
     #[serde(default = "default_max_actions")]
     pub max_actions_per_step: u32,
-    
+
     /// LLM temperature for action generation (default: 0.7)
     #[serde(default = "default_temperature")]
     pub temperature: f64,
-    
+
     /// Max tokens per LLM call (default: 2048)
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u64,
-    
+
     /// Vision model timeout in seconds (default: 60s)
     /// Vision analysis is typically fast, but allow time for model loading
     #[serde(default = "default_vision_timeout_secs")]
     pub vision_timeout_secs: u64,
-    
+
     /// LLM generation timeout in seconds (default: 120s)
     /// Allow time for complex reasoning and high token generation
     #[serde(default = "default_llm_timeout_secs")]
     pub llm_timeout_secs: u64,
 }
 
-fn default_max_steps() -> u32 { 10 }
-fn default_max_actions() -> u32 { 3 }
-fn default_temperature() -> f64 { 0.7 }
-fn default_max_tokens() -> u64 { 2048 }
-fn default_vision_timeout_secs() -> u64 { 60 }
-fn default_llm_timeout_secs() -> u64 { 120 }
+fn default_max_steps() -> u32 {
+    10
+}
+fn default_max_actions() -> u32 {
+    3
+}
+fn default_temperature() -> f64 {
+    0.7
+}
+fn default_max_tokens() -> u64 {
+    2048
+}
+fn default_vision_timeout_secs() -> u64 {
+    60
+}
+fn default_llm_timeout_secs() -> u64 {
+    120
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserAgentPromptArgs {}
@@ -68,10 +79,7 @@ pub struct BrowserAgentTool {
 }
 
 impl BrowserAgentTool {
-    pub fn new(
-        browser_manager: Arc<BrowserManager>,
-        server_url: String,
-    ) -> Self {
+    pub fn new(browser_manager: Arc<BrowserManager>, server_url: String) -> Self {
         Self {
             _browser_manager: browser_manager,
             server_url,
@@ -95,11 +103,11 @@ impl Tool for BrowserAgentTool {
     }
 
     fn read_only() -> bool {
-        false  // Agent modifies browser state
+        false // Agent modifies browser state
     }
 
     fn open_world() -> bool {
-        true  // Agent can navigate to any URL
+        true // Agent can navigate to any URL
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -107,71 +115,83 @@ impl Tool for BrowserAgentTool {
         // By the time this tool executes, the server is fully running
         let (mcp_client, _connection) = kodegen_mcp_client::create_sse_client(&self.server_url)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Failed to create loopback client to {}: {}. \
-                 Ensure SSE server is running and accessible.", 
-                self.server_url, e
-            )))?;
-        
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Failed to create loopback client to {}: {}. \
+                 Ensure SSE server is running and accessible.",
+                    self.server_url,
+                    e
+                ))
+            })?;
+
         // Navigate to start URL if provided (BEFORE creating agent)
         if let Some(url) = &args.start_url {
             mcp_client
-                .call_tool("browser_navigate", json!({
-                    "url": url,
-                    "timeout_ms": 30000
-                }))
+                .call_tool(
+                    "browser_navigate",
+                    json!({
+                        "url": url,
+                        "timeout_ms": 30000
+                    }),
+                )
                 .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
-                    "Failed to navigate to start URL: {}", e
-                )))?;
+                .map_err(|e| {
+                    McpError::Other(anyhow::anyhow!("Failed to navigate to start URL: {}", e))
+                })?;
         }
 
         // Create agent with all required parameters
-        let system_prompt = SystemPrompt::new();
-        let agent_prompt = AgentMessagePrompt::new();
+        let prompts = crate::agent::PromptConfig {
+            system_prompt: SystemPrompt::new(),
+            agent_prompt: AgentMessagePrompt::new(),
+        };
         let agent_state = Arc::new(Mutex::new(AgentState::new()));
-        
+
+        let config = crate::agent::AgentConfig {
+            temperature: args.temperature,
+            max_tokens: args.max_tokens,
+            vision_timeout_secs: args.vision_timeout_secs,
+            llm_timeout_secs: args.llm_timeout_secs,
+        };
+
         let agent = Agent::new(
             &args.task,
-            &args.additional_info.as_deref().unwrap_or(""),
+            args.additional_info.as_deref().unwrap_or(""),
             Arc::new(mcp_client),
-            system_prompt,
-            agent_prompt,
+            prompts,
             args.max_actions_per_step as usize,
             agent_state,
-            args.temperature,
-            args.max_tokens,
-            args.vision_timeout_secs,
-            args.llm_timeout_secs,
-        ).map_err(|e| McpError::Other(anyhow::anyhow!(
-            "Failed to create agent: {}", e
-        )))?;
+            config,
+        )
+        .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create agent: {}", e)))?;
 
         // Execute agent task
         let history = agent
             .run(args.max_steps as usize)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Agent execution failed: {}", e
-            )))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Agent execution failed: {}", e)))?;
 
         // Build response with execution summary
         let steps_taken = history.steps.len();
         let is_complete = history.is_complete();
-        let final_result = history.final_result().unwrap_or_else(|| 
-            format!("Agent stopped after {} steps (incomplete)", steps_taken)
-        );
+        let final_result = history
+            .final_result()
+            .unwrap_or_else(|| format!("Agent stopped after {} steps (incomplete)", steps_taken));
 
         // Extract action summaries from history
-        let actions: Vec<Value> = history.steps.iter().map(|step| {
-            json!({
-                "step": step.step,
-                "timestamp": step.timestamp.to_rfc3339(),
-                "actions": step.output.action.iter().map(|a| &a.action).collect::<Vec<_>>(),
-                "summary": step.output.current_state.summary,
-                "complete": step.is_complete,
+        let actions: Vec<Value> = history
+            .steps
+            .iter()
+            .map(|step| {
+                json!({
+                    "step": step.step,
+                    "timestamp": step.timestamp.to_rfc3339(),
+                    "actions": step.output.action.iter().map(|a| &a.action).collect::<Vec<_>>(),
+                    "summary": step.output.current_state.summary,
+                    "complete": step.is_complete,
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(json!({
             "success": is_complete,
@@ -206,7 +226,7 @@ impl Tool for BrowserAgentTool {
                        \\\"start_url\\\": \\\"https://example.com/contact\\\", \
                        \\\"max_steps\\\": 5, \
                        \\\"temperature\\\": 0.5}\\n\\n\
-                     The agent will navigate, click, type, scroll, and extract content autonomously."
+                     The agent will navigate, click, type, scroll, and extract content autonomously.",
                 ),
             },
         ])

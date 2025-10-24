@@ -120,15 +120,16 @@ impl WorkspaceInfo {
     /// Analyze a workspace starting from the given directory
     pub fn analyze<P: AsRef<Path>>(start_dir: P) -> Result<Self> {
         let workspace_root = Self::find_workspace_root(start_dir)?;
-        
+
         // Parse root Cargo.toml ONCE - this eliminates all redundant reads
         let root_cargo_toml_path = workspace_root.join("Cargo.toml");
         let root_cargo_content = std::fs::read_to_string(&root_cargo_toml_path)?;
         let root_cargo_parsed: toml::Value = toml::from_str(&root_cargo_content)?;
-        
+
         // Pass parsed value to both functions - zero additional I/O
         let workspace_config = Self::parse_workspace_config(&root_cargo_parsed)?;
-        let packages = Self::enumerate_packages(&workspace_root, &workspace_config, &root_cargo_parsed)?;
+        let packages =
+            Self::enumerate_packages(&workspace_root, &workspace_config, &root_cargo_parsed)?;
         let internal_dependencies = Self::build_internal_dependency_map(&packages)?;
 
         Ok(Self {
@@ -142,16 +143,14 @@ impl WorkspaceInfo {
     /// Find the workspace root directory
     fn find_workspace_root<P: AsRef<Path>>(start_dir: P) -> Result<PathBuf> {
         // Try canonicalization, fall back to absolute path for network mounts
-        let mut current_dir = start_dir.as_ref()
-            .canonicalize()
-            .or_else(|_| {
-                let path = start_dir.as_ref();
-                if path.is_absolute() {
-                    Ok(path.to_path_buf())
-                } else {
-                    std::env::current_dir().map(|cwd| cwd.join(path))
-                }
-            })?;
+        let mut current_dir = start_dir.as_ref().canonicalize().or_else(|_| {
+            let path = start_dir.as_ref();
+            if path.is_absolute() {
+                Ok(path.to_path_buf())
+            } else {
+                std::env::current_dir().map(|cwd| cwd.join(path))
+            }
+        })?;
 
         loop {
             let cargo_toml = current_dir.join("Cargo.toml");
@@ -159,7 +158,7 @@ impl WorkspaceInfo {
                 // Check if this Cargo.toml defines a workspace
                 let content = std::fs::read_to_string(&cargo_toml)?;
                 let parsed: toml::Value = toml::from_str(&content)?;
-                
+
                 if parsed.get("workspace").is_some() {
                     return Ok(current_dir);
                 }
@@ -174,16 +173,20 @@ impl WorkspaceInfo {
 
     /// Parse workspace configuration from root Cargo.toml
     fn parse_workspace_config(root_cargo_parsed: &toml::Value) -> Result<WorkspaceConfig> {
-        let workspace_table = root_cargo_parsed
-            .get("workspace")
-            .ok_or_else(|| WorkspaceError::InvalidStructure {
-                reason: "No [workspace] section found in root Cargo.toml".to_string(),
-            })?;
+        let workspace_table =
+            root_cargo_parsed
+                .get("workspace")
+                .ok_or_else(|| WorkspaceError::InvalidStructure {
+                    reason: "No [workspace] section found in root Cargo.toml".to_string(),
+                })?;
 
-        let workspace_config: WorkspaceConfig = workspace_table.clone().try_into()
-            .map_err(|e| WorkspaceError::InvalidStructure {
-                reason: format!("Failed to parse workspace configuration: {}", e),
-            })?;
+        let workspace_config: WorkspaceConfig =
+            workspace_table
+                .clone()
+                .try_into()
+                .map_err(|e| WorkspaceError::InvalidStructure {
+                    reason: format!("Failed to parse workspace configuration: {}", e),
+                })?;
 
         Ok(workspace_config)
     }
@@ -198,30 +201,34 @@ impl WorkspaceInfo {
 
         // Step 1: Expand all member patterns to concrete paths
         let mut member_paths = Vec::new();
-        
+
         for member_pattern in &workspace_config.members {
             let literal_path = workspace_root.join(member_pattern);
-            
+
             // Check if pattern contains glob metacharacters
-            if member_pattern.contains('*') || member_pattern.contains('?') || member_pattern.contains('[') {
+            if member_pattern.contains('*')
+                || member_pattern.contains('?')
+                || member_pattern.contains('[')
+            {
                 // Glob pattern - expand it
                 let pattern_path = workspace_root.join(member_pattern);
-                let pattern_str = pattern_path
-                    .to_str()
-                    .ok_or_else(|| WorkspaceError::InvalidStructure {
-                        reason: format!("Invalid UTF-8 in path pattern: {}", member_pattern),
-                    })?;
-                
-                let entries = glob::glob(pattern_str)
-                    .map_err(|e| WorkspaceError::InvalidStructure {
+                let pattern_str =
+                    pattern_path
+                        .to_str()
+                        .ok_or_else(|| WorkspaceError::InvalidStructure {
+                            reason: format!("Invalid UTF-8 in path pattern: {}", member_pattern),
+                        })?;
+
+                let entries =
+                    glob::glob(pattern_str).map_err(|e| WorkspaceError::InvalidStructure {
                         reason: format!("Invalid glob pattern '{}': {}", member_pattern, e),
                     })?;
-                
+
                 for entry in entries {
                     let path = entry.map_err(|e| WorkspaceError::InvalidStructure {
                         reason: format!("Error reading glob entry: {}", e),
                     })?;
-                    
+
                     if path.is_dir() {
                         member_paths.push(path);
                     }
@@ -232,26 +239,34 @@ impl WorkspaceInfo {
             } else {
                 // Path doesn't exist and isn't a glob - error
                 return Err(WorkspaceError::InvalidStructure {
-                    reason: format!("Workspace member '{}' not found and is not a valid glob pattern", member_pattern),
-                }.into());
+                    reason: format!(
+                        "Workspace member '{}' not found and is not a valid glob pattern",
+                        member_pattern
+                    ),
+                }
+                .into());
             }
         }
 
         // Step 2: Expand exclusion patterns
         let mut excluded_paths = std::collections::HashSet::new();
-        
+
         for exclude_pattern in &workspace_config.exclude {
             let literal_path = workspace_root.join(exclude_pattern);
-            
-            if exclude_pattern.contains('*') || exclude_pattern.contains('?') || exclude_pattern.contains('[') {
+
+            if exclude_pattern.contains('*')
+                || exclude_pattern.contains('?')
+                || exclude_pattern.contains('[')
+            {
                 // Glob pattern
                 let pattern_path = workspace_root.join(exclude_pattern);
                 if let Some(pattern_str) = pattern_path.to_str()
-                    && let Ok(entries) = glob::glob(pattern_str) {
-                        for entry in entries.flatten() {
-                            excluded_paths.insert(entry);
-                        }
+                    && let Ok(entries) = glob::glob(pattern_str)
+                {
+                    for entry in entries.flatten() {
+                        excluded_paths.insert(entry);
                     }
+                }
             } else if literal_path.exists() {
                 // Literal path
                 excluded_paths.insert(literal_path);
@@ -264,7 +279,7 @@ impl WorkspaceInfo {
         // Step 4: Process each member path
         for member_path in member_paths {
             let cargo_toml_path = member_path.join("Cargo.toml");
-            
+
             // Skip directories without Cargo.toml (glob may match non-packages)
             if !cargo_toml_path.exists() {
                 continue;
@@ -283,8 +298,10 @@ impl WorkspaceInfo {
         // Step 5: Validate we found at least one package
         if packages.is_empty() {
             return Err(WorkspaceError::InvalidStructure {
-                reason: "No packages found in workspace after expanding member patterns".to_string(),
-            }.into());
+                reason: "No packages found in workspace after expanding member patterns"
+                    .to_string(),
+            }
+            .into());
         }
 
         Ok(packages)
@@ -300,23 +317,29 @@ impl WorkspaceInfo {
         let content = std::fs::read_to_string(cargo_toml_path)?;
         let parsed: toml::Value = toml::from_str(&content)?;
 
-        let package_table = parsed
-            .get("package")
-            .ok_or_else(|| WorkspaceError::InvalidPackage {
-                package: package_path.display().to_string(),
-                reason: "No [package] section found".to_string(),
-            })?;
+        let package_table =
+            parsed
+                .get("package")
+                .ok_or_else(|| WorkspaceError::InvalidPackage {
+                    package: package_path.display().to_string(),
+                    reason: "No [package] section found".to_string(),
+                })?;
 
-        let config: PackageConfig = package_table.clone().try_into()
-            .map_err(|e| WorkspaceError::InvalidPackage {
-                package: package_path.display().to_string(),
-                reason: format!("Failed to parse package configuration: {}", e),
-            })?;
+        let config: PackageConfig =
+            package_table
+                .clone()
+                .try_into()
+                .map_err(|e| WorkspaceError::InvalidPackage {
+                    package: package_path.display().to_string(),
+                    reason: format!("Failed to parse package configuration: {}", e),
+                })?;
 
         // Resolve version (might be workspace inherited)
         let version = match &config.version {
             toml::Value::String(v) => v.clone(),
-            toml::Value::Table(table) if table.get("workspace") == Some(&toml::Value::Boolean(true)) => {
+            toml::Value::Table(table)
+                if table.get("workspace") == Some(&toml::Value::Boolean(true)) =>
+            {
                 // Use cached parsed workspace config - no file I/O needed
                 root_cargo_parsed
                     .get("workspace")
@@ -329,17 +352,21 @@ impl WorkspaceInfo {
                     })?
                     .to_string()
             }
-            _ => return Err(WorkspaceError::InvalidPackage {
-                package: config.name.clone(),
-                reason: "Invalid version specification".to_string(),
-            }.into()),
+            _ => {
+                return Err(WorkspaceError::InvalidPackage {
+                    package: config.name.clone(),
+                    reason: "Invalid version specification".to_string(),
+                }
+                .into());
+            }
         };
 
         // Parse dependencies
         let all_dependencies = Self::parse_dependencies(&parsed)?;
         let workspace_dependencies = Self::extract_workspace_dependencies(&all_dependencies);
 
-        let relative_path = package_path.strip_prefix(workspace_root)
+        let relative_path = package_path
+            .strip_prefix(workspace_root)
             .map_err(|_| WorkspaceError::InvalidPackage {
                 package: config.name.clone(),
                 reason: "Package path not within workspace".to_string(),
@@ -372,10 +399,7 @@ impl WorkspaceInfo {
         // Parse dev-dependencies
         if let Some(dev_deps) = parsed.get("dev-dependencies").and_then(|d| d.as_table()) {
             for (name, spec) in dev_deps {
-                dependencies.insert(
-                    format!("dev:{}", name),
-                    Self::parse_dependency_spec(spec)?,
-                );
+                dependencies.insert(format!("dev:{}", name), Self::parse_dependency_spec(spec)?);
             }
         }
 
@@ -405,20 +429,26 @@ impl WorkspaceInfo {
                 default_features: None,
             }),
             toml::Value::Table(table) => {
-                let spec: DependencySpec = table.clone().try_into()
-                    .map_err(|e| WorkspaceError::InvalidStructure {
-                        reason: format!("Failed to parse dependency spec: {}", e),
-                    })?;
+                let spec: DependencySpec =
+                    table
+                        .clone()
+                        .try_into()
+                        .map_err(|e| WorkspaceError::InvalidStructure {
+                            reason: format!("Failed to parse dependency spec: {}", e),
+                        })?;
                 Ok(spec)
             }
             _ => Err(WorkspaceError::InvalidStructure {
                 reason: "Invalid dependency specification".to_string(),
-            }.into()),
+            }
+            .into()),
         }
     }
 
     /// Extract workspace dependencies from all dependencies
-    fn extract_workspace_dependencies(all_dependencies: &HashMap<String, DependencySpec>) -> Vec<String> {
+    fn extract_workspace_dependencies(
+        all_dependencies: &HashMap<String, DependencySpec>,
+    ) -> Vec<String> {
         all_dependencies
             .iter()
             .filter_map(|(name, spec)| {
@@ -454,11 +484,12 @@ impl WorkspaceInfo {
 
     /// Get package by name
     pub fn get_package(&self, name: &str) -> Result<&PackageInfo> {
-        self.packages
-            .get(name)
-            .ok_or_else(|| WorkspaceError::PackageNotFound {
+        self.packages.get(name).ok_or_else(|| {
+            WorkspaceError::PackageNotFound {
                 name: name.to_string(),
-            }.into())
+            }
+            .into()
+        })
     }
 
     /// Get workspace version
@@ -467,9 +498,13 @@ impl WorkspaceInfo {
             .package
             .as_ref()
             .and_then(|p| p.version.as_ref())
-            .ok_or_else(|| WorkspaceError::InvalidStructure {
-                reason: "No workspace version found".to_string(),
-            }.into()).cloned()
+            .ok_or_else(|| {
+                WorkspaceError::InvalidStructure {
+                    reason: "No workspace version found".to_string(),
+                }
+                .into()
+            })
+            .cloned()
     }
 
     /// Get all package names

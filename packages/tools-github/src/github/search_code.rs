@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::Code, Octocrab};
+use octocrab::{Octocrab, models::Code};
 use std::sync::Arc;
 
 /// Enrich code search results with star counts by fetching full repository details
@@ -26,7 +26,9 @@ async fn enrich_code_results_with_stars(
         }
 
         let octocrab = Arc::clone(&octocrab);
-        let owner = code_item.repository.owner
+        let owner = code_item
+            .repository
+            .owner
             .as_ref()
             .map(|o| o.login.clone())
             .unwrap_or_default();
@@ -34,7 +36,12 @@ async fn enrich_code_results_with_stars(
 
         join_set.spawn(async move {
             match octocrab.repos(&owner, &repo_name).get().await {
-                Ok(repo) => Some((idx, repo.stargazers_count, repo.forks_count, repo.open_issues_count)),
+                Ok(repo) => Some((
+                    idx,
+                    repo.stargazers_count,
+                    repo.forks_count,
+                    repo.open_issues_count,
+                )),
                 Err(_) => None,
             }
         });
@@ -71,9 +78,7 @@ pub(crate) fn search_code(
     let query = query.into();
 
     spawn_task(async move {
-        let mut request = inner
-            .search()
-            .code(&query);
+        let mut request = inner.search().code(&query);
 
         if let Some(sort_val) = sort {
             // Valid values: "indexed"
@@ -93,10 +98,7 @@ pub(crate) fn search_code(
             request = request.per_page(pp);
         }
 
-        let mut results = request
-            .send()
-            .await
-            .map_err(GitHubError::from)?;
+        let mut results = request.send().await.map_err(GitHubError::from)?;
 
         if enrich_stars {
             results = enrich_code_results_with_stars(inner, results).await?;

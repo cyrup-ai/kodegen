@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
-use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallFunctionOnParams, CallArgument};
+use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallArgument, CallFunctionOnParams};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -110,24 +110,27 @@ impl Tool for BrowserWaitForTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
 
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard
-            .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+        let wrapper = browser_guard.as_ref().ok_or_else(|| {
+            McpError::Other(anyhow::anyhow!(
                 "Browser not available. This is an internal error - please report it."
-            )))?;
+            ))
+        })?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Failed to get page. Did you call browser_navigate first? Error: {}", e
-            )))?;
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Failed to get page. Did you call browser_navigate first? Error: {}",
+                    e
+                ))
+            })?;
 
         // Setup timeout and polling
         let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(10000));
         let start = std::time::Instant::now();
         let mut poll_interval = Duration::from_millis(100); // Start with 100ms
-        let max_interval = Duration::from_secs(2);          // Cap at 2 seconds
+        let max_interval = Duration::from_secs(2); // Cap at 2 seconds
 
         loop {
             // Try to find element
@@ -162,7 +165,8 @@ impl Tool for BrowserWaitForTool {
                          Verify: (1) Selector syntax is valid CSS, \
                          (2) Element appears on the page within timeout, \
                          (3) Element is not in an iframe (unsupported).",
-                        args.selector, timeout.as_millis()
+                        args.selector,
+                        timeout.as_millis()
                     )));
                 }
                 Err(_) => {
@@ -178,7 +182,9 @@ impl Tool for BrowserWaitForTool {
                      Try: (1) Increase timeout_ms parameter (default: 10000), \
                      (2) Verify element meets the condition criteria, \
                      (3) Check if page has fully loaded and condition is reachable.",
-                    args.condition, args.selector, timeout.as_millis()
+                    args.condition,
+                    args.selector,
+                    timeout.as_millis()
                 )));
             }
 
@@ -242,11 +248,14 @@ async fn check_condition(
                     return rect.width > 0 && rect.height > 0;
                 }
             "#;
-            
-            let result = element.call_js_fn(js_fn, false).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check visibility: {}", e)))?;
-            
-            Ok(result.result.value
+
+            let result = element.call_js_fn(js_fn, false).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!("Failed to check visibility: {}", e))
+            })?;
+
+            Ok(result
+                .result
+                .value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }
@@ -266,22 +275,24 @@ async fn check_condition(
                     return rect.width > 0 && rect.height > 0;
                 }
             "#;
-            
-            let result = element.call_js_fn(js_fn, false).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check clickability: {}", e)))?;
-            
-            Ok(result.result.value
+
+            let result = element.call_js_fn(js_fn, false).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!("Failed to check clickability: {}", e))
+            })?;
+
+            Ok(result
+                .result
+                .value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }
 
         WaitCondition::TextContains => {
             // Check if element text contains expected string
-            let text = args.text.as_ref()
-                .ok_or_else(|| McpError::invalid_arguments(
-                    "text parameter required for TextContains condition"
-                ))?;
-            
+            let text = args.text.as_ref().ok_or_else(|| {
+                McpError::invalid_arguments("text parameter required for TextContains condition")
+            })?;
+
             // Safe: parameterized evaluation prevents injection
             let call = CallFunctionOnParams::builder()
                 .function_declaration("(searchText) => { const text = (this.innerText || this.textContent || '').trim(); return text.includes(searchText); }")
@@ -289,26 +300,33 @@ async fn check_condition(
                 .argument(CallArgument::builder().value(json!(text)).build())
                 .build()
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build text check params: {}", e)))?;
-            
-            let result = page.execute(call).await
+
+            let result = page
+                .execute(call)
+                .await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check text: {}", e)))?;
-            
-            Ok(result.result.result.value
+
+            Ok(result
+                .result
+                .result
+                .value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }
 
         WaitCondition::AttributeIs => {
             // Check if attribute has specific value
-            let attr_name = args.attribute_name.as_ref()
-                .ok_or_else(|| McpError::invalid_arguments(
-                    "attribute_name parameter required for AttributeIs condition"
-                ))?;
-            let attr_value = args.attribute_value.as_ref()
-                .ok_or_else(|| McpError::invalid_arguments(
-                    "attribute_value parameter required for AttributeIs condition"
-                ))?;
-            
+            let attr_name = args.attribute_name.as_ref().ok_or_else(|| {
+                McpError::invalid_arguments(
+                    "attribute_name parameter required for AttributeIs condition",
+                )
+            })?;
+            let attr_value = args.attribute_value.as_ref().ok_or_else(|| {
+                McpError::invalid_arguments(
+                    "attribute_value parameter required for AttributeIs condition",
+                )
+            })?;
+
             // Safe: parameterized evaluation prevents injection
             let call = CallFunctionOnParams::builder()
                 .function_declaration("(attrName, attrValue) => { return this.getAttribute(attrName) === attrValue; }")
@@ -317,11 +335,15 @@ async fn check_condition(
                 .argument(CallArgument::builder().value(json!(attr_value)).build())
                 .build()
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build attribute check params: {}", e)))?;
-            
-            let result = page.execute(call).await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check attribute: {}", e)))?;
-            
-            Ok(result.result.result.value
+
+            let result = page.execute(call).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!("Failed to check attribute: {}", e))
+            })?;
+
+            Ok(result
+                .result
+                .result
+                .value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }

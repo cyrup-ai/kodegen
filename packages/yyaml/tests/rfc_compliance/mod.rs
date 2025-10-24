@@ -43,7 +43,7 @@ pub mod ch10_schemas;
 #[cfg(test)]
 mod spec_examples {
     use yyaml::YamlLoader;
-    
+
     /// Test Example 2.1: Sequence of Scalars
     #[test]
     fn test_spec_example_2_1_sequence_of_scalars() {
@@ -58,7 +58,7 @@ mod spec_examples {
         assert_eq!(docs[0][1].as_str().unwrap(), "Sammy Sosa");
         assert_eq!(docs[0][2].as_str().unwrap(), "Ken Griffey");
     }
-    
+
     /// Test Example 2.2: Mapping Scalars to Scalars
     #[test]
     fn test_spec_example_2_2_mapping_scalars() {
@@ -71,7 +71,7 @@ rbi: 147   # Runs Batted In
         assert_eq!(docs[0]["hr"].as_i64().unwrap(), 65);
         assert!((docs[0]["avg"].as_f64().unwrap() - 0.278).abs() < f64::EPSILON);
         assert_eq!(docs[0]["rbi"].as_i64().unwrap(), 147);
-    }    
+    }
     /// Test Example 2.3: Mapping Scalars to Sequences
     #[test]
     fn test_spec_example_2_3_mapping_to_sequences() {
@@ -90,7 +90,7 @@ national:
         assert_eq!(docs[0]["national"].as_vec().unwrap().len(), 3);
         assert_eq!(docs[0]["american"][0].as_str().unwrap(), "Boston Red Sox");
     }
-    
+
     /// Test Example 2.4: Sequence of Mappings
     #[test]
     fn test_spec_example_2_4_sequence_of_mappings() {
@@ -110,7 +110,7 @@ national:
         assert_eq!(seq[0]["name"].as_str().unwrap(), "Mark McGwire");
         assert_eq!(seq[1]["name"].as_str().unwrap(), "Sammy Sosa");
     }
-    
+
     /// Test Example 2.5: Sequence of Sequences
     #[test]
     fn test_spec_example_2_5_sequence_of_sequences() {
@@ -125,7 +125,7 @@ national:
         assert_eq!(outer_seq[0].as_vec().unwrap().len(), 3);
         assert_eq!(outer_seq[1][0].as_str().unwrap(), "Mark McGwire");
     }
-    
+
     /// Test Example 2.6: Mapping of Mappings
     #[test]
     fn test_spec_example_2_6_mapping_of_mappings() {

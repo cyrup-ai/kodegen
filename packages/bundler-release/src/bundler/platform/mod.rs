@@ -61,33 +61,33 @@ pub enum PackageType {
     ///
     /// Creates a `.app` bundle for macOS with proper Info.plist and structure.
     MacOsBundle,
-    
+
     /// macOS DMG disk image (.dmg).
     ///
     /// Creates a distributable disk image containing the .app bundle.
     /// Requires [`MacOsBundle`](Self::MacOsBundle) to be built first.
     Dmg,
-    
+
     /// Windows MSI installer (.msi).
     ///
     /// Creates a Windows Installer package using WiX Toolset.
     WindowsMsi,
-    
+
     /// NSIS installer (.exe).
     ///
     /// Creates a lightweight Windows installer using NSIS.
     Nsis,
-    
+
     /// Debian package (.deb).
     ///
     /// Creates a Debian package for Ubuntu, Debian, and derivatives.
     Deb,
-    
+
     /// RPM package (.rpm).
     ///
     /// Creates an RPM package for Fedora, RHEL, CentOS, and derivatives.
     Rpm,
-    
+
     /// Linux AppImage (.AppImage).
     ///
     /// Creates a portable, self-contained executable for Linux.

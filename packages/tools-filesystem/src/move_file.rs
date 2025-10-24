@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -49,11 +49,11 @@ impl Tool for MoveFileTool {
     }
 
     fn destructive() -> bool {
-        true  // Can overwrite destination
+        true // Can overwrite destination
     }
 
     fn idempotent() -> bool {
-        false  // Moving twice would fail (source no longer exists)
+        false // Moving twice would fail (source no longer exists)
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -100,7 +100,7 @@ impl Tool for MoveFileTool {
                      - Source must exist or the operation fails\n\
                      - If destination exists, it may be overwritten (OS-dependent)\n\
                      - Moving a directory moves all its contents\n\
-                     - This operation is atomic on most filesystems"
+                     - This operation is atomic on most filesystems",
                 ),
             },
         ])

@@ -1,7 +1,7 @@
 //! Linux setup - validates build tools
 
-use crate::error::Result;
 use crate::config::LinuxSetupConfig;
+use crate::error::Result;
 use std::io::Write;
 use std::process::Command;
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
@@ -14,11 +14,7 @@ use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 const GPG_BINARY: &str = "gpg";
 
 /// GPG command arguments for listing secret keys
-const GPG_LIST_SECRET_KEYS_ARGS: &[&str] = &[
-    "--list-secret-keys",
-    "--keyid-format",
-    "LONG",
-];
+const GPG_LIST_SECRET_KEYS_ARGS: &[&str] = &["--list-secret-keys", "--keyid-format", "LONG"];
 
 /// Secret key marker in GPG output
 const SECRET_KEY_MARKER: &str = "sec";
@@ -60,18 +56,21 @@ Then run 'kodegen_sign --interactive' for guided setup.";
 pub fn show_config() -> Result<()> {
     // Create writer once
     let stdout_writer = BufferWriter::stdout(ColorChoice::Auto);
-    
+
     let mut buffer = stdout_writer.buffer();
-    let _ = writeln!(&mut buffer, "Linux signing uses GPG. Run 'gpg --list-secret-keys' to see keys.");
+    let _ = writeln!(
+        &mut buffer,
+        "Linux signing uses GPG. Run 'gpg --list-secret-keys' to see keys."
+    );
     let _ = stdout_writer.print(&buffer);
-    
+
     Ok(())
 }
 
 pub fn interactive_setup() -> Result<()> {
     // Create writer once
     let stdout_writer = BufferWriter::stdout(ColorChoice::Auto);
-    
+
     let mut buffer = stdout_writer.buffer();
     let _ = writeln!(&mut buffer, "\n🐧 Linux Setup");
     let _ = writeln!(&mut buffer, "Linux code signing uses GPG.");
@@ -80,7 +79,7 @@ pub fn interactive_setup() -> Result<()> {
     let _ = writeln!(&mut buffer, "\nTo list existing keys:");
     let _ = writeln!(&mut buffer, "  gpg --list-secret-keys --keyid-format LONG");
     let _ = stdout_writer.print(&buffer);
-    
+
     Ok(())
 }
 
@@ -96,20 +95,20 @@ fn check_gpg_installed() -> Result<String> {
     let output = Command::new(GPG_BINARY)
         .arg("--version")
         .output()
-        .map_err(|_| crate::error::SetupError::MissingDependency(
-            GPG_INSTALL_INSTRUCTIONS.to_string()
-        ))?;
-    
+        .map_err(|_| {
+            crate::error::SetupError::MissingDependency(GPG_INSTALL_INSTRUCTIONS.to_string())
+        })?;
+
     if !output.status.success() {
         // Use strict UTF-8 parsing for error messages
-        let stderr_msg = std::str::from_utf8(&output.stderr)
-            .unwrap_or("(non-UTF-8 error message)");
-        
-        return Err(crate::error::SetupError::CommandExecution(
-            format!("GPG command failed: {}", stderr_msg)
-        ));
+        let stderr_msg = std::str::from_utf8(&output.stderr).unwrap_or("(non-UTF-8 error message)");
+
+        return Err(crate::error::SetupError::CommandExecution(format!(
+            "GPG command failed: {}",
+            stderr_msg
+        )));
     }
-    
+
     // Lossy is fine for display
     let version = String::from_utf8_lossy(&output.stdout);
     Ok(version.lines().next().unwrap_or("GPG").to_string())
@@ -128,7 +127,7 @@ fn check_gpg_keys() -> Option<String> {
         .args(GPG_LIST_SECRET_KEYS_ARGS)
         .output()
         .ok()?;
-    
+
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -140,13 +139,13 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
     // Create writers ONCE at function start - reuse throughout
     let stdout_writer = BufferWriter::stdout(ColorChoice::Auto);
     let stderr_writer = BufferWriter::stderr(ColorChoice::Auto);
-    
+
     if verbose {
         let mut buffer = stdout_writer.buffer();
         let _ = writeln!(&mut buffer, "🐧 Linux Setup Validation\n");
         let _ = stdout_writer.print(&buffer);
     }
-    
+
     if config.validate_gpg {
         // ================================================================
         // TOCTOU LIMITATION NOTICE
@@ -165,10 +164,10 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
         // the validation may report inconsistent results. This is expected
         // behavior - the environment IS inconsistent during such operations.
         // ================================================================
-        
+
         // CRITICAL: Check GPG is installed (propagates errors)
         let version = check_gpg_installed()?;
-        
+
         if verbose {
             let mut buffer = stdout_writer.buffer();
             let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
@@ -177,7 +176,7 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
             let _ = writeln!(&mut buffer, "{}", version);
             let _ = stdout_writer.print(&buffer);
         }
-        
+
         // INFORMATIONAL: Check for keys (warnings only, never fails)
         // NOTE: This is a separate operation from version check above.
         // If it fails, we warn but don't error (environment may have changed).
@@ -199,7 +198,10 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
                 let _ = writeln!(&mut buffer, "⚠️  No GPG signing keys detected");
                 let _ = buffer.reset();
                 let _ = writeln!(&mut buffer, "   Generate with: gpg --full-generate-key");
-                let _ = writeln!(&mut buffer, "   Then export: gpg --export -a 'Your Name' > public.key");
+                let _ = writeln!(
+                    &mut buffer,
+                    "   Then export: gpg --export -a 'Your Name' > public.key"
+                );
                 let _ = stderr_writer.print(&buffer);
             }
             None if verbose => {
@@ -207,7 +209,10 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
                 let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
                 let _ = writeln!(&mut buffer, "⚠️  Could not list GPG keys");
                 let _ = buffer.reset();
-                let _ = writeln!(&mut buffer, "   (Note: GPG state may have changed since version check)");
+                let _ = writeln!(
+                    &mut buffer,
+                    "   (Note: GPG state may have changed since version check)"
+                );
                 let _ = stderr_writer.print(&buffer);
             }
             None => {
@@ -215,13 +220,13 @@ pub fn setup_from_config(config: &LinuxSetupConfig, _dry_run: bool, verbose: boo
             }
         }
     }
-    
+
     let mut buffer = stdout_writer.buffer();
     let _ = buffer.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(&mut buffer, "\n✅ Linux validation complete");
     let _ = buffer.reset();
     let _ = stdout_writer.print(&buffer);
-    
+
     Ok(())
 }
 
@@ -241,14 +246,14 @@ fn find_gpg_binary() -> Result<String> {
     if let Ok(gpg2_path) = which::which("gpg2") {
         return Ok(gpg2_path.to_string_lossy().to_string());
     }
-    
+
     // Fall back to gpg
     if let Ok(gpg_path) = which::which("gpg") {
         return Ok(gpg_path.to_string_lossy().to_string());
     }
-    
+
     Err(crate::error::SetupError::MissingDependency(
-        GPG_INSTALL_INSTRUCTIONS.to_string()
+        GPG_INSTALL_INSTRUCTIONS.to_string(),
     ))
 }
 
@@ -270,48 +275,51 @@ fn find_gpg_binary() -> Result<String> {
 /// let sig_path = sign_binary(Path::new("myapp"), Some("ABC123"))?;
 /// // Creates myapp.sig
 /// ```
-pub fn sign_binary(binary_path: &std::path::Path, key_id: Option<&str>) -> Result<std::path::PathBuf> {
+pub fn sign_binary(
+    binary_path: &std::path::Path,
+    key_id: Option<&str>,
+) -> Result<std::path::PathBuf> {
     use std::path::PathBuf;
-    
+
     // Find GPG binary
     let gpg = find_gpg_binary()?;
-    
+
     // Build GPG signing arguments
     let mut args = vec!["--detach-sign".to_string(), "--armor".to_string()];
-    
+
     if let Some(key) = key_id {
         args.push("--local-user".to_string());
         args.push(key.to_string());
     }
-    
+
     let sig_path = binary_path.with_extension("sig");
     args.push("--output".to_string());
     args.push(sig_path.to_string_lossy().to_string());
     args.push(binary_path.to_string_lossy().to_string());
-    
+
     // Execute GPG signing
-    let output = Command::new(&gpg)
-        .args(&args)
-        .output()
-        .map_err(|e| crate::error::SetupError::CommandExecution(
-            format!("Failed to execute GPG for signing: {}", e)
-        ))?;
-    
+    let output = Command::new(&gpg).args(&args).output().map_err(|e| {
+        crate::error::SetupError::CommandExecution(format!(
+            "Failed to execute GPG for signing: {}",
+            e
+        ))
+    })?;
+
     if !output.status.success() {
-        let stderr = std::str::from_utf8(&output.stderr)
-            .unwrap_or("(non-UTF-8 error message)");
-        return Err(crate::error::SetupError::CommandExecution(
-            format!("GPG signing failed: {}", stderr)
-        ));
+        let stderr = std::str::from_utf8(&output.stderr).unwrap_or("(non-UTF-8 error message)");
+        return Err(crate::error::SetupError::CommandExecution(format!(
+            "GPG signing failed: {}",
+            stderr
+        )));
     }
-    
+
     // Verify signature file was created
     if !sig_path.exists() {
         return Err(crate::error::SetupError::CommandExecution(
-            "GPG signing appeared to succeed but signature file was not created".to_string()
+            "GPG signing appeared to succeed but signature file was not created".to_string(),
         ));
     }
-    
+
     Ok(sig_path)
 }
 
@@ -333,19 +341,17 @@ pub fn sign_binary(binary_path: &std::path::Path, key_id: Option<&str>) -> Resul
 /// ```
 pub fn generate_integrity_hash(binary_path: &std::path::Path) -> Result<String> {
     use sha2::{Digest, Sha256};
-    
-    let binary_data = std::fs::read(binary_path)
-        .map_err(|e| crate::error::SetupError::Io(e))?;
-    
+
+    let binary_data = std::fs::read(binary_path).map_err(|e| crate::error::SetupError::Io(e))?;
+
     let mut hasher = Sha256::new();
     hasher.update(&binary_data);
     let hash = hasher.finalize();
-    
+
     let hash_hex = hex::encode(hash);
     let hash_path = binary_path.with_extension("sha256");
-    
-    std::fs::write(&hash_path, &hash_hex)
-        .map_err(|e| crate::error::SetupError::Io(e))?;
-    
+
+    std::fs::write(&hash_path, &hash_hex).map_err(|e| crate::error::SetupError::Io(e))?;
+
     Ok(hash_hex)
 }

@@ -495,7 +495,7 @@ impl PlatformInfo {
     }
 
     /// Measure actual DNS resolution time by testing against reliable domains
-    /// 
+    ///
     /// Tests DNS lookup against multiple domains with timeout protection.
     /// Returns average time in milliseconds, or conservative fallback if all fail.
     #[allow(dead_code)]
@@ -505,23 +505,16 @@ impl PlatformInfo {
         use tokio::time::timeout;
 
         // Test domains with port specifications for lookup_host
-        let test_domains = [
-            "google.com:80",
-            "cloudflare.com:80", 
-            "1.1.1.1:80",
-        ];
+        let test_domains = ["google.com:80", "cloudflare.com:80", "1.1.1.1:80"];
 
         let mut successful_timings: Vec<u32> = Vec::new();
 
         // Test each domain with 2-second timeout
         for domain in test_domains.iter() {
             let start = Instant::now();
-            
+
             // Attempt DNS lookup with timeout protection
-            let lookup_result = timeout(
-                Duration::from_secs(2),
-                lookup_host(domain)
-            ).await;
+            let lookup_result = timeout(Duration::from_secs(2), lookup_host(domain)).await;
 
             match lookup_result {
                 Ok(Ok(mut addrs)) => {
@@ -557,7 +550,7 @@ impl PlatformInfo {
         // The measure_dns_resolution() async function remains available
         // for future use if accurate measurement becomes necessary.
         // Default of 100ms represents typical DNS resolution on modern networks.
-        
+
         NetworkCapabilities {
             raw_sockets: true,       // Assume available
             ipv6_support: true,      // Assume available

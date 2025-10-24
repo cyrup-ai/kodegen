@@ -1,9 +1,9 @@
+use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use anyhow;
 
 use crate::GitHubClient;
 
@@ -55,10 +55,9 @@ impl Tool for CreateRepositoryTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
 
         let client = GitHubClient::builder()
             .personal_token(token)
@@ -66,19 +65,14 @@ impl Tool for CreateRepositoryTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
 
         let task_result = client
-            .create_repository(
-                args.name,
-                args.description,
-                args.private,
-                args.auto_init,
-            )
+            .create_repository(args.name, args.description, args.private, args.auto_init)
             .await;
 
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
 
-        let repository = api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+        let repository =
+            api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
 
         Ok(serde_json::to_value(&repository)?)
     }

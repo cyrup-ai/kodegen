@@ -7,11 +7,11 @@ const MAX_TEMPLATE_SIZE: usize = 1_000_000;
 /// Validate `MiniJinja` template syntax
 pub fn validate_template_syntax(content: &str) -> Result<()> {
     let mut env = Environment::new();
-    
+
     // Try to add template - will fail if syntax invalid
     env.add_template("_validation", content)
         .map_err(|e| anyhow::anyhow!("Template syntax error: {e}"))?;
-    
+
     Ok(())
 }
 
@@ -25,16 +25,16 @@ pub fn validate_prompt_file(content: &str) -> Result<()> {
             MAX_TEMPLATE_SIZE
         );
     }
-    
+
     // Parse to ensure valid structure
     let template = super::template::parse_template("_validation", content)?;
-    
+
     // Validate template syntax
     validate_template_syntax(&template.content)?;
-    
+
     // Additional checks
     validate_no_dangerous_operations(&template.content)?;
-    
+
     Ok(())
 }
 
@@ -48,7 +48,7 @@ fn validate_no_dangerous_operations(content: &str) -> Result<()> {
              File inclusion is not allowed for security reasons."
         );
     }
-    
+
     // Block extends directives (not needed, potential attack vector)
     if content.contains("{% extends") || content.contains("{%- extends") {
         anyhow::bail!(
@@ -56,7 +56,7 @@ fn validate_no_dangerous_operations(content: &str) -> Result<()> {
              Template inheritance is not supported."
         );
     }
-    
+
     // Block import directives (module loading)
     if content.contains("{% import") || content.contains("{%- import") {
         anyhow::bail!(
@@ -64,6 +64,6 @@ fn validate_no_dangerous_operations(content: &str) -> Result<()> {
              Module imports are not allowed."
         );
     }
-    
+
     Ok(())
 }

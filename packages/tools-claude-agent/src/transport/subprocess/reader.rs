@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::error::{ClaudeError, Result};
 

@@ -32,14 +32,9 @@ pub use permissions::{
     PermissionUpdateDestination, SettingSource, ToolPermissionContext,
 };
 
-
 // Re-export session management types from agent module
 pub use agent::{
-    SerializedMessage,
-    GetOutputResponse,
-    TerminateResponse,
-    AgentInfo,
-    ListSessionsResponse,
+    AgentInfo, GetOutputResponse, ListSessionsResponse, SerializedMessage, TerminateResponse,
 };
 
 // Re-export prompt input types

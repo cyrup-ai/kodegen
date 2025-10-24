@@ -69,39 +69,39 @@ pub enum WorkspaceError {
 
     /// Invalid workspace structure
     #[error("Invalid workspace structure: {reason}")]
-    InvalidStructure { 
+    InvalidStructure {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Package not found in workspace
     #[error("Package '{name}' not found in workspace")]
-    PackageNotFound { 
+    PackageNotFound {
         /// Package name
-        name: String 
+        name: String,
     },
 
     /// Circular dependency detected
     #[error("Circular dependency detected in packages: {packages:?}")]
-    CircularDependency { 
+    CircularDependency {
         /// Package names involved in the cycle
-        packages: Vec<String> 
+        packages: Vec<String>,
     },
 
     /// Missing Cargo.toml file
     #[error("Missing Cargo.toml file at {path}")]
-    MissingCargoToml { 
+    MissingCargoToml {
         /// Path where Cargo.toml was expected
-        path: PathBuf 
+        path: PathBuf,
     },
 
     /// Invalid package configuration
     #[error("Invalid package configuration for '{package}': {reason}")]
-    InvalidPackage { 
+    InvalidPackage {
         /// Package name
-        package: String, 
+        package: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 }
 
@@ -110,11 +110,11 @@ pub enum WorkspaceError {
 pub enum VersionError {
     /// Invalid version format
     #[error("Invalid version '{version}': {reason}")]
-    InvalidVersion { 
+    InvalidVersion {
         /// Version string
-        version: String, 
+        version: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Version parsing failed
@@ -128,7 +128,9 @@ pub enum VersionError {
     },
 
     /// Internal dependency version mismatch
-    #[error("Internal dependency version mismatch for '{dependency}': expected {expected}, found {found}")]
+    #[error(
+        "Internal dependency version mismatch for '{dependency}': expected {expected}, found {found}"
+    )]
     DependencyMismatch {
         /// Dependency name
         dependency: String,
@@ -140,20 +142,20 @@ pub enum VersionError {
 
     /// Failed to update Cargo.toml
     #[error("Failed to update Cargo.toml at {path}: {reason}")]
-    TomlUpdateFailed { 
+    TomlUpdateFailed {
         /// Path to Cargo.toml
-        path: PathBuf, 
+        path: PathBuf,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Version bump not supported
     #[error("Version bump '{bump}' not supported for version '{version}'")]
-    UnsupportedBump { 
+    UnsupportedBump {
         /// Bump type
-        bump: String, 
+        bump: String,
         /// Current version
-        version: String 
+        version: String,
     },
 }
 
@@ -170,46 +172,48 @@ pub enum GitError {
 
     /// Git authentication failed
     #[error("Git authentication failed: {reason}")]
-    AuthenticationFailed { 
+    AuthenticationFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Remote operation failed
     #[error("Git remote operation failed: {operation} - {reason}")]
-    RemoteOperationFailed { 
+    RemoteOperationFailed {
         /// Operation that failed
-        operation: String, 
+        operation: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Tag already exists
-    #[error("Git tag '{tag}' already exists. Use --force to overwrite or choose a different version.")]
-    TagExists { 
+    #[error(
+        "Git tag '{tag}' already exists. Use --force to overwrite or choose a different version."
+    )]
+    TagExists {
         /// Tag name
-        tag: String 
+        tag: String,
     },
 
     /// Branch operation failed
     #[error("Git branch operation failed: {reason}")]
-    BranchOperationFailed { 
+    BranchOperationFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Commit failed
     #[error("Git commit failed: {reason}")]
-    CommitFailed { 
+    CommitFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Push failed
     #[error("Git push failed: {reason}")]
-    PushFailed { 
+    PushFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 }
 
@@ -218,43 +222,45 @@ pub enum GitError {
 pub enum PublishError {
     /// Package already published
     #[error("Package '{package}' version '{version}' already published to crates.io")]
-    AlreadyPublished { 
+    AlreadyPublished {
         /// Package name
-        package: String, 
+        package: String,
         /// Version string
-        version: String 
+        version: String,
     },
 
     /// Publish command failed
     #[error("Cargo publish failed for '{package}': {reason}")]
-    PublishFailed { 
+    PublishFailed {
         /// Package name
-        package: String, 
+        package: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Dry run validation failed
     #[error("Dry run validation failed for '{package}': {reason}")]
-    DryRunFailed { 
+    DryRunFailed {
         /// Package name
-        package: String, 
+        package: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Rate limit exceeded
-    #[error("Rate limit exceeded for crates.io. Please wait {retry_after_seconds} seconds before retrying.")]
-    RateLimitExceeded { 
+    #[error(
+        "Rate limit exceeded for crates.io. Please wait {retry_after_seconds} seconds before retrying."
+    )]
+    RateLimitExceeded {
         /// Seconds to wait
-        retry_after_seconds: u64 
+        retry_after_seconds: u64,
     },
 
     /// Network error during publishing
     #[error("Network error during publishing: {reason}")]
-    NetworkError { 
+    NetworkError {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Authentication error for crates.io
@@ -278,9 +284,9 @@ pub enum PublishError {
 pub enum StateError {
     /// State file corrupted
     #[error("State file corrupted: {reason}")]
-    Corrupted { 
+    Corrupted {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// State file not found
@@ -289,25 +295,25 @@ pub enum StateError {
 
     /// State version mismatch
     #[error("State file version mismatch: expected {expected}, found {found}")]
-    VersionMismatch { 
+    VersionMismatch {
         /// Expected version
-        expected: String, 
+        expected: String,
         /// Found version
-        found: String 
+        found: String,
     },
 
     /// Failed to save state
     #[error("Failed to save state: {reason}")]
-    SaveFailed { 
+    SaveFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Failed to load state
     #[error("Failed to load state: {reason}")]
-    LoadFailed { 
+    LoadFailed {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 }
 
@@ -316,32 +322,32 @@ pub enum StateError {
 pub enum CliError {
     /// Invalid command line arguments
     #[error("Invalid arguments: {reason}")]
-    InvalidArguments { 
+    InvalidArguments {
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 
     /// Missing required argument
     #[error("Missing required argument: {argument}")]
-    MissingArgument { 
+    MissingArgument {
         /// Argument name
-        argument: String 
+        argument: String,
     },
 
     /// Conflicting arguments
     #[error("Conflicting arguments: {arguments:?}")]
-    ConflictingArguments { 
+    ConflictingArguments {
         /// Arguments that conflict
-        arguments: Vec<String> 
+        arguments: Vec<String>,
     },
 
     /// Command execution failed
     #[error("Command execution failed: {command} - {reason}")]
-    ExecutionFailed { 
+    ExecutionFailed {
         /// Command that failed
-        command: String, 
+        command: String,
         /// Reason for the error
-        reason: String 
+        reason: String,
     },
 }
 
@@ -354,7 +360,10 @@ impl ReleaseError {
                 "Ensure you have a Cargo.toml file with [workspace] section".to_string(),
             ],
             ReleaseError::Workspace(WorkspaceError::CircularDependency { packages }) => vec![
-                format!("Review dependencies between packages: {}", packages.join(", ")),
+                format!(
+                    "Review dependencies between packages: {}",
+                    packages.join(", ")
+                ),
                 "Remove circular dependencies by restructuring package relationships".to_string(),
             ],
             ReleaseError::Git(GitError::DirtyWorkingDirectory) => vec![
@@ -371,7 +380,9 @@ impl ReleaseError {
                 "Login to crates.io: cargo login".to_string(),
                 "Verify API token is valid and has publish permissions".to_string(),
             ],
-            ReleaseError::Publish(PublishError::RateLimitExceeded { retry_after_seconds }) => vec![
+            ReleaseError::Publish(PublishError::RateLimitExceeded {
+                retry_after_seconds,
+            }) => vec![
                 format!("Wait {} seconds before retrying", retry_after_seconds),
                 "Use --publish-interval to add delays between packages".to_string(),
             ],
@@ -381,12 +392,19 @@ impl ReleaseError {
 
     /// Check if this error is recoverable
     pub fn is_recoverable(&self) -> bool {
-        !matches!(self, ReleaseError::Workspace(WorkspaceError::RootNotFound) | ReleaseError::Workspace(WorkspaceError::CircularDependency { .. }) | ReleaseError::Git(GitError::NotRepository) | ReleaseError::Version(VersionError::InvalidVersion { .. }) | ReleaseError::Publish(PublishError::AlreadyPublished { .. }))
+        !matches!(
+            self,
+            ReleaseError::Workspace(WorkspaceError::RootNotFound)
+                | ReleaseError::Workspace(WorkspaceError::CircularDependency { .. })
+                | ReleaseError::Git(GitError::NotRepository)
+                | ReleaseError::Version(VersionError::InvalidVersion { .. })
+                | ReleaseError::Publish(PublishError::AlreadyPublished { .. })
+        )
     }
 }
 
 /// Convert kodegen_tools_git::GitError to our internal error types
-/// 
+///
 /// This implementation preserves error type information by:
 /// - Extracting IO errors to ReleaseError::Io (preserves std::io::Error type)
 /// - Explicitly mapping all git-specific errors to appropriate GitError variants
@@ -412,10 +430,12 @@ impl From<kodegen_tools_git::GitError> for ReleaseError {
             kodegen_tools_git::GitError::BranchNotFound(name) => GitError::BranchOperationFailed {
                 reason: format!("Branch '{}' not found", name),
             },
-            kodegen_tools_git::GitError::ReferenceNotFound(name) => GitError::RemoteOperationFailed {
-                operation: "find reference".to_string(),
-                reason: format!("Reference '{}' not found", name),
-            },
+            kodegen_tools_git::GitError::ReferenceNotFound(name) => {
+                GitError::RemoteOperationFailed {
+                    operation: "find reference".to_string(),
+                    reason: format!("Reference '{}' not found", name),
+                }
+            }
 
             // Operation errors
             kodegen_tools_git::GitError::MergeConflict(msg) => GitError::CommitFailed {
@@ -449,24 +469,35 @@ impl From<kodegen_tools_git::GitError> for ReleaseError {
             },
 
             // Worktree-related errors
-            kodegen_tools_git::GitError::WorktreeAlreadyExists(path) => GitError::BranchOperationFailed {
-                reason: format!("Worktree already exists at path: {}", path.display()),
-            },
-            kodegen_tools_git::GitError::WorktreeNotFound(name) => GitError::BranchOperationFailed {
-                reason: format!("Worktree not found: {}", name),
-            },
+            kodegen_tools_git::GitError::WorktreeAlreadyExists(path) => {
+                GitError::BranchOperationFailed {
+                    reason: format!("Worktree already exists at path: {}", path.display()),
+                }
+            }
+            kodegen_tools_git::GitError::WorktreeNotFound(name) => {
+                GitError::BranchOperationFailed {
+                    reason: format!("Worktree not found: {}", name),
+                }
+            }
             kodegen_tools_git::GitError::WorktreeLocked(name) => GitError::BranchOperationFailed {
                 reason: format!("Worktree is locked: {}", name),
             },
             kodegen_tools_git::GitError::BranchInUse(branch) => GitError::BranchOperationFailed {
-                reason: format!("Branch '{}' is already checked out in another worktree", branch),
+                reason: format!(
+                    "Branch '{}' is already checked out in another worktree",
+                    branch
+                ),
             },
-            kodegen_tools_git::GitError::CannotModifyMainWorktree => GitError::BranchOperationFailed {
-                reason: "Cannot modify main worktree".to_string(),
-            },
-            kodegen_tools_git::GitError::InvalidWorktreeName(name) => GitError::BranchOperationFailed {
-                reason: format!("Invalid worktree name: {}", name),
-            },
+            kodegen_tools_git::GitError::CannotModifyMainWorktree => {
+                GitError::BranchOperationFailed {
+                    reason: "Cannot modify main worktree".to_string(),
+                }
+            }
+            kodegen_tools_git::GitError::InvalidWorktreeName(name) => {
+                GitError::BranchOperationFailed {
+                    reason: format!("Invalid worktree name: {}", name),
+                }
+            }
         };
         ReleaseError::Git(internal_error)
     }

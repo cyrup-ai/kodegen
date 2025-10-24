@@ -8,14 +8,14 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use ssh2::Session;
 use log::{error, info, warn};
+use ssh2::Session;
 
 // HTTP client for Firecracker API over Unix sockets
 use bytes::Bytes;
 use http::{Method, Request, StatusCode};
 use http_body_util::{BodyExt, Full};
-use hyper_client_sockets::{tokio::TokioBackend, Backend};
+use hyper_client_sockets::{Backend, tokio::TokioBackend};
 use serde::{Deserialize, Serialize};
 
 use crate::config::RamdiskConfig;
@@ -27,11 +27,11 @@ use crate::error::StorageError;
 pub struct BootSource {
     /// Host level path to the kernel image used to boot the guest (required)
     pub kernel_image_path: String,
-    
+
     /// Kernel boot arguments (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boot_args: Option<String>,
-    
+
     /// Host level path to the initrd image used to boot the guest (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initrd_path: Option<String>,
@@ -43,10 +43,10 @@ pub struct BootSource {
 pub struct MachineConfiguration {
     /// Number of vCPUs (required, 1 or even number, max 32)
     pub vcpu_count: u32,
-    
+
     /// Memory size in MiB (required)
     pub mem_size_mib: u32,
-    
+
     /// Enable simultaneous multithreading (optional, default: false)
     /// Can only be enabled on x86
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,13 +59,13 @@ pub struct MachineConfiguration {
 pub struct Drive {
     /// Drive identifier (required)
     pub drive_id: String,
-    
+
     /// Host level path for the guest drive (required for virtio-block)
     pub path_on_host: String,
-    
+
     /// Is this the root device (required)
     pub is_root_device: bool,
-    
+
     /// Is the drive read-only (optional, default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_read_only: Option<bool>,
@@ -77,10 +77,10 @@ pub struct Drive {
 pub struct NetworkInterface {
     /// Network interface ID (required)
     pub iface_id: String,
-    
+
     /// Host device name for the tap interface (required)
     pub host_dev_name: String,
-    
+
     /// Guest MAC address (required)
     pub guest_mac: String,
 }
@@ -250,10 +250,11 @@ impl FirecrackerVM {
             boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
             initrd_path: None, // Can be added from config if needed
         };
-        
-        self.api_put("boot-source", &boot_source).await
+
+        self.api_put("boot-source", &boot_source)
+            .await
             .context("Failed to configure boot source")?;
-        
+
         info!("Boot source configured");
 
         // Configure machine config (vCPU and memory)
@@ -262,12 +263,15 @@ impl FirecrackerVM {
             mem_size_mib: self.config.mem_size_mib,
             smt: Some(false), // Disable hyperthreading
         };
-        
-        self.api_put("machine-config", &machine_config).await
+
+        self.api_put("machine-config", &machine_config)
+            .await
             .context("Failed to configure machine")?;
-        
-        info!("Machine config set: {} vCPUs, {} MiB memory", 
-              self.config.vcpu_count, self.config.mem_size_mib);
+
+        info!(
+            "Machine config set: {} vCPUs, {} MiB memory",
+            self.config.vcpu_count, self.config.mem_size_mib
+        );
 
         // Configure rootfs drive
         let drive = Drive {
@@ -276,10 +280,11 @@ impl FirecrackerVM {
             is_root_device: true,
             is_read_only: Some(false),
         };
-        
-        self.api_put("drives/rootfs", &drive).await
+
+        self.api_put("drives/rootfs", &drive)
+            .await
             .context("Failed to configure root filesystem")?;
-        
+
         info!("Root filesystem configured");
 
         // Configure network if provided
@@ -289,10 +294,11 @@ impl FirecrackerVM {
                 host_dev_name: net_config.host_interface.clone(),
                 guest_mac: net_config.guest_mac.clone(),
             };
-            
-            self.api_put("network-interfaces/eth0", &network_interface).await
+
+            self.api_put("network-interfaces/eth0", &network_interface)
+                .await
                 .context("Failed to configure network interface")?;
-            
+
             info!("Network interface configured");
         }
 
@@ -300,10 +306,11 @@ impl FirecrackerVM {
         let start_action = InstanceActionInfo {
             action_type: "InstanceStart".to_string(),
         };
-        
-        self.api_put("actions", &start_action).await
+
+        self.api_put("actions", &start_action)
+            .await
             .context("Failed to start VM instance")?;
-        
+
         info!("VM instance started successfully");
 
         Ok(())
@@ -311,12 +318,13 @@ impl FirecrackerVM {
 
     /// Make a PUT request to the Firecracker API over Unix socket
     async fn api_put<T: Serialize>(&self, path: &str, body: &T) -> Result<()> {
-        let socket_path = self.api_socket.as_ref()
+        let socket_path = self
+            .api_socket
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("API socket not available"))?;
 
         // Serialize request body to JSON
-        let json_body = serde_json::to_vec(body)
-            .context("Failed to serialize request body")?;
+        let json_body = serde_json::to_vec(body).context("Failed to serialize request body")?;
 
         // Connect to Unix socket
         let io = TokioBackend::connect_to_unix_socket(socket_path)
@@ -353,7 +361,7 @@ impl FirecrackerVM {
 
         // Check response status
         let status = response.status();
-        
+
         if status == StatusCode::NO_CONTENT {
             // 204 No Content - success
             return Ok(());
@@ -366,9 +374,9 @@ impl FirecrackerVM {
             .await
             .context("Failed to read error response")?
             .to_bytes();
-        
+
         let error_text = String::from_utf8_lossy(&body_bytes);
-        
+
         // Try to parse as FirecrackerError for better error messages
         if let Ok(fc_error) = serde_json::from_slice::<FirecrackerError>(&body_bytes) {
             return Err(anyhow::anyhow!(
@@ -377,7 +385,7 @@ impl FirecrackerVM {
                 fc_error.fault_message
             ));
         }
-        
+
         // Fallback to raw error text
         Err(anyhow::anyhow!(
             "Firecracker API request failed with status {}: {}",
@@ -395,7 +403,7 @@ impl FirecrackerVM {
             let shutdown_action = InstanceActionInfo {
                 action_type: "SendCtrlAltDel".to_string(),
             };
-            
+
             if let Err(e) = self.api_put("actions", &shutdown_action).await {
                 warn!("Failed to send shutdown request: {}", e);
                 // Continue with cleanup even if shutdown request fails
@@ -450,43 +458,38 @@ impl FirecrackerVM {
     /// Copy a file to the VM using SSH/SCP
     fn copy_to_vm(&self, host_path: &str, guest_path: &str) -> Result<()> {
         info!("Copying {} to VM at {}", host_path, guest_path);
-        
-        let ssh_config = self.config.ssh_config.as_ref()
+
+        let ssh_config = self
+            .config
+            .ssh_config
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("SSH configuration not provided"))?;
-        
+
         let session = self.create_ssh_session(ssh_config)?;
-        
+
         // Get file metadata for size
-        let metadata = fs::metadata(host_path)
-            .context("Failed to read host file metadata")?;
+        let metadata = fs::metadata(host_path).context("Failed to read host file metadata")?;
         let file_size = metadata.len();
-        
+
         // Open local file
-        let mut local_file = File::open(host_path)
-            .context("Failed to open host file")?;
-        
+        let mut local_file = File::open(host_path).context("Failed to open host file")?;
+
         // Create remote file via SCP
-        let mut remote_file = session.scp_send(
-            Path::new(guest_path),
-            0o644,
-            file_size,
-            None,
-        ).context("Failed to initiate SCP transfer")?;
-        
+        let mut remote_file = session
+            .scp_send(Path::new(guest_path), 0o644, file_size, None)
+            .context("Failed to initiate SCP transfer")?;
+
         // Copy file contents
-        std::io::copy(&mut local_file, &mut remote_file)
-            .context("Failed to copy file contents")?;
-        
+        std::io::copy(&mut local_file, &mut remote_file).context("Failed to copy file contents")?;
+
         // Send EOF to remote file
-        remote_file.send_eof()
-            .context("Failed to send EOF")?;
-        remote_file.wait_eof()
-            .context("Failed to wait for EOF")?;
-        remote_file.close()
-            .context("Failed to close remote file")?;
-        remote_file.wait_close()
+        remote_file.send_eof().context("Failed to send EOF")?;
+        remote_file.wait_eof().context("Failed to wait for EOF")?;
+        remote_file.close().context("Failed to close remote file")?;
+        remote_file
+            .wait_close()
             .context("Failed to wait for close")?;
-        
+
         info!("Successfully copied file to VM");
         Ok(())
     }
@@ -494,33 +497,37 @@ impl FirecrackerVM {
     /// Execute a command in the VM via SSH
     fn execute_command(&self, command: &str) -> Result<String> {
         info!("Executing command in VM: {}", command);
-        
-        let ssh_config = self.config.ssh_config.as_ref()
+
+        let ssh_config = self
+            .config
+            .ssh_config
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("SSH configuration not provided"))?;
-        
+
         let session = self.create_ssh_session(ssh_config)?;
-        
+
         // Create SSH channel
-        let mut channel = session.channel_session()
+        let mut channel = session
+            .channel_session()
             .context("Failed to create SSH channel")?;
-        
+
         // Execute command
-        channel.exec(command)
-            .context("Failed to execute command")?;
-        
+        channel.exec(command).context("Failed to execute command")?;
+
         // Read output
         let mut output = String::new();
-        channel.read_to_string(&mut output)
+        channel
+            .read_to_string(&mut output)
             .context("Failed to read command output")?;
-        
+
         // Wait for channel to close
-        channel.wait_close()
+        channel
+            .wait_close()
             .context("Failed to wait for channel close")?;
-        
+
         // Check exit status
-        let exit_status = channel.exit_status()
-            .context("Failed to get exit status")?;
-        
+        let exit_status = channel.exit_status().context("Failed to get exit status")?;
+
         if exit_status != 0 {
             return Err(anyhow::anyhow!(
                 "Command failed with exit code {}: {}",
@@ -528,48 +535,45 @@ impl FirecrackerVM {
                 output
             ));
         }
-        
+
         info!("Command executed successfully");
         Ok(output)
     }
-    
+
     /// Create an SSH session to the VM
     fn create_ssh_session(&self, ssh_config: &SshConfig) -> Result<Session> {
         // Connect to SSH server
         let tcp = TcpStream::connect(format!("{}:{}", ssh_config.host, ssh_config.port))
             .context("Failed to connect to SSH server")?;
-        
+
         // Create SSH session
-        let mut session = Session::new()
-            .context("Failed to create SSH session")?;
+        let mut session = Session::new().context("Failed to create SSH session")?;
         session.set_tcp_stream(tcp);
-        session.handshake()
-            .context("SSH handshake failed")?;
-        
+        session.handshake().context("SSH handshake failed")?;
+
         // Authenticate based on configured method
         match &ssh_config.auth {
             SshAuth::Agent => {
-                session.userauth_agent(&ssh_config.username)
+                session
+                    .userauth_agent(&ssh_config.username)
                     .context("SSH agent authentication failed")?;
             }
             SshAuth::Key(key_path) => {
-                session.userauth_pubkey_file(
-                    &ssh_config.username,
-                    None,
-                    key_path,
-                    None,
-                ).context("SSH key authentication failed")?;
+                session
+                    .userauth_pubkey_file(&ssh_config.username, None, key_path, None)
+                    .context("SSH key authentication failed")?;
             }
             SshAuth::Password(password) => {
-                session.userauth_password(&ssh_config.username, password)
+                session
+                    .userauth_password(&ssh_config.username, password)
                     .context("SSH password authentication failed")?;
             }
         }
-        
+
         if !session.authenticated() {
             return Err(anyhow::anyhow!("SSH authentication failed"));
         }
-        
+
         Ok(session)
     }
 

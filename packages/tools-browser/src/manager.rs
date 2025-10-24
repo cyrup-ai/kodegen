@@ -81,7 +81,7 @@ impl BrowserManager {
     /// Create a new BrowserManager (private - use global() instead)
     ///
     /// Browser will be lazy-loaded on first `get_or_launch()` call.
-    /// 
+    ///
     /// This is now private to prevent accidental creation of multiple managers.
     /// External code should use `BrowserManager::global()`.
     fn new() -> Self {

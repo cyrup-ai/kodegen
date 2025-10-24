@@ -3,8 +3,8 @@
 //! This binary provides atomic release operations with proper error handling,
 //! automatic internal dependency version synchronization, and rollback capabilities.
 
-use kodegen_bundler_release::cli::OutputManager;
 use kodegen_bundler_release::cli;
+use kodegen_bundler_release::cli::OutputManager;
 use std::process;
 
 #[tokio::main]
@@ -24,12 +24,12 @@ async fn main() {
                 && output.status.success()
             {
                 let env_output = String::from_utf8_lossy(&output.stdout);
-                
+
                 // Parse and set environment variables
                 // This needs to handle multi-line values (e.g., APPLE_API_KEY_CONTENT with embedded newlines)
                 let mut current_key: Option<String> = None;
                 let mut current_value = String::new();
-                
+
                 for line in env_output.lines() {
                     // Check if this line starts a new key=value pair
                     if let Some((key, value)) = line.split_once('=') {
@@ -40,7 +40,7 @@ async fn main() {
                             }
                             current_value.clear();
                         }
-                        
+
                         // Start accumulating the new key-value pair
                         current_key = Some(key.to_string());
                         current_value.push_str(value);
@@ -52,7 +52,7 @@ async fn main() {
                         }
                     }
                 }
-                
+
                 // Don't forget the last key-value pair
                 if let Some(key) = current_key {
                     unsafe {
@@ -71,7 +71,7 @@ async fn main() {
             // Create output manager for error display (never quiet for fatal errors)
             let output = OutputManager::new(false, false);
             output.error(&format!("Fatal error: {e}"));
-            
+
             // Show recovery suggestions for critical errors
             let suggestions = e.recovery_suggestions();
             if !suggestions.is_empty() {
@@ -80,7 +80,7 @@ async fn main() {
                     output.indent(&suggestion);
                 }
             }
-            
+
             process::exit(1);
         }
     }

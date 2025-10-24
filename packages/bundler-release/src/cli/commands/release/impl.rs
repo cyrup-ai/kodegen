@@ -4,16 +4,16 @@
 //! temporary clone to prevent modifications to the user's working directory.
 
 use crate::cli::RuntimeConfig;
-use crate::error::{Result, ReleaseError, CliError};
-use crate::git::{GitManager, GitConfig};
+use crate::error::{CliError, ReleaseError, Result};
+use crate::git::{GitConfig, GitManager};
 use crate::publish::{Publisher, PublisherConfig};
-use crate::state::{ReleaseState, ReleasePhase, ReleaseConfig, create_state_manager_at};
-use crate::version::{VersionManager, VersionBump};
+use crate::state::{ReleaseConfig, ReleasePhase, ReleaseState, create_state_manager_at};
+use crate::version::{VersionBump, VersionManager};
 use crate::workspace::SharedWorkspaceInfo;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use super::super::helpers::{parse_github_repo_string, detect_github_repo, create_bundles};
+use super::super::helpers::{create_bundles, detect_github_repo, parse_github_repo_string};
 use super::ReleaseOptions;
 
 /// Perform the actual release logic in the temp directory.
@@ -48,9 +48,7 @@ pub(super) async fn perform_release_impl(
 
     // Determine version bump
     let version_bump = VersionBump::try_from(options.bump_type.clone())
-        .map_err(|e| ReleaseError::Cli(CliError::InvalidArguments {
-            reason: e,
-        }))?;
+        .map_err(|e| ReleaseError::Cli(CliError::InvalidArguments { reason: e }))?;
 
     // Create release state
     let release_config = ReleaseConfig {
@@ -66,7 +64,8 @@ pub(super) async fn perform_release_impl(
     let bumper = crate::version::VersionBumper::from_version(current_version.clone());
     let new_version = bumper.bump(version_bump.clone())?;
 
-    let mut release_state = ReleaseState::new(new_version.clone(), version_bump.clone(), release_config);
+    let mut release_state =
+        ReleaseState::new(new_version.clone(), version_bump.clone(), release_config);
 
     // Initialize state manager (in temp clone)
     let mut state_manager = create_state_manager_at(&state_file_path)?;
@@ -87,7 +86,10 @@ pub(super) async fn perform_release_impl(
     }
 
     // Begin release process
-    config.println(&format!("🚀 Starting release: {} → {}", current_version, new_version));
+    config.println(&format!(
+        "🚀 Starting release: {} → {}",
+        current_version, new_version
+    ));
 
     release_state.add_checkpoint(
         "release_started".to_string(),
@@ -112,13 +114,14 @@ pub(super) async fn perform_release_impl(
 
     // Convert TomlBackup to FileBackup for state storage
     if let Some(version_state) = &mut release_state.version_state {
-        version_state.backup_files = backups.iter().map(|backup| {
-            crate::state::FileBackup {
+        version_state.backup_files = backups
+            .iter()
+            .map(|backup| crate::state::FileBackup {
                 file_path: backup.file_path.clone(),
                 backup_content: backup.content.clone(),
                 backup_timestamp: chrono::Utc::now(),
-            }
-        }).collect();
+            })
+            .collect();
     }
 
     release_state.add_checkpoint(
@@ -139,20 +142,25 @@ pub(super) async fn perform_release_impl(
         config.println("🔐 Building and signing macOS artifacts...");
 
         let sign_dir = temp_dir.join("target/release-artifacts");
-        std::fs::create_dir_all(&sign_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        std::fs::create_dir_all(&sign_dir).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "create_artifact_dir".to_string(),
                 reason: e.to_string(),
-            }))?;
+            })
+        })?;
 
         // Build and sign helper using the sign package
         // CRITICAL: Signing must succeed or build must FAIL
-        let helper_zip = kodegen_bundler_sign::build_and_sign_helper(&sign_dir)
-            .map_err(|e| ReleaseError::Cli(crate::error::CliError::ExecutionFailed {
+        let helper_zip = kodegen_bundler_sign::build_and_sign_helper(&sign_dir).map_err(|e| {
+            ReleaseError::Cli(crate::error::CliError::ExecutionFailed {
                 command: "build_and_sign_helper".to_string(),
-                reason: format!("FATAL: Code signing failed: {}\n\nUnsigned releases are NEVER allowed!", e),
-            }))?;
-        
+                reason: format!(
+                    "FATAL: Code signing failed: {}\n\nUnsigned releases are NEVER allowed!",
+                    e
+                ),
+            })
+        })?;
+
         config.success_println(&format!("✓ Artifact signed: {}", helper_zip.display()));
         vec![helper_zip]
     } else {
@@ -164,33 +172,36 @@ pub(super) async fn perform_release_impl(
         release_state.add_checkpoint(
             "artifacts_signed".to_string(),
             ReleasePhase::VersionUpdate,
-            Some(serde_json::Value::String(format!("{} artifact(s) signed", signed_artifacts.len()))),
+            Some(serde_json::Value::String(format!(
+                "{} artifact(s) signed",
+                signed_artifacts.len()
+            ))),
             true,
         );
         state_manager.save_state(&release_state).await?;
     }
 
     // Phase 1.6: Bundle Artifacts (if requested)
-    let bundled_artifacts: Vec<crate::bundler::BundledArtifact> = if options.with_bundles || options.upload_bundles {
-        // Build binaries in release mode before bundling
-        config.println("🔨 Building release binaries...");
-        crate::cli::commands::bundle::build_workspace_binaries(temp_dir, true)?;
-        config.success_println("✓ Build complete");
+    let bundled_artifacts: Vec<crate::bundler::BundledArtifact> =
+        if options.with_bundles || options.upload_bundles {
+            // Build binaries in release mode before bundling
+            config.println("🔨 Building release binaries...");
+            crate::cli::commands::bundle::build_workspace_binaries(temp_dir, true)?;
+            config.success_println("✓ Build complete");
 
-        config.println("📦 Creating distributable bundles...");
-        let artifacts = create_bundles(&workspace, &new_version, config)?;
-        config.success_println(&format!("✓ Created {} bundle(s)", artifacts.len()));
-        for artifact in &artifacts {
-            config.verbose_println(&format!(
-                "  • {:?} ({} bytes)",
-                artifact.package_type,
-                artifact.size
-            ));
-        }
-        artifacts
-    } else {
-        vec![]
-    };
+            config.println("📦 Creating distributable bundles...");
+            let artifacts = create_bundles(&workspace, &new_version, config)?;
+            config.success_println(&format!("✓ Created {} bundle(s)", artifacts.len()));
+            for artifact in &artifacts {
+                config.verbose_println(&format!(
+                    "  • {:?} ({} bytes)",
+                    artifact.package_type, artifact.size
+                ));
+            }
+            artifacts
+        } else {
+            vec![]
+        };
 
     // Store bundle info in state if successful
     if !bundled_artifacts.is_empty() {
@@ -200,7 +211,8 @@ pub(super) async fn perform_release_impl(
             Some(serde_json::Value::String(format!(
                 "{} bundle(s) created: {}",
                 bundled_artifacts.len(),
-                bundled_artifacts.iter()
+                bundled_artifacts
+                    .iter()
                     .map(|a| format!("{:?}", a.package_type))
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -215,7 +227,9 @@ pub(super) async fn perform_release_impl(
     release_state.set_phase(ReleasePhase::GitOperations);
     state_manager.save_state(&release_state).await?;
 
-    let git_result = git_manager.perform_release(&new_version, !options.no_push).await?;
+    let git_result = git_manager
+        .perform_release(&new_version, !options.no_push)
+        .await?;
     release_state.set_git_state(Some(&git_result.commit), Some(&git_result.tag));
 
     if let Some(push_info) = &git_result.push_info {
@@ -230,7 +244,10 @@ pub(super) async fn perform_release_impl(
     );
     state_manager.save_state(&release_state).await?;
 
-    config.success_println(&format!("Git operations completed: {}", git_result.format_result()));
+    config.success_println(&format!(
+        "Git operations completed: {}",
+        git_result.format_result()
+    ));
 
     // Track whether GitHub operations completed with warnings
     let mut github_warnings = false;
@@ -252,15 +269,16 @@ pub(super) async fn perform_release_impl(
             Ok((owner, repo)) => {
                 // Load release notes if provided
                 let release_notes_content = match &options.release_notes {
-                    Some(notes_file) => {
-                        match std::fs::read_to_string(notes_file) {
-                            Ok(content) => Some(content),
-                            Err(e) => {
-                                config.warning_println(&format!("Failed to read release notes file: {}", e));
-                                None
-                            }
+                    Some(notes_file) => match std::fs::read_to_string(notes_file) {
+                        Ok(content) => Some(content),
+                        Err(e) => {
+                            config.warning_println(&format!(
+                                "Failed to read release notes file: {}",
+                                e
+                            ));
+                            None
                         }
-                    }
+                    },
                     None => None,
                 };
 
@@ -277,7 +295,10 @@ pub(super) async fn perform_release_impl(
                     Ok(github_manager) => {
                         let commit_sha = &git_result.commit.hash;
 
-                        match github_manager.create_release(&new_version, commit_sha, release_notes_content).await {
+                        match github_manager
+                            .create_release(&new_version, commit_sha, release_notes_content)
+                            .await
+                        {
                             Ok(github_result) => {
                                 release_state.set_github_state(owner, repo, Some(&github_result));
                                 release_state.add_checkpoint(
@@ -292,7 +313,11 @@ pub(super) async fn perform_release_impl(
                                 let status_info = format!(
                                     "{}{} ",
                                     if github_result.draft { "[DRAFT] " } else { "" },
-                                    if github_result.prerelease { "[PRERELEASE]" } else { "" }
+                                    if github_result.prerelease {
+                                        "[PRERELEASE]"
+                                    } else {
+                                        ""
+                                    }
                                 );
                                 config.success_println(&format!(
                                     "GitHub release created: {} {}(completed in {:.2}s)",
@@ -302,7 +327,8 @@ pub(super) async fn perform_release_impl(
                                 ));
 
                                 // Upload all artifacts (signed + bundled) if any exist
-                                let all_artifacts: Vec<PathBuf> = signed_artifacts.iter()
+                                let all_artifacts: Vec<PathBuf> = signed_artifacts
+                                    .iter()
                                     .chain(bundled_artifacts.iter().flat_map(|ba| ba.paths.iter()))
                                     .cloned()
                                     .collect();
@@ -313,10 +339,18 @@ pub(super) async fn perform_release_impl(
                                         all_artifacts.len()
                                     ));
 
-                                    match github_manager.upload_artifacts(github_result.release_id, &all_artifacts, config).await {
+                                    match github_manager
+                                        .upload_artifacts(
+                                            github_result.release_id,
+                                            &all_artifacts,
+                                            config,
+                                        )
+                                        .await
+                                    {
                                         Ok(urls) => {
                                             config.success_println(&format!(
-                                                "✓ Uploaded {} artifact(s)", urls.len()
+                                                "✓ Uploaded {} artifact(s)",
+                                                urls.len()
                                             ));
 
                                             for url in &urls {
@@ -329,12 +363,24 @@ pub(super) async fn perform_release_impl(
                                                 ReleasePhase::GitHubRelease,
                                                 Some(serde_json::Value::Object({
                                                     let mut map = serde_json::Map::new();
-                                                    map.insert("count".to_string(),
-                                                        serde_json::Value::Number(urls.len().into()));
-                                                    map.insert("signed".to_string(),
-                                                        serde_json::Value::Number(signed_artifacts.len().into()));
-                                                    map.insert("bundled".to_string(),
-                                                        serde_json::Value::Number(bundled_artifacts.len().into()));
+                                                    map.insert(
+                                                        "count".to_string(),
+                                                        serde_json::Value::Number(
+                                                            urls.len().into(),
+                                                        ),
+                                                    );
+                                                    map.insert(
+                                                        "signed".to_string(),
+                                                        serde_json::Value::Number(
+                                                            signed_artifacts.len().into(),
+                                                        ),
+                                                    );
+                                                    map.insert(
+                                                        "bundled".to_string(),
+                                                        serde_json::Value::Number(
+                                                            bundled_artifacts.len().into(),
+                                                        ),
+                                                    );
                                                     map
                                                 })),
                                                 true,
@@ -344,11 +390,20 @@ pub(super) async fn perform_release_impl(
                                         Err(e) => {
                                             if options.continue_on_github_error {
                                                 github_warnings = true;
-                                                config.warning_println(&format!("Failed to upload {} artifact(s): {}", all_artifacts.len(), e));
-                                                config.warning_println("Continuing due to --continue-on-github-error");
+                                                config.warning_println(&format!(
+                                                    "Failed to upload {} artifact(s): {}",
+                                                    all_artifacts.len(),
+                                                    e
+                                                ));
+                                                config.warning_println(
+                                                    "Continuing due to --continue-on-github-error",
+                                                );
                                             } else {
                                                 config.error_println(&format!("✗ Failed to upload {} artifact(s) to GitHub release: {}", all_artifacts.len(), e));
-                                                config.error_println(&format!("   Release exists at: {}", github_result.html_url));
+                                                config.error_println(&format!(
+                                                    "   Release exists at: {}",
+                                                    github_result.html_url
+                                                ));
                                                 return Err(ReleaseError::GitHub(format!(
                                                     "Failed to upload {} artifact(s): {}",
                                                     all_artifacts.len(),
@@ -362,10 +417,18 @@ pub(super) async fn perform_release_impl(
                             Err(e) => {
                                 if options.continue_on_github_error {
                                     github_warnings = true;
-                                    config.warning_println(&format!("GitHub release creation failed: {}", e));
-                                    config.warning_println("Continuing due to --continue-on-github-error");
+                                    config.warning_println(&format!(
+                                        "GitHub release creation failed: {}",
+                                        e
+                                    ));
+                                    config.warning_println(
+                                        "Continuing due to --continue-on-github-error",
+                                    );
                                 } else {
-                                    config.error_println(&format!("✗ GitHub release creation failed: {}", e));
+                                    config.error_println(&format!(
+                                        "✗ GitHub release creation failed: {}",
+                                        e
+                                    ));
                                     return Err(ReleaseError::GitHub(e.to_string()));
                                 }
                             }
@@ -374,10 +437,16 @@ pub(super) async fn perform_release_impl(
                     Err(e) => {
                         if options.continue_on_github_error {
                             github_warnings = true;
-                            config.warning_println(&format!("GitHub client initialization failed: {}", e));
+                            config.warning_println(&format!(
+                                "GitHub client initialization failed: {}",
+                                e
+                            ));
                             config.warning_println("Continuing due to --continue-on-github-error");
                         } else {
-                            config.error_println(&format!("✗ GitHub client initialization failed: {}", e));
+                            config.error_println(&format!(
+                                "✗ GitHub client initialization failed: {}",
+                                e
+                            ));
                             return Err(e);
                         }
                     }
@@ -424,9 +493,15 @@ pub(super) async fn perform_release_impl(
     state_manager.save_state(&release_state).await?;
 
     if publish_result.all_successful {
-        config.success_println(&format!("Publishing completed: {}", publish_result.format_summary()));
+        config.success_println(&format!(
+            "Publishing completed: {}",
+            publish_result.format_summary()
+        ));
     } else {
-        config.warning_println(&format!("Publishing partially failed: {}", publish_result.format_summary()));
+        config.warning_println(&format!(
+            "Publishing partially failed: {}",
+            publish_result.format_summary()
+        ));
     }
 
     // Phase 4: Cleanup
@@ -466,9 +541,5 @@ pub(super) async fn perform_release_impl(
     state_manager.cleanup_state()?;
 
     // Return exit code: 1 for warnings, 0 for complete success
-    if github_warnings {
-        Ok(1)
-    } else {
-        Ok(0)
-    }
+    if github_warnings { Ok(1) } else { Ok(0) }
 }

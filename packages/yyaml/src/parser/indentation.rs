@@ -21,19 +21,19 @@ pub enum IndentationResult {
 
 impl IndentationResult {
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn is_continue(&self) -> bool {
         matches!(self, Self::Continue)
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn is_end_block(&self) -> bool {
         matches!(self, Self::EndSequence(_) | Self::EndMapping(_))
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn is_error(&self) -> bool {
         matches!(self, Self::InvalidIndentation { .. })
     }
@@ -51,7 +51,7 @@ pub struct IndentationContext {
 
 impl IndentationContext {
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn new(current: usize, parent: usize, is_seq: bool, is_first: bool) -> Self {
         Self {
             current_indent: current,
@@ -63,7 +63,7 @@ impl IndentationContext {
 
     /// Fast indentation validation using bitwise operations where possible
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn validate_column(&self, col: usize, line: usize) -> Option<IndentationResult> {
         if col < self.current_indent {
             if self.is_sequence {
@@ -98,7 +98,7 @@ impl IndentationContext {
 /// Zero-allocation block sequence indentation validator
 /// Optimized for high-frequency validation calls in parsing hot paths
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub const fn validate_block_sequence_indentation(
     token: &Token,
     expected_indent: usize,
@@ -124,7 +124,7 @@ pub const fn validate_block_sequence_indentation(
 /// Zero-allocation block mapping indentation validator
 /// Specialized for mapping key-value pair validation
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub const fn validate_block_mapping_indentation(
     token: &Token,
     expected_indent: usize,
@@ -150,7 +150,7 @@ pub const fn validate_block_mapping_indentation(
 /// Ultra-fast indent calculation for block entries
 /// Uses bitwise operations and branch prediction hints
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub const fn calculate_block_entry_indent(
     current_line: usize,
     next_line: usize,
@@ -174,7 +174,7 @@ pub const fn calculate_block_entry_indent(
 /// Comprehensive indentation validation for mixed block structures
 /// Handles complex nesting scenarios with zero allocations
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn validate_nested_block_indentation(
     token: &Token,
     context: &IndentationContext,
@@ -257,7 +257,7 @@ impl Default for IndentationStateMachine {
 
 impl IndentationStateMachine {
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut stack = smallvec::SmallVec::new();
         stack.push(0); // Root level
@@ -301,13 +301,13 @@ impl IndentationStateMachine {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn current_indent(&self) -> usize {
         self.indent_stack.last().copied().unwrap_or(0)
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn validate_token(&self, token: &Token) -> IndentationResult {
         validate_nested_block_indentation(token, &self.current_context)
     }

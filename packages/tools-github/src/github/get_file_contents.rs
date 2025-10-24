@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::Content, Octocrab};
+use octocrab::{Octocrab, models::repos::Content};
 use std::sync::Arc;
 
 /// Retrieve file or directory contents.

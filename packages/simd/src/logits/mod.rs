@@ -86,74 +86,75 @@ pub fn process_logits_scalar(
 
     // Apply top-k filtering if enabled
     if let Some(k) = context.top_k
-        && k < logits.len() {
-            // Use partial sort to find the k-th largest element efficiently
-            let mut sorted: Vec<f32> = logits.to_vec();
-            
-            if k > 0 && k < sorted.len() {
-                // Find the k-th largest element position
-                let kth = sorted.len() - k;
-                sorted.select_nth_unstable_by(kth, |a, b| {
-                    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
-                });
-                
-                // Get threshold value at the k-th position
-                let threshold = sorted[kth];
-                
-                // Mask all values below threshold
-                for x in logits.iter_mut() {
-                    if *x < threshold {
-                        *x = f32::NEG_INFINITY;
-                    }
+        && k < logits.len()
+    {
+        // Use partial sort to find the k-th largest element efficiently
+        let mut sorted: Vec<f32> = logits.to_vec();
+
+        if k > 0 && k < sorted.len() {
+            // Find the k-th largest element position
+            let kth = sorted.len() - k;
+            sorted.select_nth_unstable_by(kth, |a, b| {
+                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            // Get threshold value at the k-th position
+            let threshold = sorted[kth];
+
+            // Mask all values below threshold
+            for x in logits.iter_mut() {
+                if *x < threshold {
+                    *x = f32::NEG_INFINITY;
                 }
             }
         }
+    }
 
     // Apply nucleus sampling if enabled
     if let Some(p) = context.top_p
-        && p > 0.0 && p < 1.0 {
-            // Find max logit for numerical stability (zero allocation)
-            let max_logit = logits.iter().fold(f32::NEG_INFINITY, |acc, &x| acc.max(x));
+        && p > 0.0
+        && p < 1.0
+    {
+        // Find max logit for numerical stability (zero allocation)
+        let max_logit = logits.iter().fold(f32::NEG_INFINITY, |acc, &x| acc.max(x));
 
-            // Create SmallVec of (index, logit) pairs
-            let mut sorted: SmallVec<(usize, f32), 512> =
-                logits.iter().enumerate().map(|(i, &v)| (i, v)).collect();
+        // Create SmallVec of (index, logit) pairs
+        let mut sorted: SmallVec<(usize, f32), 512> =
+            logits.iter().enumerate().map(|(i, &v)| (i, v)).collect();
 
-            // Sort in descending order by logit value
-            sorted.sort_unstable_by(|a, b| {
-                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-            });
+        // Sort in descending order by logit value
+        sorted.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-            // Compute total sum of exp(shifted) without allocation
-            let mut total_sum = 0.0f64;
-            for &logit in logits.iter() {
-                total_sum += ((logit - max_logit) as f64).exp();
-            }
+        // Compute total sum of exp(shifted) without allocation
+        let mut total_sum = 0.0f64;
+        for &logit in logits.iter() {
+            total_sum += ((logit - max_logit) as f64).exp();
+        }
 
-            // Now find cutoff using cumulative normalized prob
-            let mut cumsum = 0.0f64;
-            let mut cutoff = sorted.len();
+        // Now find cutoff using cumulative normalized prob
+        let mut cumsum = 0.0f64;
+        let mut cutoff = sorted.len();
 
-            for (i, &(_, logit)) in sorted.iter().enumerate() {
-                let prob = ((logit - max_logit) as f64).exp() / total_sum;
-                cumsum += prob;
-                if cumsum >= p as f64 {
-                    cutoff = i + 1;
-                    break;
-                }
-            }
-
-            // Collect indices to keep (using SmallVec to avoid alloc if small)
-            let keep_indices: SmallVec<usize, 512> =
-                sorted[..cutoff].iter().map(|&(idx, _)| idx).collect();
-
-            // Mask logits not in keep (in-place, zero alloc)
-            for (i, logit) in logits.iter_mut().enumerate() {
-                if !keep_indices.contains(&i) {
-                    *logit = f32::NEG_INFINITY;
-                }
+        for (i, &(_, logit)) in sorted.iter().enumerate() {
+            let prob = ((logit - max_logit) as f64).exp() / total_sum;
+            cumsum += prob;
+            if cumsum >= p as f64 {
+                cutoff = i + 1;
+                break;
             }
         }
+
+        // Collect indices to keep (using SmallVec to avoid alloc if small)
+        let keep_indices: SmallVec<usize, 512> =
+            sorted[..cutoff].iter().map(|&(idx, _)| idx).collect();
+
+        // Mask logits not in keep (in-place, zero alloc)
+        for (i, logit) in logits.iter_mut().enumerate() {
+            if !keep_indices.contains(&i) {
+                *logit = f32::NEG_INFINITY;
+            }
+        }
+    }
 
     Ok(())
 }

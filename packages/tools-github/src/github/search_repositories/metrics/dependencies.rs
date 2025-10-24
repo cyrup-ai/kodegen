@@ -3,6 +3,7 @@
 use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::types::DependencyMetrics;
 use futures::stream::{self, StreamExt};
+use log::warn;
 use octocrab::models::repos::dependabot::State;
 use reqwest::Client;
 use semver::Version;
@@ -11,7 +12,6 @@ use serde_json::Value as JsonValue;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 use toml::Value as TomlValue;
-use log::warn;
 
 // API response structures
 #[derive(Deserialize)]
@@ -125,7 +125,7 @@ async fn check_npm_outdated(
         .iter()
         .filter_map(|(name, version_spec)| {
             let version = version_spec.as_str()?.to_string();
-            
+
             // Filter out special versions and non-semver dependencies
             if version.is_empty()
                 || version == "latest"
@@ -140,7 +140,7 @@ async fn check_npm_outdated(
             {
                 return None;
             }
-            
+
             Some((name.clone(), version))
         })
         .collect();
@@ -151,7 +151,8 @@ async fn check_npm_outdated(
             let client = client.clone();
             async move {
                 let url = format!("https://registry.npmjs.org/{name}");
-                if let Ok(Ok(response)) = tokio::time::timeout(Duration::from_secs(5), client.get(&url).send()).await
+                if let Ok(Ok(response)) =
+                    tokio::time::timeout(Duration::from_secs(5), client.get(&url).send()).await
                     && let Ok(data) = response.json::<NpmPackageInfo>().await
                     && is_outdated(&version, &data.dist_tags.latest)
                 {
@@ -173,12 +174,12 @@ async fn check_pypi_outdated(requirements: &[String], client: &Client) -> u32 {
         .iter()
         .filter_map(|requirement| {
             let requirement = requirement.trim();
-            
+
             // Skip comments and pip options
             if requirement.starts_with('#') || requirement.starts_with('-') {
                 return None;
             }
-            
+
             // Try operators in order of specificity
             for op in ["==", ">=", "<=", "~=", "!=", ">", "<"] {
                 if let Some(idx) = requirement.find(op) {
@@ -186,7 +187,7 @@ async fn check_pypi_outdated(requirements: &[String], client: &Client) -> u32 {
                     let version_part = requirement[idx + op.len()..].trim();
                     // Handle compound specs like ">=1.0,<2.0"
                     let version = version_part.split(',').next().unwrap_or("").trim();
-                    
+
                     if !name.is_empty() && !version.is_empty() {
                         return Some((name.to_string(), version.to_string()));
                     }
@@ -203,7 +204,8 @@ async fn check_pypi_outdated(requirements: &[String], client: &Client) -> u32 {
             let client = client.clone();
             async move {
                 let url = format!("https://pypi.org/pypi/{name}/json");
-                if let Ok(Ok(response)) = tokio::time::timeout(Duration::from_secs(5), client.get(&url).send()).await
+                if let Ok(Ok(response)) =
+                    tokio::time::timeout(Duration::from_secs(5), client.get(&url).send()).await
                     && let Ok(data) = response.json::<PyPIPackageInfo>().await
                     && is_outdated(&version, &data.info.version)
                 {
@@ -247,13 +249,13 @@ fn calculate_freshness_from_lock_age(lock_file_path: &Path) -> f32 {
 
     // Exponential decay scoring based on age thresholds
     match days {
-        0..=30 => 1.0,        // < 1 month: excellent
-        31..=90 => 0.9,       // 1-3 months: very good
-        91..=180 => 0.8,      // 3-6 months: good
-        181..=365 => 0.6,     // 6-12 months: acceptable
-        366..=730 => 0.4,     // 1-2 years: aging
-        731..=1095 => 0.2,    // 2-3 years: stale
-        _ => 0.1,             // > 3 years: very stale
+        0..=30 => 1.0,     // < 1 month: excellent
+        31..=90 => 0.9,    // 1-3 months: very good
+        91..=180 => 0.8,   // 3-6 months: good
+        181..=365 => 0.6,  // 6-12 months: acceptable
+        366..=730 => 0.4,  // 1-2 years: aging
+        731..=1095 => 0.2, // 2-3 years: stale
+        _ => 0.1,          // > 3 years: very stale
     }
 }
 
@@ -286,10 +288,7 @@ fn get_most_recent_lock_file(repo_path: &Path, lock_files: &[&str]) -> Option<Sy
         .iter()
         .filter_map(|&filename| {
             let path = repo_path.join(filename);
-            std::fs::metadata(&path)
-                .ok()?
-                .modified()
-                .ok()
+            std::fs::metadata(&path).ok()?.modified().ok()
         })
         .max() // Get the most recent timestamp
 }
@@ -356,7 +355,7 @@ fn calculate_dependency_freshness(repo_path: &Path, package_managers: &[String])
 
     // Calculate final score
     match (first_score, additional_scores.is_empty()) {
-        (None, _) => 0.4, // No scores collected
+        (None, _) => 0.4,             // No scores collected
         (Some(score), true) => score, // Single PM: zero allocation path
         (Some(first), false) => {
             // Multiple PMs: average all scores
@@ -496,9 +495,7 @@ pub(crate) async fn collect_dependency_metrics(
             .filter(|alert| matches!(alert.state, State::Open))
             .count() as u32,
         Err(e) => {
-            warn!(
-                "Failed to fetch Dependabot alerts for {owner}/{repo}: {e} - defaulting to 0"
-            );
+            warn!("Failed to fetch Dependabot alerts for {owner}/{repo}: {e} - defaulting to 0");
             0
         }
     };
@@ -521,7 +518,7 @@ pub(crate) async fn collect_dependency_metrics(
                     dependency_freshness_score,
                     package_managers,
                     lock_files_present,
-                })
+                });
             }
         };
 
@@ -551,14 +548,14 @@ pub(crate) async fn collect_dependency_metrics(
                     }
                 }
             );
-            
+
             cargo_count + npm_count + pypi_count
         };
 
-        if let Ok(count) = tokio::time::timeout(Duration::from_secs(10), check_future).await { count } else {
-            warn!(
-                "Timeout checking outdated dependencies for {owner}/{repo}"
-            );
+        if let Ok(count) = tokio::time::timeout(Duration::from_secs(10), check_future).await {
+            count
+        } else {
+            warn!("Timeout checking outdated dependencies for {owner}/{repo}");
             0
         }
     };

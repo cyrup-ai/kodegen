@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 
 // ============================================================================
@@ -117,9 +117,7 @@ impl Tool for ListDirectoryTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I list directory contents?"
-                ),
+                content: PromptMessageContent::text("How do I list directory contents?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -135,7 +133,7 @@ impl Tool for ListDirectoryTool {
                      - Validates the directory path exists\n\
                      - Filters hidden files by default (unless include_hidden=true)\n\
                      - Provides counts of directories and files\n\
-                     - Handles permission errors gracefully"
+                     - Handles permission errors gracefully",
                 ),
             },
         ])

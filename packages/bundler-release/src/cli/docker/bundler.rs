@@ -49,18 +49,23 @@ impl ContainerBundler {
     /// Check if container was killed by OOM via Docker inspect API
     async fn check_container_oom_status(container_name: &str) -> Result<bool, std::io::Error> {
         let output = Command::new("docker")
-            .args(["inspect", container_name, "--format", "{{.State.OOMKilled}}"])
+            .args([
+                "inspect",
+                container_name,
+                "--format",
+                "{{.State.OOMKilled}}",
+            ])
             .output()
             .await?;
-        
+
         if !output.status.success() {
-            return Ok(false);  // Container doesn't exist or inspect failed
+            return Ok(false); // Container doesn't exist or inspect failed
         }
-        
+
         let oom_killed = String::from_utf8_lossy(&output.stdout)
             .trim()
             .to_lowercase();
-        
+
         Ok(oom_killed == "true")
     }
 
@@ -88,9 +93,10 @@ impl ContainerBundler {
         runtime_config: &crate::cli::RuntimeConfig,
     ) -> Result<Vec<PathBuf>, ReleaseError> {
         let platform_str = platform_type_to_string(platform);
-        
-        runtime_config.indent(&format!("{} Building {} package in container...", 
-            platform_emoji(platform), 
+
+        runtime_config.indent(&format!(
+            "{} Building {} package in container...",
+            platform_emoji(platform),
             platform_str
         ));
 
@@ -106,7 +112,8 @@ impl ContainerBundler {
 
         // Resolve workspace path - try canonicalization but fall back to absolute path
         // Docker will resolve symlinks during bind mount anyway
-        let workspace_path = self.workspace_path
+        let workspace_path = self
+            .workspace_path
             .canonicalize()
             .or_else(|_| {
                 // Canonicalize failed (likely network mount) - use absolute path
@@ -115,21 +122,26 @@ impl ContainerBundler {
                 } else {
                     std::env::current_dir()
                         .map(|cwd| cwd.join(&self.workspace_path))
-                        .map_err(|e| std::io::Error::other(
-                            format!("Cannot determine current directory: {}", e)
-                        ))
+                        .map_err(|e| {
+                            std::io::Error::other(format!(
+                                "Cannot determine current directory: {}",
+                                e
+                            ))
+                        })
                 }
             })
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "resolve workspace path".to_string(),
-                reason: format!(
-                    "Cannot resolve workspace path '{}': {}\n\
+            .map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "resolve workspace path".to_string(),
+                    reason: format!(
+                        "Cannot resolve workspace path '{}': {}\n\
                      \n\
                      Ensure the path exists and is accessible.",
-                    self.workspace_path.display(),
-                    e
-                ),
-            }))?;
+                        self.workspace_path.display(),
+                        e
+                    ),
+                })
+            })?;
 
         // SECURITY: Verify it's actually a directory, not a file
         if !workspace_path.is_dir() {
@@ -147,8 +159,8 @@ impl ContainerBundler {
 
         // Ensure target directory exists (idempotent - safe to call even if exists)
         let target_dir = workspace_path.join("target");
-        std::fs::create_dir_all(&target_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        std::fs::create_dir_all(&target_dir).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "create target directory".to_string(),
                 reason: format!(
                     "Failed to ensure target directory exists: {}\n\
@@ -162,17 +174,17 @@ impl ContainerBundler {
                     e,
                     target_dir.display()
                 ),
-            }))?;
+            })
+        })?;
 
         // Create isolated temp target directory for this build
         let temp_target_dir = workspace_path.join(format!("target-temp-{}", build_uuid));
-        std::fs::create_dir_all(&temp_target_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        std::fs::create_dir_all(&temp_target_dir).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "create temporary target directory".to_string(),
                 reason: format!("Failed to create {}: {}", temp_target_dir.display(), e),
-            }))?;
-
-
+            })
+        })?;
 
         // SECURITY: Build secure mount arguments
         // Mount workspace as read-only (prevents source code modification)
@@ -187,37 +199,29 @@ impl ContainerBundler {
             "--name".to_string(),
             container_name.clone(),
             "--rm".to_string(),
-            
             // SECURITY: Prevent privilege escalation in container
             "--security-opt".to_string(),
             "no-new-privileges".to_string(),
-            
             // SECURITY: Drop all capabilities (container doesn't need special privileges)
             "--cap-drop".to_string(),
             "ALL".to_string(),
-            
             // Memory limits
             "--memory".to_string(),
             self.limits.memory.clone(),
             "--memory-swap".to_string(),
             self.limits.memory_swap.clone(),
-            
             // CPU limits
             "--cpus".to_string(),
             self.limits.cpus.clone(),
-            
             // Process limits
             "--pids-limit".to_string(),
             self.limits.pids_limit.to_string(),
-            
             // SECURITY: Mount workspace read-only
             "-v".to_string(),
             workspace_mount,
-            
             // SECURITY: Mount target/ read-write for build outputs
             "-v".to_string(),
             target_mount,
-            
             // Set working directory
             "-w".to_string(),
             "/workspace".to_string(),
@@ -265,29 +269,33 @@ impl ContainerBundler {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: format!("docker run {}", docker_args.join(" ")),
-                reason: e.to_string(),
-            }))?;
+            .map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: format!("docker run {}", docker_args.join(" ")),
+                    reason: e.to_string(),
+                })
+            })?;
 
         // Spawn background task to capture stderr for OOM detection
-        let stderr_handle = child.stderr.take().map(|stderr| tokio::spawn(async move {
-            let reader = BufReader::new(stderr);
-            let mut lines = reader.lines();
-            let mut captured_lines = Vec::new();
-            
-            while let Ok(Some(line)) = lines.next_line().await {
-                captured_lines.push(line);
-            }
-            
-            captured_lines
-        }));
+        let stderr_handle = child.stderr.take().map(|stderr| {
+            tokio::spawn(async move {
+                let reader = BufReader::new(stderr);
+                let mut lines = reader.lines();
+                let mut captured_lines = Vec::new();
+
+                while let Ok(Some(line)) = lines.next_line().await {
+                    captured_lines.push(line);
+                }
+
+                captured_lines
+            })
+        });
 
         // Stream stdout in real-time (foreground task)
         if let Some(stdout) = child.stdout.take() {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
-            
+
             while let Ok(Some(line)) = lines.next_line().await {
                 runtime_config.indent(&line);
             }
@@ -297,7 +305,7 @@ impl ContainerBundler {
         let status = tokio::time::timeout(DOCKER_RUN_TIMEOUT, child.wait()).await;
 
         let status = match status {
-            Ok(Ok(status)) => status,  // Completed normally
+            Ok(Ok(status)) => status, // Completed normally
             Ok(Err(e)) => {
                 // Wait failed (process error)
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
@@ -311,18 +319,15 @@ impl ContainerBundler {
                     "Docker bundling timed out after {} minutes, terminating...",
                     DOCKER_RUN_TIMEOUT.as_secs() / 60
                 ));
-                
+
                 // Kill process (SIGKILL)
                 if let Err(e) = child.kill().await {
                     eprintln!("Warning: Failed to kill docker run process: {}", e);
                 }
-                
+
                 // Wait for process to exit and reap zombie (with short timeout)
-                let _ = tokio::time::timeout(
-                    Duration::from_secs(10),
-                    child.wait()
-                ).await;
-                
+                let _ = tokio::time::timeout(Duration::from_secs(10), child.wait()).await;
+
                 return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                     command: format!("bundle {} in container", platform_str),
                     reason: format!(
@@ -363,10 +368,12 @@ impl ContainerBundler {
                 || stderr_str.contains("Out of memory")  // Case variation
                 || stderr_str.contains("OutOfMemoryError")
                 || stderr_str.contains("Cannot allocate memory")
-                || stderr_str.to_lowercase().contains("oom");  // Catch all variants
+                || stderr_str.to_lowercase().contains("oom"); // Catch all variants
 
             // Check Docker container status (most reliable method)
-            let is_oom_status = Self::check_container_oom_status(&container_name).await.unwrap_or(false);
+            let is_oom_status = Self::check_container_oom_status(&container_name)
+                .await
+                .unwrap_or(false);
 
             let is_oom = is_oom_exit_code || is_oom_stderr || is_oom_status;
 
@@ -377,7 +384,7 @@ impl ContainerBundler {
                 let total_memory_gb = sys.total_memory() / 1024 / 1024 / 1024;
 
                 let mut reason = String::from("Container ran out of memory during build.\n\n");
-                
+
                 // Add detection method for debugging
                 if is_oom_status {
                     reason.push_str("(Detected via Docker container status)\n");
@@ -442,43 +449,57 @@ impl ContainerBundler {
         let bundle_dir = find_bundle_directory(&temp_target_dir, platform_str)?;
 
         // Collect artifact paths with proper error handling
-        runtime_config.verbose_println(&format!("Scanning for artifacts in: {}", bundle_dir.display()));
+        runtime_config.verbose_println(&format!(
+            "Scanning for artifacts in: {}",
+            bundle_dir.display()
+        ));
 
-        let entries = std::fs::read_dir(&bundle_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        let entries = std::fs::read_dir(&bundle_dir).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "read bundle directory".to_string(),
                 reason: format!("Failed to read {}: {}", bundle_dir.display(), e),
-            }))?;
+            })
+        })?;
 
         let mut artifacts = Vec::new();
         for entry in entries {
-            let entry = entry.map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "read directory entry".to_string(),
-                reason: format!("Failed to read entry in {}: {}", bundle_dir.display(), e),
-            }))?;
+            let entry = entry.map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "read directory entry".to_string(),
+                    reason: format!("Failed to read entry in {}: {}", bundle_dir.display(), e),
+                })
+            })?;
             let path = entry.path();
-            
+
             // Skip non-regular files (directories, symlinks)
-            let metadata = std::fs::symlink_metadata(&path).map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-                command: "read file metadata".to_string(),
-                reason: format!("Failed to read metadata for {}: {}", path.display(), e),
-            }))?;
+            let metadata = std::fs::symlink_metadata(&path).map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
+                    command: "read file metadata".to_string(),
+                    reason: format!("Failed to read metadata for {}: {}", path.display(), e),
+                })
+            })?;
             if !metadata.is_file() || metadata.is_symlink() {
-                runtime_config.verbose_println(&format!("  Skipping non-regular file: {}", path.display()));
+                runtime_config
+                    .verbose_println(&format!("  Skipping non-regular file: {}", path.display()));
                 continue;
             }
-            
+
             // Check minimum size
             if metadata.len() < 1024 {
-                runtime_config.verbose_println(&format!("  Skipping small file: {} ({} bytes)", path.display(), metadata.len()));
+                runtime_config.verbose_println(&format!(
+                    "  Skipping small file: {} ({} bytes)",
+                    path.display(),
+                    metadata.len()
+                ));
                 continue;
             }
-            
+
             // Validate file extension matches platform
-            let extension = path.extension()
+            let extension = path
+                .extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase());
-            
+
             let is_valid_artifact = match platform {
                 PackageType::Deb => extension.as_deref() == Some("deb"),
                 PackageType::Rpm => extension.as_deref() == Some("rpm"),
@@ -490,12 +511,15 @@ impl ContainerBundler {
                 PackageType::Dmg => extension.as_deref() == Some("dmg"),
                 PackageType::MacOsBundle => extension.as_deref() == Some("app"),
             };
-            
+
             if is_valid_artifact {
                 runtime_config.verbose_println(&format!("  ✓ Artifact: {}", path.display()));
                 artifacts.push(path);
             } else {
-                runtime_config.verbose_println(&format!("  Skipping non-artifact: {} (wrong extension)", path.display()));
+                runtime_config.verbose_println(&format!(
+                    "  Skipping non-artifact: {} (wrong extension)",
+                    path.display()
+                ));
             }
         }
 
@@ -506,19 +530,17 @@ impl ContainerBundler {
             let dir_contents = match std::fs::read_dir(&bundle_dir) {
                 Ok(entries) => {
                     let items: Vec<_> = entries
-                        .flatten()  // OK here since it's just diagnostic info
+                        .flatten() // OK here since it's just diagnostic info
                         .map(|e| {
                             let path = e.path();
-                            let name = path.file_name()
+                            let name = path
+                                .file_name()
                                 .and_then(|n| n.to_str())
                                 .unwrap_or("<unknown>");
                             if path.is_dir() {
                                 format!("  [DIR]  {}", name)
                             } else {
-                                let size = path.metadata()
-                                    .ok()
-                                    .map(|m| m.len())
-                                    .unwrap_or(0);
+                                let size = path.metadata().ok().map(|m| m.len()).unwrap_or(0);
                                 format!("  [FILE] {} ({} bytes)", name, size)
                             }
                         })
@@ -529,11 +551,9 @@ impl ContainerBundler {
                         Some(items.join("\n"))
                     }
                 }
-                Err(e) => {
-                    Some(format!("[Cannot read directory: {}]", e))
-                }
+                Err(e) => Some(format!("[Cannot read directory: {}]", e)),
             };
-            
+
             let reason = match dir_contents {
                 Some(contents) => format!(
                     "No artifact files found matching expected patterns in:\n\
@@ -567,7 +587,7 @@ impl ContainerBundler {
                     bundle_dir.display()
                 ),
             };
-            
+
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "find artifacts".to_string(),
                 reason,
@@ -579,7 +599,8 @@ impl ContainerBundler {
 
         // Atomically move artifacts from temp to final location
         // This is the ONLY point where race conditions could occur, but rename is atomic
-        let final_bundle_dir = self.workspace_path
+        let final_bundle_dir = self
+            .workspace_path
             .join("target")
             .join("release")
             .join("bundle")
@@ -592,25 +613,27 @@ impl ContainerBundler {
 
         // Ensure parent directory exists
         if let Some(parent) = final_bundle_dir.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
                     command: "create bundle parent directory".to_string(),
                     reason: format!("Failed to create {}: {}", parent.display(), e),
-                }))?;
+                })
+            })?;
         }
 
         // Remove old final directory if it exists (safe here because we have artifacts)
         if final_bundle_dir.exists() {
-            std::fs::remove_dir_all(&final_bundle_dir)
-                .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+            std::fs::remove_dir_all(&final_bundle_dir).map_err(|e| {
+                ReleaseError::Cli(CliError::ExecutionFailed {
                     command: "remove old bundle directory".to_string(),
                     reason: format!("Failed to remove {}: {}", final_bundle_dir.display(), e),
-                }))?;
+                })
+            })?;
         }
 
         // Atomic rename: only one process can succeed
-        std::fs::rename(&temp_bundle_dir, &final_bundle_dir)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        std::fs::rename(&temp_bundle_dir, &final_bundle_dir).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "move artifacts to final location".to_string(),
                 reason: format!(
                     "Failed to move {} to {}: {}\n\
@@ -619,7 +642,8 @@ impl ContainerBundler {
                     final_bundle_dir.display(),
                     e
                 ),
-            }))?;
+            })
+        })?;
 
         runtime_config.verbose_println(&format!(
             "Moved artifacts from temp to final location: {}",

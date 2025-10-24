@@ -167,9 +167,7 @@ async fn remove_wildcard_certificate_macos() -> Result<()> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         // Don't treat this as a fatal error since the certificate might not exist
-        warn!(
-            "Failed to remove certificate from macOS keychain (might not exist): {stderr}"
-        );
+        warn!("Failed to remove certificate from macOS keychain (might not exist): {stderr}");
     }
 
     Ok(())
@@ -331,18 +329,20 @@ fn get_installed_daemon_path() -> PathBuf {
 
 /// Create tar command arguments with proper path validation
 fn create_backup_args(backup_path: &Path, config_dir: &Path) -> Result<Vec<String>> {
-    let parent = config_dir.parent()
-        .ok_or_else(|| std::io::Error::new(
+    let parent = config_dir.parent().ok_or_else(|| {
+        std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Config directory has no parent"
-        ))?;
-    
-    let filename = config_dir.file_name()
-        .ok_or_else(|| std::io::Error::new(
+            "Config directory has no parent",
+        )
+    })?;
+
+    let filename = config_dir.file_name().ok_or_else(|| {
+        std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Config directory has no filename"
-        ))?;
-    
+            "Config directory has no filename",
+        )
+    })?;
+
     Ok(vec![
         "-czf".to_string(),
         backup_path.to_string_lossy().to_string(),
@@ -391,29 +391,29 @@ fn get_config_directory() -> PathBuf {
     {
         PathBuf::from("/usr/local/var/kodegen")
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         PathBuf::from("/var/lib/kodegen")
     }
-    
+
     #[cfg(target_os = "freebsd")]
     {
         PathBuf::from("/var/db/kodegen")
     }
-    
+
     #[cfg(target_os = "openbsd")]
     {
         PathBuf::from("/var/db/kodegen")
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         std::env::var("ProgramData")
             .map(|p| PathBuf::from(p).join("Kodegen"))
             .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData\\Kodegen"))
     }
-    
+
     #[cfg(not(any(
         target_os = "macos",
         target_os = "linux",
@@ -433,7 +433,7 @@ fn get_backup_directory() -> PathBuf {
         // Linux uses /var/backups per FHS convention
         PathBuf::from("/var/backups/kodegen")
     }
-    
+
     #[cfg(not(target_os = "linux"))]
     {
         // All other platforms: use subdirectory of data dir

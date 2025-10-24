@@ -163,24 +163,23 @@ pub enum Command {
         /// GitHub repository (format: owner/repo)
         #[arg(long, requires = "upload")]
         github_repo: Option<String>,
-        
+
         // === Docker Resource Limits ===
-        
         /// Maximum memory for Docker containers (e.g., "4g", "2048m")
         /// Default: Auto-detected (50% of system RAM, min 2GB, max 8GB)
         #[arg(long, value_name = "SIZE")]
         docker_memory: Option<String>,
-        
+
         /// Maximum memory + swap for Docker containers (e.g., "6g", "3072m")
         /// Default: docker_memory + 2GB
         #[arg(long, value_name = "SIZE")]
         docker_memory_swap: Option<String>,
-        
+
         /// Maximum CPUs for Docker containers (e.g., "2", "1.5")
         /// Default: Auto-detected (50% of system CPUs, minimum 2)
         #[arg(long, value_name = "COUNT")]
         docker_cpus: Option<String>,
-        
+
         /// Maximum processes in Docker containers
         /// Prevents fork bombs and runaway process creation
         #[arg(long, default_value = "1000", value_name = "COUNT")]
@@ -310,14 +309,14 @@ pub enum ResumePhase {
 
 impl TryFrom<BumpType> for VersionBump {
     type Error = String;
-    
+
     fn try_from(bump_type: BumpType) -> Result<Self, Self::Error> {
         match bump_type {
             BumpType::Major => Ok(VersionBump::Major),
             BumpType::Minor => Ok(VersionBump::Minor),
             BumpType::Patch => Ok(VersionBump::Patch),
             BumpType::Exact => Err(
-                "Exact version bump requires --version parameter (not yet implemented)".to_string()
+                "Exact version bump requires --version parameter (not yet implemented)".to_string(),
             ),
         }
     }
@@ -336,7 +335,8 @@ impl Args {
 
     /// Get state file path or default
     pub fn state_file_path(&self) -> PathBuf {
-        self.state_file.clone()
+        self.state_file
+            .clone()
             .unwrap_or_else(|| PathBuf::from(".cyrup_release_state.json"))
     }
 
@@ -360,27 +360,37 @@ impl Args {
         // Validate workspace path if provided
         if let Some(ref workspace) = self.workspace {
             if !workspace.exists() {
-                return Err(format!("Workspace path does not exist: {}", workspace.display()));
+                return Err(format!(
+                    "Workspace path does not exist: {}",
+                    workspace.display()
+                ));
             }
             if !workspace.is_dir() {
-                return Err(format!("Workspace path is not a directory: {}", workspace.display()));
+                return Err(format!(
+                    "Workspace path is not a directory: {}",
+                    workspace.display()
+                ));
             }
         }
 
         // Validate state file path if provided
         if let Some(ref state_file) = self.state_file
             && let Some(parent) = state_file.parent()
-            && !parent.exists() {
-                return Err(format!("State file directory does not exist: {}", parent.display()));
-            }
+            && !parent.exists()
+        {
+            return Err(format!(
+                "State file directory does not exist: {}",
+                parent.display()
+            ));
+        }
 
         // Validate command-specific arguments
         match &self.command {
-            Command::Release { 
-                package_delay, 
-                max_retries, 
+            Command::Release {
+                package_delay,
+                max_retries,
                 timeout,
-                .. 
+                ..
             } => {
                 if *package_delay > 3600 {
                     return Err("Package delay cannot exceed 1 hour (3600 seconds)".to_string());
@@ -397,9 +407,10 @@ impl Args {
             }
             Command::Cleanup { older_than, .. } => {
                 if let Some(days) = older_than
-                    && *days > 365 {
-                        return Err("Cleanup age cannot exceed 365 days".to_string());
-                    }
+                    && *days > 365
+                {
+                    return Err("Cleanup age cannot exceed 365 days".to_string());
+                }
             }
             _ => {}
         }
@@ -432,11 +443,11 @@ impl Command {
     pub fn is_modifying(&self) -> bool {
         matches!(
             self,
-            Command::Release { dry_run: false, .. } |
-            Command::Bundle { .. } |
-            Command::Rollback { .. } | 
-            Command::Resume { .. } |
-            Command::Validate { fix: true, .. }
+            Command::Release { dry_run: false, .. }
+                | Command::Bundle { .. }
+                | Command::Rollback { .. }
+                | Command::Resume { .. }
+                | Command::Validate { fix: true, .. }
         )
     }
 
@@ -444,8 +455,13 @@ impl Command {
     pub fn requires_validation(&self) -> bool {
         matches!(
             self,
-            Command::Release { skip_validation: false, .. } |
-            Command::Resume { skip_validation: false, .. }
+            Command::Release {
+                skip_validation: false,
+                ..
+            } | Command::Resume {
+                skip_validation: false,
+                ..
+            }
         )
     }
 }
@@ -506,10 +522,10 @@ impl From<&Args> for RuntimeConfig {
                 registry.clone(),
             ),
             _ => (
-                Duration::from_secs(15), // Default 15 seconds
-                3,                       // Default 3 retries
+                Duration::from_secs(15),  // Default 15 seconds
+                3,                        // Default 3 retries
                 Duration::from_secs(300), // Default 5 minutes
-                None,                    // Default registry
+                None,                     // Default registry
             ),
         };
 

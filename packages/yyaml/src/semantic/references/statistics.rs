@@ -76,7 +76,7 @@ pub struct MonitoringData {
 impl StatisticsCollector {
     /// Create new statistics collector with optimized settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             reference_stats: ReferenceStatistics::default(),
@@ -119,7 +119,7 @@ impl StatisticsCollector {
     }
 
     /// Generate comprehensive report
-    #[must_use] 
+    #[must_use]
     pub fn generate_report(&self) -> StatisticsReport {
         let uptime = self.collection_start_time.elapsed();
 
@@ -332,7 +332,7 @@ impl StatisticsCollector {
 
     /// Check if collection is due
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_collection_due(&self) -> bool {
         self.last_collection_time
             .elapsed()
@@ -342,19 +342,19 @@ impl StatisticsCollector {
 
     /// Get current statistics
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_reference_stats(&self) -> &ReferenceStatistics {
         &self.reference_stats
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_graph_stats(&self) -> &GraphStatistics {
         &self.graph_stats
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_performance_metrics(&self) -> &PerformanceMetrics {
         &self.performance_metrics
     }

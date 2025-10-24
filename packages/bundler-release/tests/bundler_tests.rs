@@ -20,13 +20,13 @@ mod tests {
     fn test_current_platform_types() {
         let types = PackageType::all_for_current_platform();
         assert!(!types.is_empty());
-        
+
         #[cfg(target_os = "linux")]
         assert!(types.contains(&PackageType::Deb));
-        
+
         #[cfg(target_os = "macos")]
         assert!(types.contains(&PackageType::MacOsBundle));
-        
+
         #[cfg(target_os = "windows")]
         assert!(types.contains(&PackageType::WindowsMsi));
     }

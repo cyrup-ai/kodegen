@@ -4,24 +4,23 @@ use anyhow::Context;
 use kodegen_mcp_client::responses::StartTerminalCommandResponse;
 use kodegen_mcp_client::tools;
 use serde_json::json;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     info!("Starting terminal tools example");
 
     // Connect to kodegen server with terminal category
-    let (conn, mut server) = common::connect_to_server_with_categories(
-        Some(vec![common::ToolCategory::Terminal])
-    ).await?;
+    let (conn, mut server) =
+        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Terminal]))
+            .await?;
 
     // Wrap client with logging
-    let log_path = std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/terminal.log");
+    let log_path =
+        std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/terminal.log");
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;
@@ -42,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
 async fn run_terminal_example(client: &common::LoggingClient) -> anyhow::Result<()> {
     // Track PIDs for cleanup
     let mut pids = Vec::new();
-    
+
     // Run all tests, capturing result
     let test_result = async {
         // 1. START_TERMINAL_COMMAND - Start an echo command
@@ -291,12 +290,12 @@ async fn run_terminal_example(client: &common::LoggingClient) -> anyhow::Result<
 
 async fn cleanup_terminal_processes(client: &common::LoggingClient, pids: &[i64]) {
     info!("\nCleaning up processes...");
-    
+
     for process_pid in pids {
-        match client.call_tool(
-            tools::STOP_TERMINAL_COMMAND,
-            json!({ "pid": process_pid })
-        ).await {
+        match client
+            .call_tool(tools::STOP_TERMINAL_COMMAND, json!({ "pid": process_pid }))
+            .await
+        {
             Ok(_) => info!("✅ Stopped process with PID: {}", process_pid),
             Err(e) => {
                 // Process may have already exited, which is fine

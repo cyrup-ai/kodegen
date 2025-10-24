@@ -46,23 +46,22 @@ use std::{
 /// ```
 pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
     log::info!("Creating DMG for {}", settings.product_name());
-    
+
     // Step 1: Find or create .app bundle
     let app_bundle_path = find_or_create_app_bundle(settings)?;
-    
+
     // Step 2: Prepare DMG output directory
     let output_dir = settings.project_out_directory().join("bundle/dmg");
-    std_fs::create_dir_all(&output_dir)
-        .fs_context("creating DMG output directory", &output_dir)?;
-    
+    std_fs::create_dir_all(&output_dir).fs_context("creating DMG output directory", &output_dir)?;
+
     // Step 3: Create DMG file
     let dmg_path = create_dmg(settings, &app_bundle_path, &output_dir)?;
-    
+
     // Step 4: Sign DMG if configured
     if should_sign_dmg(settings) {
         super::sign::sign_dmg(&dmg_path, settings)?;
     }
-    
+
     Ok(vec![dmg_path])
 }
 
@@ -81,23 +80,21 @@ fn find_or_create_app_bundle(settings: &Settings) -> Result<PathBuf> {
         .project_out_directory()
         .join("bundle/macos")
         .join(&app_name);
-    
+
     if expected_path.exists() && expected_path.is_dir() {
         log::debug!("Using existing .app bundle: {}", expected_path.display());
         return Ok(expected_path);
     }
-    
+
     // Create .app bundle using existing app bundler
     log::info!("Creating .app bundle for DMG...");
     use super::app;
     let paths = app::bundle_project(settings)?;
-    
+
     paths
         .into_iter()
         .next()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "Failed to create .app bundle".into()
-        ))
+        .ok_or_else(|| crate::bundler::Error::GenericError("Failed to create .app bundle".into()))
 }
 
 /// Create DMG from .app bundle using hdiutil
@@ -123,53 +120,52 @@ fn find_or_create_app_bundle(settings: &Settings) -> Result<PathBuf> {
 ///
 /// # Returns
 /// PathBuf to created DMG file
-fn create_dmg(
-    settings: &Settings,
-    app_bundle: &Path,
-    output_dir: &Path,
-) -> Result<PathBuf> {
+fn create_dmg(settings: &Settings, app_bundle: &Path, output_dir: &Path) -> Result<PathBuf> {
     let dmg_name = format!(
         "{}-{}.dmg",
         settings.product_name(),
         settings.version_string()
     );
     let dmg_path = output_dir.join(&dmg_name);
-    
+
     // Remove old DMG if exists
     if dmg_path.exists() {
-        std_fs::remove_file(&dmg_path)
-            .fs_context("removing old DMG file", &dmg_path)?;
+        std_fs::remove_file(&dmg_path).fs_context("removing old DMG file", &dmg_path)?;
     }
-    
+
     // Create temporary staging directory
-    let temp_dir = tempfile::tempdir()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to create temporary directory for DMG contents: {}", e)
-        ))?;
+    let temp_dir = tempfile::tempdir().map_err(|e| {
+        crate::bundler::Error::GenericError(format!(
+            "Failed to create temporary directory for DMG contents: {}",
+            e
+        ))
+    })?;
     let staging_path = temp_dir.path();
-    
+
     // Copy .app bundle to staging directory
     let app_name = app_bundle
         .file_name()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "Invalid app bundle path".into()
-        ))?;
+        .ok_or_else(|| crate::bundler::Error::GenericError("Invalid app bundle path".into()))?;
     let staged_app = staging_path.join(app_name);
-    
+
     log::debug!("Copying .app to staging: {}", staged_app.display());
-    fs::copy_dir(app_bundle, &staged_app)
-        .with_context(|| format!("copying .app bundle to staging directory: {}", staged_app.display()))?;
-    
+    fs::copy_dir(app_bundle, &staged_app).with_context(|| {
+        format!(
+            "copying .app bundle to staging directory: {}",
+            staged_app.display()
+        )
+    })?;
+
     // Task 12: Sign and notarize the .app bundle BEFORE creating the DMG
     // This ensures the .app inside the DMG is properly signed and notarized
     if settings.bundle_settings().macos.signing_identity.is_some() {
         super::sign::sign_app(&staged_app, settings)?;
     }
-    
+
     if super::sign::should_notarize(settings) {
         super::sign::notarize_app(&staged_app, settings)?;
     }
-    
+
     // Create Applications symlink for drag-to-install UX
     #[cfg(unix)]
     {
@@ -177,29 +173,29 @@ fn create_dmg(
         std::os::unix::fs::symlink("/Applications", &applications_link)
             .fs_context("creating Applications symlink", &applications_link)?;
     }
-    
+
     // Determine if customization is needed
     let dmg_settings = &settings.bundle_settings().dmg;
-    let needs_customization = dmg_settings.background.is_some() 
-        || dmg_settings.window_size.is_some();
+    let needs_customization =
+        dmg_settings.background.is_some() || dmg_settings.window_size.is_some();
 
     // Choose format: UDRW if customizing (so changes persist), UDZO if not
     let dmg_format = if needs_customization { "UDRW" } else { "UDZO" };
 
     log::info!("Creating DMG with format {}...", dmg_format);
-    
-    let staging_str = staging_path
-        .to_str()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "Invalid staging path (contains non-UTF8 characters)".into()
-        ))?;
-    
-    let dmg_str = dmg_path
-        .to_str()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "Invalid DMG path (contains non-UTF8 characters)".into()
-        ))?;
-    
+
+    let staging_str = staging_path.to_str().ok_or_else(|| {
+        crate::bundler::Error::GenericError(
+            "Invalid staging path (contains non-UTF8 characters)".into(),
+        )
+    })?;
+
+    let dmg_str = dmg_path.to_str().ok_or_else(|| {
+        crate::bundler::Error::GenericError(
+            "Invalid DMG path (contains non-UTF8 characters)".into(),
+        )
+    })?;
+
     let output = Command::new("hdiutil")
         .args([
             "create",
@@ -213,30 +209,31 @@ fn create_dmg(
             dmg_str,
         ])
         .output()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to execute hdiutil command: {}", e)
-        ))?;
-    
+        .map_err(|e| {
+            crate::bundler::Error::GenericError(format!("Failed to execute hdiutil command: {}", e))
+        })?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(crate::bundler::Error::GenericError(
-            format!("hdiutil failed: {}", stderr)
-        ));
+        return Err(crate::bundler::Error::GenericError(format!(
+            "hdiutil failed: {}",
+            stderr
+        )));
     }
-    
+
     log::info!("✓ Created {} DMG: {}", dmg_format, dmg_path.display());
-    
+
     // tempfile automatically cleans up staging directory
     drop(temp_dir);
-    
+
     // Apply customizations and convert to compressed format
     if needs_customization {
         apply_dmg_customizations(&dmg_path, settings)?;
-        
+
         // Convert UDRW to UDZO for final compressed DMG
         convert_dmg_to_compressed(&dmg_path)?;
     }
-    
+
     Ok(dmg_path)
 }
 
@@ -256,43 +253,39 @@ fn create_dmg(
 /// - The .DS_Store file persists these settings when DMG is unmounted
 fn apply_dmg_customizations(dmg_path: &Path, settings: &Settings) -> Result<()> {
     log::info!("Applying DMG customizations...");
-    
+
     let dmg_settings = &settings.bundle_settings().dmg;
-    
+
     // Step 1: Mount DMG in read-write mode
     let volume_name = settings.product_name();
     let mount_point = mount_dmg_rw(dmg_path, volume_name)?;
-    
+
     // Step 2: Copy background image if configured
     if let Some(bg_path) = &dmg_settings.background {
         let bg_dir = mount_point.join(".background");
-        std_fs::create_dir_all(&bg_dir)
-            .fs_context("creating .background directory", &bg_dir)?;
-        
-        let bg_filename = bg_path
-            .file_name()
-            .ok_or_else(|| crate::bundler::Error::GenericError(
-                "Invalid background image path".into()
-            ))?;
-        
+        std_fs::create_dir_all(&bg_dir).fs_context("creating .background directory", &bg_dir)?;
+
+        let bg_filename = bg_path.file_name().ok_or_else(|| {
+            crate::bundler::Error::GenericError("Invalid background image path".into())
+        })?;
+
         let dest_bg = bg_dir.join(bg_filename);
-        std_fs::copy(bg_path, &dest_bg)
-            .fs_context("copying background image", &dest_bg)?;
-        
+        std_fs::copy(bg_path, &dest_bg).fs_context("copying background image", &dest_bg)?;
+
         log::debug!("Copied background image to {}", dest_bg.display());
     }
-    
+
     // Step 3: Run AppleScript to customize window
     let window_size = dmg_settings.window_size.unwrap_or((600, 400));
     let has_background = dmg_settings.background.is_some();
-    
+
     run_dmg_applescript(volume_name, settings, window_size, has_background)?;
-    
+
     // Step 4: Detach DMG
     detach_dmg(volume_name)?;
-    
+
     log::info!("✓ DMG customizations applied");
-    
+
     Ok(())
 }
 
@@ -301,30 +294,27 @@ fn apply_dmg_customizations(dmg_path: &Path, settings: &Settings) -> Result<()> 
 /// Returns the mount point path
 fn mount_dmg_rw(dmg_path: &Path, volume_name: &str) -> Result<PathBuf> {
     log::debug!("Mounting DMG for customization...");
-    
-    let dmg_str = dmg_path
-        .to_str()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "DMG path contains non-UTF8 characters".into()
-        ))?;
-    
+
+    let dmg_str = dmg_path.to_str().ok_or_else(|| {
+        crate::bundler::Error::GenericError("DMG path contains non-UTF8 characters".into())
+    })?;
+
     let output = Command::new("hdiutil")
         .args(["attach", dmg_str, "-readwrite", "-noverify", "-nobrowse"])
         .output()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to mount DMG: {}", e)
-        ))?;
-    
+        .map_err(|e| crate::bundler::Error::GenericError(format!("Failed to mount DMG: {}", e)))?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(crate::bundler::Error::GenericError(
-            format!("Failed to mount DMG: {}", stderr)
-        ));
+        return Err(crate::bundler::Error::GenericError(format!(
+            "Failed to mount DMG: {}",
+            stderr
+        )));
     }
-    
+
     // Mount point is /Volumes/{volume_name}
     let mount_point = PathBuf::from(format!("/Volumes/{}", volume_name));
-    
+
     // Wait for mount to be ready
     let max_retries = 10;
     for i in 0..max_retries {
@@ -334,12 +324,13 @@ fn mount_dmg_rw(dmg_path: &Path, volume_name: &str) -> Result<PathBuf> {
         }
         std::thread::sleep(std::time::Duration::from_millis(500));
         if i == max_retries - 1 {
-            return Err(crate::bundler::Error::GenericError(
-                format!("DMG mount point not found after {} retries", max_retries)
-            ));
+            return Err(crate::bundler::Error::GenericError(format!(
+                "DMG mount point not found after {} retries",
+                max_retries
+            )));
         }
     }
-    
+
     Ok(mount_point)
 }
 
@@ -357,8 +348,7 @@ fn mount_dmg_rw(dmg_path: &Path, volume_name: &str) -> Result<PathBuf> {
 /// assert_eq!(escape_applescript_string("Path\\File"), "Path\\\\File");
 /// ```
 fn escape_applescript_string(s: &str) -> String {
-    s.replace('\\', r"\\")
-     .replace('"', r#"\""#)
+    s.replace('\\', r"\\").replace('"', r#"\""#)
 }
 
 /// Run AppleScript to customize DMG window appearance
@@ -369,17 +359,18 @@ fn run_dmg_applescript(
     has_background: bool,
 ) -> Result<()> {
     log::debug!("Running AppleScript to customize DMG window...");
-    
+
     let app_name = format!("{}.app", settings.product_name());
     let (width, height) = window_size;
-    
+
     // Escape strings for safe AppleScript interpolation
     let escaped_volume = escape_applescript_string(volume_name);
     let escaped_app = escape_applescript_string(&app_name);
-    
+
     // Extract and escape background filename
     let escaped_bg_filename = if has_background {
-        let bg_filename = settings.bundle_settings()
+        let bg_filename = settings
+            .bundle_settings()
             .dmg
             .background
             .as_ref()
@@ -390,7 +381,7 @@ fn run_dmg_applescript(
     } else {
         String::new()
     };
-    
+
     // Build AppleScript (use escaped variables)
     let script = format!(
         r#"
@@ -427,40 +418,38 @@ fn run_dmg_applescript(
             String::new()
         }
     );
-    
+
     let output = Command::new("osascript")
         .arg("-e")
         .arg(&script)
         .output()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to run AppleScript: {}", e)
-        ))?;
-    
+        .map_err(|e| {
+            crate::bundler::Error::GenericError(format!("Failed to run AppleScript: {}", e))
+        })?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         log::warn!("AppleScript execution had issues: {}", stderr);
         // Don't fail - appearance customization is non-critical
     }
-    
+
     Ok(())
 }
 
 /// Detach (unmount) DMG
 fn detach_dmg(volume_name: &str) -> Result<()> {
     log::debug!("Detaching DMG...");
-    
+
     let mount_point = format!("/Volumes/{}", volume_name);
-    
+
     // Wait for .DS_Store to be written
     std::thread::sleep(std::time::Duration::from_secs(2));
-    
+
     let output = Command::new("hdiutil")
         .args(["detach", &mount_point])
         .output()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to detach DMG: {}", e)
-        ))?;
-    
+        .map_err(|e| crate::bundler::Error::GenericError(format!("Failed to detach DMG: {}", e)))?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         log::warn!("DMG detach had issues: {}", stderr);
@@ -470,7 +459,7 @@ fn detach_dmg(volume_name: &str) -> Result<()> {
             .output()
             .ok();
     }
-    
+
     Ok(())
 }
 
@@ -492,51 +481,42 @@ fn detach_dmg(volume_name: &str) -> Result<()> {
 /// UDRW → customize → detach → convert to UDZO.
 fn convert_dmg_to_compressed(dmg_path: &Path) -> Result<()> {
     log::info!("Converting DMG to compressed format...");
-    
-    let dmg_str = dmg_path
-        .to_str()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "DMG path contains non-UTF8 characters".into()
-        ))?;
-    
+
+    let dmg_str = dmg_path.to_str().ok_or_else(|| {
+        crate::bundler::Error::GenericError("DMG path contains non-UTF8 characters".into())
+    })?;
+
     // Create temporary path for compressed DMG
     let compressed_path = dmg_path.with_extension("dmg.compressed");
-    let compressed_str = compressed_path
-        .to_str()
-        .ok_or_else(|| crate::bundler::Error::GenericError(
-            "Compressed DMG path contains non-UTF8 characters".into()
-        ))?;
-    
+    let compressed_str = compressed_path.to_str().ok_or_else(|| {
+        crate::bundler::Error::GenericError(
+            "Compressed DMG path contains non-UTF8 characters".into(),
+        )
+    })?;
+
     // Convert UDRW → UDZO
     let output = Command::new("hdiutil")
-        .args([
-            "convert",
-            dmg_str,
-            "-format",
-            "UDZO",
-            "-o",
-            compressed_str,
-        ])
+        .args(["convert", dmg_str, "-format", "UDZO", "-o", compressed_str])
         .output()
-        .map_err(|e| crate::bundler::Error::GenericError(
-            format!("Failed to convert DMG: {}", e)
-        ))?;
-    
+        .map_err(|e| {
+            crate::bundler::Error::GenericError(format!("Failed to convert DMG: {}", e))
+        })?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(crate::bundler::Error::GenericError(
-            format!("DMG conversion failed: {}", stderr)
-        ));
+        return Err(crate::bundler::Error::GenericError(format!(
+            "DMG conversion failed: {}",
+            stderr
+        )));
     }
-    
+
     // Replace UDRW with UDZO
-    std_fs::remove_file(dmg_path)
-        .fs_context("removing UDRW DMG", dmg_path)?;
+    std_fs::remove_file(dmg_path).fs_context("removing UDRW DMG", dmg_path)?;
     std_fs::rename(&compressed_path, dmg_path)
         .fs_context("renaming compressed DMG", &compressed_path)?;
-    
+
     log::info!("✓ DMG converted to compressed UDZO format");
-    
+
     Ok(())
 }
 

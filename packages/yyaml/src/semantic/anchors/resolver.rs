@@ -22,7 +22,7 @@ pub struct AnchorResolver<'input> {
 impl<'input> AnchorResolver<'input> {
     /// Create new anchor resolver with optimized configuration
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             anchor_registry: AnchorRegistry::new(),
@@ -33,7 +33,7 @@ impl<'input> AnchorResolver<'input> {
     }
 
     /// Create anchor resolver with custom configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: &crate::semantic::SemanticConfig<'input>) -> Self {
         let initial_capacity = if config.cycle_detection_enabled {
             64
@@ -216,28 +216,28 @@ impl<'input> AnchorResolver<'input> {
 
     /// Get anchor registry for external access
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn registry(&self) -> &AnchorRegistry<'input> {
         &self.anchor_registry
     }
 
     /// Get number of registered anchors
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn anchor_count(&self) -> usize {
         self.anchor_registry.len()
     }
 
     /// Get number of resolved anchors
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn resolved_count(&self) -> usize {
         self.anchor_registry.len() // All registered anchors are considered resolved
     }
 
     /// Get alias resolution count
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn alias_count(&self) -> usize {
         self.alias_resolution_count
     }
@@ -295,7 +295,7 @@ impl<'input> AnchorResolver<'input> {
     }
 
     /// Check if node contains potential circular references
-    #[must_use] 
+    #[must_use]
     pub fn contains_potential_cycles(&self, node: &Node<'input>, anchor_name: &str) -> bool {
         match node {
             Node::Alias(alias_node) => {
@@ -333,7 +333,7 @@ impl<'input> AnchorResolver<'input> {
     }
 
     /// Get cache statistics
-    #[must_use] 
+    #[must_use]
     pub fn cache_statistics(&self) -> CacheStatistics {
         let total_accesses: usize = self
             .resolution_cache

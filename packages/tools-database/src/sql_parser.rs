@@ -40,9 +40,12 @@ fn get_dialect(db_type: DatabaseType) -> Box<dyn Dialect> {
 /// Returns `DatabaseError::QueryError` if:
 /// - SQL contains unterminated string literals
 /// - SQL has invalid syntax that prevents parsing
-pub fn split_sql_statements(sql: &str, db_type: DatabaseType) -> Result<Vec<String>, DatabaseError> {
+pub fn split_sql_statements(
+    sql: &str,
+    db_type: DatabaseType,
+) -> Result<Vec<String>, DatabaseError> {
     let dialect = get_dialect(db_type);
-    
+
     Parser::parse_sql(&*dialect, sql)
         .map(|stmts| stmts.iter().map(|s| s.to_string()).collect())
         .map_err(|e| DatabaseError::QueryError(format!("SQL parse error: {}", e)))
@@ -87,16 +90,20 @@ pub fn split_sql_statements(sql: &str, db_type: DatabaseType) -> Result<Vec<Stri
 pub fn strip_comments(sql: &str, db_type: DatabaseType) -> String {
     let dialect = get_dialect(db_type);
     let mut tokenizer = Tokenizer::new(&*dialect, sql);
-    
+
     match tokenizer.tokenize() {
         Ok(tokens) => {
             // Filter out comment tokens (which are represented as Whitespace variants)
             // Keep other whitespace (space, tab, newline) but remove comments
-            tokens.iter()
-                .filter(|token| !matches!(token, 
-                    Token::Whitespace(Whitespace::SingleLineComment { .. }) |
-                    Token::Whitespace(Whitespace::MultiLineComment(_))
-                ))
+            tokens
+                .iter()
+                .filter(|token| {
+                    !matches!(
+                        token,
+                        Token::Whitespace(Whitespace::SingleLineComment { .. })
+                            | Token::Whitespace(Whitespace::MultiLineComment(_))
+                    )
+                })
                 .map(|token| token.to_string())
                 .collect::<Vec<_>>()
                 .join("")
@@ -199,8 +206,11 @@ mod tests {
         let sql = "SELECT $$ -- not a comment $$ FROM t";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // The -- inside dollar quotes should be preserved
-        assert!(cleaned.contains("-- not a comment"), 
-                "Dollar-quoted string should preserve comment-like text, got: {}", cleaned);
+        assert!(
+            cleaned.contains("-- not a comment"),
+            "Dollar-quoted string should preserve comment-like text, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -208,8 +218,11 @@ mod tests {
         let sql = "SELECT $tag$ /* not a comment */ $tag$ FROM t";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // The /* */ inside tagged dollar quotes should be preserved
-        assert!(cleaned.contains("/* not a comment */"),
-                "Tagged dollar-quoted string should preserve comment markers, got: {}", cleaned);
+        assert!(
+            cleaned.contains("/* not a comment */"),
+            "Tagged dollar-quoted string should preserve comment markers, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -217,10 +230,16 @@ mod tests {
         let sql = "SELECT $$ text $$ FROM t -- Real comment";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Real comment after dollar quotes should be stripped
-        assert!(!cleaned.contains("Real comment"),
-                "Real comment after dollar quotes should be stripped, got: {}", cleaned);
-        assert!(cleaned.contains("text"),
-                "Dollar-quoted text should be preserved, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("Real comment"),
+            "Real comment after dollar quotes should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            cleaned.contains("text"),
+            "Dollar-quoted text should be preserved, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -228,11 +247,17 @@ mod tests {
         let sql = "SELECT [column--name] FROM table -- This comment should be stripped";
         let cleaned = strip_comments(sql, DatabaseType::SqlServer);
         // The -- inside brackets should be preserved
-        assert!(cleaned.contains("[column--name]") || cleaned.contains("column--name"),
-                "Bracket identifier should preserve comment-like text, got: {}", cleaned);
+        assert!(
+            cleaned.contains("[column--name]") || cleaned.contains("column--name"),
+            "Bracket identifier should preserve comment-like text, got: {}",
+            cleaned
+        );
         // Real comment should be stripped
-        assert!(!cleaned.contains("This comment should be stripped"),
-                "Real comment should be stripped, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("This comment should be stripped"),
+            "Real comment should be stripped, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -240,11 +265,17 @@ mod tests {
         let sql = "SELECT `column--name` FROM table -- Real comment";
         let cleaned = strip_comments(sql, DatabaseType::MySQL);
         // The -- inside backticks should be preserved
-        assert!(cleaned.contains("`column--name`") || cleaned.contains("column--name"),
-                "Backtick identifier should preserve comment-like text, got: {}", cleaned);
+        assert!(
+            cleaned.contains("`column--name`") || cleaned.contains("column--name"),
+            "Backtick identifier should preserve comment-like text, got: {}",
+            cleaned
+        );
         // Real comment should be stripped
-        assert!(!cleaned.contains("Real comment"),
-                "Real comment should be stripped, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("Real comment"),
+            "Real comment should be stripped, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -252,11 +283,18 @@ mod tests {
         let sql = "SELECT `column/* test */name` FROM t /* comment */";
         let cleaned = strip_comments(sql, DatabaseType::MySQL);
         // Block comment markers inside backticks should be preserved
-        assert!(cleaned.contains("/* test */") || cleaned.contains("column") && cleaned.contains("name"),
-                "Backtick identifier should preserve block comment markers, got: {}", cleaned);
+        assert!(
+            cleaned.contains("/* test */")
+                || cleaned.contains("column") && cleaned.contains("name"),
+            "Backtick identifier should preserve block comment markers, got: {}",
+            cleaned
+        );
         // Real block comment should be stripped
-        assert!(!cleaned.contains("comment */") || cleaned.contains("`column/* test */name`"),
-                "Real block comment should be stripped or be inside backticks, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("comment */") || cleaned.contains("`column/* test */name`"),
+            "Real block comment should be stripped or be inside backticks, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -264,8 +302,11 @@ mod tests {
         let sql = "SELECT E'Line 1\\n-- Not a comment' FROM t";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // The -- inside escape string should be preserved
-        assert!(cleaned.contains("-- Not a comment"),
-                "Escape string should preserve comment-like text, got: {}", cleaned);
+        assert!(
+            cleaned.contains("-- Not a comment"),
+            "Escape string should preserve comment-like text, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -273,10 +314,16 @@ mod tests {
         let sql = "SELECT E'text\\n' FROM t -- Real comment";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Real comment should be stripped
-        assert!(!cleaned.contains("Real comment"),
-                "Real comment after escape string should be stripped, got: {}", cleaned);
-        assert!(cleaned.contains("text") || cleaned.contains("E'"),
-                "Escape string should be preserved, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("Real comment"),
+            "Real comment after escape string should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            cleaned.contains("text") || cleaned.contains("E'"),
+            "Escape string should be preserved, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -284,14 +331,26 @@ mod tests {
         let sql = "/* outer /* inner */ still comment */ SELECT 1";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // PostgreSQL supports nested comments - all should be stripped
-        assert!(!cleaned.contains("outer"),
-                "Nested comments should be fully stripped, got: {}", cleaned);
-        assert!(!cleaned.contains("inner"),
-                "Inner nested comment should be stripped, got: {}", cleaned);
-        assert!(!cleaned.contains("still comment"),
-                "Outer comment continuation should be stripped, got: {}", cleaned);
-        assert!(cleaned.contains("SELECT") || cleaned.contains("select"),
-                "SQL statement should be preserved, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("outer"),
+            "Nested comments should be fully stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            !cleaned.contains("inner"),
+            "Inner nested comment should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            !cleaned.contains("still comment"),
+            "Outer comment continuation should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            cleaned.contains("SELECT") || cleaned.contains("select"),
+            "SQL statement should be preserved, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -299,10 +358,16 @@ mod tests {
         let sql = "-- コメント (Japanese comment)\nSELECT 1";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Unicode comment should be stripped
-        assert!(!cleaned.contains("コメント"),
-                "Unicode comment should be stripped, got: {}", cleaned);
-        assert!(cleaned.contains("SELECT") || cleaned.contains("select"),
-                "SQL statement should be preserved, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("コメント"),
+            "Unicode comment should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            cleaned.contains("SELECT") || cleaned.contains("select"),
+            "SQL statement should be preserved, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -310,10 +375,16 @@ mod tests {
         let sql = "/* 注释 中文 */ SELECT 1";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Unicode block comment should be stripped
-        assert!(!cleaned.contains("注释"),
-                "Unicode block comment should be stripped, got: {}", cleaned);
-        assert!(cleaned.contains("SELECT") || cleaned.contains("select"),
-                "SQL statement should be preserved, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("注释"),
+            "Unicode block comment should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            cleaned.contains("SELECT") || cleaned.contains("select"),
+            "SQL statement should be preserved, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -321,11 +392,17 @@ mod tests {
         let sql = "SELECT '日本語テキスト' FROM t -- comment";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Unicode in strings should be preserved
-        assert!(cleaned.contains("日本語テキスト"),
-                "Unicode in strings should be preserved, got: {}", cleaned);
+        assert!(
+            cleaned.contains("日本語テキスト"),
+            "Unicode in strings should be preserved, got: {}",
+            cleaned
+        );
         // Comment should be stripped
-        assert!(!cleaned.contains("comment"),
-                "Comment should be stripped, got: {}", cleaned);
+        assert!(
+            !cleaned.contains("comment"),
+            "Comment should be stripped, got: {}",
+            cleaned
+        );
     }
 
     #[test]
@@ -334,15 +411,27 @@ mod tests {
         let sql = "SELECT $$ /* not comment */ $$ as col, E'-- also not' -- real comment\n/* block */ FROM [table--name]";
         let cleaned = strip_comments(sql, DatabaseType::Postgres);
         // Dollar-quoted block comment marker should be preserved
-        assert!(cleaned.contains("/* not comment */"),
-                "Dollar-quoted block comment marker should be preserved, got: {}", cleaned);
+        assert!(
+            cleaned.contains("/* not comment */"),
+            "Dollar-quoted block comment marker should be preserved, got: {}",
+            cleaned
+        );
         // Escape string comment marker should be preserved
-        assert!(cleaned.contains("-- also not"),
-                "Escape string comment marker should be preserved, got: {}", cleaned);
+        assert!(
+            cleaned.contains("-- also not"),
+            "Escape string comment marker should be preserved, got: {}",
+            cleaned
+        );
         // Real comments should be stripped
-        assert!(!cleaned.contains("real comment"),
-                "Real comment should be stripped, got: {}", cleaned);
-        assert!(!cleaned.contains("block */") || cleaned.contains("/* not comment */"),
-                "Block comment should be stripped (unless it's the preserved one), got: {}", cleaned);
+        assert!(
+            !cleaned.contains("real comment"),
+            "Real comment should be stripped, got: {}",
+            cleaned
+        );
+        assert!(
+            !cleaned.contains("block */") || cleaned.contains("/* not comment */"),
+            "Block comment should be stripped (unless it's the preserved one), got: {}",
+            cleaned
+        );
     }
 }

@@ -29,7 +29,7 @@
 //! The [`freedesktop`] module provides FreeDesktop.org specification support
 //! for `.desktop` files, icons, and MIME types.
 
-pub mod debian;
-pub mod rpm;
 pub mod appimage;
+pub mod debian;
 pub mod freedesktop;
+pub mod rpm;

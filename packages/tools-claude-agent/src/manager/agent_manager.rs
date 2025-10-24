@@ -3,27 +3,25 @@
 //! Provides concurrent session management with circular message buffering, working status
 //! detection, and automatic cleanup of completed sessions.
 
+use chrono::Utc;
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, mpsc, oneshot};
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::client::ClaudeSDKClient;
 use crate::error::{ClaudeError, Result};
-use crate::types::agent::{
-    AgentInfo, GetOutputResponse, ListSessionsResponse, TerminateResponse,
-};
+use crate::types::agent::SystemPrompt;
+use crate::types::agent::{AgentInfo, GetOutputResponse, ListSessionsResponse, TerminateResponse};
 use crate::types::identifiers::ToolName;
 use crate::types::options::ClaudeAgentOptions;
-use crate::types::agent::SystemPrompt;
 
+use super::background::{CollectorContext, spawn_message_collector};
 use super::commands::SessionCommand;
-use super::session::{AgentSessionInfo, CompletedAgentSession};
-use super::background::{spawn_message_collector, CollectorContext};
 use super::helpers::extract_last_output_lines;
+use super::session::{AgentSessionInfo, CompletedAgentSession};
 
 // ============================================================================
 // CONSTANTS
@@ -84,28 +82,32 @@ pub struct AgentManager {
 
 impl AgentManager {
     /// Create a new `AgentManager` with background cleanup task
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
-        let active: Arc<Mutex<HashMap<String, AgentSessionInfo>>> = Arc::new(Mutex::new(HashMap::new()));
-        let completed: Arc<Mutex<HashMap<String, CompletedAgentSession>>> = Arc::new(Mutex::new(HashMap::new()));
-        
+        let active: Arc<Mutex<HashMap<String, AgentSessionInfo>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        let completed: Arc<Mutex<HashMap<String, CompletedAgentSession>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+
         // Spawn cleanup background task
         let completed_clone = Arc::clone(&completed);
         let cleanup_handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(CLEANUP_INTERVAL_SECS)).await;
-                
+
                 let mut sessions = completed_clone.lock().await;
                 let now = Utc::now();
-                
+
                 // Remove sessions older than retention period
                 sessions.retain(|_id, session| {
-                    let age_ms = now.signed_duration_since(session.completed_at).num_milliseconds() as u64;
+                    let age_ms = now
+                        .signed_duration_since(session.completed_at)
+                        .num_milliseconds() as u64;
                     age_ms < COMPLETED_RETENTION_MS
                 });
             }
         });
-        
+
         Self {
             active_sessions: active,
             completed_sessions: completed,
@@ -141,8 +143,16 @@ impl AgentManager {
 
         // Build ClaudeAgentOptions
         let options = ClaudeAgentOptions {
-            allowed_tools: request.allowed_tools.into_iter().map(ToolName::from).collect(),
-            disallowed_tools: request.disallowed_tools.into_iter().map(ToolName::from).collect(),
+            allowed_tools: request
+                .allowed_tools
+                .into_iter()
+                .map(ToolName::from)
+                .collect(),
+            disallowed_tools: request
+                .disallowed_tools
+                .into_iter()
+                .map(ToolName::from)
+                .collect(),
             system_prompt: request.system_prompt.map(SystemPrompt::from),
             max_turns: Some(request.max_turns),
             model: request.model,
@@ -156,16 +166,16 @@ impl AgentManager {
 
         // Send initial prompt
         client.send_message(&request.prompt).await?;
-        
+
         // Create command channel
         let (command_tx, command_rx) = mpsc::unbounded_channel();
-        
+
         // Create shared state for background task
         let messages_arc = Arc::new(Mutex::new(VecDeque::with_capacity(1000)));
         let last_message_arc = Arc::new(Mutex::new(Instant::now()));
         let turn_count_arc = Arc::new(Mutex::new(0));
         let is_complete_arc = Arc::new(Mutex::new(false));
-        
+
         // Create session info
         let session_info = AgentSessionInfo {
             session_id: session_id.clone(),
@@ -178,10 +188,13 @@ impl AgentManager {
             max_turns: request.max_turns,
             is_complete: Arc::clone(&is_complete_arc),
         };
-        
+
         // Store in active sessions
-        self.active_sessions.lock().await.insert(session_id.clone(), session_info);
-        
+        self.active_sessions
+            .lock()
+            .await
+            .insert(session_id.clone(), session_info);
+
         // Spawn background message collector
         let ctx = CollectorContext {
             messages: messages_arc,
@@ -192,7 +205,7 @@ impl AgentManager {
             session_id: session_id.clone(),
         };
         spawn_message_collector(client, command_rx, ctx);
-        
+
         Ok(session_id)
     }
 
@@ -210,7 +223,7 @@ impl AgentManager {
             let messages = session.messages.lock().await;
             let message_count = messages.len();
             let last_output = extract_last_output_lines(&messages, 3);
-            
+
             // Calculate working status
             let working = if is_complete {
                 false
@@ -219,7 +232,7 @@ impl AgentManager {
                 let elapsed_ms = last_msg_time.elapsed().as_millis() as u64;
                 elapsed_ms < WORKING_THRESHOLD_MS
             };
-            
+
             return Ok(AgentInfo {
                 session_id: session.session_id.clone(),
                 label: session.label.clone(),
@@ -234,12 +247,12 @@ impl AgentManager {
             });
         }
         drop(active);
-        
+
         // Check completed sessions
         let completed = self.completed_sessions.lock().await;
         if let Some(session) = completed.get(session_id) {
             let last_output = extract_last_output_lines(&session.messages, 3);
-            
+
             return Ok(AgentInfo {
                 session_id: session.session_id.clone(),
                 label: session.label.clone(),
@@ -253,7 +266,7 @@ impl AgentManager {
                 completion_time: Some(session.completed_at),
             });
         }
-        
+
         Err(ClaudeError::SessionNotFound(session_id.to_string()))
     }
 
@@ -277,7 +290,7 @@ impl AgentManager {
             let turn_count = *session.turn_count.lock().await;
             let is_complete = *session.is_complete.lock().await;
             let max_turns = session.max_turns;
-            
+
             // Calculate working status
             let working = if is_complete {
                 false
@@ -286,13 +299,13 @@ impl AgentManager {
                 let elapsed_ms = last_msg_time.elapsed().as_millis() as u64;
                 elapsed_ms < WORKING_THRESHOLD_MS
             };
-            
+
             // Handle pagination
             let output = paginate_messages(&messages, offset, length);
             let total_messages = messages.len();
             let messages_returned = output.len();
             let has_more = calculate_has_more(offset, messages_returned, total_messages);
-            
+
             return Ok(GetOutputResponse {
                 session_id: session_id.to_string(),
                 working,
@@ -306,7 +319,7 @@ impl AgentManager {
             });
         }
         drop(active);
-        
+
         // Try completed sessions
         let completed = self.completed_sessions.lock().await;
         if let Some(session) = completed.get(session_id) {
@@ -314,7 +327,7 @@ impl AgentManager {
             let total_messages = session.messages.len();
             let messages_returned = output.len();
             let has_more = calculate_has_more(offset, messages_returned, total_messages);
-            
+
             return Ok(GetOutputResponse {
                 session_id: session_id.to_string(),
                 working: false,
@@ -327,7 +340,7 @@ impl AgentManager {
                 has_more,
             });
         }
-        
+
         Err(ClaudeError::SessionNotFound(session_id.to_string()))
     }
 
@@ -341,10 +354,10 @@ impl AgentManager {
             if *session.is_complete.lock().await {
                 return Ok(false);
             }
-            
+
             let last_msg_time = *session.last_message_at.lock().await;
             let elapsed_ms = last_msg_time.elapsed().as_millis() as u64;
-            
+
             Ok(elapsed_ms < WORKING_THRESHOLD_MS)
         } else {
             Ok(false)
@@ -356,29 +369,33 @@ impl AgentManager {
     /// Only works for active, non-completed sessions that haven't reached `max_turns`.
     pub async fn send_message(&self, session_id: &str, prompt: &str) -> Result<()> {
         let active = self.active_sessions.lock().await;
-        let session = active.get(session_id)
+        let session = active
+            .get(session_id)
             .ok_or_else(|| ClaudeError::SessionNotFound(session_id.to_string()))?;
-        
+
         if *session.is_complete.lock().await {
             return Err(ClaudeError::SessionComplete(session_id.to_string()));
         }
-        
+
         if *session.turn_count.lock().await >= session.max_turns {
             return Err(ClaudeError::SessionComplete(session_id.to_string()));
         }
-        
+
         let (response_tx, response_rx) = oneshot::channel();
         let cmd = SessionCommand::SendMessage {
             prompt: prompt.to_string(),
             response_tx,
         };
-        
-        session.command_tx.send(cmd)
+
+        session
+            .command_tx
+            .send(cmd)
             .map_err(|_| ClaudeError::SessionComplete(session_id.to_string()))?;
-        
-        response_rx.await
+
+        response_rx
+            .await
             .map_err(|_| ClaudeError::SessionComplete(session_id.to_string()))??;
-        
+
         Ok(())
     }
 
@@ -388,22 +405,23 @@ impl AgentManager {
     /// final statistics. The session will be retained for `COMPLETED_RETENTION_MS` before cleanup.
     pub async fn terminate_session(&self, session_id: &str) -> Result<TerminateResponse> {
         let mut active = self.active_sessions.lock().await;
-        let session = active.remove(session_id)
+        let session = active
+            .remove(session_id)
             .ok_or_else(|| ClaudeError::SessionNotFound(session_id.to_string()))?;
         drop(active);
-        
+
         let (response_tx, response_rx) = oneshot::channel();
         let cmd = SessionCommand::Shutdown { response_tx };
-        
+
         if session.command_tx.send(cmd).is_ok() {
             let _ = response_rx.await;
         }
-        
+
         let runtime_ms = session.created_at.elapsed().as_millis() as u64;
         let messages = session.messages.lock().await;
         let total_messages = messages.len();
         let final_turn_count = *session.turn_count.lock().await;
-        
+
         let completed = CompletedAgentSession {
             session_id: session.session_id.clone(),
             label: session.label.clone(),
@@ -412,10 +430,12 @@ impl AgentManager {
             runtime_ms,
             completed_at: Utc::now(),
         };
-        
-        self.completed_sessions.lock().await
+
+        self.completed_sessions
+            .lock()
+            .await
             .insert(session_id.to_string(), completed);
-        
+
         Ok(TerminateResponse {
             session_id: session_id.to_string(),
             success: true,
@@ -435,7 +455,7 @@ impl AgentManager {
         last_output_lines: usize,
     ) -> Result<ListSessionsResponse> {
         let mut agents = Vec::new();
-        
+
         // Collect active sessions
         let active = self.active_sessions.lock().await;
         for (_, session) in active.iter() {
@@ -445,7 +465,7 @@ impl AgentManager {
             let messages = session.messages.lock().await;
             let message_count = messages.len();
             let last_output = extract_last_output_lines(&messages, last_output_lines);
-            
+
             let working = if is_complete {
                 false
             } else {
@@ -453,7 +473,7 @@ impl AgentManager {
                 let elapsed_ms = last_msg_time.elapsed().as_millis() as u64;
                 elapsed_ms < WORKING_THRESHOLD_MS
             };
-            
+
             agents.push(AgentInfo {
                 session_id: session.session_id.clone(),
                 label: session.label.clone(),
@@ -467,19 +487,19 @@ impl AgentManager {
                 completion_time: None,
             });
         }
-        
+
         let total_active = agents.len();
         drop(active);
-        
+
         // Collect completed sessions if requested
         let mut total_completed = 0;
         if include_completed {
             let completed = self.completed_sessions.lock().await;
             total_completed = completed.len();
-            
+
             for (_, session) in completed.iter() {
                 let last_output = extract_last_output_lines(&session.messages, last_output_lines);
-                
+
                 agents.push(AgentInfo {
                     session_id: session.session_id.clone(),
                     label: session.label.clone(),
@@ -494,15 +514,13 @@ impl AgentManager {
                 });
             }
         }
-        
-        agents.sort_by(|a, b| {
-            match (a.working, b.working) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => b.runtime_ms.cmp(&a.runtime_ms),
-            }
+
+        agents.sort_by(|a, b| match (a.working, b.working) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b.runtime_ms.cmp(&a.runtime_ms),
         });
-        
+
         Ok(ListSessionsResponse {
             agents,
             total_active,
@@ -523,14 +541,11 @@ fn paginate_messages(
 ) -> Vec<crate::types::agent::SerializedMessage> {
     if offset >= 0 {
         let start = offset as usize;
-        messages.iter()
-            .skip(start)
-            .take(length)
-            .cloned()
-            .collect()
+        messages.iter().skip(start).take(length).cloned().collect()
     } else {
         let tail_count = (-offset) as usize;
-        messages.iter()
+        messages
+            .iter()
             .rev()
             .take(tail_count)
             .cloned()

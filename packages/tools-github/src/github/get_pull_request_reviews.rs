@@ -2,7 +2,7 @@
 
 use crate::github::error::GitHubError;
 use crate::runtime::{AsyncStream, EmitterBuilder};
-use octocrab::{models::pulls::Review, Octocrab, Page};
+use octocrab::{Octocrab, Page, models::pulls::Review};
 use std::sync::Arc;
 
 /// Stream PR reviews.

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use tokio::sync::mpsc;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc;
 
 // ============================================================================
 // LOG ENTRY TYPE
@@ -42,7 +42,7 @@ pub enum EditBlockResult {
 
 impl EditBlockLogEntry {
     /// Format as TSV line (tab-separated values)
-    #[must_use] 
+    #[must_use]
     pub fn to_tsv(&self) -> String {
         vec![
             self.timestamp.to_rfc3339(),
@@ -62,15 +62,16 @@ impl EditBlockLogEntry {
             format_option(self.unique_character_count),
             format_option(self.diff_length),
             format!("{:?}", self.result),
-        ].join("\t")
+        ]
+        .join("\t")
     }
 }
 
 /// Escape special characters for TSV format
 fn escape_tsv(s: &str) -> String {
     s.replace('\n', "\\n")
-     .replace('\t', "\\t")
-     .replace('\r', "\\r")
+        .replace('\t', "\\t")
+        .replace('\r', "\\r")
 }
 
 /// Format Option<T> as string (empty if None)
@@ -96,33 +97,33 @@ impl EditBlockLogger {
         let log_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".kodegen-logs");
-        
+
         let log_path = log_dir.join("edit-block.log");
         let log_path_arc = Arc::new(log_path);
-        
+
         // Create unbounded channel for fire-and-forget
         let (tx, rx) = mpsc::unbounded_channel();
-        
+
         // Start background processor
         Self::start_background_processor(rx, Arc::clone(&log_path_arc));
-        
+
         Self {
             sender: tx,
             log_path: log_path_arc,
         }
     }
-    
+
     /// Fire-and-forget logging (NEVER BLOCKS!)
     pub fn log(&self, entry: EditBlockLogEntry) {
         // Send to background task - if it fails, channel is closed (server shutdown)
         let _ = self.sender.send(entry);
     }
-    
-    #[must_use] 
+
+    #[must_use]
     pub fn log_path(&self) -> &PathBuf {
         &self.log_path
     }
-    
+
     /// Background task that processes log entries and batches disk writes
     /// This is copied from `usage_tracker.rs` pattern
     fn start_background_processor(
@@ -132,21 +133,21 @@ impl EditBlockLogger {
         tokio::spawn(async move {
             // Buffer for batching writes
             let mut pending_entries: Vec<EditBlockLogEntry> = Vec::new();
-            
+
             // Flush interval (5 seconds like usage_tracker)
             let mut flush_interval = tokio::time::interval(std::time::Duration::from_secs(5));
             flush_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            
+
             // Lazy file writer initialization
             let mut writer: Option<tokio::io::BufWriter<tokio::fs::File>> = None;
-            
+
             loop {
                 tokio::select! {
                     // Receive log entry from channel
                     Some(entry) = rx.recv() => {
                         pending_entries.push(entry);
                     }
-                    
+
                     // Periodic flush (every 5 seconds)
                     _ = flush_interval.tick() => {
                         if !pending_entries.is_empty() {
@@ -161,7 +162,7 @@ impl EditBlockLogger {
                                     }
                                 }
                             }
-                            
+
                             // Write all pending entries
                             if let Some(ref mut w) = writer {
                                 for entry in pending_entries.drain(..) {
@@ -170,7 +171,7 @@ impl EditBlockLogger {
                                         log::error!("Failed to write edit_block log entry: {e}");
                                     }
                                 }
-                                
+
                                 // Flush to disk
                                 if let Err(e) = w.flush().await {
                                     log::error!("Failed to flush edit_block log: {e}");
@@ -178,14 +179,14 @@ impl EditBlockLogger {
                             }
                         }
                     }
-                    
+
                     // Channel closed (server shutdown)
                     else => {
                         // Final flush before exit
                         if !pending_entries.is_empty() && writer.is_none() {
                             writer = Self::init_log_file(&log_path).await.ok();
                         }
-                        
+
                         if let Some(ref mut w) = writer {
                             for entry in pending_entries.drain(..) {
                                 let line = format!("{}\n", entry.to_tsv());
@@ -199,26 +200,28 @@ impl EditBlockLogger {
             }
         });
     }
-    
+
     /// Initialize log file with headers (called from background task)
-    async fn init_log_file(log_path: &PathBuf) -> std::io::Result<tokio::io::BufWriter<tokio::fs::File>> {
+    async fn init_log_file(
+        log_path: &PathBuf,
+    ) -> std::io::Result<tokio::io::BufWriter<tokio::fs::File>> {
         // Create directory
         if let Some(parent) = log_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
-        
+
         // Check if file exists
         let file_exists = tokio::fs::try_exists(log_path).await.unwrap_or(false);
-        
+
         // Open file in append mode
         let file = tokio::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(log_path)
             .await?;
-        
+
         let mut writer = tokio::io::BufWriter::new(file);
-        
+
         // Write headers if new file
         if !file_exists {
             let header = "timestamp\tsearch_text\tfound_text\tsimilarity\texecution_time_ms\t\
@@ -229,7 +232,7 @@ impl EditBlockLogger {
             writer.write_all(header.as_bytes()).await?;
             writer.flush().await?;
         }
-        
+
         Ok(writer)
     }
 }

@@ -23,13 +23,13 @@ impl LineEndingStyle {
             Self::Cr => "\r",
         }
     }
-    
+
     /// Get platform default
     #[must_use]
     pub fn platform_default() -> Self {
         #[cfg(target_os = "windows")]
         return Self::Crlf;
-        
+
         #[cfg(not(target_os = "windows"))]
         return Self::Lf;
     }
@@ -44,17 +44,17 @@ impl LineEndingStyle {
 ///
 /// ```
 /// use kodegen_utils::line_endings::{detect_line_ending, LineEndingStyle};
-/// 
+///
 /// let unix_content = "line1\nline2\n";
 /// let windows_content = "line1\r\nline2\r\n";
-/// 
+///
 /// assert_eq!(detect_line_ending(unix_content), LineEndingStyle::Lf);
 /// assert_eq!(detect_line_ending(windows_content), LineEndingStyle::Crlf);
 /// ```
 #[must_use]
 pub fn detect_line_ending(content: &str) -> LineEndingStyle {
     let bytes = content.as_bytes();
-    
+
     for i in 0..bytes.len() {
         match bytes[i] {
             b'\r' => {
@@ -70,7 +70,7 @@ pub fn detect_line_ending(content: &str) -> LineEndingStyle {
             _ => continue,
         }
     }
-    
+
     // No line endings found - use platform default
     LineEndingStyle::platform_default()
 }
@@ -84,7 +84,7 @@ pub fn detect_line_ending(content: &str) -> LineEndingStyle {
 ///
 /// ```
 /// use kodegen_utils::line_endings::{normalize_line_endings, LineEndingStyle};
-/// 
+///
 /// let mixed = "line1\r\nline2\rline3\n";
 /// let normalized = normalize_line_endings(mixed, LineEndingStyle::Lf);
 /// assert_eq!(normalized, "line1\nline2\nline3\n");
@@ -93,9 +93,9 @@ pub fn detect_line_ending(content: &str) -> LineEndingStyle {
 pub fn normalize_line_endings(text: &str, target: LineEndingStyle) -> String {
     // Step 1: Normalize everything to LF
     let normalized = text
-        .replace("\r\n", "\n")  // CRLF → LF first (order matters!)
-        .replace('\r', "\n");   // Then CR → LF
-    
+        .replace("\r\n", "\n") // CRLF → LF first (order matters!)
+        .replace('\r', "\n"); // Then CR → LF
+
     // Step 2: Convert to target
     match target {
         LineEndingStyle::Lf => normalized,
@@ -131,14 +131,14 @@ pub fn analyze_line_endings(content: &str) -> LineEndingAnalysis {
     let mut crlf_count = 0;
     let mut lf_count = 0;
     let mut cr_count = 0;
-    
+
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
             b'\r' => {
                 if i + 1 < bytes.len() && bytes[i + 1] == b'\n' {
                     crlf_count += 1;
-                    i += 2;  // Skip both \r and \n
+                    i += 2; // Skip both \r and \n
                 } else {
                     cr_count += 1;
                     i += 1;
@@ -153,7 +153,7 @@ pub fn analyze_line_endings(content: &str) -> LineEndingAnalysis {
             }
         }
     }
-    
+
     // Determine predominant style (majority wins)
     let style = if crlf_count >= lf_count && crlf_count >= cr_count {
         LineEndingStyle::Crlf
@@ -162,13 +162,13 @@ pub fn analyze_line_endings(content: &str) -> LineEndingAnalysis {
     } else {
         LineEndingStyle::Cr
     };
-    
+
     // Check for mixed line endings
     let used_styles = [crlf_count > 0, lf_count > 0, cr_count > 0]
         .iter()
         .filter(|&&x| x)
         .count();
-    
+
     LineEndingAnalysis {
         style,
         total_count: crlf_count + lf_count + cr_count,

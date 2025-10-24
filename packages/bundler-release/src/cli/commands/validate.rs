@@ -3,22 +3,28 @@
 //! Validates the workspace structure and configuration for release readiness.
 
 use crate::cli::{Args, Command, RuntimeConfig};
-use crate::error::{Result, ReleaseError};
-use crate::workspace::{WorkspaceInfo, SharedWorkspaceInfo, WorkspaceValidator};
+use crate::error::{ReleaseError, Result};
+use crate::workspace::{SharedWorkspaceInfo, WorkspaceInfo, WorkspaceValidator};
 use std::sync::Arc;
 
 /// Execute validate command
 pub(super) async fn execute_validate(args: &Args, config: &RuntimeConfig) -> Result<()> {
-    if let Command::Validate { fix: _, detailed, json } = &args.command {
+    if let Command::Validate {
+        fix: _,
+        detailed,
+        json,
+    } = &args.command
+    {
         config.verbose_println("Validating workspace...");
 
-        let workspace: SharedWorkspaceInfo = Arc::new(WorkspaceInfo::analyze(&config.workspace_path)?);
+        let workspace: SharedWorkspaceInfo =
+            Arc::new(WorkspaceInfo::analyze(&config.workspace_path)?);
         let validator = WorkspaceValidator::new(workspace.clone())?;
         let validation = validator.validate().await?;
 
         if *json {
-            let json_output = serde_json::to_string_pretty(&validation)
-                .map_err(ReleaseError::Json)?;
+            let json_output =
+                serde_json::to_string_pretty(&validation).map_err(ReleaseError::Json)?;
             println!("{}", json_output);
         } else {
             config.println(&format!("📋 {}", validation.summary()));
@@ -45,11 +51,12 @@ pub(super) async fn execute_validate(args: &Args, config: &RuntimeConfig) -> Res
         }
 
         if !validation.success {
-            return Err(ReleaseError::Workspace(crate::error::WorkspaceError::InvalidStructure {
-                reason: "Workspace validation failed".to_string(),
-            }));
+            return Err(ReleaseError::Workspace(
+                crate::error::WorkspaceError::InvalidStructure {
+                    reason: "Workspace validation failed".to_string(),
+                },
+            ));
         }
-
     } else {
         unreachable!("execute_validate called with non-Validate command");
     }

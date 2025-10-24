@@ -31,7 +31,7 @@ pub enum ProcessingPhase {
 
 impl<'input> AnalysisContext<'input> {
     /// Create new analysis context with default settings
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_document_index: 0,
@@ -45,7 +45,7 @@ impl<'input> AnalysisContext<'input> {
     }
 
     /// Create analysis context from semantic configuration
-    #[must_use] 
+    #[must_use]
     pub fn from_config(config: &SemanticConfig<'input>) -> Self {
         Self {
             current_document_index: 0,
@@ -68,41 +68,41 @@ impl<'input> AnalysisContext<'input> {
 
     /// Check if in strict validation mode
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_strict(&self) -> bool {
         self.strict_mode
     }
 
     /// Check if cycle detection is enabled
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn cycle_detection_enabled(&self) -> bool {
         self.cycle_detection_enabled
     }
 
     /// Get YAML version
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn yaml_version(&self) -> Option<(u32, u32)> {
         self.yaml_version
     }
 
     /// Look up tag prefix
-    #[must_use] 
+    #[must_use]
     pub fn resolve_tag_prefix(&self, handle: &str) -> Option<&Cow<'input, str>> {
         self.tag_prefixes.get(handle)
     }
 
     /// Get tag handle prefix (alias for resolve_tag_prefix for compatibility)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_tag_handle(&self, handle: &str) -> Option<&Cow<'input, str>> {
         self.resolve_tag_prefix(handle)
     }
 
     /// Get current position in the document
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn current_position(&self) -> Position {
         self.current_position
     }
@@ -135,14 +135,14 @@ impl<'input> AnalysisContext<'input> {
 
     /// Get current processing phase
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn processing_phase(&self) -> ProcessingPhase {
         self.processing_phase
     }
 
     /// Get current document index
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn current_document_index(&self) -> usize {
         self.current_document_index
     }
@@ -196,7 +196,7 @@ impl<'input> Default for SemanticConfig<'input> {
 
 impl<'input> SemanticConfig<'input> {
     /// Create new configuration with strict mode enabled
-    #[must_use] 
+    #[must_use]
     pub fn strict() -> Self {
         Self {
             strict_mode: true,
@@ -205,7 +205,7 @@ impl<'input> SemanticConfig<'input> {
     }
 
     /// Create configuration with cycle detection disabled for performance
-    #[must_use] 
+    #[must_use]
     pub fn fast() -> Self {
         Self {
             cycle_detection_enabled: false,
@@ -214,28 +214,28 @@ impl<'input> SemanticConfig<'input> {
     }
 
     /// Set YAML version for validation
-    #[must_use] 
+    #[must_use]
     pub const fn with_yaml_version(mut self, major: u32, minor: u32) -> Self {
         self.yaml_version = Some((major, minor));
         self
     }
 
     /// Add custom tag prefix
-    #[must_use] 
+    #[must_use]
     pub fn with_tag_prefix(mut self, handle: Cow<'input, str>, prefix: Cow<'input, str>) -> Self {
         self.custom_tag_prefixes.insert(handle, prefix);
         self
     }
 
     /// Enable strict mode
-    #[must_use] 
+    #[must_use]
     pub const fn with_strict_mode(mut self) -> Self {
         self.strict_mode = true;
         self
     }
 
     /// Disable cycle detection
-    #[must_use] 
+    #[must_use]
     pub const fn without_cycle_detection(mut self) -> Self {
         self.cycle_detection_enabled = false;
         self

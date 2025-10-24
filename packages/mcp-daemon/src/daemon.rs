@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use log::info;
 #[cfg(all(feature = "systemd-notify", target_os = "linux"))]
 use log::warn;
-use nix::sys::stat::{umask, Mode};
-use nix::unistd::{chdir, close, dup2, fork, setsid, ForkResult};
+use nix::sys::stat::{Mode, umask};
+use nix::unistd::{ForkResult, chdir, close, dup2, fork, setsid};
 #[cfg(all(feature = "systemd-notify", target_os = "linux"))]
 use systemd::daemon;
 
@@ -28,7 +28,7 @@ pub fn systemd_ready() {
 }
 
 /// Detect whether we should stay in foreground (systemd or macOS)
-#[must_use] 
+#[must_use]
 pub fn need_foreground() -> bool {
     running_under_systemd() || cfg!(target_os = "macos")
 }

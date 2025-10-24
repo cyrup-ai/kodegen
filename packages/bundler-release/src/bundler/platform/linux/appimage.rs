@@ -1,7 +1,7 @@
 //! AppImage bundler - portable Linux applications.
 
 use crate::bundler::{
-    error::{bail, Context, ErrorExt, Result},
+    error::{Context, ErrorExt, Result, bail},
     settings::Settings,
     utils::http,
 };
@@ -51,8 +51,8 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
     std::fs::create_dir_all(&tools_dir).fs_context("creating tools directory", &tools_dir)?;
 
     // 3. Download linuxdeploy
-    let linuxdeploy = download_linuxdeploy(&tools_dir, arch)
-        .context("failed to download linuxdeploy tool")?;
+    let linuxdeploy =
+        download_linuxdeploy(&tools_dir, arch).context("failed to download linuxdeploy tool")?;
 
     // 4. Create AppDir structure
     let app_dir = output_dir.join(format!("{}.AppDir", settings.product_name()));

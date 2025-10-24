@@ -147,7 +147,7 @@ mod client_impl;
 mod tasks;
 
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::control::ProtocolHandler;
 use crate::error::Result;
@@ -198,9 +198,11 @@ pub struct ClaudeSDKClient {
     /// Permission request receiver (if not using automatic handler)
     permission_rx: Option<mpsc::UnboundedReceiver<(RequestId, PermissionRequest)>>,
     /// Hook manager for automatic hook handling (kept alive for background tasks)
-    #[allow(dead_code)] // APPROVED BY DAVID MAPLE on 2025-10-14: Required to keep Arc alive for background tasks
+    #[allow(dead_code)]
+    // APPROVED BY DAVID MAPLE on 2025-10-14: Required to keep Arc alive for background tasks
     hook_manager: Option<Arc<Mutex<HookManager>>>,
     /// Permission manager for automatic permission handling (kept alive for background tasks)
-    #[allow(dead_code)] // APPROVED BY DAVID MAPLE on 2025-10-14: Required to keep Arc alive for background tasks
+    #[allow(dead_code)]
+    // APPROVED BY DAVID MAPLE on 2025-10-14: Required to keep Arc alive for background tasks
     permission_manager: Option<Arc<Mutex<PermissionManager>>>,
 }

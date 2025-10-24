@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::agent::{AgentHistoryList, ActionResult};
+use crate::agent::AgentHistoryList;
 
 /// Represents the browser state for rendering in the view
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,18 +53,24 @@ impl HistoryView {
             }
 
             // Try to extract screenshot from the important_contents field if present as base64
-            let screenshot = extract_screenshot_from_state(&step.output.current_state.important_contents);
+            let screenshot =
+                extract_screenshot_from_state(&step.output.current_state.important_contents);
 
             // Extract browser state using real parsing
             let browser_state = BrowserStateView {
                 url: extract_url_from_state(&step.output.current_state.important_contents),
                 title: extract_title_from_state(&step.output.current_state.important_contents),
-                content_sample: extract_content_sample(&step.output.current_state.important_contents),
+                content_sample: extract_content_sample(
+                    &step.output.current_state.important_contents,
+                ),
                 screenshot,
             };
 
             // Extract actions
-            let actions = step.output.action.iter()
+            let actions = step
+                .output
+                .action
+                .iter()
                 .map(|a| ActionView {
                     action_type: a.action.clone(),
                     parameters: a.parameters.clone(),
@@ -80,19 +86,20 @@ impl HistoryView {
                 browser_state,
                 actions,
                 reasoning: step.output.current_state.thought.clone(),
-                is_complete: step.output.action.iter().any(|a| a.action.eq_ignore_ascii_case("done")),
+                is_complete: step
+                    .output
+                    .action
+                    .iter()
+                    .any(|a| a.action.eq_ignore_ascii_case("done")),
                 timestamp: step.timestamp.to_rfc3339(),
             };
 
             steps.push(step_view);
         }
 
-        Self {
-            task,
-            steps,
-        }
+        Self { task, steps }
     }
-    
+
     /// Convert the history view to JSON
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
@@ -123,7 +130,10 @@ fn extract_title_from_state(state: &str) -> String {
 fn extract_content_sample(state: &str) -> String {
     for line in state.lines() {
         if line.starts_with("Content Sample:") {
-            return line.trim_start_matches("Content Sample:").trim().to_string();
+            return line
+                .trim_start_matches("Content Sample:")
+                .trim()
+                .to_string();
         }
     }
 
@@ -147,13 +157,12 @@ fn extract_screenshot_from_state(state: &str) -> Option<String> {
             b64.push_str(line.trim());
             break;
         }
-        if line.trim().starts_with("[IMAGE: Base64-encoded screenshot]") {
+        if line
+            .trim()
+            .starts_with("[IMAGE: Base64-encoded screenshot]")
+        {
             found = true;
         }
     }
-    if !b64.is_empty() {
-        Some(b64)
-    } else {
-        None
-    }
+    if !b64.is_empty() { Some(b64) } else { None }
 }

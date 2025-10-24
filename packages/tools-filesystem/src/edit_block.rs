@@ -1,23 +1,20 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
-use kodegen_utils::fuzzy_search::{
-    recursive_fuzzy_index_of_with_defaults,
-    get_similarity_ratio,
-};
-use kodegen_utils::char_diff::CharDiff;
-use kodegen_utils::char_analysis::CharCodeData;
-use kodegen_utils::line_endings::{detect_line_ending, normalize_line_endings};
-use kodegen_utils::suggestions::{Suggestion, EditFailureReason, SuggestionContext};
-use kodegen_utils::edit_log::{EditBlockLogEntry, EditBlockResult, get_edit_logger};
-use kodegen_utils::fuzzy_logger::{get_logger, FuzzySearchLogEntry};
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use chrono::Utc;
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use kodegen_utils::char_analysis::CharCodeData;
+use kodegen_utils::char_diff::CharDiff;
+use kodegen_utils::edit_log::{EditBlockLogEntry, EditBlockResult, get_edit_logger};
+use kodegen_utils::fuzzy_logger::{FuzzySearchLogEntry, get_logger};
+use kodegen_utils::fuzzy_search::{get_similarity_ratio, recursive_fuzzy_index_of_with_defaults};
+use kodegen_utils::line_endings::{detect_line_ending, normalize_line_endings};
+use kodegen_utils::suggestions::{EditFailureReason, Suggestion, SuggestionContext};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use tokio::fs;
-use chrono::Utc;
+use serde_json::{Value, json};
 use std::time::Instant;
+use tokio::fs;
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -86,16 +83,16 @@ impl Tool for EditBlockTool {
     }
 
     fn destructive() -> bool {
-        true  // Modifies file content
+        true // Modifies file content
     }
 
     fn idempotent() -> bool {
-        false  // Each replacement changes content
+        false // Each replacement changes content
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let start_time = Instant::now();  // START TIMER
-        
+        let start_time = Instant::now(); // START TIMER
+
         // Validate inputs
         if args.old_string.is_empty() {
             return Err(McpError::InvalidArguments(
@@ -105,7 +102,7 @@ impl Tool for EditBlockTool {
 
         if args.old_string == args.new_string {
             return Err(McpError::InvalidArguments(
-                "old_string and new_string are identical. No changes would be made.".to_string()
+                "old_string and new_string are identical. No changes would be made.".to_string(),
             ));
         }
 
@@ -155,22 +152,22 @@ impl Tool for EditBlockTool {
         if occurrence_count == 0 {
             // Measure fuzzy search performance
             let start = std::time::Instant::now();
-            
+
             // Attempt fuzzy match
             let fuzzy_result = recursive_fuzzy_index_of_with_defaults(&content, &args.old_string);
-            
+
             // Calculate elapsed time in milliseconds
             let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-            
+
             // Calculate similarity using standard function
             let similarity = get_similarity_ratio(&fuzzy_result.value, &args.old_string);
-            
+
             // Get configurable threshold from config
             let threshold = self.config_manager.get_fuzzy_search_threshold();
-            
+
             // Get execution time for logging
             let execution_time = start_time.elapsed().as_secs_f64() * 1000.0;
-            
+
             // Log fuzzy search attempt (FIRE-AND-FORGET, NEVER BLOCKS!)
             let log_entry = EditBlockLogEntry {
                 timestamp: Utc::now(),
@@ -195,18 +192,18 @@ impl Tool for EditBlockTool {
                     EditBlockResult::FuzzyMatchRejected
                 },
             };
-            
+
             get_edit_logger().log(log_entry);
-            
+
             if similarity >= threshold {
                 // Found similar text - show character diff
                 let diff = CharDiff::new(&args.old_string, &fuzzy_result.value);
                 let diff_display = diff.format();
                 let is_whitespace_only = diff.is_whitespace_only();
-                
+
                 // Calculate line number where match was found
                 let line_number = content[..fuzzy_result.start].matches('\n').count() + 1;
-                
+
                 // Log the fuzzy match attempt
                 let logger = get_logger().await;
                 let fuzzy_log_entry = FuzzySearchLogEntry {
@@ -224,11 +221,11 @@ impl Tool for EditBlockTool {
                     found_length: fuzzy_result.value.len(),
                     file_extension: extension.clone(),
                 };
-                
+
                 let _ = logger.log(&fuzzy_log_entry).await; // Ignore log errors
                 let log_path = Some(logger.log_path().to_path_buf());
                 drop(logger); // Release lock
-                
+
                 // Build suggestion context
                 let context = SuggestionContext {
                     file_path: args.file_path.clone(),
@@ -237,7 +234,7 @@ impl Tool for EditBlockTool {
                     log_path,
                     execution_time_ms: Some(elapsed_ms),
                 };
-                
+
                 // Build user-facing suggestion
                 let suggestion = Suggestion::for_failure(
                     &EditFailureReason::FuzzyMatchAboveThreshold {
@@ -246,35 +243,35 @@ impl Tool for EditBlockTool {
                     },
                     &context,
                 );
-                
+
                 // Perform comprehensive character analysis
                 let char_data = CharCodeData::analyze(&args.old_string, &fuzzy_result.value);
-                
+
                 // Build complete error message
                 let mut error_msg = suggestion.message.clone();
                 error_msg.push_str("\n\nCharacter-level differences:\n");
                 error_msg.push_str(&diff_display);
-                
+
                 if is_whitespace_only {
                     error_msg.push_str("\n\nNote: Difference is whitespace only.");
                 }
-                
+
                 // Add comprehensive character analysis
                 error_msg.push_str("\n\n");
                 error_msg.push_str(&char_data.format_detailed_report());
-                
+
                 error_msg.push_str(&suggestion.format());
-                
+
                 return Err(McpError::InvalidArguments(error_msg));
             }
-            
+
             // Calculate line number where match was found
             let line_number = content[..fuzzy_result.start].matches('\n').count() + 1;
-            
+
             // Log the fuzzy match attempt (below threshold)
             let diff = CharDiff::new(&args.old_string, &fuzzy_result.value);
             let diff_display = diff.format();
-            
+
             let logger = get_logger().await;
             let fuzzy_log_entry = FuzzySearchLogEntry {
                 timestamp: Utc::now(),
@@ -291,11 +288,11 @@ impl Tool for EditBlockTool {
                 found_length: fuzzy_result.value.len(),
                 file_extension: extension.clone(),
             };
-            
+
             let _ = logger.log(&fuzzy_log_entry).await; // Ignore log errors
             let log_path = Some(logger.log_path().to_path_buf());
             drop(logger); // Release lock
-            
+
             // No good fuzzy match found - below threshold
             let context = SuggestionContext {
                 file_path: args.file_path.clone(),
@@ -304,7 +301,7 @@ impl Tool for EditBlockTool {
                 log_path,
                 execution_time_ms: Some(elapsed_ms),
             };
-            
+
             let suggestion = Suggestion::for_failure(
                 &EditFailureReason::FuzzyMatchBelowThreshold {
                     similarity,
@@ -313,12 +310,12 @@ impl Tool for EditBlockTool {
                 },
                 &context,
             );
-            
+
             // Build complete error message with BOTH message and suggestions
             let mut error_msg = String::new();
             error_msg.push_str(&suggestion.message);
             error_msg.push_str(&suggestion.format());
-            
+
             return Err(McpError::InvalidArguments(error_msg));
         }
 
@@ -330,13 +327,13 @@ impl Tool for EditBlockTool {
 
         // Build response based on match status
         let execution_time = start_time.elapsed().as_secs_f64() * 1000.0;
-        
+
         // Log successful exact match (FIRE-AND-FORGET, NEVER BLOCKS!)
         let log_entry = EditBlockLogEntry {
             timestamp: Utc::now(),
             search_text: args.old_string.clone(),
             found_text: Some(args.old_string.clone()),
-            similarity: Some(1.0),  // Exact match
+            similarity: Some(1.0), // Exact match
             execution_time_ms: execution_time,
             exact_match_count: occurrence_count,
             expected_replacements: args.expected_replacements,
@@ -351,9 +348,9 @@ impl Tool for EditBlockTool {
             diff_length: None,
             result: EditBlockResult::ExactMatch,
         };
-        
+
         get_edit_logger().log(log_entry);
-        
+
         if occurrence_count == args.expected_replacements {
             // Exact match - success
             Ok(json!({
@@ -379,7 +376,7 @@ impl Tool for EditBlockTool {
                 log_path: None,
                 execution_time_ms: None,
             };
-            
+
             let suggestion = Suggestion::for_failure(
                 &EditFailureReason::UnexpectedCount {
                     expected: args.expected_replacements,
@@ -387,7 +384,7 @@ impl Tool for EditBlockTool {
                 },
                 &context,
             );
-            
+
             // Return success with warning and suggestions
             Ok(json!({
                 "success": true,
@@ -416,7 +413,7 @@ impl Tool for EditBlockTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use edit_block to make precise changes to files?"
+                    "How do I use edit_block to make precise changes to files?",
                 ),
             },
             PromptMessage {
@@ -446,7 +443,7 @@ impl Tool for EditBlockTool {
                      - Validates file exists and is readable\n\
                      - Performs exact string matching (not regex)\n\
                      - Preserves file encoding\n\
-                     - Returns detailed success/warning messages"
+                     - Returns detailed success/warning messages",
                 ),
             },
         ])

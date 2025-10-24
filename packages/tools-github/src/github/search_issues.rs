@@ -2,7 +2,7 @@
 
 use crate::github::error::GitHubError;
 use crate::runtime::{AsyncStream, EmitterBuilder};
-use octocrab::{models::issues::Issue, Octocrab, Page};
+use octocrab::{Octocrab, Page, models::issues::Issue};
 use std::sync::Arc;
 
 /// GitHub search API for issues and PRs.

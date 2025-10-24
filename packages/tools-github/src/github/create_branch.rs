@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::Ref, Octocrab, params::repos::Reference};
+use octocrab::{Octocrab, models::repos::Ref, params::repos::Reference};
 use std::sync::Arc;
 
 /// Create a new branch from an existing SHA.

@@ -12,7 +12,7 @@
 //! - Existing `OpenAI` format: [`orchestration.rs:37-54`](../../chat/orchestration.rs)
 
 use rmcp::model::Tool as ToolInfo;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Format tools for Qwen3 function calling
 ///
@@ -57,8 +57,8 @@ pub fn format_tools_for_qwen3(tools: &[ToolInfo]) -> String {
         })
         .collect();
 
-    let tools_json = serde_json::to_string_pretty(&tool_schemas)
-        .unwrap_or_else(|_| "[]".to_string());
+    let tools_json =
+        serde_json::to_string_pretty(&tool_schemas).unwrap_or_else(|_| "[]".to_string());
 
     format!("<tools>\n{tools_json}\n</tools>")
 }

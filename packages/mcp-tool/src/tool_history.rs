@@ -1,13 +1,13 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-use std::path::PathBuf;
-use tokio::sync::{RwLock, OnceCell};
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Arc;
+use termcolor::{BufferWriter, ColorChoice};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
-use std::io::Write;
-use termcolor::{BufferWriter, ColorChoice};
+use tokio::sync::{OnceCell, RwLock};
 
 const MAX_HISTORY_ENTRIES: usize = 1000;
 const MAX_DISK_ENTRIES: usize = 5000;
@@ -18,16 +18,16 @@ const ROTATION_CHECK_INTERVAL: usize = 100;
 pub struct ToolCallRecord {
     /// ISO 8601 timestamp (UTC)
     pub timestamp: String,
-    
+
     /// Name of the tool that was called
     pub tool_name: String,
-    
+
     /// Arguments passed to the tool (as JSON)
     pub arguments: serde_json::Value,
-    
+
     /// Output returned by the tool (as JSON)
     pub output: serde_json::Value,
-    
+
     /// Execution duration in milliseconds
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
@@ -38,17 +38,17 @@ pub struct ToolHistory {
     /// In-memory entries (last 1000)
     /// NOTE: Only accessed by background task after refactor
     entries: Arc<RwLock<VecDeque<ToolCallRecord>>>,
-    
+
     /// Path to JSONL history file
     history_file: PathBuf,
-    
+
     /// Write queue for async batching
     /// NOTE: Only accessed by background task after refactor
     write_queue: Arc<RwLock<Vec<ToolCallRecord>>>,
-    
+
     /// Fire-and-forget channel for recording calls
     record_sender: tokio::sync::mpsc::UnboundedSender<ToolCallRecord>,
-    
+
     /// Counter for rotation check
     writes_since_check: Arc<RwLock<usize>>,
 }
@@ -72,10 +72,10 @@ impl ToolHistory {
         }
 
         let history_file = history_dir.join(format!("tool-history_{instance_id}.jsonl"));
-        
+
         // Create unbounded channel for fire-and-forget recording
         let (record_sender, record_receiver) = tokio::sync::mpsc::unbounded_channel();
-        
+
         let history = Self {
             entries: Arc::new(RwLock::new(VecDeque::new())),
             history_file: history_file.clone(),
@@ -83,16 +83,16 @@ impl ToolHistory {
             record_sender,
             writes_since_check: Arc::new(RwLock::new(0)),
         };
-        
+
         // Load existing history from disk
         history.load_from_disk().await;
-        
+
         // Start background processor
         history.start_background_processor(record_receiver);
-        
+
         history
     }
-    
+
     /// Add a tool call to history (fire-and-forget, never blocks)
     pub fn add_call(
         &self,
@@ -108,12 +108,12 @@ impl ToolHistory {
             output,
             duration_ms,
         };
-        
+
         // Fire-and-forget: send to background processor
         // If send fails (channel closed), silently ignore - history is best-effort
         let _ = self.record_sender.send(record);
     }
-    
+
     /// Get recent tool calls with optional filters and offset support
     pub async fn get_recent_calls(
         &self,
@@ -170,7 +170,7 @@ impl ToolHistory {
 
         filtered[start..end].to_vec()
     }
-    
+
     /// Get history statistics
     pub async fn get_stats(&self) -> HistoryStats {
         let entries = self.entries.read().await;
@@ -180,29 +180,32 @@ impl ToolHistory {
             newest_entry: entries.back().map(|e| e.timestamp.clone()),
         }
     }
-    
+
     /// Load history from disk (JSONL format)
     async fn load_from_disk(&self) {
-        if !tokio::fs::try_exists(&self.history_file).await.unwrap_or(false) {
+        if !tokio::fs::try_exists(&self.history_file)
+            .await
+            .unwrap_or(false)
+        {
             return;
         }
-        
+
         match tokio::fs::read_to_string(&self.history_file).await {
             Ok(content) => {
                 let mut entries = VecDeque::new();
-                
+
                 // Parse each line as JSON
                 for line in content.lines() {
                     if let Ok(record) = serde_json::from_str::<ToolCallRecord>(line) {
                         entries.push_back(record);
                     }
                 }
-                
+
                 // Keep only last 1000 entries
                 while entries.len() > MAX_HISTORY_ENTRIES {
                     entries.pop_front();
                 }
-                
+
                 *self.entries.write().await = entries;
             }
             Err(e) => {
@@ -213,7 +216,7 @@ impl ToolHistory {
             }
         }
     }
-    
+
     /// Start background processor task (receives records, updates cache, writes to disk)
     fn start_background_processor(
         &self,
@@ -223,11 +226,11 @@ impl ToolHistory {
         let write_queue = Arc::clone(&self.write_queue);
         let writes_since_check = Arc::clone(&self.writes_since_check);
         let history_file = self.history_file.clone();
-        
+
         tokio::spawn(async move {
             // Disk flush interval (1 second)
             let mut flush_interval = tokio::time::interval(std::time::Duration::from_secs(1));
-            
+
             loop {
                 tokio::select! {
                     // Receive new records from channel
@@ -236,20 +239,20 @@ impl ToolHistory {
                         {
                             let mut entries = entries.write().await;
                             entries.push_back(record.clone());
-                            
+
                             // Keep only last 1000 in memory
                             if entries.len() > MAX_HISTORY_ENTRIES {
                                 entries.pop_front();
                             }
                         }
-                        
+
                         // Queue for disk write
                         {
                             let mut queue = write_queue.write().await;
                             queue.push(record);
                         }
                     }
-                    
+
                     // Periodic disk flush
                     _ = flush_interval.tick() => {
                         // Get queued records
@@ -257,11 +260,11 @@ impl ToolHistory {
                             let mut queue = write_queue.write().await;
                             std::mem::take(&mut *queue)
                         };
-                        
+
                         if records.is_empty() {
                             continue;
                         }
-                        
+
                         // Append to file (JSONL format)
                         match OpenOptions::new()
                             .create(true)
@@ -285,7 +288,7 @@ impl ToolHistory {
                                 continue;
                             }
                         }
-                        
+
                         // Check if rotation is needed
                         let should_rotate = {
                             let mut check_counter = writes_since_check.write().await;
@@ -309,7 +312,7 @@ impl ToolHistory {
                             }
                         }
                     }
-                    
+
                     // Channel closed (shutdown)
                     else => {
                         // Flush any remaining records before exiting
@@ -317,7 +320,7 @@ impl ToolHistory {
                             let queue = write_queue.read().await;
                             queue.clone()
                         };
-                        
+
                         if !records.is_empty()
                             && let Ok(mut file) = OpenOptions::new()
                                 .create(true)
@@ -332,14 +335,14 @@ impl ToolHistory {
                                 }
                             }
                         }
-                        
+
                         break;
                     }
                 }
             }
         });
     }
-    
+
     /// Check if file needs rotation and rotate if necessary
     ///
     /// This is called periodically by the background writer when the write counter
@@ -353,19 +356,19 @@ impl ToolHistory {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
             Err(e) => return Err(e),
         };
-        
+
         // Count lines
         let line_count = content.lines().count();
-        
+
         // Only rotate if exceeds limit
         if line_count <= MAX_DISK_ENTRIES {
             return Ok(());
         }
-        
+
         // Keep only the last MAX_DISK_ENTRIES lines
         let keep_from = line_count.saturating_sub(MAX_DISK_ENTRIES);
         let kept_lines: Vec<&str> = content.lines().skip(keep_from).collect();
-        
+
         // Write to temporary file (atomic operation step 1)
         let temp_file = history_file.with_extension("jsonl.tmp");
         {
@@ -376,11 +379,11 @@ impl ToolHistory {
             }
             file.sync_all().await?;
         }
-        
+
         // Atomic rename (atomic operation step 2)
         // On Unix systems (including macOS), this is an atomic filesystem operation
         tokio::fs::rename(&temp_file, history_file).await?;
-        
+
         Ok(())
     }
 }
@@ -400,7 +403,9 @@ static TOOL_HISTORY: OnceCell<ToolHistory> = OnceCell::const_new();
 
 /// Initialize the global tool history instance (call once in main.rs)
 pub async fn init_global_history(instance_id: String) -> &'static ToolHistory {
-    TOOL_HISTORY.get_or_init(|| async move { ToolHistory::new(instance_id).await }).await
+    TOOL_HISTORY
+        .get_or_init(|| async move { ToolHistory::new(instance_id).await })
+        .await
 }
 
 /// Get the global tool history instance (returns None if not initialized)

@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -71,15 +71,15 @@ impl Tool for WriteFileTool {
     }
 
     fn read_only() -> bool {
-        false  // Modifies filesystem
+        false // Modifies filesystem
     }
 
     fn destructive() -> bool {
-        true  // Can overwrite files
+        true // Can overwrite files
     }
 
     fn idempotent() -> bool {
-        false  // Each write changes the file
+        false // Each write changes the file
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
@@ -135,7 +135,7 @@ impl Tool for WriteFileTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use write_file to safely write and append to files?"
+                    "How do I use write_file to safely write and append to files?",
                 ),
             },
             PromptMessage {
@@ -152,7 +152,7 @@ impl Tool for WriteFileTool {
                      Safety notes:\n\
                      - Rewrite mode overwrites the entire file\n\
                      - Append mode safely adds to the end\n\
-                     - Path validation prevents writing outside allowed directories"
+                     - Path validation prevents writing outside allowed directories",
                 ),
             },
         ])

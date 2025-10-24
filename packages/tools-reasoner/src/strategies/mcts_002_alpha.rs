@@ -6,10 +6,10 @@ use crate::strategies::mcts::MonteCarloTreeSearchStrategy;
 use crate::types::{ReasoningRequest, ReasoningResponse, ThoughtNode};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::DefaultHasher, HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 // Tracing is imported for error logging in case of future extensions
 #[allow(unused_imports)]
 use tracing;
@@ -127,7 +127,11 @@ impl MCTS002AlphaStrategy {
     }
 
     /// Compute semantic coherence using VoyageAI embeddings (via BaseStrategy)
-    async fn thought_coherence(&self, thought1: &str, thought2: &str) -> Result<f64, Box<dyn std::error::Error>> {
+    async fn thought_coherence(
+        &self,
+        thought1: &str,
+        thought2: &str,
+    ) -> Result<f64, Box<dyn std::error::Error>> {
         // Create cache key from both thoughts
         let cache_key = format!("{}||{}", thought1, thought2);
 
@@ -140,7 +144,10 @@ impl MCTS002AlphaStrategy {
         }
 
         // Cache miss - call BaseStrategy method
-        let score = self.base.calculate_semantic_coherence(thought1, thought2).await
+        let score = self
+            .base
+            .calculate_semantic_coherence(thought1, thought2)
+            .await
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
         // Store in cache
@@ -169,11 +176,9 @@ impl MCTS002AlphaStrategy {
         };
 
         // Combine factors: depth, semantic coherence, policy score
-        let combined = depth_factor * 0.3
-            + parent_alignment * 0.4
-            + node.policy_score * 0.3;
+        let combined = depth_factor * 0.3 + parent_alignment * 0.4 + node.policy_score * 0.3;
 
-        combined.min(1.0).max(0.0)
+        combined.clamp(0.0, 1.0)
     }
 
     // Now async (though not strictly needed if policy_score already calculated coherence)
@@ -190,7 +195,8 @@ impl MCTS002AlphaStrategy {
 
     pub fn calculate_novelty(&self, node: &PolicyGuidedNode) -> f64 {
         // Measure thought novelty based on thought identifier history
-        let thought_history = match &node.action_history { // Reusing action_history field for thought identifiers
+        let thought_history = match &node.action_history {
+            // Reusing action_history field for thought identifiers
             Some(history) => history,
             None => return 0.0, // No history, no novelty score
         };
@@ -203,7 +209,7 @@ impl MCTS002AlphaStrategy {
         let history_length = thought_history.len();
         // Avoid division by zero if history_length is somehow 0 despite check
         let uniqueness_ratio = if history_length > 0 {
-             unique_thoughts as f64 / history_length as f64
+            unique_thoughts as f64 / history_length as f64
         } else {
             0.0
         };
@@ -246,10 +252,10 @@ impl MCTS002AlphaStrategy {
         while !node.base.children.is_empty() {
             let mut children = Vec::new();
             for id in &node.base.children {
-                if let Ok(Some(child_node)) = self.base.get_node(id).await {
-                    if let Ok(policy_child) = self.thought_to_policy(child_node).await {
-                        children.push(policy_child);
-                    }
+                if let Ok(Some(child_node)) = self.base.get_node(id).await
+                    && let Ok(policy_child) = self.thought_to_policy(child_node).await
+                {
+                    children.push(policy_child);
                 }
             }
 
@@ -271,7 +277,8 @@ impl MCTS002AlphaStrategy {
             .into_iter()
             .fold(None, |best: Option<PolicyGuidedNode>, mut node| {
                 let exploitation = node.value_estimate;
-                let exploration = ((total_visits as f64).max(1.0).ln() / node.visits.max(1) as f64).sqrt(); // Avoid ln(0) or div by zero
+                let exploration =
+                    ((total_visits as f64).max(1.0).ln() / node.visits.max(1) as f64).sqrt(); // Avoid ln(0) or div by zero
                 let policy_term = node.policy_score * exploration_rate;
                 let novelty_bonus = node.novelty_score.unwrap_or(0.0) * self.novelty_bonus;
 
@@ -323,11 +330,17 @@ impl MCTS002AlphaStrategy {
         }
 
         let new_node_id = Uuid::new_v4().to_string();
-        let parent_prefix = node.base.thought.split_whitespace().take(5).collect::<Vec<_>>().join(" ");
+        let parent_prefix = node
+            .base
+            .thought
+            .split_whitespace()
+            .take(5)
+            .collect::<Vec<_>>()
+            .join(" ");
         // Simple heuristic continuation
         let new_thought = format!(
             "Based on '{}...', the policy suggests exploring...",
-             parent_prefix
+            parent_prefix
         );
 
         let base_node = ThoughtNode {
@@ -342,7 +355,8 @@ impl MCTS002AlphaStrategy {
 
         // Update history with the new thought's identifier
         let thought_identifier = self.get_thought_identifier(&new_thought);
-        let action_history = match &node.action_history { // Reusing field name
+        let action_history = match &node.action_history {
+            // Reusing field name
             Some(history) => {
                 let mut new_history = history.clone();
                 new_history.push(thought_identifier);
@@ -367,7 +381,10 @@ impl MCTS002AlphaStrategy {
         new_node.novelty_score = Some(self.calculate_novelty(&new_node));
         // Calculate policy score with semantic coherence
         new_node.policy_score = self.calculate_policy_score(&new_node, Some(&node)).await;
-        new_node.base.score = self.base.evaluate_thought(&new_node.base, Some(&node.base)).await;
+        new_node.base.score = self
+            .base
+            .evaluate_thought(&new_node.base, Some(&node.base))
+            .await;
         // Await the async calculation
         new_node.value_estimate = self.estimate_value(&new_node).await;
 
@@ -423,45 +440,45 @@ impl MCTS002AlphaStrategy {
             // Update value estimate with temporal difference
             // Await the async value estimate but not using it directly (just for future expansion)
             let _current_value_estimate = self.estimate_value(&current).await; // Get current estimate
-            let new_value = (1.0 - self.learning_rate) * current.value_estimate + self.learning_rate * reward;
+            let new_value =
+                (1.0 - self.learning_rate) * current.value_estimate + self.learning_rate * reward;
             current.value_estimate = new_value;
 
             // Update action probabilities
             // Update action probabilities (using thought identifier as key)
-            if let Some(parent_id) = &current.base.parent_id {
-                if let Ok(Some(parent_node)) = self.base.get_node(parent_id).await {
-                    if let Ok(mut parent) = self.thought_to_policy(parent_node).await {
-                        let thought_key = self.get_thought_identifier(&current.base.thought);
-                        let current_prob =
-                            *parent.prior_action_probs.get(&thought_key).unwrap_or(&0.0);
-                        // Simple update rule, could be more sophisticated (e.g., based on PUCT)
-                        let new_prob = current_prob + self.learning_rate * (reward - current_prob);
-                        parent.prior_action_probs.insert(thought_key, new_prob);
+            if let Some(parent_id) = &current.base.parent_id
+                && let Ok(Some(parent_node)) = self.base.get_node(parent_id).await
+                && let Ok(mut parent) = self.thought_to_policy(parent_node).await
+            {
+                let thought_key = self.get_thought_identifier(&current.base.thought);
+                let current_prob = *parent.prior_action_probs.get(&thought_key).unwrap_or(&0.0);
+                // Simple update rule, could be more sophisticated (e.g., based on PUCT)
+                let new_prob = current_prob + self.learning_rate * (reward - current_prob);
+                parent.prior_action_probs.insert(thought_key, new_prob);
 
-                        // Save updated parent
-                        if let Err(e) = self.base.save_node(parent.base.clone()).await {
-                            return Err(crate::strategies::base::ReasoningError::Other(
-                                format!("Failed to save parent node: {}", e),
-                            ).into());
-                        }
-                    }
+                // Save updated parent
+                if let Err(e) = self.base.save_node(parent.base.clone()).await {
+                    return Err(crate::strategies::base::ReasoningError::Other(format!(
+                        "Failed to save parent node: {}",
+                        e
+                    ))
+                    .into());
                 }
             }
 
             // Save updated node
             if let Err(e) = self.base.save_node(current.base.clone()).await {
-                return Err(crate::strategies::base::ReasoningError::Other(
-                    format!("Failed to save current node: {}", e),
-                ).into());
+                return Err(crate::strategies::base::ReasoningError::Other(format!(
+                    "Failed to save current node: {}",
+                    e
+                ))
+                .into());
             }
 
             // Move to parent
             if let Some(parent_id) = &current.base.parent_id {
                 if let Ok(Some(parent_node)) = self.base.get_node(parent_id).await {
-                    current_opt = match self.thought_to_policy(parent_node).await {
-                        Ok(parent) => Some(parent),
-                        Err(_) => None,
-                    };
+                    current_opt = (self.thought_to_policy(parent_node).await).ok();
                 } else {
                     current_opt = None;
                 }
@@ -648,10 +665,7 @@ impl Strategy for MCTS002AlphaStrategy {
             let parent_node = match &request.parent_id {
                 Some(parent_id) => {
                     if let Ok(Some(node)) = self_clone.base.get_node(parent_id).await {
-                        match self_clone.thought_to_policy(node).await {
-                            Ok(policy_node) => Some(policy_node),
-                            Err(_) => None,
-                        }
+                        (self_clone.thought_to_policy(node).await).ok()
                     } else {
                         None
                     }
@@ -671,7 +685,8 @@ impl Strategy for MCTS002AlphaStrategy {
 
             // Create thought identifier history from parent or initialize new one
             let thought_identifier = self_clone.get_thought_identifier(&request.thought);
-            let action_history = match &parent_node { // Reusing field name
+            let action_history = match &parent_node {
+                // Reusing field name
                 Some(parent) => {
                     let mut history = parent.action_history.clone().unwrap_or_default();
                     history.push(thought_identifier);
@@ -702,16 +717,20 @@ impl Strategy for MCTS002AlphaStrategy {
             node.visits = 1;
             node.total_reward = node.base.score;
             // Calculate policy score and value estimate
-            node.policy_score = self_clone.calculate_policy_score(&node, parent_node.as_ref()).await;
+            node.policy_score = self_clone
+                .calculate_policy_score(&node, parent_node.as_ref())
+                .await;
             node.value_estimate = self_clone.estimate_value(&node).await;
             node.novelty_score = Some(self_clone.calculate_novelty(&node));
             base_node.score = node.base.score;
 
             // Save the node
             if let Err(e) = self_clone.base.save_node(base_node.clone()).await {
-                let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
-                    format!("Failed to save base node: {}", e),
-                ))).await;
+                let _ = tx
+                    .send(Err(crate::strategies::base::ReasoningError::Other(
+                        format!("Failed to save base node: {}", e),
+                    )))
+                    .await;
                 return;
             }
 
@@ -719,9 +738,11 @@ impl Strategy for MCTS002AlphaStrategy {
             if let Some(mut parent) = parent_node {
                 parent.base.children.push(node.base.id.clone());
                 if let Err(e) = self_clone.base.save_node(parent.base.clone()).await {
-                    let _ = tx.send(Err(crate::strategies::base::ReasoningError::Other(
-                        format!("Failed to save parent node: {}", e),
-                    ))).await;
+                    let _ = tx
+                        .send(Err(crate::strategies::base::ReasoningError::Other(
+                            format!("Failed to save parent node: {}", e),
+                        )))
+                        .await;
                     return;
                 }
                 let _ = self_clone.update_policy_metrics(&node, &parent).await;
@@ -734,7 +755,9 @@ impl Strategy for MCTS002AlphaStrategy {
 
             // Calculate enhanced path statistics
             let current_path = self_clone.base.state_manager.get_path(&node_id).await;
-            let enhanced_score = self_clone.calculate_policy_enhanced_score(&current_path).await;
+            let enhanced_score = self_clone
+                .calculate_policy_enhanced_score(&current_path)
+                .await;
 
             let response = ReasoningResponse {
                 node_id: base_response.node_id,

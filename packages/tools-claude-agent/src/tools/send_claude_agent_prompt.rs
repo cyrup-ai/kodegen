@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::Tool;
 use crate::manager::AgentManager;
 use crate::types::prompt_input::PromptInput;
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -15,7 +15,7 @@ use std::sync::Arc;
 pub struct SendClaudeAgentPromptArgs {
     /// Session ID to send prompt to
     pub session_id: String,
-    
+
     /// Prompt to send (continues conversation) - can be plain string or template
     pub prompt: PromptInput,
 }
@@ -36,12 +36,15 @@ pub struct SendClaudeAgentPromptTool {
 
 impl SendClaudeAgentPromptTool {
     /// Create a new send prompt tool with required dependencies
-    #[must_use] 
+    #[must_use]
     pub fn new(
         agent_manager: Arc<AgentManager>,
         prompt_manager: Arc<kodegen_tools_prompt::PromptManager>,
     ) -> Self {
-        Self { agent_manager, prompt_manager }
+        Self {
+            agent_manager,
+            prompt_manager,
+        }
     }
 }
 
@@ -81,26 +84,29 @@ impl Tool for SendClaudeAgentPromptTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
         // Resolve prompt (render template if needed)
-        let resolved_prompt = args.prompt
+        let resolved_prompt = args
+            .prompt
             .resolve(&self.prompt_manager)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         self.agent_manager
             .send_message(&args.session_id, &resolved_prompt)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
-        let working = self.agent_manager
+
+        let working = self
+            .agent_manager
             .is_working(&args.session_id)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
-        let info = self.agent_manager
+
+        let info = self
+            .agent_manager
             .get_session_info(&args.session_id)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         Ok(json!({
             "session_id": args.session_id,
             "success": true,
@@ -113,7 +119,10 @@ impl Tool for SendClaudeAgentPromptTool {
         vec![]
     }
 
-    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
+    async fn prompt(
+        &self,
+        _args: Self::PromptArgs,
+    ) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
         Ok(vec![PromptMessage {
             role: PromptMessageRole::User,
             content: PromptMessageContent::Text {
@@ -162,7 +171,8 @@ Returns success status, updated turn count, and working indicator.
 1. Send prompt with this tool
 2. Agent processes (working=true)
 3. Poll with `read_claude_agent_output` for response
-4. Repeat as needed"#.to_string(),
+4. Repeat as needed"#
+                    .to_string(),
             },
         }])
     }

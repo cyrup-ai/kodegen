@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::Author, Octocrab};
+use octocrab::{Octocrab, models::Author};
 use std::sync::Arc;
 
 /// Get details of the authenticated GitHub user.

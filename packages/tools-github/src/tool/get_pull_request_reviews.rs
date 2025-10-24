@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use tokio_stream::StreamExt;
 use anyhow;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use tokio_stream::StreamExt;
 
 /// Tool for getting all reviews for a pull request
 #[derive(Clone)]
@@ -15,10 +15,10 @@ pub struct GetPullRequestReviewsTool;
 pub struct GetPullRequestReviewsArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Pull request number
     pub pull_number: u64,
 }
@@ -30,78 +30,72 @@ pub struct GetPullRequestReviewsPromptArgs {}
 impl Tool for GetPullRequestReviewsTool {
     type Args = GetPullRequestReviewsArgs;
     type PromptArgs = GetPullRequestReviewsPromptArgs;
-    
+
     fn name() -> &'static str {
         "get_pull_request_reviews"
     }
-    
+
     fn description() -> &'static str {
         "Get all reviews for a pull request. Shows approval status, requested changes, \
          and comments from reviewers. Requires GITHUB_TOKEN environment variable."
     }
-    
+
     fn read_only() -> bool {
-        true  // Only reads data
+        true // Only reads data
     }
-    
+
     fn destructive() -> bool {
-        false  // Doesn't delete anything
+        false // Doesn't delete anything
     }
-    
+
     fn idempotent() -> bool {
-        true  // Same result every time
+        true // Same result every time
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Call API wrapper (returns AsyncStream<Result<Review, GitHubError>>)
-        let mut review_stream = client.get_pull_request_reviews(
-            args.owner,
-            args.repo,
-            args.pull_number,
-        );
-        
+        let mut review_stream =
+            client.get_pull_request_reviews(args.owner, args.repo, args.pull_number);
+
         // Collect stream into vector
         let mut reviews = Vec::new();
         while let Some(result) = review_stream.next().await {
-            let review = result
-                .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+            let review =
+                result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
             reviews.push(review);
         }
-        
+
         // Return serialized reviews
         Ok(json!({
             "reviews": reviews,
             "count": reviews.len()
         }))
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I see all reviews on a pull request?"
-                ),
+                content: PromptMessageContent::text("How do I see all reviews on a pull request?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -138,7 +132,7 @@ impl Tool for GetPullRequestReviewsTool {
                      Requirements:\n\
                      - GITHUB_TOKEN environment variable must be set\n\
                      - Token needs 'repo' scope for private repos\n\
-                     - User must have read access to the repository"
+                     - User must have read access to the repository",
                 ),
             },
         ])

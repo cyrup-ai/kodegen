@@ -94,10 +94,11 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:150-166
             // Use CAST() for sqlx::any compatibility
-            let sql = "SELECT CAST(table_name AS TEXT) as table_name FROM information_schema.tables \
+            let sql =
+                "SELECT CAST(table_name AS TEXT) as table_name FROM information_schema.tables \
                        WHERE table_schema = $1 AND table_type = 'BASE TABLE' \
                        ORDER BY table_name"
-                .to_string();
+                    .to_string();
             let params = vec![schema.unwrap_or("public").to_string()];
             (sql, params)
         }
@@ -216,7 +217,7 @@ pub fn get_table_schema_query(
             // SECURITY: Validate identifier before string interpolation
             // This prevents SQL injection in PRAGMA commands which cannot use parameters
             crate::validate::validate_sqlite_identifier(table)?;
-            
+
             let sql = format!("PRAGMA table_info({})", table);
             // Note: PRAGMA returns different column names (cid, name, type, notnull, dflt_value, pk)
             // ExecuteSQL tool transforms these to match TableColumn struct
@@ -342,7 +343,7 @@ pub fn get_indexes_query(
         DatabaseType::SQLite => {
             // SECURITY: Validate identifier before string interpolation
             crate::validate::validate_sqlite_identifier(table)?;
-            
+
             let sql = format!("PRAGMA index_list({})", table);
             // Note: Returns index list only; ExecuteSQL tool makes follow-up calls
             // to PRAGMA index_info(index_name) for each index to get columns
@@ -383,8 +384,8 @@ pub fn get_indexes_query(
 ///     "users",
 ///     "idx_user_email"
 /// );
-/// // Returns: ("SELECT column_name FROM information_schema.statistics 
-/// //            WHERE table_schema = ? AND table_name = ? AND index_name = ? 
+/// // Returns: ("SELECT column_name FROM information_schema.statistics
+/// //            WHERE table_schema = ? AND table_name = ? AND index_name = ?
 /// //            ORDER BY seq_in_index", ["public", "users", "idx_user_email"])
 /// ```
 pub fn get_index_columns_query(
@@ -400,11 +401,14 @@ pub fn get_index_columns_query(
                        WHERE table_schema = ? AND table_name = ? AND index_name = ? \
                        ORDER BY seq_in_index"
                 .to_string();
-            (sql, vec![
-                schema.to_string(),
-                table.to_string(),
-                index_name.to_string(),
-            ])
+            (
+                sql,
+                vec![
+                    schema.to_string(),
+                    table.to_string(),
+                    index_name.to_string(),
+                ],
+            )
         }
         _ => {
             // Other databases don't need this (they use array aggregation)

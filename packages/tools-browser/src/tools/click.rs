@@ -67,18 +67,21 @@ impl Tool for BrowserClickTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
 
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard
-            .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+        let wrapper = browser_guard.as_ref().ok_or_else(|| {
+            McpError::Other(anyhow::anyhow!(
                 "Browser not available. This is an internal error - please report it."
-            )))?;
+            ))
+        })?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Failed to get page. Did you call browser_navigate first? Error: {}", e
-            )))?;
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Failed to get page. Did you call browser_navigate first? Error: {}",
+                    e
+                ))
+            })?;
 
         // Find element with timeout
         let timeout = validate_interaction_timeout(args.timeout_ms, 5000)?;

@@ -42,11 +42,7 @@ fn safe_substring(text: &str, start: usize, end: usize) -> &str {
     };
     let start = cmp::min(start, len);
     let end = cmp::min(end, len);
-    if start >= end {
-        ""
-    } else {
-        &text[start..end]
-    }
+    if start >= end { "" } else { &text[start..end] }
 }
 
 // ============================================================================
@@ -99,10 +95,14 @@ pub fn levenshtein_distance(a: &str, b: &str) -> f64 {
     // Fill matrix
     for i in 1..=a_len {
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0.0 } else { 1.0 };
-            matrix[i][j] = (matrix[i - 1][j] + 1.0)           // deletion
-                .min(matrix[i][j - 1] + 1.0)                  // insertion
-                .min(matrix[i - 1][j - 1] + cost);            // substitution
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0.0
+            } else {
+                1.0
+            };
+            matrix[i][j] = (matrix[i - 1][j] + 1.0) // deletion
+                .min(matrix[i][j - 1] + 1.0) // insertion
+                .min(matrix[i - 1][j - 1] + cost); // substitution
         }
     }
 
@@ -211,13 +211,7 @@ pub fn recursive_fuzzy_index_of(
     if left_distance < right_distance {
         recursive_fuzzy_index_of(text, query, start, Some(left_end), best_distance)
     } else {
-        recursive_fuzzy_index_of(
-            text,
-            query,
-            right_start,
-            Some(end),
-            best_distance,
-        )
+        recursive_fuzzy_index_of(text, query, right_start, Some(end), best_distance)
     }
 }
 

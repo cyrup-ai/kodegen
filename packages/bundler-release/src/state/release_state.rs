@@ -4,9 +4,9 @@
 //! enabling resume capabilities and rollback coordination.
 
 use crate::error::{Result, StateError};
-use crate::git::{CommitInfo, TagInfo, PushInfo};
+use crate::git::{CommitInfo, PushInfo, TagInfo};
 use crate::publish::PublishResult;
-use crate::version::{VersionBump, UpdateResult};
+use crate::version::{UpdateResult, VersionBump};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -454,10 +454,9 @@ impl ReleaseState {
                 published_at: chrono::Utc::now(),
             };
 
-            publish_state.published_packages.insert(
-                publish_result.package_name.clone(),
-                package_info,
-            );
+            publish_state
+                .published_packages
+                .insert(publish_result.package_name.clone(), package_info);
         }
 
         self.updated_at = chrono::Utc::now();
@@ -515,7 +514,9 @@ impl ReleaseState {
             ReleasePhase::Publishing => {
                 if let Some(publish_state) = &self.publish_state {
                     if publish_state.total_tiers > 0 {
-                        let tier_progress = (publish_state.current_tier as f64 / publish_state.total_tiers as f64) * 40.0;
+                        let tier_progress = (publish_state.current_tier as f64
+                            / publish_state.total_tiers as f64)
+                            * 40.0;
                         50.0 + tier_progress
                     } else {
                         70.0
@@ -546,12 +547,13 @@ impl ReleaseState {
             return Err(StateError::VersionMismatch {
                 expected: STATE_FORMAT_VERSION.to_string(),
                 found: self.format_version.to_string(),
-            }.into());
+            }
+            .into());
         }
 
         // Phase can exist without corresponding state - this represents work in progress
         // The resume function handles incomplete phases by checking for missing state
-        
+
         Ok(())
     }
 

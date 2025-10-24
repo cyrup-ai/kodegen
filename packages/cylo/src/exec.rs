@@ -5,8 +5,8 @@ use std::{
     process::Command,
 };
 
-use tempfile::Builder as TempFileBuilder;
 use log::{error, info, warn};
+use tempfile::Builder as TempFileBuilder;
 
 use crate::config::RamdiskConfig;
 use crate::error::{ExecError, Result};

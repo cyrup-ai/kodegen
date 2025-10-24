@@ -1,20 +1,26 @@
 //! Shared helper functions for command execution.
 
-use crate::error::{Result, ReleaseError, CliError};
+use crate::error::{CliError, ReleaseError, Result};
 use crate::git::GitManager;
 use crate::workspace::WorkspaceInfo;
 
 /// Parse GitHub repository string into owner/repo tuple
 #[allow(dead_code)]
 pub(super) fn parse_github_repo(repo_str: Option<&str>) -> Result<(String, String)> {
-    let repo = repo_str.ok_or_else(|| ReleaseError::Cli(CliError::InvalidArguments {
-        reason: "--github-repo is required when --github-release is used. Format: owner/repo".to_string(),
-    }))?;
+    let repo = repo_str.ok_or_else(|| {
+        ReleaseError::Cli(CliError::InvalidArguments {
+            reason: "--github-repo is required when --github-release is used. Format: owner/repo"
+                .to_string(),
+        })
+    })?;
 
     let parts: Vec<&str> = repo.split('/').collect();
     if parts.len() != 2 {
         return Err(ReleaseError::Cli(CliError::InvalidArguments {
-            reason: format!("Invalid GitHub repository format: '{}'. Expected: owner/repo", repo),
+            reason: format!(
+                "Invalid GitHub repository format: '{}'. Expected: owner/repo",
+                repo
+            ),
         }));
     }
 
@@ -26,7 +32,10 @@ pub(super) fn parse_github_repo_string(repo_str: &str) -> Result<(String, String
     let parts: Vec<&str> = repo_str.split('/').collect();
     if parts.len() != 2 {
         return Err(ReleaseError::Cli(CliError::InvalidArguments {
-            reason: format!("Invalid GitHub repository format: '{}'. Expected: owner/repo", repo_str),
+            reason: format!(
+                "Invalid GitHub repository format: '{}'. Expected: owner/repo",
+                repo_str
+            ),
         }));
     }
     Ok((parts[0].to_string(), parts[1].to_string()))
@@ -48,13 +57,14 @@ pub(super) fn parse_github_url(url: &str) -> Option<(String, String)> {
 
     // Handle https://github.com/owner/repo.git
     if url.contains("github.com/")
-        && let Some(path) = url.split("github.com/").nth(1) {
-            let repo_part = path.strip_suffix(".git").unwrap_or(path);
-            let parts: Vec<&str> = repo_part.split('/').collect();
-            if parts.len() >= 2 {
-                return Some((parts[0].to_string(), parts[1].to_string()));
-            }
+        && let Some(path) = url.split("github.com/").nth(1)
+    {
+        let repo_part = path.strip_suffix(".git").unwrap_or(path);
+        let parts: Vec<&str> = repo_part.split('/').collect();
+        if parts.len() >= 2 {
+            return Some((parts[0].to_string(), parts[1].to_string()));
         }
+    }
 
     None
 }
@@ -64,17 +74,23 @@ pub(super) async fn detect_github_repo(git_manager: &GitManager) -> Result<(Stri
     let remotes = git_manager.remotes().await?;
 
     // Find origin remote
-    let origin = remotes.iter()
-        .find(|r| r.name == "origin")
-        .ok_or_else(|| ReleaseError::Cli(CliError::InvalidArguments {
-            reason: "No 'origin' remote configured. Git requires origin for push/pull/tag operations.".to_string(),
-        }))?;
+    let origin = remotes.iter().find(|r| r.name == "origin").ok_or_else(|| {
+        ReleaseError::Cli(CliError::InvalidArguments {
+            reason:
+                "No 'origin' remote configured. Git requires origin for push/pull/tag operations."
+                    .to_string(),
+        })
+    })?;
 
     // Parse GitHub URL from origin
-    parse_github_url(&origin.fetch_url)
-        .ok_or_else(|| ReleaseError::Cli(CliError::InvalidArguments {
-            reason: format!("Origin remote is not a GitHub repository: {}", origin.fetch_url),
-        }))
+    parse_github_url(&origin.fetch_url).ok_or_else(|| {
+        ReleaseError::Cli(CliError::InvalidArguments {
+            reason: format!(
+                "Origin remote is not a GitHub repository: {}",
+                origin.fetch_url
+            ),
+        })
+    })
 }
 
 /// Create distributable bundles for the release
@@ -83,7 +99,7 @@ pub(super) fn create_bundles(
     version: &semver::Version,
     _config: &crate::cli::RuntimeConfig,
 ) -> Result<Vec<crate::bundler::BundledArtifact>> {
-    use crate::bundler::{Bundler, SettingsBuilder, PackageSettings, BundleSettings};
+    use crate::bundler::{BundleSettings, Bundler, PackageSettings, SettingsBuilder};
     use std::path::PathBuf;
 
     // Extract product name from first package
@@ -148,9 +164,9 @@ pub(super) fn create_bundles(
     // kodegen_install runs first to setup system and register kodegend daemon
     use crate::bundler::BundleBinary;
     let binaries = vec![
-        BundleBinary::new("kodegen_install".to_string(), true),  // primary installer (runs first)
-        BundleBinary::new("kodegend".to_string(), false),        // service daemon
-        BundleBinary::new("kodegen".to_string(), false),         // main MCP server
+        BundleBinary::new("kodegen_install".to_string(), true), // primary installer (runs first)
+        BundleBinary::new("kodegend".to_string(), false),       // service daemon
+        BundleBinary::new("kodegen".to_string(), false),        // main MCP server
     ];
 
     // Use SettingsBuilder to create Settings
@@ -160,21 +176,25 @@ pub(super) fn create_bundles(
         .bundle_settings(bundle_settings)
         .binaries(binaries)
         .build()
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
-            command: "build_settings".to_string(),
-            reason: e.to_string(),
-        }))?;
+        .map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
+                command: "build_settings".to_string(),
+                reason: e.to_string(),
+            })
+        })?;
 
     // Now Bundler::new() gets the correct Settings type
-    let bundler = Bundler::new(settings)
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+    let bundler = Bundler::new(settings).map_err(|e| {
+        ReleaseError::Cli(CliError::ExecutionFailed {
             command: "create_bundler".to_string(),
             reason: e.to_string(),
-        }))?;
+        })
+    })?;
 
-    bundler.bundle()
-        .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+    bundler.bundle().map_err(|e| {
+        ReleaseError::Cli(CliError::ExecutionFailed {
             command: "bundle_artifacts".to_string(),
             reason: e.to_string(),
-        }))
+        })
+    })
 }

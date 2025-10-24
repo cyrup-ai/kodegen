@@ -142,7 +142,7 @@ pub enum AnchorValidationWarning {
 
 impl AnchorValidationWarning {
     /// Get warning message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::UnusedAnchor { anchor_name, .. } => {
@@ -160,7 +160,7 @@ impl AnchorValidationWarning {
     }
 
     /// Get warning position
-    #[must_use] 
+    #[must_use]
     pub const fn position(&self) -> Position {
         match self {
             Self::UnusedAnchor { position, .. } => *position,

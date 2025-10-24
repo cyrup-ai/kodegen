@@ -22,14 +22,17 @@ impl Terminal {
     /// let screen = handle.await.unwrap();
     /// println!("{}", screen.contents());
     /// ```
-    pub async fn exec(&mut self, command: impl Into<String> + Send + 'static) -> io::Result<tokio::task::JoinHandle<Screen>> {
+    pub async fn exec(
+        &mut self,
+        command: impl Into<String> + Send + 'static,
+    ) -> io::Result<tokio::task::JoinHandle<Screen>> {
         let command_str = command.into();
 
         // GUARD: Prevent double initialization (check if tasks are already running)
         if self.writer_task.is_some() || self.reader_task.is_some() {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
-                "Terminal already initialized, cannot call exec() again"
+                "Terminal already initialized, cannot call exec() again",
             ));
         }
 
@@ -63,7 +66,9 @@ impl Terminal {
             // If we still can't get the screen after retries, return a blank screen
             // This should be extremely rare (only if the parser lock is poisoned)
             log::error!("Failed to acquire parser screen after retries, returning empty screen");
-            Parser::new(terminal.size.rows, terminal.size.cols, 0).screen().clone()
+            Parser::new(terminal.size.rows, terminal.size.cols, 0)
+                .screen()
+                .clone()
         }))
     }
 }

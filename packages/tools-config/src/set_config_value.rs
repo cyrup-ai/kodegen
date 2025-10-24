@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
 use crate::{ConfigManager, ConfigValue};
 use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // ============================================================================
 // TOOL ARGUMENTS

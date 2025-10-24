@@ -2,10 +2,10 @@ use crate::state::StateManager;
 use crate::strategies::base::{
     AsyncPath, BaseStrategy, ClearedSignal, Metric, MetricStream, Reasoning, Strategy,
 };
-use crate::types::{ReasoningRequest, ReasoningResponse, ThoughtNode, CONFIG};
+use crate::types::{CONFIG, ReasoningRequest, ReasoningResponse, ThoughtNode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tracing;
 use uuid::Uuid;
 
@@ -34,8 +34,7 @@ impl MonteCarloTreeSearchStrategy {
             simulation_depth: CONFIG.max_depth,
             num_simulations: num_simulations
                 .unwrap_or(CONFIG.num_simulations)
-                .max(1)
-                .min(150),
+                .clamp(1, 150),
             root: Arc::new(Mutex::new(None)),
         }
     }
@@ -63,7 +62,7 @@ impl MonteCarloTreeSearchStrategy {
             && current
                 .untried_actions
                 .as_ref()
-                .map_or(true, |a| a.is_empty())
+                .is_none_or(|a| a.is_empty())
         {
             let mut children = Vec::new();
             for id in &current.base.children {
@@ -94,7 +93,13 @@ impl MonteCarloTreeSearchStrategy {
 
         // Create a new thought node as expansion
         let new_node_id = Uuid::new_v4().to_string();
-        let parent_prefix = node.base.thought.split_whitespace().take(5).collect::<Vec<_>>().join(" ");
+        let parent_prefix = node
+            .base
+            .thought
+            .split_whitespace()
+            .take(5)
+            .collect::<Vec<_>>()
+            .join(" ");
         // Simple heuristic continuation - better than a pure placeholder
         let new_thought = format!(
             "Considering '{}...', a possible next step is...",
@@ -110,7 +115,10 @@ impl MonteCarloTreeSearchStrategy {
             is_complete: false,
         };
 
-        new_node.score = self.base.evaluate_thought(&new_node, Some(&node.base)).await;
+        new_node.score = self
+            .base
+            .evaluate_thought(&new_node, Some(&node.base))
+            .await;
 
         // Save the new node
         if let Err(e) = self.base.save_node(new_node.clone()).await {
@@ -148,12 +156,15 @@ impl MonteCarloTreeSearchStrategy {
 
         while depth < self.simulation_depth && !current.base.is_complete {
             let simulated_node_id = Uuid::new_v4().to_string();
-            let current_prefix = current.base.thought.split_whitespace().take(5).collect::<Vec<_>>().join(" ");
+            let current_prefix = current
+                .base
+                .thought
+                .split_whitespace()
+                .take(5)
+                .collect::<Vec<_>>()
+                .join(" ");
             // Simple heuristic continuation for simulation
-            let simulated_thought = format!(
-                "If we follow '{}...', perhaps...",
-                 current_prefix
-            );
+            let simulated_thought = format!("If we follow '{}...', perhaps...", current_prefix);
             let mut simulated_node = ThoughtNode {
                 id: simulated_node_id,
                 thought: simulated_thought,
@@ -314,7 +325,7 @@ impl MonteCarloTreeSearchStrategy {
             }
             count
         }
-        
+
         Box::pin(inner(self, node_id, current_depth)).await
     }
 
@@ -413,7 +424,9 @@ impl Strategy for MonteCarloTreeSearchStrategy {
                 total_reward: node.score,
                 untried_actions: Some(vec![]),
             };
-            let possible_paths = self_clone.calculate_possible_paths(&mcts_node_for_paths).await;
+            let possible_paths = self_clone
+                .calculate_possible_paths(&mcts_node_for_paths)
+                .await;
 
             let response = ReasoningResponse {
                 node_id: node.id,

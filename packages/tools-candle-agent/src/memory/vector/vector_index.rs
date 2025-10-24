@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use kodegen_simd::cosine_similarity;
 use dashmap::DashMap;
 use instant_distance::Builder;
+use kodegen_simd::cosine_similarity;
 use serde::{Deserialize, Serialize};
 
 use crate::memory::utils::Result;

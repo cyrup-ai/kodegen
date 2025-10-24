@@ -109,7 +109,9 @@ impl ExecutionFlow {
                     info!("Firecracker is available, using VM isolation");
                     // Block on async function from sync context
                     let handle = tokio::runtime::Handle::current();
-                    match handle.block_on(crate::firecracker::create_firecracker_environment(&self.config)) {
+                    match handle.block_on(crate::firecracker::create_firecracker_environment(
+                        &self.config,
+                    )) {
                         Ok(vm) => {
                             info!("Firecracker VM created successfully");
                             self.firecracker_vm = Some(vm);

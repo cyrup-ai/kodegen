@@ -1,12 +1,18 @@
-use std::{collections::HashMap, sync::{atomic::AtomicBool, Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock, atomic::AtomicBool},
+};
 use tokio::sync::mpsc::channel;
 use vt100::Parser;
 
-use super::{builder::TerminalBuilder, types::{BellStyle, ColorMode, Terminal, TermSize, TerminalConfig}};
+use super::{
+    builder::TerminalBuilder,
+    types::{BellStyle, ColorMode, TermSize, Terminal, TerminalConfig},
+};
 
 impl Terminal {
     /// Create a convenient builder for terminal creation
-    #[must_use] 
+    #[must_use]
     pub fn builder() -> TerminalBuilder {
         TerminalBuilder::new()
     }
@@ -17,7 +23,7 @@ impl Terminal {
     }
 
     /// Interactive shell optimized for development
-    #[must_use] 
+    #[must_use]
     pub fn dev_shell() -> Self {
         Self::builder()
             .shell(true)
@@ -38,7 +44,7 @@ impl Terminal {
     }
 
     /// Terminal optimized for running JS/TS dev servers
-    #[must_use] 
+    #[must_use]
     pub fn node_dev() -> Self {
         Self::builder()
             .shell(true)
@@ -49,7 +55,7 @@ impl Terminal {
     }
 
     /// Terminal optimized for Rust development
-    #[must_use] 
+    #[must_use]
     pub fn rust_dev() -> Self {
         Self::builder()
             .shell(true)
@@ -60,7 +66,7 @@ impl Terminal {
     }
 
     /// Create a new terminal with the given size
-    #[must_use] 
+    #[must_use]
     pub fn new(size: TermSize) -> Self {
         let (tx, rx) = channel(32);
 

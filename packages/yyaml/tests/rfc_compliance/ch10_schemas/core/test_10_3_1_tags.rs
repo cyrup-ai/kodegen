@@ -53,7 +53,15 @@ not_a_number: .nan
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     // Note: How these are handled depends on implementation
     // They might be represented as strings in some cases
-    assert!(docs[0]["positive_infinity"].as_str().is_some() || docs[0]["positive_infinity"].as_f64().is_some());
-    assert!(docs[0]["negative_infinity"].as_str().is_some() || docs[0]["negative_infinity"].as_f64().is_some());
-    assert!(docs[0]["not_a_number"].as_str().is_some() || docs[0]["not_a_number"].as_f64().is_some());
+    assert!(
+        docs[0]["positive_infinity"].as_str().is_some()
+            || docs[0]["positive_infinity"].as_f64().is_some()
+    );
+    assert!(
+        docs[0]["negative_infinity"].as_str().is_some()
+            || docs[0]["negative_infinity"].as_f64().is_some()
+    );
+    assert!(
+        docs[0]["not_a_number"].as_str().is_some() || docs[0]["not_a_number"].as_f64().is_some()
+    );
 }

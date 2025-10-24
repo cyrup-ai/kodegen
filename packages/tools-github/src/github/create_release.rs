@@ -2,8 +2,8 @@
 //!
 //! Uses octocrab's releases API: client.repos(owner, `repo).releases()`
 
-use octocrab::models::repos::Release;
 use octocrab::Octocrab;
+use octocrab::models::repos::Release;
 use std::sync::Arc;
 
 /// Options for creating a GitHub release
@@ -60,7 +60,7 @@ pub async fn create_release(
         .prerelease(options.prerelease)
         .send()
         .await?;
-    
+
     Ok(ReleaseResult {
         id: release.id.0,
         tag_name: release.tag_name,

@@ -102,57 +102,84 @@ servers:
 ---
 second_document: "This demonstrates multi-document streams"
 ..."#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    
+
     // Verify we parsed multiple documents
     assert_eq!(docs.len(), 2);
-    
+
     // Test first document structure
     let doc = &docs[0];
-    assert_eq!(doc["metadata"]["title"].as_str().unwrap(), "Comprehensive YAML Test");
+    assert_eq!(
+        doc["metadata"]["title"].as_str().unwrap(),
+        "Comprehensive YAML Test"
+    );
     assert_eq!(doc["metadata"]["version"].as_f64().unwrap(), 1.2);
     assert_eq!(doc["metadata"]["authors"].as_vec().unwrap().len(), 2);
-    
+
     // Test configuration structure
-    assert_eq!(doc["configuration"]["database"]["port"].as_i64().unwrap(), 5432);
+    assert_eq!(
+        doc["configuration"]["database"]["port"].as_i64().unwrap(),
+        5432
+    );
     assert_eq!(doc["configuration"]["features"].as_vec().unwrap().len(), 3);
     assert!(doc["configuration"]["flags"]["debug"].as_bool().unwrap());
-    
+
     // Test block scalars
-    assert!(doc["configuration"]["description"].as_str().unwrap().contains("literal block scalar"));
-    assert!(doc["configuration"]["folded_text"].as_str().unwrap().contains("folded block scalar"));
-    
+    assert!(
+        doc["configuration"]["description"]
+            .as_str()
+            .unwrap()
+            .contains("literal block scalar")
+    );
+    assert!(
+        doc["configuration"]["folded_text"]
+            .as_str()
+            .unwrap()
+            .contains("folded block scalar")
+    );
+
     // Test type resolution
     assert!(doc["configuration"]["types"]["null_value"].is_null());
-    assert!(doc["configuration"]["types"]["boolean_true"].as_bool().unwrap());
-    assert_eq!(doc["configuration"]["types"]["integer"].as_i64().unwrap(), 42);
-    
+    assert!(
+        doc["configuration"]["types"]["boolean_true"]
+            .as_bool()
+            .unwrap()
+    );
+    assert_eq!(
+        doc["configuration"]["types"]["integer"].as_i64().unwrap(),
+        42
+    );
+
     // Test aliases work correctly
     assert_eq!(doc["production"]["username"].as_str().unwrap(), "admin");
-    assert_eq!(doc["servers"][0]["config"]["username"].as_str().unwrap(), "admin");
-    
+    assert_eq!(
+        doc["servers"][0]["config"]["username"].as_str().unwrap(),
+        "admin"
+    );
+
     // Test second document
-    assert_eq!(docs[1]["second_document"].as_str().unwrap(), "This demonstrates multi-document streams");
-}/// Integration test: Error handling and edge cases
+    assert_eq!(
+        docs[1]["second_document"].as_str().unwrap(),
+        "This demonstrates multi-document streams"
+    );
+}
+/// Integration test: Error handling and edge cases
 #[test]
 fn test_error_handling_compliance() {
     // Test cases that should fail parsing
     let invalid_cases = [
         // Invalid indentation (tabs)
         "key:\n\tvalue",
-
         // Invalid flow syntax
         "[unclosed sequence",
         "{unclosed: mapping",
-
         // Invalid escape sequences in double quotes
         "\"invalid \\x escape\"",
-
         // Invalid document markers
         "content\n---\n... extra content after end",
     ];
-    
+
     for (i, yaml) in invalid_cases.iter().enumerate() {
         let result = YamlLoader::load_from_str(yaml);
         assert!(
@@ -169,17 +196,20 @@ fn test_error_handling_compliance() {
 fn test_large_document_performance() {
     // Generate a reasonably large but structured YAML document
     let mut yaml = String::from("large_data:\n");
-    
+
     // Add 1000 items to test scalability
     for i in 0..1000 {
         yaml.push_str(&format!("  item_{}: value_{}\n", i, i));
     }
-    
+
     // Should parse without issues
     let docs = YamlLoader::load_from_str(&yaml).unwrap();
     assert_eq!(docs.len(), 1);
     assert_eq!(docs[0]["large_data"]["item_0"].as_str().unwrap(), "value_0");
-    assert_eq!(docs[0]["large_data"]["item_999"].as_str().unwrap(), "value_999");
+    assert_eq!(
+        docs[0]["large_data"]["item_999"].as_str().unwrap(),
+        "value_999"
+    );
 }
 
 /// Integration test: Unicode and international content
@@ -200,10 +230,16 @@ mixed_scripts:
   - Ελληνικά
   - हिन्दी
 "#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert_eq!(docs[0]["unicode_content"]["chinese"].as_str().unwrap(), "你好世界");
-    assert_eq!(docs[0]["unicode_content"]["emoji"].as_str().unwrap(), "🌍🚀✨");
+    assert_eq!(
+        docs[0]["unicode_content"]["chinese"].as_str().unwrap(),
+        "你好世界"
+    );
+    assert_eq!(
+        docs[0]["unicode_content"]["emoji"].as_str().unwrap(),
+        "🌍🚀✨"
+    );
     assert_eq!(docs[0]["mixed_scripts"].as_vec().unwrap().len(), 4);
 }
 
@@ -244,23 +280,53 @@ complex_structure: # End-of-line comment
       <<: *shared_config
       host: staging.example.com
 "#;
-    
+
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     let doc = &docs[0];
-    
+
     // Verify complex structure parsed correctly
-    assert_eq!(doc["complex_structure"]["sequence_with_mappings"].as_vec().unwrap().len(), 2);
-    assert_eq!(doc["complex_structure"]["sequence_with_mappings"][0]["name"].as_str().unwrap(), "Item \"One\"");
-    
+    assert_eq!(
+        doc["complex_structure"]["sequence_with_mappings"]
+            .as_vec()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        doc["complex_structure"]["sequence_with_mappings"][0]["name"]
+            .as_str()
+            .unwrap(),
+        "Item \"One\""
+    );
+
     // Verify block scalars
-    let folded = doc["complex_structure"]["sequence_with_mappings"][1]["description"].as_str().unwrap();
+    let folded = doc["complex_structure"]["sequence_with_mappings"][1]["description"]
+        .as_str()
+        .unwrap();
     assert!(folded.contains("folded scalar"));
-    
-    let literal = doc["complex_structure"]["sequence_with_mappings"][1]["data"].as_str().unwrap();
+
+    let literal = doc["complex_structure"]["sequence_with_mappings"][1]["data"]
+        .as_str()
+        .unwrap();
     assert!(literal.contains("    indentation"));
-    
+
     // Verify anchors and aliases
-    assert_eq!(doc["complex_structure"]["anchored_data"]["database"]["port"].as_i64().unwrap(), 5432);
-    assert_eq!(doc["complex_structure"]["references"]["production"]["database"]["port"].as_i64().unwrap(), 5432);
-    assert_eq!(doc["complex_structure"]["references"]["staging"]["host"].as_str().unwrap(), "staging.example.com");
+    assert_eq!(
+        doc["complex_structure"]["anchored_data"]["database"]["port"]
+            .as_i64()
+            .unwrap(),
+        5432
+    );
+    assert_eq!(
+        doc["complex_structure"]["references"]["production"]["database"]["port"]
+            .as_i64()
+            .unwrap(),
+        5432
+    );
+    assert_eq!(
+        doc["complex_structure"]["references"]["staging"]["host"]
+            .as_str()
+            .unwrap(),
+        "staging.example.com"
+    );
 }

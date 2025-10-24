@@ -17,7 +17,7 @@ pub struct CachedResolution<'input> {
 
 impl<'input> CachedResolution<'input> {
     /// Create new cached resolution entry
-    #[must_use] 
+    #[must_use]
     pub fn new(resolved_node: Node<'input>) -> Self {
         Self {
             resolved_node,
@@ -27,14 +27,14 @@ impl<'input> CachedResolution<'input> {
     }
 
     /// Check if cache entry is stale (older than specified duration)
-    #[must_use] 
+    #[must_use]
     pub fn is_stale(&self, max_age: Duration) -> bool {
         self.cached_at.elapsed() > max_age
     }
 
     /// Get cache entry age
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn age(&self) -> Duration {
         self.cached_at.elapsed()
     }
@@ -48,7 +48,7 @@ impl<'input> CachedResolution<'input> {
     }
 
     /// Get access frequency (accesses per second since creation)
-    #[must_use] 
+    #[must_use]
     pub fn access_frequency(&self) -> f64 {
         let age_seconds = self.age().as_secs_f64();
         if age_seconds > 0.0 {
@@ -71,7 +71,7 @@ pub struct CacheStatistics {
 
 impl CacheStatistics {
     /// Create cache statistics from resolution cache
-    #[must_use] 
+    #[must_use]
     pub fn from_cache(
         cache: &HashMap<String, CachedResolution<'_>>,
         total_resolution_attempts: usize,
@@ -116,7 +116,7 @@ pub struct CacheManager<'input> {
 
 impl<'input> CacheManager<'input> {
     /// Create new cache manager with specified limits
-    #[must_use] 
+    #[must_use]
     pub fn new(max_size: usize, max_age: Duration) -> Self {
         Self {
             cache: HashMap::with_capacity(max_size.min(64)),
@@ -214,27 +214,27 @@ impl<'input> CacheManager<'input> {
     }
 
     /// Get cache statistics
-    #[must_use] 
+    #[must_use]
     pub fn statistics(&self) -> CacheStatistics {
         CacheStatistics::from_cache(&self.cache, self.total_resolution_attempts)
     }
 
     /// Get cache size
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.cache.len()
     }
 
     /// Check if cache is empty
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.cache.is_empty()
     }
 
     /// Get cache utilization as percentage
-    #[must_use] 
+    #[must_use]
     pub fn utilization(&self) -> f64 {
         if self.max_size > 0 {
             (self.cache.len() as f64 / self.max_size as f64) * 100.0
@@ -285,7 +285,7 @@ impl Default for CacheConfig {
 
 impl CacheConfig {
     /// Create cache configuration optimized for performance
-    #[must_use] 
+    #[must_use]
     pub const fn performance_optimized() -> Self {
         Self {
             max_size: 512,
@@ -296,7 +296,7 @@ impl CacheConfig {
     }
 
     /// Create cache configuration optimized for memory usage
-    #[must_use] 
+    #[must_use]
     pub const fn memory_optimized() -> Self {
         Self {
             max_size: 32,

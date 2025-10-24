@@ -6,8 +6,8 @@
 //! NOTE: Many fields are unused but required for serde deserialization
 //! of ripgrep's JSON output format.
 
-use serde::Deserialize;
 use crate::search::types::{SearchResult, SearchResultType};
+use serde::Deserialize;
 
 /// Root message type from ripgrep JSON output
 #[derive(Debug, Deserialize)]
@@ -78,7 +78,8 @@ pub(crate) fn parse_json_buffer(buffer: &[u8]) -> anyhow::Result<Vec<SearchResul
 
         match msg {
             RipgrepMessage::Match { data } => {
-                let file = data.path
+                let file = data
+                    .path
                     .and_then(|p| p.text)
                     .unwrap_or_else(|| "<stdin>".to_string());
 
@@ -96,7 +97,8 @@ pub(crate) fn parse_json_buffer(buffer: &[u8]) -> anyhow::Result<Vec<SearchResul
                 });
             }
             RipgrepMessage::Context { data } => {
-                let file = data.path
+                let file = data
+                    .path
                     .and_then(|p| p.text)
                     .unwrap_or_else(|| "<stdin>".to_string());
 

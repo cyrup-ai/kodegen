@@ -28,7 +28,8 @@ impl SearchCache {
 
     pub fn get_if_valid(&mut self, key: &str, current_sha: &str) -> Option<RepositoryResult> {
         if let Some(entry) = self.lru.get(key)
-            && !entry.is_expired(self.ttl) && entry.commit_hash == current_sha
+            && !entry.is_expired(self.ttl)
+            && entry.commit_hash == current_sha
         {
             self.hits.fetch_add(1, Ordering::Relaxed);
             return Some(entry.result.clone());

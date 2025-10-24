@@ -3,9 +3,8 @@
 use std::time::Instant;
 
 use crate::logits::constraints::{
-    GenerationConstraint, JsonConstraint, json::JsonState,
-    SchemaConstraint, SchemaConstraintState, SchemaVocabulary,
-    PredefinedSchema, SchemaConstraintBuilder
+    GenerationConstraint, JsonConstraint, PredefinedSchema, SchemaConstraint,
+    SchemaConstraintBuilder, SchemaConstraintState, SchemaVocabulary, json::JsonState,
 };
 
 /// Context for processing logits with token history and configuration
@@ -125,9 +124,10 @@ impl ProcessingContext {
 
         // Check max new tokens
         if let Some(max_tokens) = self.max_new_tokens
-            && generated_count >= max_tokens {
-                return true;
-            }
+            && generated_count >= max_tokens
+        {
+            return true;
+        }
 
         // Check for max sequence length (safety check)
         if self.token_history.len() > 4096 {
@@ -164,7 +164,9 @@ impl ProcessingContext {
     ///
     /// Returns an error if constraint validation fails
     pub fn is_token_valid(&self, token: u32) -> anyhow::Result<bool> {
-        if let (Some(constraint), Some(state)) = (&self.json_constraint, &self.json_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.json_constraint, &self.json_constraint_state)
+        {
             constraint.try_next(state, token)
         } else {
             Ok(true) // No constraints, all tokens valid
@@ -177,7 +179,9 @@ impl ProcessingContext {
     ///
     /// Returns an error if constraint state update fails
     pub fn update_constraint_state(&mut self, token: u32) -> anyhow::Result<bool> {
-        if let (Some(constraint), Some(state)) = (&self.json_constraint, &mut self.json_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.json_constraint, &mut self.json_constraint_state)
+        {
             constraint.update(state, token)
         } else {
             Ok(true) // No constraints to update
@@ -187,7 +191,9 @@ impl ProcessingContext {
     /// Check if JSON constraint-based generation is complete
     #[must_use]
     pub fn is_constraint_done(&self) -> bool {
-        if let (Some(constraint), Some(state)) = (&self.json_constraint, &self.json_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.json_constraint, &self.json_constraint_state)
+        {
             constraint.is_done(state)
         } else {
             false // No constraints, generation not complete
@@ -200,7 +206,9 @@ impl ProcessingContext {
     ///
     /// Returns an error if sequence generation fails
     pub fn get_deterministic_sequence(&self) -> anyhow::Result<Vec<u32>> {
-        if let (Some(constraint), Some(state)) = (&self.json_constraint, &self.json_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.json_constraint, &self.json_constraint_state)
+        {
             constraint.get_deterministic_sequence(state)
         } else {
             Ok(Vec::new()) // No constraints, no forced sequence
@@ -270,7 +278,9 @@ impl ProcessingContext {
 
     /// Check if a token is valid according to schema constraints
     pub fn is_token_valid_schema(&self, token: u32) -> anyhow::Result<bool> {
-        if let (Some(constraint), Some(state)) = (&self.schema_constraint, &self.schema_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.schema_constraint, &self.schema_constraint_state)
+        {
             constraint.try_next(state, token)
         } else {
             Ok(true) // No schema constraints, all tokens valid
@@ -279,7 +289,9 @@ impl ProcessingContext {
 
     /// Update schema constraint state after token generation
     pub fn update_schema_constraint_state(&mut self, token: u32) -> anyhow::Result<bool> {
-        if let (Some(constraint), Some(state)) = (&self.schema_constraint, &mut self.schema_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.schema_constraint, &mut self.schema_constraint_state)
+        {
             constraint.update(state, token)
         } else {
             Ok(true) // No constraints to update
@@ -288,7 +300,9 @@ impl ProcessingContext {
 
     /// Check if schema constraint-based generation is complete
     pub fn is_schema_constraint_done(&self) -> bool {
-        if let (Some(constraint), Some(state)) = (&self.schema_constraint, &self.schema_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.schema_constraint, &self.schema_constraint_state)
+        {
             constraint.is_done(state)
         } else {
             false // No constraints, generation not complete
@@ -297,7 +311,9 @@ impl ProcessingContext {
 
     /// Get deterministic token sequence from schema constraints
     pub fn get_schema_deterministic_sequence(&self) -> anyhow::Result<Vec<u32>> {
-        if let (Some(constraint), Some(state)) = (&self.schema_constraint, &self.schema_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.schema_constraint, &self.schema_constraint_state)
+        {
             constraint.get_deterministic_sequence(state)
         } else {
             Ok(Vec::new()) // No constraints, no forced sequence
@@ -306,7 +322,9 @@ impl ProcessingContext {
 
     /// Get allowed tokens for current schema constraint state
     pub fn get_schema_allowed_tokens(&self) -> Option<&rustc_hash::FxHashMap<u32, u32>> {
-        if let (Some(constraint), Some(state)) = (&self.schema_constraint, &self.schema_constraint_state) {
+        if let (Some(constraint), Some(state)) =
+            (&self.schema_constraint, &self.schema_constraint_state)
+        {
             constraint.get_allowed_tokens(state)
         } else {
             None
@@ -374,4 +392,3 @@ impl ProcessingContext {
         json_done || schema_done
     }
 }
-

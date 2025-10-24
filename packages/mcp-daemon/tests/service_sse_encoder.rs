@@ -1,5 +1,5 @@
 use kodegen_daemon::service::sse::encoder::SseEncoder;
-use kodegen_daemon::service::sse::events::{SseEvent, EventType};
+use kodegen_daemon::service::sse::events::{EventType, SseEvent};
 
 #[test]
 fn test_encode_simple_event() {
@@ -85,8 +85,7 @@ fn test_endpoint_event_encoding() {
     let event = SseEvent::endpoint("abc123", "http://localhost:8080");
 
     let encoded = encoder.encode(&event);
-    let expected =
-        "event: endpoint\ndata: http://localhost:8080/messages?session_id=abc123\n\n";
+    let expected = "event: endpoint\ndata: http://localhost:8080/messages?session_id=abc123\n\n";
 
     assert_eq!(encoded, expected);
 }

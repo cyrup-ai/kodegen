@@ -31,15 +31,15 @@
 //! ```
 
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use arrayvec::{ArrayString, ArrayVec};
 use dashmap::DashMap;
 use memchr::memmem;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 /// Maximum number of vulnerabilities to track without heap allocation
 const MAX_VULNERABILITIES: usize = 256;
@@ -84,9 +84,8 @@ impl std::str::FromStr for VulnerabilitySeverity {
 }
 
 impl VulnerabilitySeverity {
-
     /// Get numeric weight for threshold comparison
-    #[must_use] 
+    #[must_use]
     pub fn weight(&self) -> u32 {
         match self {
             Self::Critical => 1000,
@@ -138,7 +137,7 @@ pub struct Vulnerability {
 
 impl Vulnerability {
     /// Create new vulnerability with zero-allocation
-    #[must_use] 
+    #[must_use]
     pub fn new(
         id: &str,
         package: &str,
@@ -172,7 +171,7 @@ impl Vulnerability {
     }
 
     /// Check if vulnerability matches pattern using SIMD-accelerated search
-    #[must_use] 
+    #[must_use]
     pub fn matches_pattern(&self, pattern: &[u8]) -> bool {
         let finder = memmem::Finder::new(pattern);
 
@@ -182,7 +181,7 @@ impl Vulnerability {
     }
 
     /// Check if vulnerability is in given package
-    #[must_use] 
+    #[must_use]
     pub fn affects_package(&self, package_name: &str) -> bool {
         self.package.as_str() == package_name
     }
@@ -211,7 +210,7 @@ impl Default for AuditResult {
 
 impl AuditResult {
     /// Create new audit result
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             vulnerabilities: ArrayVec::new(),
@@ -233,7 +232,7 @@ impl AuditResult {
     }
 
     /// Get vulnerability count by severity
-    #[must_use] 
+    #[must_use]
     pub fn count_by_severity(&self, severity: VulnerabilitySeverity) -> usize {
         self.vulnerabilities
             .iter()
@@ -254,7 +253,7 @@ impl AuditResult {
     }
 
     /// Get total vulnerability weight for scoring
-    #[must_use] 
+    #[must_use]
     pub fn total_weight(&self) -> u32 {
         self.vulnerabilities
             .iter()
@@ -278,7 +277,7 @@ pub struct AuditThresholds {
 
 impl AuditThresholds {
     /// Create new thresholds with atomic initialization
-    #[must_use] 
+    #[must_use]
     pub fn new(critical: u32, high: u32, medium: u32, low: u32) -> Self {
         Self {
             critical_max: AtomicU32::new(critical),
@@ -625,7 +624,7 @@ pub struct VulnerabilityMetrics {
 
 impl VulnerabilityMetrics {
     /// Calculate success rate as percentage
-    #[must_use] 
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.total_scans == 0 {
             0.0
@@ -635,13 +634,13 @@ impl VulnerabilityMetrics {
     }
 
     /// Get total vulnerability count
-    #[must_use] 
+    #[must_use]
     pub fn total_vulnerabilities(&self) -> u32 {
         self.critical_count + self.high_count + self.medium_count + self.low_count
     }
 
     /// Check if any critical vulnerabilities exist
-    #[must_use] 
+    #[must_use]
     pub fn has_critical(&self) -> bool {
         self.critical_count > 0
     }
@@ -649,7 +648,9 @@ impl VulnerabilityMetrics {
 
 /// CI/CD integration helpers
 pub mod ci_cd {
-    use super::{VulnerabilityScanner, AuditResult, AuditThresholds, ArrayString, VulnerabilitySeverity};
+    use super::{
+        ArrayString, AuditResult, AuditThresholds, VulnerabilityScanner, VulnerabilitySeverity,
+    };
 
     /// Check if vulnerabilities exceed CI/CD thresholds
     pub fn should_fail_build(scanner: &VulnerabilityScanner, result: &AuditResult) -> bool {
@@ -676,7 +677,7 @@ pub mod ci_cd {
     }
 
     /// Format scan results for CI/CD output
-    #[must_use] 
+    #[must_use]
     pub fn format_scan_results(result: &AuditResult) -> ArrayString<1024> {
         let mut output = ArrayString::new();
 
@@ -701,4 +702,3 @@ pub mod ci_cd {
         output
     }
 }
-

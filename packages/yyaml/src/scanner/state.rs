@@ -406,7 +406,7 @@ impl<T: Iterator<Item = char>> ScannerState<T> {
 impl Marker {
     /// Create default marker at start of stream
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             index: 0,
@@ -417,7 +417,7 @@ impl Marker {
 
     /// Create marker at specific position
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn at(index: usize, line: usize, col: usize) -> Self {
         Self { index, line, col }
     }

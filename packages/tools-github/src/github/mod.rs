@@ -18,7 +18,9 @@ pub use add_pull_request_review_comment::AddPullRequestReviewCommentRequest;
 pub use create_or_update_file::CreateOrUpdateFileRequest;
 pub use create_pull_request::CreatePullRequestRequest;
 pub use create_pull_request_review::CreatePullRequestReviewOptions;
-pub use create_release::{CreateReleaseOptions, ReleaseResult, create_release, get_release_by_tag, delete_release};
+pub use create_release::{
+    CreateReleaseOptions, ReleaseResult, create_release, delete_release, get_release_by_tag,
+};
 pub use list_commits::ListCommitsOptions;
 pub use list_issues::ListIssuesRequest;
 pub use merge_pull_request::MergePullRequestOptions;
@@ -50,7 +52,6 @@ pub(crate) mod update_pull_request;
 pub(crate) mod create_branch;
 pub(crate) mod create_or_update_file;
 pub(crate) mod create_release;
-pub(crate) mod upload_release_asset;
 pub(crate) mod create_repository;
 pub(crate) mod fork_repository;
 pub(crate) mod get_commit;
@@ -60,6 +61,7 @@ pub(crate) mod list_commits;
 pub(crate) mod push_files;
 pub(crate) mod search_code;
 pub mod search_repositories;
+pub(crate) mod upload_release_asset;
 
 // GitHub API operations - Users (internal)
 pub(crate) mod get_me;
@@ -74,9 +76,9 @@ pub use search_users::{SearchOrder, UserSearchSort};
 
 // Re-export search functionality
 pub use search_repositories::{
-    search_repositories, search_repositories_with_config, ActivityMetrics, CiCdMetrics,
-    CodeQualityMetrics, DependencyMetrics, DocumentationMetrics, GithubSearch, LocalMetrics,
-    MetadataInfo, Output, QualityMetrics, ReadmeMetrics, RepositoryResult, SearchConfig,
-    SearchError, SearchProvider, SearchQuery, SearchSession, SecurityMetrics, StructureMetrics,
-    TestMetrics,
+    ActivityMetrics, CiCdMetrics, CodeQualityMetrics, DependencyMetrics, DocumentationMetrics,
+    GithubSearch, LocalMetrics, MetadataInfo, Output, QualityMetrics, ReadmeMetrics,
+    RepositoryResult, SearchConfig, SearchError, SearchProvider, SearchQuery, SearchSession,
+    SecurityMetrics, StructureMetrics, TestMetrics, search_repositories,
+    search_repositories_with_config,
 };

@@ -4,8 +4,8 @@ use super::check_file_size;
 use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::helpers::{is_git_dir, is_hidden, is_vendor_dir};
 use crate::github::search_repositories::types::TestMetrics;
-use std::path::Path;
 use log::warn;
+use std::path::Path;
 use walkdir::WalkDir;
 
 /// Collects test metrics
@@ -81,19 +81,21 @@ pub(crate) async fn collect_test_metrics(
 
                 // Detect frameworks
                 if (content.contains("pytest") || content.contains("unittest"))
-                    && !test_frameworks.contains(&"pytest".to_string()) {
+                    && !test_frameworks.contains(&"pytest".to_string())
+                {
                     test_frameworks.push("pytest".to_string());
                 }
                 if (content.contains("jest") || content.contains("describe("))
-                    && !test_frameworks.contains(&"jest".to_string()) {
+                    && !test_frameworks.contains(&"jest".to_string())
+                {
                     test_frameworks.push("jest".to_string());
                 }
                 if (content.contains("#[test]") || content.contains("#[cfg(test)]"))
-                    && !test_frameworks.contains(&"cargo test".to_string()) {
+                    && !test_frameworks.contains(&"cargo test".to_string())
+                {
                     test_frameworks.push("cargo test".to_string());
                 }
-                if content.contains("@Test")
-                    && !test_frameworks.contains(&"JUnit".to_string()) {
+                if content.contains("@Test") && !test_frameworks.contains(&"JUnit".to_string()) {
                     test_frameworks.push("JUnit".to_string());
                 }
 

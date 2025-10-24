@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::RepoCommit, Octocrab};
+use octocrab::{Octocrab, models::repos::RepoCommit};
 use std::sync::Arc;
 
 /// Options for listing commits in a repository.
@@ -37,45 +37,43 @@ pub(crate) fn list_commits(
     spawn_task(async move {
         let repos_handler = inner.repos(&owner, &repo);
         let mut request = repos_handler.list_commits();
-        
+
         if let Some(sha_val) = options.sha {
             request = request.sha(sha_val);
         }
-        
+
         if let Some(path_val) = options.path {
             request = request.path(path_val);
         }
-        
+
         if let Some(author_val) = options.author {
             request = request.author(author_val);
         }
-        
+
         if let Some(since_val) = options.since {
-            let dt = chrono::DateTime::parse_from_rfc3339(&since_val)
-                .map_err(|e| GitHubError::InvalidInput(format!("Invalid since date '{since_val}': {e}")))?;
+            let dt = chrono::DateTime::parse_from_rfc3339(&since_val).map_err(|e| {
+                GitHubError::InvalidInput(format!("Invalid since date '{since_val}': {e}"))
+            })?;
             request = request.since(dt.with_timezone(&chrono::Utc));
         }
-        
+
         if let Some(until_val) = options.until {
-            let dt = chrono::DateTime::parse_from_rfc3339(&until_val)
-                .map_err(|e| GitHubError::InvalidInput(format!("Invalid until date '{until_val}': {e}")))?;
+            let dt = chrono::DateTime::parse_from_rfc3339(&until_val).map_err(|e| {
+                GitHubError::InvalidInput(format!("Invalid until date '{until_val}': {e}"))
+            })?;
             request = request.until(dt.with_timezone(&chrono::Utc));
         }
-        
+
         if let Some(p) = options.page {
             request = request.page(p);
         }
-        
+
         if let Some(pp) = options.per_page {
             request = request.per_page(pp);
         }
-        
-        let commits = request
-            .send()
-            .await
-            .map_err(GitHubError::from)?
-            .items;
-        
+
+        let commits = request.send().await.map_err(GitHubError::from)?.items;
+
         Ok(commits)
     })
 }

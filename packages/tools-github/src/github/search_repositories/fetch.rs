@@ -1,7 +1,7 @@
 //! Repository fetching logic
 
 use chrono::DateTime;
-use octocrab::{models::Repository, Octocrab};
+use octocrab::{Octocrab, models::Repository};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

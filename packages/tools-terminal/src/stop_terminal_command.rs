@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::manager::TerminalManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -85,9 +85,7 @@ impl Tool for StopTerminalCommandTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I stop a long-running command?"
-                ),
+                content: PromptMessageContent::text("How do I stop a long-running command?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -122,7 +120,7 @@ impl Tool for StopTerminalCommandTool {
                      1. list_terminal_commands() → [{\"pid\": 12345, \"is_blocked\": true}]\n\
                      2. stop_terminal_command({\"pid\": 12345}) → Stop that specific process\n\n\
                      Note: After termination, the process will move to completed sessions \
-                     and you can still retrieve its partial output via read_terminal_output."
+                     and you can still retrieve its partial output via read_terminal_output.",
                 ),
             },
         ])

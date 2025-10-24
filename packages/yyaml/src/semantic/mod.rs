@@ -40,19 +40,19 @@ pub use validation::{
 };
 
 /// Default semantic analyzer instance with standard configuration
-#[must_use] 
+#[must_use]
 pub fn default_analyzer<'input>() -> SemanticAnalyzer<'input> {
     SemanticAnalyzer::new()
 }
 
 /// Create semantic analyzer optimized for speed
-#[must_use] 
+#[must_use]
 pub fn fast_analyzer<'input>() -> SemanticAnalyzer<'input> {
     SemanticAnalyzer::with_config(SemanticConfig::fast())
 }
 
 /// Create semantic analyzer optimized for strict validation
-#[must_use] 
+#[must_use]
 pub fn strict_analyzer<'input>() -> SemanticAnalyzer<'input> {
     SemanticAnalyzer::with_config(SemanticConfig::strict())
 }

@@ -11,15 +11,21 @@ impl VisionBuilderImpl {
         // Get LLaVA model from registry
         // Access the registry directly to get the concrete VisionModel type
         use crate::capability::registry::storage::VISION_UNIFIED;
-        
-        let vision_model = if let Some(model) = VISION_UNIFIED.read().get("llava-hf/llava-1.5-7b-hf").cloned() {
+
+        let vision_model = if let Some(model) = VISION_UNIFIED
+            .read()
+            .get("llava-hf/llava-1.5-7b-hf")
+            .cloned()
+        {
             model
         } else {
             // This should never happen as LLaVA is registered at startup
-            log::error!("LLaVA vision model not registered - this indicates a critical initialization error");
+            log::error!(
+                "LLaVA vision model not registered - this indicates a critical initialization error"
+            );
             panic!("LLaVA vision model should be registered at startup");
         };
-        
+
         Self { vision_model }
     }
 }

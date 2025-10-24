@@ -7,18 +7,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use {
-    bstr::BString,
-    grep::printer::ColorSpecs,
-    grep_pcre2,
-};
+use {bstr::BString, grep::printer::ColorSpecs, grep_pcre2};
 
 use crate::search::rg::{
     flags::lowargs::{
-        BinaryMode, BoundaryMode, BufferMode, CaseMode, ColorChoice,
-        ContextMode, ContextSeparator, EncodingMode, EngineChoice,
-        FieldContextSeparator, FieldMatchSeparator, LowArgs, MmapMode, Mode,
-        PatternSource, SearchMode, TypeChange,
+        BinaryMode, BoundaryMode, BufferMode, CaseMode, ColorChoice, ContextMode, ContextSeparator,
+        EncodingMode, EngineChoice, FieldContextSeparator, FieldMatchSeparator, LowArgs, MmapMode,
+        Mode, PatternSource, SearchMode, TypeChange,
     },
     haystack::{Haystack, HaystackBuilder},
     search::{PatternMatcher, Printer, SearchWorker, SearchWorkerBuilder},
@@ -117,7 +112,7 @@ impl HiArgs {
     /// globs or some kind of environment issue.
     pub(crate) fn from_low_args(mut low: LowArgs) -> anyhow::Result<HiArgs> {
         // REMOVED: Sort validation - dead ripgrep code, real sorting uses sorting.rs
-        
+
         // We modify the mode in-place on `low` so that subsequent conversions
         // see the correct mode.
         if let Mode::Search(ref mut mode) = low.mode {
@@ -147,9 +142,7 @@ impl HiArgs {
         let pre_globs = preprocessor_globs(&state, &low)?;
 
         let color = match low.color {
-            ColorChoice::Auto if !state.is_terminal_stdout => {
-                ColorChoice::Never
-            }
+            ColorChoice::Auto if !state.is_terminal_stdout => ColorChoice::Never,
             _ => low.color,
         };
         let column = low.column.unwrap_or(low.vimgrep);
@@ -165,7 +158,9 @@ impl HiArgs {
         } else if let Some(threads) = low.threads {
             threads
         } else {
-            std::thread::available_parallelism().map_or(1, std::num::NonZero::get).min(12)
+            std::thread::available_parallelism()
+                .map_or(1, std::num::NonZero::get)
+                .min(12)
         };
         log::debug!("using {threads} thread(s)");
         let with_filename = low
@@ -193,10 +188,11 @@ impl HiArgs {
             if low.quiet {
                 return false;
             }
-            let Mode::Search(ref search_mode) = low.mode else { return false };
+            let Mode::Search(ref search_mode) = low.mode else {
+                return false;
+            };
             match *search_mode {
-                SearchMode::Count
-                | SearchMode::CountMatches => false,
+                SearchMode::Count | SearchMode::CountMatches => false,
                 SearchMode::Json => true,
                 SearchMode::Standard => {
                     // A few things can imply counting line numbers. In
@@ -204,9 +200,7 @@ impl HiArgs {
                     // default when printing to a tty for human consumption,
                     // except for one interesting case: when we're only
                     // searching stdin. This makes pipelines work as expected.
-                    (state.is_terminal_stdout && !paths.is_only_stdin())
-                        || column
-                        || low.vimgrep
+                    (state.is_terminal_stdout && !paths.is_only_stdin()) || column || low.vimgrep
                 }
             }
         });
@@ -225,9 +219,7 @@ impl HiArgs {
             let never = grep::searcher::MmapChoice::never();
             match low.mmap {
                 MmapMode::Auto => {
-                    if paths.paths.len() <= 10
-                        && paths.paths.iter().all(|p| p.is_file())
-                    {
+                    if paths.paths.len() <= 10 && paths.paths.iter().all(|p| p.is_file()) {
                         // If we're only searching a few paths and all of them
                         // are files, then memory maps are probably faster.
                         maybe
@@ -354,9 +346,7 @@ impl HiArgs {
                     Ok(m) => return Ok(m),
                     Err(err) => err,
                 };
-                log::debug!(
-                    "error building Rust regex in hybrid mode:\n{rust_err}",
-                );
+                log::debug!("error building Rust regex in hybrid mode:\n{rust_err}",);
 
                 let pcre_err = match self.matcher_pcre2() {
                     Ok(m) => return Ok(m),
@@ -385,9 +375,7 @@ impl HiArgs {
     /// error.
     fn matcher_pcre2(&self) -> anyhow::Result<PatternMatcher> {
         let mut builder = grep_pcre2::RegexMatcherBuilder::new();
-        builder
-            .multi_line(true)
-            .fixed_strings(self.fixed_strings);
+        builder.multi_line(true).fixed_strings(self.fixed_strings);
         match self.case {
             CaseMode::Sensitive => {
                 builder.caseless(false);
@@ -473,7 +461,9 @@ impl HiArgs {
                 builder.crlf(true).line_terminator(None);
             }
         } else {
-            builder.line_terminator(Some(b'\n')).dot_matches_new_line(false);
+            builder
+                .line_terminator(Some(b'\n'))
+                .dot_matches_new_line(false);
             if self.crlf {
                 builder.crlf(true);
             }
@@ -533,9 +523,7 @@ impl HiArgs {
     /// This is useful for the `--files` mode in ripgrep, where the printer
     /// just needs to emit paths and not need to worry about the functionality
     /// of searching.
-    pub(crate) fn path_printer_builder(
-        &self,
-    ) -> grep::printer::PathPrinterBuilder {
+    pub(crate) fn path_printer_builder(&self) -> grep::printer::PathPrinterBuilder {
         let mut builder = grep::printer::PathPrinterBuilder::new();
         builder
             .color_specs(self.colors.clone())
@@ -557,10 +545,7 @@ impl HiArgs {
     }
 
     /// Builds a JSON printer.
-    fn printer_json<W: std::io::Write>(
-        &self,
-        wtr: W,
-    ) -> grep::printer::JSON<W> {
+    fn printer_json<W: std::io::Write>(&self, wtr: W) -> grep::printer::JSON<W> {
         grep::printer::JSONBuilder::new()
             .pretty(false)
             .always_begin_end(false)
@@ -649,10 +634,7 @@ impl HiArgs {
 
     /// STUBBED: Dead ripgrep code - real sorting uses sorting.rs module.
     /// Returns haystacks unchanged since sorting is handled elsewhere.
-    pub(crate) fn sort<'a, I>(
-        &self,
-        haystacks: I,
-    ) -> Box<dyn Iterator<Item = Haystack> + 'a>
+    pub(crate) fn sort<'a, I>(&self, haystacks: I) -> Box<dyn Iterator<Item = Haystack> + 'a>
     where
         I: Iterator<Item = Haystack> + 'a,
     {
@@ -793,10 +775,7 @@ impl Patterns {
     /// If the invocation implies that the first positional argument is a
     /// pattern (the common case), then the first positional argument is
     /// extracted as well.
-    fn from_low_args(
-        _state: &mut State,
-        low: &mut LowArgs,
-    ) -> anyhow::Result<Patterns> {
+    fn from_low_args(_state: &mut State, low: &mut LowArgs) -> anyhow::Result<Patterns> {
         // The first positional is only a pattern when ripgrep is instructed to
         // search and neither -e/--regexp nor -f/--file is given. Basically,
         // the first positional is a pattern only when a pattern hasn't been
@@ -818,7 +797,9 @@ impl Patterns {
             let Ok(pat) = ospat.into_string() else {
                 anyhow::bail!("pattern given is not valid UTF-8")
             };
-            return Ok(Patterns { patterns: vec![pat] });
+            return Ok(Patterns {
+                patterns: vec![pat],
+            });
         }
         // Otherwise, we need to slurp up our patterns from -e/--regexp and
         // -f/--file. We de-duplicate as we go. If we don't de-duplicate,
@@ -867,11 +848,7 @@ struct Paths {
 
 impl Paths {
     /// Drain the search paths out of the given low arguments.
-    fn from_low_args(
-        state: &mut State,
-        _: &Patterns,
-        low: &mut LowArgs,
-    ) -> anyhow::Result<Paths> {
+    fn from_low_args(state: &mut State, _: &Patterns, low: &mut LowArgs) -> anyhow::Result<Paths> {
         // We require a `&Patterns` even though we don't use it to ensure that
         // patterns have already been read from LowArgs. This let's us safely
         // assume that all remaining positional arguments are intended to be
@@ -900,7 +877,11 @@ impl Paths {
                 // See: https://github.com/BurntSushi/ripgrep/issues/2736
                 && (paths[0] == Path::new("-") || !paths[0].is_dir());
             log::debug!("is_one_file? {is_one_file:?}");
-            return Ok(Paths { paths, has_implicit_path: false, is_one_file });
+            return Ok(Paths {
+                paths,
+                has_implicit_path: false,
+                is_one_file,
+            });
         }
         // N.B. is_readable_stdin is a heuristic! Part of the issue is that a
         // lot of "exec process" APIs will open a stdin pipe even though stdin
@@ -910,9 +891,8 @@ impl Paths {
         // consequence of letting the user type 'rg foo' and "guessing" that
         // they meant to search the CWD.
         let is_readable_stdin = grep::cli::is_readable_stdin();
-        let use_cwd = !is_readable_stdin
-            || state.stdin_consumed
-            || !matches!(low.mode, Mode::Search(_));
+        let use_cwd =
+            !is_readable_stdin || state.stdin_consumed || !matches!(low.mode, Mode::Search(_));
         log::debug!(
             "using heuristics to determine whether to read from \
              stdin or search ./ (\
@@ -929,7 +909,11 @@ impl Paths {
             log::debug!("heuristic chose to search stdin");
             (PathBuf::from("-"), true)
         };
-        Ok(Paths { paths: vec![path], has_implicit_path: true, is_one_file })
+        Ok(Paths {
+            paths: vec![path],
+            has_implicit_path: true,
+            is_one_file,
+        })
     }
 
     /// Returns true if ripgrep will only search stdin and nothing else.
@@ -1000,23 +984,24 @@ fn types(low: &LowArgs) -> anyhow::Result<ignore::types::Types> {
 
 /// Builds the glob "override" matcher from the CLI `-g/--glob` and `--iglob`
 /// flags.
-fn globs(
-    state: &State,
-    low: &LowArgs,
-) -> anyhow::Result<ignore::overrides::Override> {
+fn globs(state: &State, low: &LowArgs) -> anyhow::Result<ignore::overrides::Override> {
     if low.globs.is_empty() && low.iglobs.is_empty() {
         return Ok(ignore::overrides::Override::empty());
     }
     let mut builder = ignore::overrides::OverrideBuilder::new(&state.cwd);
     // Make all globs case insensitive with --glob-case-insensitive.
     if low.glob_case_insensitive {
-        builder.case_insensitive(true).expect("Test operation should succeed");
+        builder
+            .case_insensitive(true)
+            .expect("Test operation should succeed");
     }
     for glob in &low.globs {
         builder.add(glob)?;
     }
     // This only enables case insensitivity for subsequent globs.
-    builder.case_insensitive(true).expect("Test operation should succeed");
+    builder
+        .case_insensitive(true)
+        .expect("Test operation should succeed");
     for glob in &low.iglobs {
         builder.add(glob)?;
     }
@@ -1024,10 +1009,7 @@ fn globs(
 }
 
 /// Builds a glob matcher for all of the preprocessor globs (via `--pre-glob`).
-fn preprocessor_globs(
-    state: &State,
-    low: &LowArgs,
-) -> anyhow::Result<ignore::overrides::Override> {
+fn preprocessor_globs(state: &State, low: &LowArgs) -> anyhow::Result<ignore::overrides::Override> {
     if low.pre_glob.is_empty() {
         return Ok(ignore::overrides::Override::empty());
     }
@@ -1072,9 +1054,7 @@ fn take_hyperlink_config(
         env.host(Some(hostname));
     }
     if let Some(wsl_prefix) = wsl_prefix() {
-        log::debug!(
-            "found wsl_prefix for hyperlink configuration: {wsl_prefix}"
-        );
+        log::debug!("found wsl_prefix for hyperlink configuration: {wsl_prefix}");
         env.wsl_prefix(Some(wsl_prefix));
     }
     let fmt = std::mem::take(&mut low.hyperlink_format);
@@ -1116,7 +1096,9 @@ fn current_dir() -> anyhow::Result<PathBuf> {
 /// The purpose of `bin` is to make it possible for end users to override how
 /// ripgrep determines the hostname.
 fn hostname(bin: Option<&Path>) -> Option<String> {
-    let Some(bin) = bin else { return platform_hostname() };
+    let Some(bin) = bin else {
+        return platform_hostname();
+    };
     let bin = match grep::cli::resolve_binary(bin) {
         Ok(bin) => bin,
         Err(err) => {
@@ -1174,9 +1156,7 @@ fn platform_hostname() -> Option<String> {
         }
     };
     let Some(hostname) = hostname_os.to_str() else {
-        log::debug!(
-            "got hostname {hostname_os:?}, but it's not valid UTF-8"
-        );
+        log::debug!("got hostname {hostname_os:?}, but it's not valid UTF-8");
         return None;
     };
     Some(hostname.to_string())
@@ -1197,9 +1177,7 @@ fn wsl_prefix() -> Option<String> {
     }
     let distro_os = std::env::var_os("WSL_DISTRO_NAME")?;
     let Some(distro) = distro_os.to_str() else {
-        log::debug!(
-            "found WSL_DISTRO_NAME={distro_os:?}, but value is not UTF-8"
-        );
+        log::debug!("found WSL_DISTRO_NAME={distro_os:?}, but value is not UTF-8");
         return None;
     };
     Some(format!("wsl$/{distro}"))
@@ -1268,7 +1246,6 @@ binary detection is enabled and matching a NUL byte is impossible.",
     }
 }
 
-
 #[cfg(test)]
 mod binary_mode_tests {
     use super::*;
@@ -1282,22 +1259,26 @@ mod binary_mode_tests {
             binary: RgBinaryMode::Auto,
             ..Default::default()
         };
-        
+
         let state = State::new().expect("Failed to create state");
         let detection = BinaryDetection::from_low_args(&state, &low);
-        
+
         // For Auto mode:
         // - explicit files use convert (search with NUL replacement)
         // - implicit files use quit (skip binaries)
         let expected_explicit = grep::searcher::BinaryDetection::convert(b'\x00');
         let expected_implicit = grep::searcher::BinaryDetection::quit(b'\x00');
-        
-        assert_eq!(detection.explicit, expected_explicit,
-            "Auto mode: explicit detection should use convert");
-        assert_eq!(detection.implicit, expected_implicit,
-            "Auto mode: implicit detection should use quit");
+
+        assert_eq!(
+            detection.explicit, expected_explicit,
+            "Auto mode: explicit detection should use convert"
+        );
+        assert_eq!(
+            detection.implicit, expected_implicit,
+            "Auto mode: implicit detection should use quit"
+        );
     }
-    
+
     /// Test that `BinaryMode::Binary` maps to `RgBinaryMode::SearchAndSuppress`
     /// Matches rg --binary behavior
     #[test]
@@ -1306,20 +1287,24 @@ mod binary_mode_tests {
             binary: RgBinaryMode::SearchAndSuppress,
             ..Default::default()
         };
-        
+
         let state = State::new().expect("Failed to create state");
         let detection = BinaryDetection::from_low_args(&state, &low);
-        
+
         // For SearchAndSuppress mode:
         // - both explicit and implicit use convert (search with NUL replacement)
         let expected = grep::searcher::BinaryDetection::convert(b'\x00');
-        
-        assert_eq!(detection.explicit, expected,
-            "Binary mode: explicit detection should use convert");
-        assert_eq!(detection.implicit, expected,
-            "Binary mode: implicit detection should use convert");
+
+        assert_eq!(
+            detection.explicit, expected,
+            "Binary mode: explicit detection should use convert"
+        );
+        assert_eq!(
+            detection.implicit, expected,
+            "Binary mode: implicit detection should use convert"
+        );
     }
-    
+
     /// Test that `BinaryMode::Text` maps to `RgBinaryMode::AsText`
     /// Matches rg -a/--text behavior
     #[test]
@@ -1328,19 +1313,25 @@ mod binary_mode_tests {
             binary: RgBinaryMode::AsText,
             ..Default::default()
         };
-        
+
         let state = State::new().expect("Failed to create state");
         let detection = BinaryDetection::from_low_args(&state, &low);
-        
+
         // For AsText mode:
         // - both explicit and implicit use none (no binary detection)
         let expected = grep::searcher::BinaryDetection::none();
-        
-        assert_eq!(detection.explicit, expected,
-            "Text mode: explicit detection should be none");
-        assert_eq!(detection.implicit, expected,
-            "Text mode: implicit detection should be none");
-        assert!(detection.is_none(),
-            "Text mode: is_none() should return true");
+
+        assert_eq!(
+            detection.explicit, expected,
+            "Text mode: explicit detection should be none"
+        );
+        assert_eq!(
+            detection.implicit, expected,
+            "Text mode: implicit detection should be none"
+        );
+        assert!(
+            detection.is_none(),
+            "Text mode: is_none() should return true"
+        );
     }
 }

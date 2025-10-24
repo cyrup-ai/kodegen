@@ -4,10 +4,10 @@
 //! ensuring internal dependencies are properly synchronized.
 
 use crate::error::{Result, VersionError};
-use crate::version::{TomlEditor, TomlBackup};
-use crate::workspace::{WorkspaceInfo, SharedWorkspaceInfo};
+use crate::version::{TomlBackup, TomlEditor};
+use crate::workspace::{SharedWorkspaceInfo, WorkspaceInfo};
 use semver::Version;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -75,11 +75,15 @@ impl VersionUpdater {
         new_version: &Version,
         config: UpdateConfig,
     ) -> Result<UpdateResult> {
-        let current_version = self.workspace.workspace_version()
-            .and_then(|v| Version::parse(&v).map_err(|e| VersionError::ParseFailed {
-                version: v,
-                source: e,
-            }.into()))?;
+        let current_version = self.workspace.workspace_version().and_then(|v| {
+            Version::parse(&v).map_err(|e| {
+                VersionError::ParseFailed {
+                    version: v,
+                    source: e,
+                }
+                .into()
+            })
+        })?;
 
         // Validate version progression
         if new_version <= &current_version {
@@ -89,7 +93,8 @@ impl VersionUpdater {
                     "New version '{}' must be greater than current version '{}'",
                     new_version, current_version
                 ),
-            }.into());
+            }
+            .into());
         }
 
         let mut stats = UpdateStats {
@@ -99,17 +104,22 @@ impl VersionUpdater {
         };
 
         // Update workspace version in root Cargo.toml
-        if let Err(e) = self.update_root_workspace_version(new_version, &config, &mut stats.modified_files) {
+        if let Err(e) =
+            self.update_root_workspace_version(new_version, &config, &mut stats.modified_files)
+        {
             self.rollback_all_changes()?;
             return Err(e);
         }
 
         // Update all packages in the workspace
         // Collect package info first to avoid borrow checker issues
-        let packages: Vec<_> = self.workspace.packages.iter()
+        let packages: Vec<_> = self
+            .workspace
+            .packages
+            .iter()
             .map(|(name, info)| (name.clone(), info.clone()))
             .collect();
-        
+
         for (package_name, package_info) in packages {
             match self.update_package_version(
                 &package_name,
@@ -175,8 +185,9 @@ impl VersionUpdater {
 
         // Update internal dependency versions if requested
         if config.update_internal_dependencies {
-            let internal_deps_to_update = self.collect_internal_dependencies_to_update(package_info, new_version);
-            
+            let internal_deps_to_update =
+                self.collect_internal_dependencies_to_update(package_info, new_version);
+
             for (dep_name, dep_version) in internal_deps_to_update {
                 editor.update_dependency_version(&dep_name, &dep_version)?;
                 package_modified = true;
@@ -187,7 +198,9 @@ impl VersionUpdater {
         // Save changes if any modifications were made
         if package_modified {
             editor.save()?;
-            stats.modified_files.push(package_info.cargo_toml_path.clone());
+            stats
+                .modified_files
+                .push(package_info.cargo_toml_path.clone());
         }
 
         Ok(())
@@ -218,7 +231,11 @@ impl VersionUpdater {
         // Restore all backups in reverse order
         for backup in self.backups.iter().rev() {
             if let Err(e) = TomlEditor::restore_from_backup(backup) {
-                rollback_errors.push(format!("Failed to restore {}: {}", backup.file_path.display(), e));
+                rollback_errors.push(format!(
+                    "Failed to restore {}: {}",
+                    backup.file_path.display(),
+                    e
+                ));
             }
         }
 
@@ -226,7 +243,8 @@ impl VersionUpdater {
             return Err(VersionError::TomlUpdateFailed {
                 path: PathBuf::from("multiple_files"),
                 reason: format!("Rollback failures: {}", rollback_errors.join("; ")),
-            }.into());
+            }
+            .into());
         }
 
         Ok(())
@@ -244,11 +262,15 @@ impl VersionUpdater {
 
     /// Validate workspace version consistency
     pub fn validate_version_consistency(&self) -> Result<ConsistencyReport> {
-        let workspace_version = self.workspace.workspace_version()
-            .and_then(|v| Version::parse(&v).map_err(|e| VersionError::ParseFailed {
-                version: v,
-                source: e,
-            }.into()))?;
+        let workspace_version = self.workspace.workspace_version().and_then(|v| {
+            Version::parse(&v).map_err(|e| {
+                VersionError::ParseFailed {
+                    version: v,
+                    source: e,
+                }
+                .into()
+            })
+        })?;
 
         let mut inconsistencies = Vec::new();
         let mut packages_checked = 0;
@@ -259,15 +281,16 @@ impl VersionUpdater {
 
             // Check package version consistency
             if let Ok(package_version) = Version::parse(&package_info.version)
-                && package_version != workspace_version {
-                    inconsistencies.push(VersionInconsistency {
-                        package: package_name.clone(),
-                        dependency: None,
-                        expected_version: workspace_version.clone(),
-                        actual_version: package_version,
-                        inconsistency_type: InconsistencyType::PackageVersion,
-                    });
-                }
+                && package_version != workspace_version
+            {
+                inconsistencies.push(VersionInconsistency {
+                    package: package_name.clone(),
+                    dependency: None,
+                    expected_version: workspace_version.clone(),
+                    actual_version: package_version,
+                    inconsistency_type: InconsistencyType::PackageVersion,
+                });
+            }
 
             // Check internal dependency versions
             for dep_name in &package_info.workspace_dependencies {
@@ -276,25 +299,26 @@ impl VersionUpdater {
                 if let Some(dep_spec) = package_info.all_dependencies.get(dep_name) {
                     if let Some(dep_version_str) = &dep_spec.version
                         && let Ok(dep_version) = Version::parse(dep_version_str)
-                        && dep_version != workspace_version {
-                            inconsistencies.push(VersionInconsistency {
-                                package: package_name.clone(),
-                                dependency: Some(dep_name.clone()),
-                                expected_version: workspace_version.clone(),
-                                actual_version: dep_version,
-                                inconsistency_type: InconsistencyType::DependencyVersion,
-                            });
-                        } else if dep_spec.version.is_none() {
-                            // Missing version specification for internal dependency
-                            inconsistencies.push(VersionInconsistency {
-                                package: package_name.clone(),
-                                dependency: Some(dep_name.clone()),
-                                expected_version: workspace_version.clone(),
-                                actual_version: Version::new(0, 0, 0), // Placeholder
-                                inconsistency_type: InconsistencyType::MissingVersion,
-                            });
-                        }
+                        && dep_version != workspace_version
+                    {
+                        inconsistencies.push(VersionInconsistency {
+                            package: package_name.clone(),
+                            dependency: Some(dep_name.clone()),
+                            expected_version: workspace_version.clone(),
+                            actual_version: dep_version,
+                            inconsistency_type: InconsistencyType::DependencyVersion,
+                        });
+                    } else if dep_spec.version.is_none() {
+                        // Missing version specification for internal dependency
+                        inconsistencies.push(VersionInconsistency {
+                            package: package_name.clone(),
+                            dependency: Some(dep_name.clone()),
+                            expected_version: workspace_version.clone(),
+                            actual_version: Version::new(0, 0, 0), // Placeholder
+                            inconsistency_type: InconsistencyType::MissingVersion,
+                        });
                     }
+                }
             }
         }
 
@@ -308,11 +332,15 @@ impl VersionUpdater {
 
     /// Preview version update without making changes
     pub fn preview_update(&self, new_version: &Version) -> Result<UpdatePreview> {
-        let current_version = self.workspace.workspace_version()
-            .and_then(|v| Version::parse(&v).map_err(|e| VersionError::ParseFailed {
-                version: v,
-                source: e,
-            }.into()))?;
+        let current_version = self.workspace.workspace_version().and_then(|v| {
+            Version::parse(&v).map_err(|e| {
+                VersionError::ParseFailed {
+                    version: v,
+                    source: e,
+                }
+                .into()
+            })
+        })?;
 
         let mut files_to_modify = Vec::new();
         let mut packages_to_update = Vec::new();
@@ -324,9 +352,9 @@ impl VersionUpdater {
         // Check each package
         for (package_name, package_info) in &self.workspace.packages {
             let editor = TomlEditor::open(&package_info.cargo_toml_path)?;
-            
+
             let mut package_changes = Vec::new();
-            
+
             // Package version change
             if !editor.uses_workspace_version() {
                 package_changes.push(VersionChange {
@@ -480,13 +508,18 @@ impl ConsistencyReport {
     /// Only PackageVersion and DependencyVersion mismatches are blocking.
     pub fn is_consistent(&self) -> bool {
         !self.inconsistencies.iter().any(|inc| {
-            matches!(inc.inconsistency_type,
-                InconsistencyType::PackageVersion | InconsistencyType::DependencyVersion)
+            matches!(
+                inc.inconsistency_type,
+                InconsistencyType::PackageVersion | InconsistencyType::DependencyVersion
+            )
         })
     }
 
     /// Get inconsistencies by type
-    pub fn inconsistencies_by_type(&self, inconsistency_type: InconsistencyType) -> Vec<&VersionInconsistency> {
+    pub fn inconsistencies_by_type(
+        &self,
+        inconsistency_type: InconsistencyType,
+    ) -> Vec<&VersionInconsistency> {
         self.inconsistencies
             .iter()
             .filter(|inc| inc.inconsistency_type == inconsistency_type)
@@ -503,7 +536,8 @@ impl ConsistencyReport {
         } else {
             let mut report = format!(
                 "❌ Found {} version inconsistencies (workspace version: {})\n",
-                self.inconsistencies.len(), self.workspace_version
+                self.inconsistencies.len(),
+                self.workspace_version
             );
 
             for inconsistency in &self.inconsistencies {
@@ -526,7 +560,10 @@ impl ConsistencyReport {
 impl UpdatePreview {
     /// Get total number of changes
     pub fn total_changes(&self) -> usize {
-        self.packages_to_update.iter().map(|p| p.changes.len()).sum::<usize>()
+        self.packages_to_update
+            .iter()
+            .map(|p| p.changes.len())
+            .sum::<usize>()
             + self.dependencies_to_update.len()
     }
 
@@ -537,9 +574,18 @@ impl UpdatePreview {
             self.from_version, self.to_version
         );
 
-        preview.push_str(&format!("Files to modify: {}\n", self.files_to_modify.len()));
-        preview.push_str(&format!("Packages to update: {}\n", self.packages_to_update.len()));
-        preview.push_str(&format!("Dependencies to update: {}\n", self.dependencies_to_update.len()));
+        preview.push_str(&format!(
+            "Files to modify: {}\n",
+            self.files_to_modify.len()
+        ));
+        preview.push_str(&format!(
+            "Packages to update: {}\n",
+            self.packages_to_update.len()
+        ));
+        preview.push_str(&format!(
+            "Dependencies to update: {}\n",
+            self.dependencies_to_update.len()
+        ));
         preview.push_str(&format!("Total changes: {}\n", self.total_changes()));
 
         if !self.packages_to_update.is_empty() {

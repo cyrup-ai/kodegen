@@ -17,7 +17,7 @@ use x509_parser;
 
 use super::core::{AsyncTask, CertificateConfig, InstallContext, InstallProgress, ServiceConfig};
 use crate::install::fluent_voice;
-use crate::install::{install_daemon_async, InstallerBuilder};
+use crate::install::{InstallerBuilder, install_daemon_async};
 use crate::wizard::InstallationResult;
 use tokio::process::Command;
 use tokio::sync::mpsc;
@@ -25,7 +25,7 @@ use tokio::time::timeout;
 
 // Timeout constants
 const RUSTUP_INSTALL_TIMEOUT: Duration = Duration::from_secs(1800); // 30 minutes
-const COMMAND_TIMEOUT: Duration = Duration::from_secs(300);         // 5 minutes default
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(300); // 5 minutes default
 
 /// Verify that rust-toolchain.toml exists and specifies nightly channel
 ///
@@ -43,9 +43,9 @@ fn verify_rust_toolchain_file() -> Result<()> {
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
         .ok_or_else(|| anyhow::anyhow!("Could not determine project root"))?;
-    
+
     let toolchain_file = project_root.join("rust-toolchain.toml");
-    
+
     if !toolchain_file.exists() {
         return Err(anyhow::anyhow!(
             "Missing rust-toolchain.toml in project root!\n\
@@ -54,11 +54,11 @@ fn verify_rust_toolchain_file() -> Result<()> {
             toolchain_file.display()
         ));
     }
-    
+
     // Read and verify the file specifies nightly channel
     let content = fs::read_to_string(&toolchain_file)
         .with_context(|| format!("Failed to read {}", toolchain_file.display()))?;
-    
+
     if !content.contains("channel") || !content.contains("nightly") {
         return Err(anyhow::anyhow!(
             "rust-toolchain.toml doesn't specify nightly channel!\n\
@@ -67,7 +67,7 @@ fn verify_rust_toolchain_file() -> Result<()> {
             toolchain_file.display()
         ));
     }
-    
+
     info!(
         "Verified rust-toolchain.toml specifies nightly at {}",
         toolchain_file.display()
@@ -90,23 +90,21 @@ async fn ensure_rust_toolchain() -> Result<()> {
     // Check if rustc is installed
     let rustc_check = timeout(
         COMMAND_TIMEOUT,
-        Command::new("rustc")
-            .arg("--version")
-            .output()
-    ).await;
-    
+        Command::new("rustc").arg("--version").output(),
+    )
+    .await;
+
     match rustc_check {
         Ok(Ok(output)) if output.status.success() => {
             // Rust is installed, get current default
             let default_output = timeout(
                 COMMAND_TIMEOUT,
-                Command::new("rustup")
-                    .args(["default"])
-                    .output()
-            ).await
-                .context("Rustup default check timed out after 5 minutes")?
-                .context("Failed to check rustup default toolchain")?;
-            
+                Command::new("rustup").args(["default"]).output(),
+            )
+            .await
+            .context("Rustup default check timed out after 5 minutes")?
+            .context("Failed to check rustup default toolchain")?;
+
             if default_output.status.success() {
                 let default_toolchain = String::from_utf8_lossy(&default_output.stdout);
                 let default_name = default_toolchain
@@ -114,51 +112,55 @@ async fn ensure_rust_toolchain() -> Result<()> {
                     .next()
                     .and_then(|line| line.split_whitespace().next())
                     .unwrap_or("unknown");
-                
+
                 info!("Rust already installed: {default_name}");
-                
+
                 // Check if nightly is installed
                 let list_output = timeout(
                     COMMAND_TIMEOUT,
-                    Command::new("rustup")
-                        .args(["toolchain", "list"])
-                        .output()
-                ).await
-                    .context("Rustup toolchain list timed out after 5 minutes")?
-                    .context("Failed to list rustup toolchains")?;
-                
+                    Command::new("rustup").args(["toolchain", "list"]).output(),
+                )
+                .await
+                .context("Rustup toolchain list timed out after 5 minutes")?
+                .context("Failed to list rustup toolchains")?;
+
                 if !list_output.status.success() {
                     return Err(anyhow::anyhow!("Failed to list rustup toolchains"));
                 }
-                
+
                 let toolchains = String::from_utf8_lossy(&list_output.stdout);
-                
+
                 if toolchains.lines().any(|line| line.contains("nightly")) {
                     info!("Nightly toolchain already available");
                 } else {
                     // Install nightly without changing default
-                    info!("Installing nightly toolchain for kodegen (this may take up to 30 minutes)...");
-                    
+                    info!(
+                        "Installing nightly toolchain for kodegen (this may take up to 30 minutes)..."
+                    );
+
                     let install_output = timeout(
                         RUSTUP_INSTALL_TIMEOUT,
                         Command::new("rustup")
                             .args(["toolchain", "install", "nightly"])
-                            .output()
-                    ).await
-                        .context("Rustup nightly install timed out after 30 minutes")?
-                        .context("Failed to install nightly toolchain")?;
-                    
+                            .output(),
+                    )
+                    .await
+                    .context("Rustup nightly install timed out after 30 minutes")?
+                    .context("Failed to install nightly toolchain")?;
+
                     if !install_output.status.success() {
                         let stderr = String::from_utf8_lossy(&install_output.stderr);
                         return Err(anyhow::anyhow!(
                             "Failed to install nightly toolchain: {stderr}"
                         ));
                     }
-                    
+
                     info!("Nightly toolchain installed");
                 }
-                
-                info!("Project will use nightly via rust-toolchain.toml (global default unchanged: {default_name})");
+
+                info!(
+                    "Project will use nightly via rust-toolchain.toml (global default unchanged: {default_name})"
+                );
             } else {
                 warn!("Could not determine current default toolchain, but Rust is installed");
             }
@@ -166,7 +168,7 @@ async fn ensure_rust_toolchain() -> Result<()> {
         Ok(_) | Err(_) => {
             // Rust not installed, install with stable as default and nightly as additional
             info!("Installing Rust toolchain (this may take up to 30 minutes)...");
-            
+
             // Download and run rustup installer
             let rustup_init = if cfg!(unix) {
                 timeout(
@@ -185,57 +187,56 @@ async fn ensure_rust_toolchain() -> Result<()> {
                     "Automatic Rust installation only supported on Unix systems"
                 ));
             };
-            
+
             if !rustup_init.status.success() {
                 let stderr = String::from_utf8_lossy(&rustup_init.stderr);
-                return Err(anyhow::anyhow!(
-                    "Failed to install Rust: {stderr}"
-                ));
+                return Err(anyhow::anyhow!("Failed to install Rust: {stderr}"));
             }
-            
+
             // Get path to rustup binary (it's not in current process PATH yet)
             let home_dir = dirs::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
-            
+
             let cargo_env = home_dir.join(".cargo").join("env");
             if cargo_env.exists() {
                 info!("Rust stable installed: {}", cargo_env.display());
             }
-            
+
             // Use full path to rustup since it's not in current process PATH yet
             let rustup_path = home_dir.join(".cargo").join("bin").join("rustup");
-            
+
             if !rustup_path.exists() {
                 return Err(anyhow::anyhow!(
                     "Rustup binary not found at expected location: {}",
                     rustup_path.display()
                 ));
             }
-            
+
             // Install nightly as additional toolchain using full path
             info!("Installing nightly toolchain for kodegen (this may take up to 30 minutes)...");
-            
+
             let install_nightly = timeout(
                 RUSTUP_INSTALL_TIMEOUT,
                 Command::new(&rustup_path)
                     .args(["toolchain", "install", "nightly"])
-                    .output()
-            ).await
-                .context("Nightly toolchain installation timed out after 30 minutes")?
-                .context("Failed to install nightly toolchain")?;
-            
+                    .output(),
+            )
+            .await
+            .context("Nightly toolchain installation timed out after 30 minutes")?
+            .context("Failed to install nightly toolchain")?;
+
             if !install_nightly.status.success() {
                 let stderr = String::from_utf8_lossy(&install_nightly.stderr);
                 return Err(anyhow::anyhow!(
                     "Failed to install nightly toolchain: {stderr}"
                 ));
             }
-            
+
             info!("Rust stable installed as default");
             info!("Nightly available for kodegen");
         }
     }
-    
+
     Ok(())
 }
 
@@ -248,7 +249,7 @@ pub async fn install_kodegen_daemon(
 ) -> Result<InstallationResult> {
     let mut context = InstallContext::new(exe_path.clone());
     context.config_path = config_path.clone();
-    
+
     // Clone progress channel BEFORE moving context into AsyncTask chain
     let progress_tx_for_error = if let Some(tx) = progress_tx {
         context.set_progress_channel(tx.clone());
@@ -267,55 +268,51 @@ pub async fn install_kodegen_daemon(
         .add_san("localhost".to_string())
         .add_san("127.0.0.1".to_string())
         .add_san("::1".to_string());
-    
+
     context.set_certificate_config(cert_config);
 
     // Chain installation steps with AsyncTask combinators
     let result_context = {
         let ctx = context;
-        AsyncTask::from_future(async {
-            verify_rust_toolchain_file()
-        })
-        .and_then(|()| async {
-            ensure_rust_toolchain().await
-        })
-        .and_then(move |()| async move {
-            ctx.validate_prerequisites()?;
-            Ok(ctx)
-        })
-        .and_then(|ctx| async move {
-            ctx.create_directories()?;
-            Ok(ctx)
-        })
-        .and_then(|ctx| async move {
-            ctx.generate_certificates()?;
-            Ok(ctx)
-        })
-        .and_then(move |mut ctx| async move {
-            configure_services(&mut ctx, auto_start)?;
-            Ok(ctx)
-        })
-        .and_then(move |ctx| async move {
-            let installer = build_installer_config(&ctx, auto_start)?;
-            install_daemon_async(installer).await?;
-            Ok(ctx)
-        })
-        .map(|ctx| {
-            info!("Installation pipeline completed successfully");
-            ctx
-        })
-        .map_err(move |e: anyhow::Error| {
-            if let Some(ref tx) = progress_tx_for_error {
-                let _ = tx.send(InstallProgress::error(
-                    "installation".to_string(),
-                    format!("Installation failed: {e}")
-                ));
-            }
-            anyhow::anyhow!("Installation pipeline failed: {e}")
-        })
-        .await?
+        AsyncTask::from_future(async { verify_rust_toolchain_file() })
+            .and_then(|()| async { ensure_rust_toolchain().await })
+            .and_then(move |()| async move {
+                ctx.validate_prerequisites()?;
+                Ok(ctx)
+            })
+            .and_then(|ctx| async move {
+                ctx.create_directories()?;
+                Ok(ctx)
+            })
+            .and_then(|ctx| async move {
+                ctx.generate_certificates()?;
+                Ok(ctx)
+            })
+            .and_then(move |mut ctx| async move {
+                configure_services(&mut ctx, auto_start)?;
+                Ok(ctx)
+            })
+            .and_then(move |ctx| async move {
+                let installer = build_installer_config(&ctx, auto_start)?;
+                install_daemon_async(installer).await?;
+                Ok(ctx)
+            })
+            .map(|ctx| {
+                info!("Installation pipeline completed successfully");
+                ctx
+            })
+            .map_err(move |e: anyhow::Error| {
+                if let Some(ref tx) = progress_tx_for_error {
+                    let _ = tx.send(InstallProgress::error(
+                        "installation".to_string(),
+                        format!("Installation failed: {e}"),
+                    ));
+                }
+                anyhow::anyhow!("Installation pipeline failed: {e}")
+            })
+            .await?
     };
-    
+
     let context = result_context;
 
     // Track installation results for each component
@@ -629,9 +626,8 @@ async fn import_certificate_macos(cert_path: &Path) -> Result<()> {
     };
 
     // Write certificate-only file to temp location (use PID for uniqueness)
-    let temp_cert = std::env::temp_dir().join(
-        format!("kodegen_mcp_cert_{}.crt", std::process::id())
-    );
+    let temp_cert =
+        std::env::temp_dir().join(format!("kodegen_mcp_cert_{}.crt", std::process::id()));
     tokio::fs::write(&temp_cert, cert_only)
         .await
         .context("Failed to write temp certificate")?;
@@ -640,10 +636,14 @@ async fn import_certificate_macos(cert_path: &Path) -> Result<()> {
     let output = tokio::process::Command::new("security")
         .args([
             "add-trusted-cert",
-            "-d",  // Add to admin trust settings
-            "-r", "trustRoot",  // Trust as root certificate
-            "-k", "/Library/Keychains/System.keychain",
-            temp_cert.to_str().ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
+            "-d", // Add to admin trust settings
+            "-r",
+            "trustRoot", // Trust as root certificate
+            "-k",
+            "/Library/Keychains/System.keychain",
+            temp_cert
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
         ])
         .output()
         .await
@@ -657,7 +657,9 @@ async fn import_certificate_macos(cert_path: &Path) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(anyhow::anyhow!("Failed to import certificate to macOS keychain: {stderr}"))
+        Err(anyhow::anyhow!(
+            "Failed to import certificate to macOS keychain: {stderr}"
+        ))
     }
 }
 
@@ -679,7 +681,7 @@ async fn import_certificate_linux(cert_path: &Path) -> Result<()> {
 
     // Copy to system CA certificates directory
     let system_cert_path = "/usr/local/share/ca-certificates/kodegen-mcp.crt";
-    
+
     // Ensure directory exists
     tokio::fs::create_dir_all("/usr/local/share/ca-certificates")
         .await
@@ -700,7 +702,9 @@ async fn import_certificate_linux(cert_path: &Path) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(anyhow::anyhow!("Failed to update certificate trust store: {stderr}"))
+        Err(anyhow::anyhow!(
+            "Failed to update certificate trust store: {stderr}"
+        ))
     }
 }
 
@@ -721,9 +725,8 @@ async fn import_certificate_windows(cert_path: &Path) -> Result<()> {
     };
 
     // Write certificate-only file to temp location (use PID for uniqueness)
-    let temp_cert = std::env::temp_dir().join(
-        format!("kodegen_mcp_cert_{}.crt", std::process::id())
-    );
+    let temp_cert =
+        std::env::temp_dir().join(format!("kodegen_mcp_cert_{}.crt", std::process::id()));
     tokio::fs::write(&temp_cert, cert_only)
         .await
         .context("Failed to write temp certificate")?;
@@ -734,7 +737,9 @@ async fn import_certificate_windows(cert_path: &Path) -> Result<()> {
             "-addstore",
             "-f",
             "Root",
-            temp_cert.to_str().ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
+            temp_cert
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid temp cert path"))?,
         ])
         .output()
         .await
@@ -748,7 +753,9 @@ async fn import_certificate_windows(cert_path: &Path) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(anyhow::anyhow!("Failed to import certificate to Windows store: {stderr}"))
+        Err(anyhow::anyhow!(
+            "Failed to import certificate to Windows store: {stderr}"
+        ))
     }
 }
 
@@ -797,18 +804,18 @@ fn validate_existing_wildcard_cert(cert_path: &Path) -> Result<()> {
 /// Check if a hosts file line contains the specified IP and hostname entry
 fn check_hosts_entry(line: &str, ip: &str, hostname: &str) -> bool {
     let trimmed = line.trim();
-    
+
     // Skip comments and empty lines
     if trimmed.starts_with('#') || trimmed.is_empty() {
         return false;
     }
-    
+
     // Split by whitespace (handles both spaces and tabs)
     let parts: Vec<&str> = trimmed.split_whitespace().collect();
     if parts.len() < 2 {
         return false;
     }
-    
+
     // Check if IP matches and hostname matches (case insensitive for DNS)
     parts[0] == ip && parts[1..].iter().any(|h| h.eq_ignore_ascii_case(hostname))
 }
@@ -839,26 +846,26 @@ fn remove_kodegen_block(content: &str) -> String {
 /// Write file atomically using temp file + rename pattern
 fn write_hosts_file_atomic(path: &Path, content: &str) -> Result<()> {
     use std::io::Write;
-    
+
     // Create temp file in same directory as target (ensures same filesystem for atomic rename)
     let temp_path = path.with_extension("tmp");
-    
+
     // Write to temp file with explicit sync
     {
         let mut file = fs::File::create(&temp_path)
             .with_context(|| format!("Failed to create temp file: {}", temp_path.display()))?;
-        
+
         file.write_all(content.as_bytes())
             .context("Failed to write to temp file")?;
-        
+
         file.sync_all()
             .context("Failed to sync temp file to disk")?;
     }
-    
+
     // Atomically rename temp to target
     fs::rename(&temp_path, path)
         .with_context(|| format!("Failed to rename temp file to {}", path.display()))?;
-    
+
     Ok(())
 }
 
@@ -871,9 +878,9 @@ fn add_kodegen_host_entries() -> Result<()> {
         fs::read_to_string(&hosts_file_path).context("Failed to read hosts file")?;
 
     // Check if the actual entry already exists (not just the marker)
-    let has_entry = existing_content.lines().any(|line| {
-        check_hosts_entry(line, "127.0.0.1", "mcp.kodegen.ai")
-    });
+    let has_entry = existing_content
+        .lines()
+        .any(|line| check_hosts_entry(line, "127.0.0.1", "mcp.kodegen.ai"));
 
     if has_entry {
         info!("Entry 127.0.0.1 mcp.kodegen.ai already exists in hosts file, skipping");
@@ -897,10 +904,7 @@ fn add_kodegen_host_entries() -> Result<()> {
     write_hosts_file_atomic(&hosts_file_path, &new_content)
         .context("Failed to write hosts file atomically")?;
 
-    info!(
-        "Added Kodegen host entry to {}",
-        hosts_file_path.display()
-    );
+    info!("Added Kodegen host entry to {}", hosts_file_path.display());
     Ok(())
 }
 
@@ -936,7 +940,7 @@ pub fn remove_kodegen_host_entries() -> Result<()> {
 
     // Remove Kodegen block
     let mut new_content = remove_kodegen_block(&existing_content);
-    
+
     // Ensure file ends with newline (POSIX standard)
     if !new_content.is_empty() && !new_content.ends_with('\n') {
         new_content.push('\n');

@@ -182,7 +182,10 @@ impl PlatformExecutor {
     }
 
     /// Create systemd unit file with comprehensive configuration in specified directory
-    fn create_systemd_unit_with_dir(config: &SystemdConfig, unit_dir: &Path) -> Result<(), InstallerError> {
+    fn create_systemd_unit_with_dir(
+        config: &SystemdConfig,
+        unit_dir: &Path,
+    ) -> Result<(), InstallerError> {
         let unit_content = Self::generate_unit_content(config)?;
 
         // Determine unit file path

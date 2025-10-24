@@ -30,7 +30,7 @@ pub struct AnchorDefinition<'input> {
 impl<'input> AnchorRegistry<'input> {
     /// Create new anchor registry
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             anchors: HashMap::with_capacity(16),
@@ -39,7 +39,7 @@ impl<'input> AnchorRegistry<'input> {
     }
 
     /// Create anchor registry with specified capacity
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             anchors: HashMap::with_capacity(capacity),
@@ -73,7 +73,7 @@ impl<'input> AnchorRegistry<'input> {
 
     /// Get anchor definition by name
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_anchor(&self, name: &str) -> Option<&AnchorDefinition<'input>> {
         self.anchors.get(name)
     }
@@ -85,13 +85,13 @@ impl<'input> AnchorRegistry<'input> {
     }
 
     /// Get all anchor names
-    #[must_use] 
+    #[must_use]
     pub fn anchor_names(&self) -> Vec<&str> {
         self.resolution_order.iter().map(|s| s.as_str()).collect()
     }
 
     /// Get anchors in resolution order
-    #[must_use] 
+    #[must_use]
     pub fn anchors_in_order(&self) -> Vec<&AnchorDefinition<'input>> {
         self.resolution_order
             .iter()
@@ -101,21 +101,21 @@ impl<'input> AnchorRegistry<'input> {
 
     /// Check if anchor exists
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn contains_anchor(&self, name: &str) -> bool {
         self.anchors.contains_key(name)
     }
 
     /// Get anchor count
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.anchors.len()
     }
 
     /// Check if registry is empty
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.anchors.is_empty()
     }
@@ -146,32 +146,32 @@ impl<'input> AnchorRegistry<'input> {
     }
 
     /// Get anchors by path prefix
-    #[must_use] 
+    #[must_use]
     pub fn anchors_by_path_prefix(&self, prefix: &str) -> Vec<&AnchorDefinition<'input>> {
         self.find_anchors(|def| def.path_string().starts_with(prefix))
     }
 
     /// Get recently defined anchors (within specified duration)
-    #[must_use] 
+    #[must_use]
     pub fn recent_anchors(&self, duration: std::time::Duration) -> Vec<&AnchorDefinition<'input>> {
         let threshold = std::time::Instant::now() - duration;
         self.find_anchors(|def| def.first_seen >= threshold)
     }
 
     /// Get frequently used anchors (resolution count above threshold)
-    #[must_use] 
+    #[must_use]
     pub fn frequently_used_anchors(&self, min_count: usize) -> Vec<&AnchorDefinition<'input>> {
         self.find_anchors(|def| def.resolution_count >= min_count)
     }
 
     /// Get unused anchors (never resolved)
-    #[must_use] 
+    #[must_use]
     pub fn unused_anchors(&self) -> Vec<&AnchorDefinition<'input>> {
         self.find_anchors(|def| def.resolution_count == 0)
     }
 
     /// Get registry statistics
-    #[must_use] 
+    #[must_use]
     pub fn statistics(&self) -> RegistryStatistics {
         let total_resolutions: usize = self.anchors.values().map(|def| def.resolution_count).sum();
 
@@ -192,7 +192,7 @@ impl<'input> AnchorRegistry<'input> {
     }
 
     /// Validate all anchor definitions
-    #[must_use] 
+    #[must_use]
     pub fn validate(&self) -> Vec<RegistryValidationError> {
         let mut errors = Vec::new();
 
@@ -239,7 +239,7 @@ impl<'input> Default for AnchorRegistry<'input> {
 
 impl<'input> AnchorDefinition<'input> {
     /// Create new anchor definition
-    #[must_use] 
+    #[must_use]
     pub fn new(
         name: Cow<'input, str>,
         node: Node<'input>,
@@ -258,27 +258,27 @@ impl<'input> AnchorDefinition<'input> {
 
     /// Get anchor name as string
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn name_str(&self) -> &str {
         &self.name
     }
 
     /// Get definition path as string
-    #[must_use] 
+    #[must_use]
     pub fn path_string(&self) -> String {
         self.definition_path.join(".")
     }
 
     /// Check if anchor has been resolved
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_resolved(&self) -> bool {
         self.resolution_count > 0
     }
 
     /// Get time since first seen
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn age(&self) -> std::time::Duration {
         self.first_seen.elapsed()
     }
@@ -289,7 +289,7 @@ impl<'input> AnchorDefinition<'input> {
     }
 
     /// Get node type as string for debugging
-    #[must_use] 
+    #[must_use]
     pub const fn node_type(&self) -> &'static str {
         match &self.node {
             Node::Scalar(_) => "scalar",
@@ -303,7 +303,7 @@ impl<'input> AnchorDefinition<'input> {
     }
 
     /// Check if definition contains cycles
-    #[must_use] 
+    #[must_use]
     pub fn contains_self_reference(&self) -> bool {
         self.contains_alias_to(&self.name)
     }
@@ -365,7 +365,7 @@ pub enum RegistryValidationError {
 
 impl RegistryValidationError {
     /// Get error message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::PotentialNamingConflict { similar_names, .. } => {
@@ -383,7 +383,7 @@ impl RegistryValidationError {
     }
 
     /// Get associated position if available
-    #[must_use] 
+    #[must_use]
     pub const fn position(&self) -> Option<Position> {
         match self {
             Self::PotentialNamingConflict { .. } => None,

@@ -5,9 +5,9 @@
 
 use crate::error::{Result, WorkspaceError};
 use crate::workspace::WorkspaceInfo;
+use petgraph::Graph;
 use petgraph::algo::toposort;
 use petgraph::graph::NodeIndex;
-use petgraph::Graph;
 use std::collections::HashMap;
 
 /// Dependency graph representing package relationships
@@ -55,16 +55,19 @@ impl DependencyGraph {
 
         // Add dependency edges (from dependency to dependent)
         for (package_name, dependencies) in &workspace.internal_dependencies {
-            let dependent_index = node_map.get(package_name)
-                .ok_or_else(|| WorkspaceError::PackageNotFound {
-                    name: package_name.clone(),
-                })?;
+            let dependent_index =
+                node_map
+                    .get(package_name)
+                    .ok_or_else(|| WorkspaceError::PackageNotFound {
+                        name: package_name.clone(),
+                    })?;
 
             for dependency_name in dependencies {
-                let dependency_index = node_map.get(dependency_name)
-                    .ok_or_else(|| WorkspaceError::PackageNotFound {
+                let dependency_index = node_map.get(dependency_name).ok_or_else(|| {
+                    WorkspaceError::PackageNotFound {
                         name: dependency_name.clone(),
-                    })?;
+                    }
+                })?;
 
                 // Edge from dependency to dependent (dependency must be published first)
                 graph.add_edge(*dependency_index, *dependent_index, ());
@@ -84,17 +87,17 @@ impl DependencyGraph {
         self.validate_no_cycles()?;
 
         // Perform topological sort
-        let sorted_indices = toposort(&self.graph, None)
-            .map_err(|cycle| {
-                let cycle_packages: Vec<String> = self.index_map
-                    .get(&cycle.node_id())
-                    .map(|name| vec![name.clone()])
-                    .unwrap_or_else(|| vec!["unknown".to_string()]);
+        let sorted_indices = toposort(&self.graph, None).map_err(|cycle| {
+            let cycle_packages: Vec<String> = self
+                .index_map
+                .get(&cycle.node_id())
+                .map(|name| vec![name.clone()])
+                .unwrap_or_else(|| vec!["unknown".to_string()]);
 
-                WorkspaceError::CircularDependency {
-                    packages: cycle_packages,
-                }
-            })?;
+            WorkspaceError::CircularDependency {
+                packages: cycle_packages,
+            }
+        })?;
 
         // Convert to package names maintaining topological order
         let ordered_packages: Vec<String> = sorted_indices
@@ -115,7 +118,8 @@ impl DependencyGraph {
     /// Group packages into publishing tiers
     fn group_into_tiers(&self, ordered_packages: &[String]) -> Vec<PublishTier> {
         let mut tiers = Vec::new();
-        let mut remaining_packages: std::collections::VecDeque<_> = ordered_packages.iter().collect();
+        let mut remaining_packages: std::collections::VecDeque<_> =
+            ordered_packages.iter().collect();
         let mut tier_number = 0;
 
         while !remaining_packages.is_empty() {
@@ -147,9 +151,8 @@ impl DependencyGraph {
                 // Sort packages within tier by number of dependents (descending)
                 // This ensures packages with more dependents are published first,
                 // maximizing parallelism for subsequent tiers
-                current_tier.sort_by_cached_key(|pkg| {
-                    std::cmp::Reverse(self.dependents(pkg).len())
-                });
+                current_tier
+                    .sort_by_cached_key(|pkg| std::cmp::Reverse(self.dependents(pkg).len()));
 
                 tiers.push(PublishTier {
                     packages: current_tier,
@@ -174,13 +177,18 @@ impl DependencyGraph {
         };
 
         // Check if any dependencies are still in the remaining packages
-        let neighbors = self.graph.neighbors_directed(package_index, petgraph::Direction::Incoming);
-        
+        let neighbors = self
+            .graph
+            .neighbors_directed(package_index, petgraph::Direction::Incoming);
+
         for dependency_index in neighbors {
             if let Some(dependency_name) = self.index_map.get(&dependency_index)
-                && remaining_packages.iter().any(|&name| name == dependency_name) {
-                    return false; // Dependency still needs to be published
-                }
+                && remaining_packages
+                    .iter()
+                    .any(|&name| name == dependency_name)
+            {
+                return false; // Dependency still needs to be published
+            }
         }
 
         true
@@ -189,10 +197,10 @@ impl DependencyGraph {
     /// Validate that the dependency graph has no circular dependencies
     fn validate_no_cycles(&self) -> Result<()> {
         use petgraph::algo::tarjan_scc;
-        
+
         // Single-pass SCC computation: O(V + E)
         let sccs = tarjan_scc(&self.graph);
-        
+
         // Find any SCC with more than 1 node (= cycle exists)
         for scc in sccs {
             if scc.len() > 1 {
@@ -201,33 +209,33 @@ impl DependencyGraph {
                     .into_iter()
                     .filter_map(|idx| self.index_map.get(&idx).cloned())
                     .collect();
-                
+
                 return Err(WorkspaceError::CircularDependency {
                     packages: cycle_packages,
-                }.into());
+                }
+                .into());
             }
-            
+
             // Check for self-loops (single-node cycles)
             if scc.len() == 1 {
                 let node = scc[0];
                 if self.graph.contains_edge(node, node) {
-                    let package_name = self.index_map.get(&node)
+                    let package_name = self
+                        .index_map
+                        .get(&node)
                         .cloned()
                         .unwrap_or_else(|| "unknown".to_string());
-                    
+
                     return Err(WorkspaceError::CircularDependency {
                         packages: vec![package_name],
-                    }.into());
+                    }
+                    .into());
                 }
             }
         }
-        
+
         Ok(())
     }
-
-
-
-
 
     /// Get all packages that depend on the given package
     pub fn dependents(&self, package_name: &str) -> Vec<String> {
@@ -293,7 +301,8 @@ impl DependencyGraph {
 
         visited.insert(node);
 
-        let max_dependency_depth = self.graph
+        let max_dependency_depth = self
+            .graph
             .neighbors_directed(node, petgraph::Direction::Incoming)
             .map(|dep_idx| self.calculate_depth_recursive(dep_idx, visited))
             .max()

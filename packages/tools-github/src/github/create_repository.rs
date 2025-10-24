@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::Repository, Octocrab};
+use octocrab::{Octocrab, models::Repository};
 use std::sync::Arc;
 
 /// Create a repository (user scope).

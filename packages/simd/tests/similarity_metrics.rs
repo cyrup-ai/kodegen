@@ -1,4 +1,4 @@
-use kodegen_simd::similarity::metrics::{SimilarityMetrics, MetricsGuard};
+use kodegen_simd::similarity::metrics::{MetricsGuard, SimilarityMetrics};
 use std::sync::Arc;
 
 #[test]

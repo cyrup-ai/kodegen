@@ -41,14 +41,14 @@ fn ensure_signing_certificate() -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new("security")
         .args(["find-identity", "-v", "-p", "codesigning"])
         .output()?;
-    
+
     let identities = String::from_utf8_lossy(&output.stdout);
-    
+
     if identities.contains("Developer ID Application") {
         println!("✓ Found Developer ID certificate");
         return Ok(());
     }
-    
+
     // CRITICAL: No certificate = BUILD FAILURE
     // Ad-hoc signing must NEVER be allowed for releases
     eprintln!("\n❌ FATAL: No Developer ID certificate found!");
@@ -57,7 +57,7 @@ fn ensure_signing_certificate() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("  1. Set APPLE_CERTIFICATE + APPLE_CERTIFICATE_PASSWORD env vars (CI/CD)");
     eprintln!("  2. Run: cargo run --package kodegen_sign --bin kodegen-setup -- --interactive");
     eprintln!("\nUnsigned releases are NEVER allowed - customer trust depends on it!");
-    
+
     Err("No valid code signing certificate available. Build cannot proceed.".into())
 }
 

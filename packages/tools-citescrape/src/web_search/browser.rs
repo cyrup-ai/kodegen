@@ -81,10 +81,12 @@ impl Drop for BrowserWrapper {
         self.handler.abort();
         // Handler will be awaited/cleaned up by tokio runtime
         // Browser::drop() will automatically kill the Chrome process
-        
+
         // Cleanup temp directory (fallback if shutdown() wasn't called)
         if self.user_data_dir.is_some() {
-            tracing::warn!("BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop");
+            tracing::warn!(
+                "BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop"
+            );
             self.cleanup_temp_dir();
         }
     }

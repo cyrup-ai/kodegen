@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::manager::SearchManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -15,13 +15,13 @@ use std::sync::Arc;
 pub struct GetMoreSearchResultsArgs {
     /// Search session ID from `start_search`
     pub session_id: String,
-    
+
     /// Start result index (default: 0)
     /// Positive: Start from result N (0-based)
     /// Negative: Read last N results (tail behavior)
     #[serde(default)]
     pub offset: i64,
-    
+
     /// Max results to read (default: 100)
     /// Ignored when offset is negative
     #[serde(default = "default_length")]
@@ -63,7 +63,6 @@ impl Tool for GetMoreSearchResultsTool {
         "get_more_search_results"
     }
 
-
     fn description() -> &'static str {
         "Get more results from an active search with offset-based pagination.\n\n\
          Supports partial result reading with:\n\
@@ -88,11 +87,10 @@ impl Tool for GetMoreSearchResultsTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let response = self.manager.get_more_results(
-            &args.session_id,
-            args.offset,
-            args.length,
-        ).await?;
+        let response = self
+            .manager
+            .get_more_results(&args.session_id, args.offset, args.length)
+            .await?;
 
         // Return structured JSON response
         Ok(json!({
@@ -121,7 +119,9 @@ impl Tool for GetMoreSearchResultsTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text("How do I read results from a streaming search?"),
+                content: PromptMessageContent::text(
+                    "How do I read results from a streaming search?",
+                ),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -137,7 +137,7 @@ impl Tool for GetMoreSearchResultsTool {
                      - Current search status (IN PROGRESS or COMPLETED)\n\
                      - Results in the requested range\n\
                      - Whether more results are available\n\
-                     - Next offset to use for pagination"
+                     - Next offset to use for pagination",
                 ),
             },
         ])

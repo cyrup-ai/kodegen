@@ -30,10 +30,10 @@ pub struct StartSearchResponse {
 pub struct SpawnClaudeAgentResponse {
     /// The session IDs for spawned Claude agents
     pub session_ids: Vec<String>,
-    
+
     /// Number of workers spawned
     pub worker_count: u32,
-    
+
     /// Agent information for each spawned agent
     #[serde(default)]
     pub agents: Vec<serde_json::Value>,
@@ -371,7 +371,7 @@ pub struct GitHubSearchResults<T> {
 pub struct GitHubIssuesResponse {
     /// Total number of issues returned
     pub count: u64,
-    
+
     /// Complete GitHub Issue objects with all fields populated
     pub issues: Vec<GitHubIssue>,
 }
@@ -389,7 +389,7 @@ pub struct GitHubIssuesResponse {
 pub struct GitHubCommentsResponse {
     /// Total number of comments returned
     pub count: u64,
-    
+
     /// Complete GitHub Comment objects with all fields populated
     pub comments: Vec<GitHubComment>,
 }

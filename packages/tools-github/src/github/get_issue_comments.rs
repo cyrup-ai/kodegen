@@ -2,7 +2,7 @@
 
 use crate::github::error::GitHubError;
 use crate::runtime::{AsyncStream, EmitterBuilder};
-use octocrab::{models::issues::Comment, Octocrab, Page};
+use octocrab::{Octocrab, Page, models::issues::Comment};
 use std::sync::Arc;
 
 /// Fetch all comments for an issue as a stream.

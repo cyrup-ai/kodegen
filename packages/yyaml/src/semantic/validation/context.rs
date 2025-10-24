@@ -16,7 +16,7 @@ pub struct ValidationContext {
 impl ValidationContext {
     /// Create a new validation context with default settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_depth: 0,
@@ -30,7 +30,7 @@ impl ValidationContext {
 
     /// Create a validation context with a custom max depth
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_max_depth(max_depth: usize) -> Self {
         Self {
             max_depth,
@@ -56,7 +56,7 @@ impl ValidationContext {
 
     /// Check if we've exceeded the maximum depth
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_depth_exceeded(&self) -> bool {
         self.current_depth > self.max_depth
     }
@@ -69,7 +69,7 @@ impl ValidationContext {
 
     /// Check if a node has been visited
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_visited(&self, node_id: usize) -> bool {
         self.visited_nodes.contains(&node_id)
     }
@@ -88,7 +88,7 @@ impl ValidationContext {
 
     /// Get the current validation path as a string
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn current_path(&self) -> String {
         self.validation_path.join(".")
     }

@@ -1,17 +1,17 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::manager::PromptManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AddPromptArgs {
     /// Filename for the prompt (without .j2.md extension)
     /// Must contain only alphanumeric characters, hyphens, and underscores
     pub name: String,
-    
+
     /// Full prompt content including YAML frontmatter
     pub content: String,
 }
@@ -52,21 +52,22 @@ impl Tool for AddPromptTool {
     }
 
     fn destructive() -> bool {
-        false  // Creates new file, doesn't modify existing
+        false // Creates new file, doesn't modify existing
     }
 
     fn idempotent() -> bool {
-        false  // Will fail if prompt already exists
+        false // Will fail if prompt already exists
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Add prompt (validates syntax automatically, async)
-        self.manager.add_prompt(&args.name, &args.content)
+        self.manager
+            .add_prompt(&args.name, &args.content)
             .await
             .map_err(McpError::Other)?;
-        
+
         let path = format!("~/.kodegen/prompts/{}.j2.md", args.name);
-        
+
         Ok(json!({
             "success": true,
             "name": args.name,
@@ -118,7 +119,7 @@ impl Tool for AddPromptTool {
                      - {% for item in items %} - Loops\n\
                      - {{ env.VAR }} - Environment variables\n\
                      - {{ param | filter }} - Filters\n\n\
-                     The content is validated for syntax errors before saving."
+                     The content is validated for syntax errors before saving.",
                 ),
             },
         ])

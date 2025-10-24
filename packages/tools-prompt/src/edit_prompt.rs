@@ -1,16 +1,16 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::manager::PromptManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct EditPromptArgs {
     /// Name of the prompt to edit
     pub name: String,
-    
+
     /// New content (including frontmatter)
     pub content: String,
 }
@@ -50,19 +50,20 @@ impl Tool for EditPromptTool {
     }
 
     fn destructive() -> bool {
-        true  // Modifies existing file
+        true // Modifies existing file
     }
 
     fn idempotent() -> bool {
-        true  // Same content produces same result
+        true // Same content produces same result
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Edit prompt (validates syntax automatically, async)
-        self.manager.edit_prompt(&args.name, &args.content)
+        self.manager
+            .edit_prompt(&args.name, &args.content)
             .await
             .map_err(McpError::Other)?;
-        
+
         Ok(json!({
             "success": true,
             "name": args.name,
@@ -104,7 +105,7 @@ impl Tool for EditPromptTool {
                      })\n\
                      ```\n\n\
                      The new content completely replaces the old content. \
-                     Template syntax is validated before saving."
+                     Template syntax is validated before saving.",
                 ),
             },
         ])

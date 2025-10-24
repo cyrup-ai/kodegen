@@ -7,7 +7,7 @@
 use anyhow::{Context, Result as AnyResult};
 use regex::escape;
 use rustc_hash::FxHashSet;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 /// Default whitespace pattern for JSON
@@ -44,13 +44,19 @@ impl<'a> SchemaParser<'a> {
     /// Set custom whitespace pattern
     #[inline]
     pub fn with_whitespace_pattern(self, whitespace_pattern: &'a str) -> Self {
-        Self { whitespace_pattern, ..self }
+        Self {
+            whitespace_pattern,
+            ..self
+        }
     }
 
     /// Set maximum recursion depth
     #[inline]
     pub fn with_max_recursion_depth(self, max_recursion_depth: usize) -> Self {
-        Self { max_recursion_depth, ..self }
+        Self {
+            max_recursion_depth,
+            ..self
+        }
     }
 
     /// Convert JSON schema to regex pattern
@@ -98,23 +104,30 @@ impl<'a> SchemaParser<'a> {
 
     /// Parse object schemas with properties
     fn parse_properties(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let properties = obj.get("properties")
+        let properties = obj
+            .get("properties")
             .and_then(Value::as_object)
             .context("Properties field not found or invalid")?;
 
-        let required_properties = obj.get("required")
+        let required_properties = obj
+            .get("required")
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(Value::as_str).collect::<FxHashSet<_>>())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .collect::<FxHashSet<_>>()
+            })
             .unwrap_or_default();
 
-        let additional_properties = obj.get("additionalProperties")
-            .unwrap_or(&json!(true));
+        let additional_properties = obj.get("additionalProperties").unwrap_or(&json!(true));
 
-        let min_properties = obj.get("minProperties")
+        let min_properties = obj
+            .get("minProperties")
             .and_then(Value::as_u64)
             .unwrap_or(0) as usize;
 
-        let max_properties = obj.get("maxProperties")
+        let max_properties = obj
+            .get("maxProperties")
             .and_then(Value::as_u64)
             .map(|v| v as usize);
 
@@ -124,7 +137,7 @@ impl<'a> SchemaParser<'a> {
             &required_properties,
             additional_properties,
             min_properties,
-            max_properties
+            max_properties,
         );
         self.recursion_depth -= 1;
         result
@@ -158,10 +171,7 @@ impl<'a> SchemaParser<'a> {
 
         for (prop_name, prop_schema) in properties {
             let prop_regex = self.to_regex(prop_schema)?;
-            let prop_pattern = format!(
-                r#""{}"{}:{}{}"#,
-                escape(prop_name), ws, ws, prop_regex
-            );
+            let prop_pattern = format!(r#""{}"{}:{}{}"#, escape(prop_name), ws, ws, prop_regex);
 
             if required.contains(prop_name.as_str()) {
                 required_patterns.push(prop_pattern);
@@ -184,8 +194,13 @@ impl<'a> SchemaParser<'a> {
                     let optional_count = std::cmp::min(max_optional, optional_patterns.len());
                     regex.push_str(&format!(
                         "({},{},{})?",
-                        ws, ws,
-                        Self::generate_property_combinations(&optional_patterns, optional_count, ws)
+                        ws,
+                        ws,
+                        Self::generate_property_combinations(
+                            &optional_patterns,
+                            optional_count,
+                            ws
+                        )
                     ));
                 }
             }
@@ -201,7 +216,11 @@ impl<'a> SchemaParser<'a> {
                 ));
             } else {
                 // Need at least min_count properties
-                regex.push_str(&Self::generate_property_combinations(&optional_patterns, max_count, ws));
+                regex.push_str(&Self::generate_property_combinations(
+                    &optional_patterns,
+                    max_count,
+                    ws,
+                ));
             }
         }
 
@@ -216,7 +235,9 @@ impl<'a> SchemaParser<'a> {
             };
 
             if properties.is_empty() && required.is_empty() {
-                regex.push_str(&format!("({additional_regex}({ws},{ws},{additional_regex})*)?"));
+                regex.push_str(&format!(
+                    "({additional_regex}({ws},{ws},{additional_regex})*)?"
+                ));
             } else {
                 regex.push_str(&format!("({ws},{ws},{additional_regex})*"));
             }
@@ -278,7 +299,11 @@ impl<'a> SchemaParser<'a> {
 
     /// Generate regex for specific JSON type
     #[inline]
-    fn generate_type_regex(&mut self, type_str: &str, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
+    fn generate_type_regex(
+        &mut self,
+        type_str: &str,
+        obj: &serde_json::Map<String, Value>,
+    ) -> AnyResult<String> {
         match type_str {
             "null" => Ok("null".to_string()),
             "boolean" => Ok("(true|false)".to_string()),
@@ -300,7 +325,10 @@ impl<'a> SchemaParser<'a> {
         match (minimum, maximum, multiple_of) {
             (Some(min), Some(max), None) if min >= 0 && max <= 9999 => {
                 // Generate specific range regex for small positive ranges
-                let range_values = (min..=max).map(|n| n.to_string()).collect::<Vec<_>>().join("|");
+                let range_values = (min..=max)
+                    .map(|n| n.to_string())
+                    .collect::<Vec<_>>()
+                    .join("|");
                 Ok(format!(r"({range_values})"))
             }
             (Some(0), None, None) => Ok(r"(0|[1-9][0-9]*)".to_string()),
@@ -357,14 +385,21 @@ impl<'a> SchemaParser<'a> {
         };
 
         match (min_items, max_items) {
-            (0, None) => Ok(format!(r"\[{ws}({item_regex}({ws},{ws}{item_regex})*)?{ws}\]")),
+            (0, None) => Ok(format!(
+                r"\[{ws}({item_regex}({ws},{ws}{item_regex})*)?{ws}\]"
+            )),
             (0, Some(0)) => Ok(format!(r"\[{ws}\]")),
             (min, None) => {
                 if min == 1 {
                     Ok(format!(r"\[{ws}{item_regex}({ws},{ws}{item_regex})*{ws}\]"))
                 } else {
-                    let required_part = format!("{item_regex}({ws},{ws}{item_regex}){{{}}}", min.saturating_sub(1));
-                    Ok(format!(r"\[{ws}{required_part}({ws},{ws}{item_regex})*{ws}\]"))
+                    let required_part = format!(
+                        "{item_regex}({ws},{ws}{item_regex}){{{}}}",
+                        min.saturating_sub(1)
+                    );
+                    Ok(format!(
+                        r"\[{ws}{required_part}({ws},{ws}{item_regex})*{ws}\]"
+                    ))
                 }
             }
             (0, Some(max)) => {
@@ -372,7 +407,9 @@ impl<'a> SchemaParser<'a> {
                     Ok(format!(r"\[{ws}({item_regex})?{ws}\]"))
                 } else {
                     let max_part = max.saturating_sub(1);
-                    Ok(format!(r"\[{ws}({item_regex}({ws},{ws}{item_regex}){{0,{max_part}}})?{ws}\]"))
+                    Ok(format!(
+                        r"\[{ws}({item_regex}({ws},{ws}{item_regex}){{0,{max_part}}})?{ws}\]"
+                    ))
                 }
             }
             (min, Some(max)) => {
@@ -383,20 +420,29 @@ impl<'a> SchemaParser<'a> {
                         Ok(format!(r"\[{ws}{item_regex}{ws}\]"))
                     } else {
                         let count = min.saturating_sub(1);
-                        Ok(format!(r"\[{ws}{item_regex}({ws},{ws}{item_regex}){{{count}}}{ws}\]"))
+                        Ok(format!(
+                            r"\[{ws}{item_regex}({ws},{ws}{item_regex}){{{count}}}{ws}\]"
+                        ))
                     }
                 } else {
                     let min_part = if min > 0 {
-                        format!("{item_regex}({ws},{ws}{item_regex}){{{}}}", min.saturating_sub(1))
+                        format!(
+                            "{item_regex}({ws},{ws}{item_regex}){{{}}}",
+                            min.saturating_sub(1)
+                        )
                     } else {
                         String::new()
                     };
                     let max_additional = max.saturating_sub(min);
 
                     if min_part.is_empty() {
-                        Ok(format!(r"\[{ws}({item_regex}({ws},{ws}{item_regex}){{0,{max_additional}}})?{ws}\]"))
+                        Ok(format!(
+                            r"\[{ws}({item_regex}({ws},{ws}{item_regex}){{0,{max_additional}}})?{ws}\]"
+                        ))
                     } else {
-                        Ok(format!(r"\[{ws}{min_part}({ws},{ws}{item_regex}){{0,{max_additional}}}{ws}\]"))
+                        Ok(format!(
+                            r"\[{ws}{min_part}({ws},{ws}{item_regex}){{0,{max_additional}}}{ws}\]"
+                        ))
                     }
                 }
             }
@@ -415,7 +461,8 @@ impl<'a> SchemaParser<'a> {
 
     /// Parse enum constraints
     fn parse_enum(&self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let enum_values = obj.get("enum")
+        let enum_values = obj
+            .get("enum")
             .and_then(Value::as_array)
             .context("Enum field not found or invalid")?;
 
@@ -458,7 +505,8 @@ impl<'a> SchemaParser<'a> {
 
     /// Parse allOf constraints (intersection)
     fn parse_all_of(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let all_of = obj.get("allOf")
+        let all_of = obj
+            .get("allOf")
             .and_then(Value::as_array)
             .context("AllOf field not found or invalid")?;
 
@@ -511,7 +559,8 @@ impl<'a> SchemaParser<'a> {
 
     /// Parse anyOf constraints (union)
     fn parse_any_of(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let any_of = obj.get("anyOf")
+        let any_of = obj
+            .get("anyOf")
             .and_then(Value::as_array)
             .context("AnyOf field not found or invalid")?;
 
@@ -536,7 +585,8 @@ impl<'a> SchemaParser<'a> {
 
     /// Parse prefixItems for tuple validation
     fn parse_prefix_items(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let prefix_items = obj.get("prefixItems")
+        let prefix_items = obj
+            .get("prefixItems")
             .and_then(Value::as_array)
             .context("PrefixItems field not found or invalid")?;
 
@@ -568,26 +618,34 @@ impl<'a> SchemaParser<'a> {
                 } else {
                     self.to_regex(additional_items)?
                 };
-                Ok(format!(r"\[{ws}{items_pattern}({ws},{ws}{})*{ws}\]", additional_regex))
+                Ok(format!(
+                    r"\[{ws}{items_pattern}({ws},{ws}{})*{ws}\]",
+                    additional_regex
+                ))
             }
         }
     }
 
     /// Parse arrays with items schema
-    fn parse_array_with_items(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
+    fn parse_array_with_items(
+        &mut self,
+        obj: &serde_json::Map<String, Value>,
+    ) -> AnyResult<String> {
         // Delegate to generate_array_regex which handles items
         self.generate_array_regex(obj)
     }
 
     /// Parse $ref constraints (JSON pointer resolution)
     fn parse_ref(&mut self, obj: &serde_json::Map<String, Value>) -> AnyResult<String> {
-        let ref_path = obj.get("$ref")
+        let ref_path = obj
+            .get("$ref")
             .and_then(Value::as_str)
             .context("$ref field not found or invalid")?;
 
         if ref_path.starts_with("#/") {
             // Try to resolve within root document using JSON pointer
-            let path_parts: Vec<&str> = ref_path.strip_prefix("#/")
+            let path_parts: Vec<&str> = ref_path
+                .strip_prefix("#/")
                 .unwrap_or(ref_path)
                 .split('/')
                 .collect();

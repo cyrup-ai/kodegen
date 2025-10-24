@@ -25,7 +25,7 @@ impl<'input> Default for DocumentValidator<'input> {
 impl<'input> DocumentValidator<'input> {
     /// Create a new document validator with default settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             validation_rules: ValidationRuleSet::default(),
@@ -37,7 +37,7 @@ impl<'input> DocumentValidator<'input> {
 
     /// Create a validator with custom validation rules
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_rules(validation_rules: ValidationRuleSet<'input>) -> Self {
         Self {
             validation_rules,
@@ -48,7 +48,7 @@ impl<'input> DocumentValidator<'input> {
     }
 
     /// Create validator with specific configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: &crate::semantic::SemanticConfig<'input>) -> Self {
         let mut validator = Self::new();
 
@@ -199,7 +199,7 @@ impl<'input> DocumentValidator<'input> {
     }
 
     /// Generate validation statistics
-    #[must_use] 
+    #[must_use]
     pub fn generate_statistics(&self) -> ValidationStatistics {
         ValidationStatistics {
             total_warnings: self.validation_context.warning_count,

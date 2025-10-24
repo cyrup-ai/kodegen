@@ -1,22 +1,22 @@
 // packages/server/src/stdio/server.rs
 use anyhow::Result;
+use kodegen_utils::usage_tracker::UsageTracker;
+use rand::Rng;
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
-    handler::server::router::{tool::ToolRouter, prompt::PromptRouter},
+    handler::server::router::{prompt::PromptRouter, tool::ToolRouter},
     model::{
         CallToolRequestParam, CallToolResult, GetPromptRequestParam, GetPromptResult,
         Implementation, InitializeRequestParam, InitializeResult, ListPromptsResult,
-        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult,
-        PaginatedRequestParam, ProtocolVersion, ReadResourceRequestParam,
-        ReadResourceResult, ServerCapabilities, ServerInfo,
+        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParam,
+        ProtocolVersion, ReadResourceRequestParam, ReadResourceResult, ServerCapabilities,
+        ServerInfo,
     },
     service::RequestContext,
     transport::stdio,
 };
-use rand::Rng;
 use serde_json::json;
 use std::time::Duration;
-use kodegen_utils::usage_tracker::UsageTracker;
 use tokio_util::sync::CancellationToken;
 
 /// Configuration for SSE connection retry logic
@@ -41,18 +41,18 @@ impl Default for SseConnectionConfig {
 }
 
 /// Connect to SSE server with exponential backoff retry
-/// 
+///
 /// Attempts connection up to `max_attempts` times with exponential backoff.
 /// Backoff starts at `initial_backoff` and doubles on each retry, capped at 10 seconds.
 /// Each connection attempt is subject to the specified timeout and can be cancelled via shutdown token.
-/// 
+///
 /// # Arguments
 /// * `url` - SSE server URL to connect to
 /// * `max_attempts` - Maximum number of connection attempts
 /// * `initial_backoff` - Initial backoff duration, doubles on each retry
 /// * `timeout` - Timeout for each individual connection attempt
 /// * `shutdown_token` - Cancellation token for graceful shutdown
-/// 
+///
 /// # Returns
 /// * `Ok((client, connection))` - Successfully connected client and connection tuple
 /// * `Err` - Connection failed (timeout, cancellation, or connection error)
@@ -62,12 +62,17 @@ async fn connect_with_retry(
     initial_backoff: Duration,
     timeout: Duration,
     shutdown_token: &CancellationToken,
-) -> Result<(kodegen_mcp_client::KodegenClient, kodegen_mcp_client::KodegenConnection)> {
+) -> Result<(
+    kodegen_mcp_client::KodegenClient,
+    kodegen_mcp_client::KodegenConnection,
+)> {
     let mut backoff = initial_backoff;
-    
+
     for attempt in 1..=max_attempts {
-        log::debug!("SSE connection attempt {attempt}/{max_attempts} to {url} (timeout: {timeout:?})");
-        
+        log::debug!(
+            "SSE connection attempt {attempt}/{max_attempts} to {url} (timeout: {timeout:?})"
+        );
+
         // Race connection against timeout and cancellation
         let connect_future = kodegen_mcp_client::create_sse_client(url);
         let result = tokio::select! {
@@ -78,7 +83,7 @@ async fn connect_with_retry(
                 return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
             }
         };
-        
+
         match result {
             Some(Ok((client, connection))) => {
                 if attempt > 1 {
@@ -97,7 +102,7 @@ async fn connect_with_retry(
                         e
                     ));
                 }
-                
+
                 log::debug!(
                     "Connection attempt {attempt}/{max_attempts} failed: {e}. Retrying in {backoff:?}"
                 );
@@ -112,19 +117,19 @@ async fn connect_with_retry(
                         timeout.as_secs()
                     ));
                 }
-                
+
                 log::debug!(
                     "Connection attempt {attempt}/{max_attempts} timed out after {timeout:?}. Retrying in {backoff:?}"
                 );
             }
         }
-        
+
         // Sleep before retry, but make it cancellable
         // Add jitter (0-25% of backoff) to prevent thundering herd
         let jitter_max = (backoff.as_millis() / 4).max(1);
         let jitter = rand::rng().random_range(0..jitter_max);
         let sleep_duration = backoff + Duration::from_millis(jitter as u64);
-        
+
         tokio::select! {
             () = tokio::time::sleep(sleep_duration) => {},
             () = shutdown_token.cancelled() => {
@@ -132,28 +137,28 @@ async fn connect_with_retry(
                 return Err(anyhow::anyhow!("Connection cancelled during shutdown"));
             }
         }
-        
+
         // Double backoff for next iteration, capped at 10 seconds
         backoff = (backoff * 2).min(Duration::from_secs(10));
     }
-    
+
     unreachable!()
 }
 
 /// MCP Server that provides stdio transport (thin client)
-/// 
+///
 /// Forwards all tool execution to the SSE server (daemon).
 pub struct StdioProxyServer {
     /// SSE client for proxying tool calls to daemon.
     /// `KodegenClient` is cheap to clone (Arc pointers internally).
     sse_client: kodegen_mcp_client::KodegenClient,
-    
+
     /// Connection lifecycle manager (not Clone, held to keep connection alive).
     /// When this is dropped, the SSE connection will be closed.
     /// NOT wrapped in Arc - `KodegenConnection` should never be cloned.
     #[allow(dead_code)]
     sse_connection: kodegen_mcp_client::KodegenConnection,
-    
+
     /// Tool router for metadata only
     tool_router: ToolRouter<Self>,
     /// Prompt router for serving prompts locally
@@ -166,7 +171,7 @@ pub struct StdioProxyServer {
 
 impl StdioProxyServer {
     /// Create a new stdio server (thin client)
-    /// 
+    ///
     /// # Arguments
     /// * `sse_url` - URL of SSE server (daemon) to proxy tool calls to
     /// * `config_manager` - Configuration manager
@@ -191,8 +196,9 @@ impl StdioProxyServer {
             None, // database_dsn
             None, // ssh_config
             None, // server_url (stdio mode proxies to daemon, doesn't run own server)
-        ).await?;
-        
+        )
+        .await?;
+
         // Connect to SSE server (daemon)
         if sse_config.max_retries > 1 {
             log::info!(
@@ -211,9 +217,10 @@ impl StdioProxyServer {
             sse_config.max_retries,
             sse_config.retry_backoff,
             sse_config.connection_timeout,
-            &shutdown_token
-        ).await?;
-        
+            &shutdown_token,
+        )
+        .await?;
+
         Ok(Self {
             sse_client,
             sse_connection,
@@ -223,17 +230,17 @@ impl StdioProxyServer {
             config_manager,
         })
     }
-    
+
     /// Serve the stdio server
     pub async fn serve_stdio(self) -> Result<()> {
         log::info!("Starting stdio server (thin client mode)");
-        
+
         // Use rmcp's stdio transport
         let service = self.serve(stdio()).await.inspect_err(|e| {
             log::error!("serving error: {e:?}");
         })?;
         service.waiting().await?;
-        
+
         log::info!("Stdio server stopped");
         Ok(())
     }
@@ -249,7 +256,7 @@ impl ServerHandler for StdioProxyServer {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "KODEGEN Stdio Server (thin client) - MCP tools via stdio transport".to_string()
+                "KODEGEN Stdio Server (thin client) - MCP tools via stdio transport".to_string(),
             ),
         }
     }
@@ -260,16 +267,16 @@ impl ServerHandler for StdioProxyServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tool_name = request.name.clone();
-        
+
         // Proxy all tool calls to SSE server (daemon)
         log::debug!("Proxying tool call '{tool_name}' to SSE server");
-        
+
         // Convert arguments to JSON value
         let args = match request.arguments {
             Some(map) => serde_json::Value::Object(map),
             None => serde_json::Value::Object(serde_json::Map::new()),
         };
-        
+
         // Call tool via SSE client
         let result = match self.sse_client.call_tool(&tool_name, args).await {
             Ok(result) => Ok(result),
@@ -277,18 +284,18 @@ impl ServerHandler for StdioProxyServer {
                 log::error!("SSE proxy error for tool '{tool_name}': {e}");
                 Err(McpError::internal_error(
                     format!("SSE proxy error: {e}"),
-                    None
+                    None,
                 ))
             }
         };
-        
+
         // Track usage metrics
         if result.is_ok() {
             self.usage_tracker.track_success(&tool_name);
         } else {
             self.usage_tracker.track_failure(&tool_name);
         }
-        
+
         result
     }
 
@@ -367,10 +374,14 @@ impl ServerHandler for StdioProxyServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, McpError> {
         // Capture client information
-        if let Err(e) = self.config_manager.set_client_info(request.client_info).await {
+        if let Err(e) = self
+            .config_manager
+            .set_client_info(request.client_info)
+            .await
+        {
             log::warn!("Failed to store client info: {e:?}");
         }
-        
+
         Ok(self.get_info())
     }
 }

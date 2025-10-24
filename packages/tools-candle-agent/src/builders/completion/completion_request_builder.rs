@@ -3,6 +3,7 @@ use std::num::NonZeroU64;
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::domain::completion::types::ToolInfo;
 use crate::domain::{
     chat::CandleMessage as ChatMessage,
     completion::{
@@ -14,7 +15,6 @@ use crate::domain::{
 };
 use crate::memory::core::ops::retrieval::RetrievalResult;
 use cyrup_sugars::ZeroOneOrMany;
-use crate::domain::completion::types::ToolInfo;
 
 /// Builder for completion requests
 pub struct CompletionRequestBuilder {

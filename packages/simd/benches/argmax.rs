@@ -1,11 +1,10 @@
 //! Argmax benchmarks with various data distributions
 
-
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use kodegen_simd::ops::argmax::ARGMAX_DISPATCH;
-use kodegen_simd::runtime::{get_cpu_features, CpuFeatures};
+use kodegen_simd::runtime::{CpuFeatures, get_cpu_features};
 use rand::Rng;
+use std::hint::black_box;
 
 /// Generate random test data
 fn generate_random_data(size: usize) -> Vec<f32> {
@@ -57,7 +56,8 @@ fn generate_max_in_middle(size: usize) -> Vec<f32> {
 
 fn bench_argmax_by_size(c: &mut Criterion) {
     let mut group = c.benchmark_group("argmax_by_size");
-    let sizes = [16, 64, 256, 1024, 4096, 16384, 65536];    let cpu_features = get_cpu_features();
+    let sizes = [16, 64, 256, 1024, 4096, 16384, 65536];
+    let cpu_features = get_cpu_features();
     eprintln!("Detected CPU features: {:?}", cpu_features);
 
     for &size in &sizes {
@@ -66,7 +66,8 @@ fn bench_argmax_by_size(c: &mut Criterion) {
         // Benchmark scalar
         group.bench_with_input(BenchmarkId::new("scalar", size), &size, |b, _| {
             b.iter(|| {
-                let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Scalar);
+                let result =
+                    (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Scalar);
                 black_box(result)
             })
         });
@@ -75,7 +76,8 @@ fn bench_argmax_by_size(c: &mut Criterion) {
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Sse41) {
             group.bench_with_input(BenchmarkId::new("sse41", size), &size, |b, _| {
                 b.iter(|| {
-                    let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Sse41);
+                    let result = (*ARGMAX_DISPATCH)
+                        .call_with_feature(black_box(&logits), CpuFeatures::Sse41);
                     black_box(result)
                 })
             });
@@ -84,7 +86,9 @@ fn bench_argmax_by_size(c: &mut Criterion) {
         // Benchmark AVX2
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Avx2) {
             group.bench_with_input(BenchmarkId::new("avx2", size), &size, |b, _| {
-                b.iter(|| {                    let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Avx2);
+                b.iter(|| {
+                    let result =
+                        (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Avx2);
                     black_box(result)
                 })
             });
@@ -94,7 +98,8 @@ fn bench_argmax_by_size(c: &mut Criterion) {
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Avx512) {
             group.bench_with_input(BenchmarkId::new("avx512", size), &size, |b, _| {
                 b.iter(|| {
-                    let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Avx512);
+                    let result = (*ARGMAX_DISPATCH)
+                        .call_with_feature(black_box(&logits), CpuFeatures::Avx512);
                     black_box(result)
                 })
             });
@@ -104,14 +109,16 @@ fn bench_argmax_by_size(c: &mut Criterion) {
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Neon) {
             group.bench_with_input(BenchmarkId::new("neon", size), &size, |b, _| {
                 b.iter(|| {
-                    let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Neon);
+                    let result =
+                        (*ARGMAX_DISPATCH).call_with_feature(black_box(&logits), CpuFeatures::Neon);
                     black_box(result)
                 })
             });
         }
 
         // Benchmark runtime dispatch
-        group.bench_with_input(BenchmarkId::new("dispatch", size), &size, |b, _| {            b.iter(|| {
+        group.bench_with_input(BenchmarkId::new("dispatch", size), &size, |b, _| {
+            b.iter(|| {
                 let result = ARGMAX_DISPATCH.call(black_box(&logits));
                 black_box(result)
             })
@@ -137,41 +144,34 @@ fn bench_argmax_by_distribution(c: &mut Criterion) {
 
     for (dist_name, logits) in distributions.iter() {
         // Benchmark scalar
-        group.bench_with_input(
-            BenchmarkId::new("scalar", dist_name),
-            &logits,            |b, data| {
-                b.iter(|| {
-                    let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Scalar);
-                    black_box(result)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("scalar", dist_name), &logits, |b, data| {
+            b.iter(|| {
+                let result =
+                    (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Scalar);
+                black_box(result)
+            })
+        });
 
         // Benchmark AVX2 (if available)
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Avx2) {
-            group.bench_with_input(
-                BenchmarkId::new("avx2", dist_name),
-                &logits,
-                |b, data| {
-                    b.iter(|| {
-                        let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Avx2);
-                        black_box(result)
-                    })
-                },
-            );
+            group.bench_with_input(BenchmarkId::new("avx2", dist_name), &logits, |b, data| {
+                b.iter(|| {
+                    let result =
+                        (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Avx2);
+                    black_box(result)
+                })
+            });
         }
 
         // Benchmark AVX-512 (if available)
         if let Ok(_) = (*ARGMAX_DISPATCH).call_with_feature(&[1.0], CpuFeatures::Avx512) {
-            group.bench_with_input(
-                BenchmarkId::new("avx512", dist_name),
-                &logits,
-                |b, data| {
-                    b.iter(|| {                        let result = (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Avx512);
-                        black_box(result)
-                    })
-                },
-            );
+            group.bench_with_input(BenchmarkId::new("avx512", dist_name), &logits, |b, data| {
+                b.iter(|| {
+                    let result =
+                        (*ARGMAX_DISPATCH).call_with_feature(black_box(data), CpuFeatures::Avx512);
+                    black_box(result)
+                })
+            });
         }
 
         // Benchmark runtime dispatch

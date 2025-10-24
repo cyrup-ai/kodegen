@@ -107,7 +107,7 @@ impl ClientConfigPlugin for RooCodePlugin {
             .join("User")
             .join("globalStorage")
             .join("rooveterinaryinc.roo-cline");
-        
+
         global_storage.exists() && global_storage.is_dir()
     }
 

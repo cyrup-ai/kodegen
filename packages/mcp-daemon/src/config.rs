@@ -93,24 +93,24 @@ pub struct KodegenSseConfig {
     /// Enable kodegen SSE server
     #[serde(default = "default_true")]
     pub enabled: bool,
-    
+
     /// Port for kodegen SSE server
     #[serde(default = "default_kodegen_port")]
     pub port: u16,
-    
+
     /// Bind address
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
-    
+
     /// Tool categories to enable
     #[serde(default)]
     pub enabled_tools: Option<Vec<String>>,
-    
+
     /// TLS certificate path (PEM format)
     /// If not specified, auto-discovered from standard install locations
     #[serde(default)]
     pub tls_cert: Option<std::path::PathBuf>,
-    
+
     /// TLS private key path (PEM format)
     /// If not specified, auto-discovered from standard install locations
     #[serde(default)]
@@ -135,11 +135,11 @@ impl Default for KodegenSseConfig {
 /// Checks system-wide and user-level install directories
 fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path::PathBuf>) {
     use std::path::PathBuf;
-    
+
     // Standard certificate file names
     const CERT_FILE: &str = "server.crt";
     const KEY_FILE: &str = "server.key";
-    
+
     // Build search paths using conditional compilation
     #[cfg(target_os = "macos")]
     let search_paths = vec![
@@ -149,7 +149,7 @@ fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path
             .join("kodegen")
             .join("certs"),
     ];
-    
+
     #[cfg(target_os = "linux")]
     let search_paths = vec![
         PathBuf::from("/var/lib/kodegen/certs"),
@@ -163,7 +163,7 @@ fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path
             .join("kodegen")
             .join("certs"),
     ];
-    
+
     #[cfg(target_os = "windows")]
     let search_paths = vec![
         PathBuf::from("C:\\ProgramData\\Kodegen\\certs"),
@@ -172,12 +172,12 @@ fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path
             .join("Kodegen")
             .join("certs"),
     ];
-    
+
     // Search for certificates in priority order
     for cert_dir in search_paths {
         let cert_path = cert_dir.join(CERT_FILE);
         let key_path = cert_dir.join(KEY_FILE);
-        
+
         // Check if both certificate and key exist
         if cert_path.exists() && key_path.exists() {
             log::info!(
@@ -188,7 +188,7 @@ fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path
             return (Some(cert_path), Some(key_path));
         }
     }
-    
+
     // No certificates found - will run in HTTP mode
     log::info!("No TLS certificates found in standard locations, HTTPS will not be available");
     log::debug!("To enable HTTPS, ensure certificates exist at one of the standard paths");

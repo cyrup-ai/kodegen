@@ -30,26 +30,26 @@ impl StateManager {
                 return Some(node.clone());
             }
         }
-        
+
         // Cache miss: atomic storage read + cache update
         let nodes = self.nodes.lock().await;
-        let node_opt = nodes.get(id).map(|n| n.clone());
-        
+        let node_opt = nodes.get(id).cloned();
+
         if let Some(ref node_data) = node_opt {
             let mut cache = self.cache.lock().await;
             cache.put(id.to_string(), node_data.clone());
         }
-        
+
         node_opt
     }
 
     pub async fn save_node(&self, node: ThoughtNode) {
         let node_id = node.id.clone();
-        
+
         // Atomic update: lock both in consistent order
         let mut nodes = self.nodes.lock().await;
         let mut cache = self.cache.lock().await;
-        
+
         nodes.insert(node_id.clone(), node.clone());
         cache.put(node_id, node);
     }
@@ -84,7 +84,7 @@ impl StateManager {
                 None => break,
             }
         }
-        
+
         path.reverse();
         path
     }
@@ -98,7 +98,7 @@ impl StateManager {
         // Atomic clear: lock both in consistent order
         let mut nodes = self.nodes.lock().await;
         let mut cache = self.cache.lock().await;
-        
+
         nodes.clear();
         cache.clear();
     }

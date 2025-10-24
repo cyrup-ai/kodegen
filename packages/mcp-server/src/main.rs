@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     // Parse CLI arguments
     let cli = Cli::parse();
-    
+
     // Handle list-categories flag
     if cli.list_categories {
         println!("Available tool categories:");
@@ -29,15 +29,15 @@ async fn main() -> Result<()> {
         }
         return Ok(());
     }
-    
+
     // Handle install command
     if let Some(Commands::Install) = cli.command {
         return cli::install::run_install();
     }
-    
+
     // Get enabled categories
     let enabled_categories = cli.enabled_categories();
-    
+
     // VALIDATE IMMEDIATELY - before any initialization
     if let Some(ref categories) = enabled_categories {
         let available = cli::available_categories();
@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
             .iter()
             .filter(|cat| !available.contains(&cat.as_str()))
             .collect();
-        
+
         if !invalid.is_empty() {
             eprintln!("Error: Invalid tool categories specified:");
             for cat in &invalid {
@@ -63,9 +63,7 @@ async fn main() -> Result<()> {
     }
 
     // Generate unique instance ID for this server run
-    let instance_id = chrono::Utc::now()
-        .format("%Y%m%d-%H%M%S")
-        .to_string();
+    let instance_id = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
 
     // Initialize shared components
     let config_manager = kodegen_tools_config::ConfigManager::new();
@@ -79,7 +77,7 @@ async fn main() -> Result<()> {
     match cli.server_mode() {
         ServerMode::Stdio { proxy_url } => {
             log::info!("Starting stdio server (proxy: {proxy_url})");
-            
+
             // Ensure daemon is running for stdio mode
             if let Err(e) = cli::daemon::ensure_daemon_running().await {
                 eprintln!("\n❌ Failed to start stdio server\n");
@@ -99,21 +97,21 @@ async fn main() -> Result<()> {
                 eprintln!("\nAlternative: Use SSE mode (no daemon required):");
                 eprintln!("  $ kodegen --sse 127.0.0.1:8080");
                 eprintln!();
-                
+
                 std::process::exit(1);
             }
-            
+
             // Create cancellation token for graceful shutdown during initialization
             let shutdown_token = tokio_util::sync::CancellationToken::new();
-            
+
             // Spawn signal handler for SIGINT and SIGTERM
             let signal_token = shutdown_token.clone();
             tokio::spawn(async move {
                 let ctrl_c = tokio::signal::ctrl_c();
-                
+
                 #[cfg(unix)]
                 {
-                    use tokio::signal::unix::{signal, SignalKind};
+                    use tokio::signal::unix::{SignalKind, signal};
                     let mut sigterm = match signal(SignalKind::terminate()) {
                         Ok(s) => s,
                         Err(e) => {
@@ -125,7 +123,7 @@ async fn main() -> Result<()> {
                             return;
                         }
                     };
-                    
+
                     tokio::select! {
                         _ = ctrl_c => {
                             log::debug!("Received SIGINT, cancelling initialization");
@@ -137,7 +135,7 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
-                
+
                 #[cfg(not(unix))]
                 {
                     if ctrl_c.await.is_ok() {
@@ -146,7 +144,7 @@ async fn main() -> Result<()> {
                     }
                 }
             });
-            
+
             let sse_config = stdio::SseConnectionConfig {
                 connection_timeout: cli.sse_connection_timeout(&config_manager),
                 max_retries: cli.sse_max_retries(),
@@ -159,30 +157,39 @@ async fn main() -> Result<()> {
                 &enabled_categories,
                 sse_config,
                 shutdown_token,
-            ).await?;
-            
+            )
+            .await?;
+
             server.serve_stdio().await?;
         }
         ServerMode::Sse(addr) => {
-            let protocol = if cli.tls_config().is_some() { "https" } else { "http" };
+            let protocol = if cli.tls_config().is_some() {
+                "https"
+            } else {
+                "http"
+            };
             log::info!("Starting SSE server on {protocol}://{addr}");
-            
+
             // Prepare database configuration
             #[cfg(feature = "database")]
             let (database_dsn, ssh_config) = if let Some(ref dsn) = cli.database_dsn {
                 // Note: database_readonly and database_max_rows are CLI-only flags
                 // They are not stored in ConfigManager as they are database-tool-specific settings
                 // Database tools will read these from CLI args if needed in the future
-                
+
                 // Build SSH config if requested
                 let ssh_cfg = if cli.ssh_host.is_some() {
-                    use kodegen_tools_database::{SSHConfig, TunnelConfig, SSHAuth};
-                    
-                    let ssh_host = cli.ssh_host.clone()
+                    use kodegen_tools_database::{SSHAuth, SSHConfig, TunnelConfig};
+
+                    let ssh_host = cli
+                        .ssh_host
+                        .clone()
                         .ok_or_else(|| anyhow::anyhow!("SSH host required"))?;
-                    let ssh_user = cli.ssh_user.clone()
+                    let ssh_user = cli
+                        .ssh_user
+                        .clone()
                         .ok_or_else(|| anyhow::anyhow!("SSH user required"))?;
-                    
+
                     // Determine auth method
                     let auth = if let Some(key_path) = &cli.ssh_key {
                         SSHAuth::Key {
@@ -196,49 +203,54 @@ async fn main() -> Result<()> {
                             "SSH authentication required: provide --ssh-key or --ssh-password"
                         ));
                     };
-                    
+
                     let ssh_config = SSHConfig {
                         host: ssh_host,
                         port: cli.ssh_port,
                         username: ssh_user,
                         auth,
                     };
-                    
+
                     // Extract target from DSN
                     let target_host = kodegen_tools_database::extract_host(dsn)?;
                     let target_port = kodegen_tools_database::extract_port(dsn)?;
-                    
+
                     let tunnel_config = TunnelConfig {
                         target_host,
                         target_port,
                     };
-                    
+
                     Some((ssh_config, tunnel_config))
                 } else {
                     None
                 };
-                
+
                 (Some(dsn.as_str()), ssh_cfg)
             } else {
                 (None, None)
             };
-            
+
             #[cfg(not(feature = "database"))]
             let (database_dsn, ssh_config): (Option<&str>, Option<()>) = (None, None);
-            
+
             // Construct server URL for loopback client (used by BrowserAgentTool)
-            let protocol = if cli.tls_config().is_some() { "https" } else { "http" };
+            let protocol = if cli.tls_config().is_some() {
+                "https"
+            } else {
+                "http"
+            };
             let server_url = format!("{protocol}://{addr}/sse");
-            
+
             let routers = common::build_routers::<sse::SseServer>(
                 &config_manager,
                 &usage_tracker,
                 &enabled_categories,
                 database_dsn,
                 ssh_config,
-                Some(&server_url),  // Pass server URL for BrowserAgentTool
-            ).await?;
-            
+                Some(&server_url), // Pass server URL for BrowserAgentTool
+            )
+            .await?;
+
             let server = sse::SseServer::new(
                 routers.tool_router,
                 routers.prompt_router,
@@ -246,23 +258,23 @@ async fn main() -> Result<()> {
                 config_manager,
                 routers.managers,
             );
-            
+
             let server_handle = server.serve_with_tls(addr, cli.tls_config()).await?;
-            
+
             log::info!("SSE server running on {protocol}://{addr}");
             if cli.tls_config().is_some() {
                 log::info!("TLS/HTTPS enabled - using encrypted connections");
             }
             log::info!("Press Ctrl+C or send SIGTERM to initiate graceful shutdown");
-            
+
             // Wait for shutdown signal (either SIGINT or SIGTERM)
             #[cfg(unix)]
             {
-                use tokio::signal::unix::{signal, SignalKind};
-                
+                use tokio::signal::unix::{SignalKind, signal};
+
                 let ctrl_c = tokio::signal::ctrl_c();
                 let mut sigterm = signal(SignalKind::terminate())?;
-                
+
                 tokio::select! {
                     _ = ctrl_c => {
                         log::debug!("Received SIGINT (Ctrl+C)");
@@ -272,20 +284,20 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-            
+
             #[cfg(not(unix))]
             {
                 tokio::signal::ctrl_c().await?;
             }
-            
+
             let timeout = cli.shutdown_timeout();
             log::info!(
                 "Shutdown signal received, initiating graceful shutdown (maximum timeout: {timeout:?})"
             );
-            
+
             // Signal server to begin shutdown
             server_handle.cancel();
-            
+
             // Wait for server to complete shutdown, with timeout as safety maximum
             match server_handle.wait_for_completion(timeout).await {
                 Ok(()) => {
@@ -298,10 +310,10 @@ async fn main() -> Result<()> {
                     );
                 }
             }
-            
+
             log::info!("SSE server stopped");
         }
     }
-    
+
     Ok(())
 }

@@ -50,10 +50,10 @@ use std::path::{Path, PathBuf};
 pub struct IconInfo {
     /// Path to the icon file.
     pub path: PathBuf,
-    
+
     /// Icon width in pixels.
     pub width: u32,
-    
+
     /// Icon height in pixels.
     pub height: u32,
 }
@@ -65,7 +65,7 @@ impl IconInfo {
     pub fn is_square(&self) -> bool {
         self.width == self.height
     }
-    
+
     /// Calculates Manhattan distance from target size.
     ///
     /// Returns the sum of absolute differences in width and height from target.
@@ -87,7 +87,7 @@ impl IconInfo {
     /// # }
     /// # impl IconInfo {
     /// #     pub fn size_diff(&self, target: u32) -> u32 {
-    /// #         ((self.width as i32 - target as i32).abs() + 
+    /// #         ((self.width as i32 - target as i32).abs() +
     /// #          (self.height as i32 - target as i32).abs()) as u32
     /// #     }
     /// # }
@@ -99,8 +99,8 @@ impl IconInfo {
     /// let diff = icon.size_diff(256); // Returns 256 (128 from width + 128 from height)
     /// ```
     pub fn size_diff(&self, target: u32) -> u32 {
-        ((self.width as i32 - target as i32).abs() + 
-         (self.height as i32 - target as i32).abs()) as u32
+        ((self.width as i32 - target as i32).abs() + (self.height as i32 - target as i32).abs())
+            as u32
     }
 }
 
@@ -143,34 +143,38 @@ impl IconInfo {
 /// ```
 pub fn load_icons(icon_paths: &[PathBuf]) -> Result<Vec<IconInfo>> {
     let mut icons = Vec::new();
-    
+
     for path in icon_paths {
         if !path.exists() {
             log::warn!("Icon path does not exist: {}", path.display());
             continue;
         }
-        
+
         // Open image to get dimensions
-        let img = image::open(path)
-            .map_err(|e| crate::bundler::Error::Fs {
-                context: "failed to open icon",
-                path: path.clone(),
-                error: std::io::Error::other(e),
-            })?;
-        
+        let img = image::open(path).map_err(|e| crate::bundler::Error::Fs {
+            context: "failed to open icon",
+            path: path.clone(),
+            error: std::io::Error::other(e),
+        })?;
+
         icons.push(IconInfo {
             path: path.clone(),
             width: img.width(),
             height: img.height(),
         });
-        
-        log::debug!("Loaded icon: {}x{} from {}", img.width(), img.height(), path.display());
+
+        log::debug!(
+            "Loaded icon: {}x{} from {}",
+            img.width(),
+            img.height(),
+            path.display()
+        );
     }
-    
+
     if icons.is_empty() {
         return Err(crate::bundler::Error::IconPathError);
     }
-    
+
     Ok(icons)
 }
 
@@ -204,7 +208,7 @@ pub fn load_icons(icon_paths: &[PathBuf]) -> Result<Vec<IconInfo>> {
 /// # pub struct IconInfo { pub path: PathBuf, pub width: u32, pub height: u32 }
 /// # impl IconInfo {
 /// #     fn size_diff(&self, target: u32) -> u32 {
-/// #         ((self.width as i32 - target as i32).abs() + 
+/// #         ((self.width as i32 - target as i32).abs() +
 /// #          (self.height as i32 - target as i32).abs()) as u32
 /// #     }
 /// #     fn is_square(&self) -> bool { self.width == self.height }
@@ -223,12 +227,11 @@ pub fn load_icons(icon_paths: &[PathBuf]) -> Result<Vec<IconInfo>> {
 /// # }
 /// ```
 pub fn find_icon_for_size(icons: &[IconInfo], target_size: u32) -> Option<&IconInfo> {
-    icons.iter()
-        .min_by_key(|icon| {
-            let size_diff = icon.size_diff(target_size);
-            let square_penalty = if icon.is_square() { 0 } else { 10000 };
-            size_diff + square_penalty
-        })
+    icons.iter().min_by_key(|icon| {
+        let size_diff = icon.size_diff(target_size);
+        let square_penalty = if icon.is_square() { 0 } else { 10000 };
+        size_diff + square_penalty
+    })
 }
 
 /// Loads and resizes an icon to exact dimensions.
@@ -273,22 +276,21 @@ pub fn find_icon_for_size(icons: &[IconInfo], target_size: u32) -> Option<&IconI
 /// # }
 /// ```
 pub fn load_and_resize(
-    source_path: &Path, 
-    target_width: u32, 
-    target_height: u32
+    source_path: &Path,
+    target_width: u32,
+    target_height: u32,
 ) -> Result<image::RgbaImage> {
-    let img = image::open(source_path)
-        .map_err(|e| crate::bundler::Error::Fs {
-            context: "loading icon for resize",
-            path: source_path.to_path_buf(),
-            error: std::io::Error::other(e),
-        })?;
-    
+    let img = image::open(source_path).map_err(|e| crate::bundler::Error::Fs {
+        context: "loading icon for resize",
+        path: source_path.to_path_buf(),
+        error: std::io::Error::other(e),
+    })?;
+
     let resized = img.resize_exact(
         target_width,
         target_height,
         image::imageops::FilterType::Lanczos3, // Best quality for downscaling
     );
-    
+
     Ok(resized.to_rgba8())
 }

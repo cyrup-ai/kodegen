@@ -4,9 +4,9 @@ use super::check_file_size;
 use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::types::ReadmeMetrics;
 use lazy_static::lazy_static;
+use log::warn;
 use regex::Regex;
 use std::path::Path;
-use log::warn;
 
 /// Collects README quality metrics
 pub(crate) async fn collect_readme_metrics(

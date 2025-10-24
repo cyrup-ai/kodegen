@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
-use tokio::time::{Duration, timeout, sleep, Instant};
+use tokio::time::{Duration, Instant, sleep, timeout};
 
 /// RAII guard to ensure connection counter decrements on all exit paths
 struct ConnectionGuard {
@@ -173,12 +173,12 @@ async fn handle_tunnel_connection(
 ) -> Result<(), DatabaseError> {
     // Increment counter at start
     active_connections.fetch_add(1, Ordering::Relaxed);
-    
+
     // Ensure decrement on all exit paths
     let _guard = ConnectionGuard {
         counter: active_connections.clone(),
     };
-    
+
     // Create SSH channel in blocking context
     let channel = {
         let session_clone = session.clone();
@@ -410,18 +410,18 @@ impl SSHTunnel {
     }
 
     /// Close the tunnel gracefully and wait for cleanup
-    /// 
+    ///
     /// This method:
     /// 1. Sends shutdown signal to listener
     /// 2. Waits for active connections to drain (with timeout)
     /// 3. Waits for listener task to finish (with timeout)
-    /// 
+    ///
     /// Users should always call this method explicitly for guaranteed cleanup.
     /// If not called, Drop will attempt best-effort cleanup in background.
     pub async fn close(mut self) {
         // Send shutdown signal to stop accepting new connections
         let _ = self.shutdown_tx.send(());
-        
+
         // Wait for active connections to drain (max 30 seconds)
         let drain_start = Instant::now();
         while self.active_connections.load(Ordering::Relaxed) > 0 {
@@ -434,7 +434,7 @@ impl SSHTunnel {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        
+
         // Wait for listener task to finish (max 5 seconds)
         if let Some(task) = self.listener_task.take() {
             match timeout(Duration::from_secs(5), task).await {
@@ -445,11 +445,13 @@ impl SSHTunnel {
                     log::error!("SSH tunnel listener task panicked: {:?}", e);
                 }
                 Err(_) => {
-                    log::error!("SSH tunnel listener task timeout after 5s - task may still be running");
+                    log::error!(
+                        "SSH tunnel listener task timeout after 5s - task may still be running"
+                    );
                 }
             }
         }
-        
+
         // SSH session will be dropped automatically via Arc
     }
 }
@@ -458,24 +460,21 @@ impl Drop for SSHTunnel {
     fn drop(&mut self) {
         // Best-effort cleanup: send shutdown signal
         let _ = self.shutdown_tx.send(());
-        
+
         // If task still exists, spawn detached cleanup task
         if self.listener_task.is_some() {
             log::warn!(
                 "SSHTunnel dropped without calling close() - spawning background cleanup task. \
                  Consider calling .close().await for guaranteed cleanup."
             );
-            
+
             // Try to spawn cleanup task (may fail if runtime shutting down)
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 let task = self.listener_task.take();
                 handle.spawn(async move {
                     if let Some(t) = task {
                         // Give task 5 seconds to finish
-                        let _ = tokio::time::timeout(
-                            Duration::from_secs(5),
-                            t
-                        ).await;
+                        let _ = tokio::time::timeout(Duration::from_secs(5), t).await;
                     }
                 });
             }

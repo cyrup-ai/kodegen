@@ -52,10 +52,10 @@ impl Tool for GetPoolStatsTool {
         let size = self.pool.size();
         let num_idle = self.pool.num_idle();
         let num_active = size.saturating_sub(num_idle as u32);
-        
+
         // Get pool options
         let options = self.pool.options();
-        
+
         Ok(json!({
             "database_type": format!("{:?}", self.db_type),
             "connections": {
@@ -93,7 +93,7 @@ impl Tool for GetPoolStatsTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I check the database connection pool health?"
+                    "How do I check the database connection pool health?",
                 ),
             },
             PromptMessage {

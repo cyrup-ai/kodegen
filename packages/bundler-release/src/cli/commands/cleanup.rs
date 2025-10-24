@@ -8,7 +8,12 @@ use crate::state::{create_state_manager_at, has_active_release_at};
 
 /// Execute cleanup command
 pub(super) async fn execute_cleanup(args: &Args, config: &RuntimeConfig) -> Result<()> {
-    if let Command::Cleanup { all, older_than, yes } = &args.command {
+    if let Command::Cleanup {
+        all,
+        older_than,
+        yes,
+    } = &args.command
+    {
         config.verbose_println("Cleaning up state files...");
 
         if !yes {
@@ -30,7 +35,6 @@ pub(super) async fn execute_cleanup(args: &Args, config: &RuntimeConfig) -> Resu
                 config.println("No state files to clean up");
             }
         }
-
     } else {
         unreachable!("execute_cleanup called with non-Cleanup command");
     }

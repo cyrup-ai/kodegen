@@ -9,7 +9,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReasoningStrategy {
     BeamSearch,
-    MCTS,
+    Mcts,
     MCTS002Alpha,
     MCTS002AltAlpha,
 }
@@ -18,7 +18,7 @@ impl ReasoningStrategy {
     pub fn as_str(&self) -> &'static str {
         match self {
             ReasoningStrategy::BeamSearch => "beam_search",
-            ReasoningStrategy::MCTS => "mcts",
+            ReasoningStrategy::Mcts => "mcts",
             ReasoningStrategy::MCTS002Alpha => "mcts_002_alpha",
             ReasoningStrategy::MCTS002AltAlpha => "mcts_002alt_alpha",
         }
@@ -27,7 +27,7 @@ impl ReasoningStrategy {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "beam_search" => Some(ReasoningStrategy::BeamSearch),
-            "mcts" => Some(ReasoningStrategy::MCTS),
+            "mcts" => Some(ReasoningStrategy::Mcts),
             "mcts_002_alpha" => Some(ReasoningStrategy::MCTS002Alpha),
             "mcts_002alt_alpha" => Some(ReasoningStrategy::MCTS002AltAlpha),
             _ => None,
@@ -48,7 +48,7 @@ impl StrategyFactory {
             ReasoningStrategy::BeamSearch => {
                 Arc::new(BeamSearchStrategy::new(state_manager, beam_width))
             }
-            ReasoningStrategy::MCTS => Arc::new(MonteCarloTreeSearchStrategy::new(
+            ReasoningStrategy::Mcts => Arc::new(MonteCarloTreeSearchStrategy::new(
                 state_manager,
                 num_simulations,
             )),

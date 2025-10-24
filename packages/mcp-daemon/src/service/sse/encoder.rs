@@ -16,7 +16,7 @@ pub struct SseEncoder;
 
 impl SseEncoder {
     /// Create a new SSE encoder
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
@@ -31,7 +31,7 @@ impl SseEncoder {
     ///
     /// Multiline data is properly handled with multiple data: fields.
     /// Unicode content is preserved with proper UTF-8 encoding.
-    #[must_use] 
+    #[must_use]
     pub fn encode(&self, event: &SseEvent) -> String {
         let mut output = String::new();
 
@@ -64,7 +64,7 @@ impl SseEncoder {
 
     /// Encode multiple events to wire format
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn encode_multiple(&self, events: &[SseEvent]) -> String {
         events.iter().map(|event| self.encode(event)).collect()
     }
@@ -73,14 +73,14 @@ impl SseEncoder {
     ///
     /// Comments start with ':' and are used for keep-alive or debugging.
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn comment(text: &str) -> String {
         format!(": {text}\n\n")
     }
 
     /// Create a keep-alive comment
     #[allow(dead_code)]
-    #[must_use] 
+    #[must_use]
     pub fn keep_alive() -> String {
         Self::comment("keep-alive")
     }
@@ -96,5 +96,3 @@ fn escape_sse_data(data: &str) -> String {
     // Unicode is preserved as-is since SSE is UTF-8
     data.to_string()
 }
-
-

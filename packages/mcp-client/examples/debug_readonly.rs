@@ -12,7 +12,8 @@ fn main() {
     }
 
     // Test 2: Expression subquery with INSERT
-    let sql2 = "SELECT * FROM users WHERE id IN (INSERT INTO audit VALUES (NOW()) RETURNING user_id)";
+    let sql2 =
+        "SELECT * FROM users WHERE id IN (INSERT INTO audit VALUES (NOW()) RETURNING user_id)";
     println!("Test 2: Expression subquery with INSERT");
     println!("SQL: {}", sql2);
     match validate_readonly_sql(sql2, DatabaseType::Postgres) {
@@ -21,7 +22,8 @@ fn main() {
     }
 
     // Test 3: Expression subquery with DELETE
-    let sql3 = "SELECT * FROM orders WHERE id = (DELETE FROM temp_orders WHERE id = 1 RETURNING order_id)";
+    let sql3 =
+        "SELECT * FROM orders WHERE id = (DELETE FROM temp_orders WHERE id = 1 RETURNING order_id)";
     println!("Test 3: Expression subquery with DELETE (scalar)");
     println!("SQL: {}", sql3);
     match validate_readonly_sql(sql3, DatabaseType::Postgres) {

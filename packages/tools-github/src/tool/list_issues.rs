@@ -1,12 +1,12 @@
 //! GitHub issues listing tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use futures::StreamExt;
 use anyhow;
+use futures::StreamExt;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 use crate::github::ListIssuesRequest;
 
@@ -19,26 +19,26 @@ pub struct ListIssuesTool;
 pub struct ListIssuesArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Filter by state: "open", "closed", or "all" (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
-    
+
     /// Filter by labels (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<String>>,
-    
+
     /// Filter by assignee username (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
-    
+
     /// Page number for pagination (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<u32>,
-    
+
     /// Results per page, max 100 (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<u32>,
@@ -51,58 +51,60 @@ pub struct ListIssuesPromptArgs {}
 impl Tool for ListIssuesTool {
     type Args = ListIssuesArgs;
     type PromptArgs = ListIssuesPromptArgs;
-    
+
     fn name() -> &'static str {
         "list_issues"
     }
-    
+
     fn description() -> &'static str {
         "List and filter issues in a GitHub repository. Supports filtering by state, labels, \
          assignee, and pagination. Returns an array of issue objects. \
          Requires GITHUB_TOKEN environment variable."
     }
-    
+
     fn read_only() -> bool {
         true
     }
-    
+
     fn destructive() -> bool {
         false
     }
-    
+
     fn idempotent() -> bool {
         true
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Convert state string to IssueState enum
         // Note: "all" is handled by passing None (no state filter)
-        let state = args.state.as_ref().and_then(|s| match s.to_lowercase().as_str() {
-            "open" => Some(octocrab::models::IssueState::Open),
-            "closed" => Some(octocrab::models::IssueState::Closed),
-            "all" => None,
-            _ => None,
-        });
-        
+        let state = args
+            .state
+            .as_ref()
+            .and_then(|s| match s.to_lowercase().as_str() {
+                "open" => Some(octocrab::models::IssueState::Open),
+                "closed" => Some(octocrab::models::IssueState::Closed),
+                "all" => None,
+                _ => None,
+            });
+
         // Convert per_page to u8 (GitHub API expects u8)
         let per_page = args.per_page.map(|p| p.min(100) as u8);
-        
+
         // Build request
         let request = ListIssuesRequest {
             owner: args.owner,
@@ -115,33 +117,31 @@ impl Tool for ListIssuesTool {
             page: args.page,
             per_page,
         };
-        
+
         // Call API wrapper
         let mut issue_stream = client.list_issues(request);
-        
+
         // Collect stream results
         let mut issues = Vec::new();
         while let Some(result) = issue_stream.next().await {
-            let issue = result
-                .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+            let issue =
+                result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
             issues.push(issue);
         }
-        
+
         // Return serialized issues
         Ok(json!({ "issues": issues, "count": issues.len() }))
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I list and filter GitHub issues?"
-                ),
+                content: PromptMessageContent::text("How do I list and filter GitHub issues?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -173,7 +173,7 @@ impl Tool for ListIssuesTool {
                      - page: Page number for pagination\n\n\
                      Requirements:\n\
                      - GITHUB_TOKEN environment variable must be set\n\
-                     - Token needs 'repo' scope for private repos"
+                     - Token needs 'repo' scope for private repos",
                 ),
             },
         ])

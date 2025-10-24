@@ -1,4 +1,6 @@
-use kodegen_daemon::security::audit::{Vulnerability, VulnerabilitySeverity, AuditResult, AuditThresholds, VulnerabilityMetrics};
+use kodegen_daemon::security::audit::{
+    AuditResult, AuditThresholds, Vulnerability, VulnerabilityMetrics, VulnerabilitySeverity,
+};
 
 #[test]
 fn test_vulnerability_creation() {

@@ -26,8 +26,8 @@ fn test_user_search_sort() {
 #[test]
 fn test_runtime_types_exported() {
     // Verify runtime types are exported from library root
-    use kodegen_tools_github::{AsyncTask, AsyncStream};
-    
+    use kodegen_tools_github::{AsyncStream, AsyncTask};
+
     // These types should be available for use
     let _task_type: Option<AsyncTask<i32>> = None;
     let _stream_type: Option<AsyncStream<String>> = None;

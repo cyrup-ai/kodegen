@@ -29,15 +29,20 @@ pub enum Event {
     CmdRestart,
 
     /// Results emitted by the worker
-    #[allow(dead_code)] // Public API - exported in lib.rs, used by transition table, tested in tests
+    #[allow(dead_code)]
+    // Public API - exported in lib.rs, used by transition table, tested in tests
     StartedOk,
-    #[allow(dead_code)] // Public API - exported in lib.rs, used by transition table, tested in tests
+    #[allow(dead_code)]
+    // Public API - exported in lib.rs, used by transition table, tested in tests
     StartErr,
-    #[allow(dead_code)] // Public API - exported in lib.rs, used by transition table for crash recovery
+    #[allow(dead_code)]
+    // Public API - exported in lib.rs, used by transition table for crash recovery
     ProcExit, // unexpected process exit
-    #[allow(dead_code)] // Public API - exported in lib.rs, used by transition table for health checks
+    #[allow(dead_code)]
+    // Public API - exported in lib.rs, used by transition table for health checks
     HealthOk,
-    #[allow(dead_code)] // Public API - exported in lib.rs, used by transition table for health checks
+    #[allow(dead_code)]
+    // Public API - exported in lib.rs, used by transition table for health checks
     HealthBad,
     #[allow(dead_code)] // Public API - exported in lib.rs, signals completion of shutdown sequence
     StopDone,
@@ -59,11 +64,14 @@ pub struct Transition;
 impl Transition {
     /// Decide the next `(State, Action)` pair.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn next(s: State, e: Event) -> (State, Action) {
-        use Action::{SpawnProcess, Noop, NotifyHealthy, NotifyUnhealthy, KillProcess};
-        use Event::{CmdStart, CmdRestart, StartedOk, StartErr, CmdStop, HealthBad, HealthOk, ProcExit, StopDone};
-        use State::{Stopped, Starting, Running, Failed, Stopping, Restarting};
+        use Action::{KillProcess, Noop, NotifyHealthy, NotifyUnhealthy, SpawnProcess};
+        use Event::{
+            CmdRestart, CmdStart, CmdStop, HealthBad, HealthOk, ProcExit, StartErr, StartedOk,
+            StopDone,
+        };
+        use State::{Failed, Restarting, Running, Starting, Stopped, Stopping};
 
         match (s, e) {
             // ── Stopped ────────────────────────────────────────────────────────

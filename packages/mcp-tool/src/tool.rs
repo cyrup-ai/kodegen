@@ -1,8 +1,8 @@
-use serde::{Serialize, de::DeserializeOwned};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptMessage, PromptArgument};
 use rmcp::handler::server::tool::schema_for_type;
+use rmcp::model::{PromptArgument, PromptMessage};
+use schemars::JsonSchema;
+use serde::{Serialize, de::DeserializeOwned};
+use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,7 +14,8 @@ use crate::error::McpError;
 // ============================================================================
 
 /// Type alias for the schema cache to reduce complexity
-type SchemaCache = parking_lot::RwLock<HashMap<&'static str, std::sync::Arc<serde_json::Map<String, Value>>>>;
+type SchemaCache =
+    parking_lot::RwLock<HashMap<&'static str, std::sync::Arc<serde_json::Map<String, Value>>>>;
 
 /// Schema cache to avoid repeated serialization
 static SCHEMA_CACHE: std::sync::LazyLock<SchemaCache> =
@@ -189,7 +190,7 @@ pub trait Tool: Send + Sync + Sized + 'static {
     {
         use rmcp::handler::server::router::tool::ToolRoute;
         use rmcp::handler::server::wrapper::Parameters;
-        use rmcp::model::{Tool as RmcpTool, ToolAnnotations, CallToolResult, Content};
+        use rmcp::model::{CallToolResult, Content, Tool as RmcpTool, ToolAnnotations};
         use std::sync::Arc;
 
         // Build annotations from trait methods
@@ -218,24 +219,24 @@ pub trait Tool: Send + Sync + Sized + 'static {
             let tool = tool.clone();
             async move {
                 let start = std::time::Instant::now();
-                
+
                 // Serialize args before execute consumes them
-                let args_json = serde_json::to_value(&args)
-                    .unwrap_or_else(|_| serde_json::json!({}));
-                
+                let args_json =
+                    serde_json::to_value(&args).unwrap_or_else(|_| serde_json::json!({}));
+
                 // Execute tool
                 let result = tool.execute(args).await;
                 let duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
-                
+
                 // Convert result to JSON for history (record both success and error)
                 let output_json = match &result {
                     Ok(value) => value.clone(),
                     Err(e) => serde_json::json!({
                         "error": e.to_string(),
                         "is_error": true
-                    })
+                    }),
                 };
-                
+
                 // Record to history (exclude get_recent_tool_calls to prevent recursion)
                 if Self::name() != "get_recent_tool_calls"
                     && let Some(history) = crate::tool_history::get_global_history()
@@ -247,12 +248,14 @@ pub trait Tool: Send + Sync + Sized + 'static {
                         Some(duration_ms),
                     );
                 }
-                
-                // Return result as normal
-                let result = result
-                    .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
-                Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+                // Return result as normal
+                let result =
+                    result.map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    result.to_string(),
+                )]))
             }
         };
 
@@ -269,7 +272,7 @@ pub trait Tool: Send + Sync + Sized + 'static {
     {
         use rmcp::handler::server::router::prompt::PromptRoute;
         use rmcp::handler::server::wrapper::Parameters;
-        use rmcp::model::{Prompt as RmcpPrompt, GetPromptResult};
+        use rmcp::model::{GetPromptResult, Prompt as RmcpPrompt};
         use std::sync::Arc;
 
         // Build RMCP Prompt metadata
@@ -288,7 +291,9 @@ pub trait Tool: Send + Sync + Sized + 'static {
         let handler = move |Parameters(args): Parameters<Self::PromptArgs>| {
             let tool = tool.clone();
             async move {
-                let messages = tool.prompt(args).await
+                let messages = tool
+                    .prompt(args)
+                    .await
                     .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
                 Ok(GetPromptResult {
@@ -311,7 +316,7 @@ pub trait Tool: Send + Sync + Sized + 'static {
     {
         use rmcp::handler::server::router::tool::ToolRoute;
         use rmcp::handler::server::wrapper::Parameters;
-        use rmcp::model::{Tool as RmcpTool, ToolAnnotations, CallToolResult, Content};
+        use rmcp::model::{CallToolResult, Content, Tool as RmcpTool, ToolAnnotations};
 
         // Build annotations from trait methods
         let annotations = ToolAnnotations::new()
@@ -336,27 +341,27 @@ pub trait Tool: Send + Sync + Sized + 'static {
 
         // Handler captures the Arc<Tool>
         let handler = move |Parameters(args): Parameters<Self::Args>| {
-            let tool = tool.clone();  // Cheap Arc clone
+            let tool = tool.clone(); // Cheap Arc clone
             async move {
                 let start = std::time::Instant::now();
-                
+
                 // Serialize args before execute consumes them
-                let args_json = serde_json::to_value(&args)
-                    .unwrap_or_else(|_| serde_json::json!({}));
-                
+                let args_json =
+                    serde_json::to_value(&args).unwrap_or_else(|_| serde_json::json!({}));
+
                 // Execute tool
                 let result = tool.execute(args).await;
                 let duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
-                
+
                 // Convert result to JSON for history
                 let output_json = match &result {
                     Ok(value) => value.clone(),
                     Err(e) => serde_json::json!({
                         "error": e.to_string(),
                         "is_error": true
-                    })
+                    }),
                 };
-                
+
                 // Record to history (exclude get_recent_tool_calls to prevent recursion)
                 if Self::name() != "get_recent_tool_calls"
                     && let Some(history) = crate::tool_history::get_global_history()
@@ -368,12 +373,14 @@ pub trait Tool: Send + Sync + Sized + 'static {
                         Some(duration_ms),
                     );
                 }
-                
-                // Return result
-                let result = result
-                    .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
-                Ok(CallToolResult::success(vec![Content::text(result.to_string())]))
+                // Return result
+                let result =
+                    result.map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    result.to_string(),
+                )]))
             }
         };
 
@@ -384,13 +391,15 @@ pub trait Tool: Send + Sync + Sized + 'static {
     ///
     /// This is more efficient than `into_prompt_route(self)` when the tool is already wrapped in Arc.
     /// The tool is used directly without creating an additional Arc wrapper.
-    fn arc_into_prompt_route<S>(self: Arc<Self>) -> rmcp::handler::server::router::prompt::PromptRoute<S>
+    fn arc_into_prompt_route<S>(
+        self: Arc<Self>,
+    ) -> rmcp::handler::server::router::prompt::PromptRoute<S>
     where
         S: Send + Sync + 'static,
     {
         use rmcp::handler::server::router::prompt::PromptRoute;
         use rmcp::handler::server::wrapper::Parameters;
-        use rmcp::model::{Prompt as RmcpPrompt, GetPromptResult};
+        use rmcp::model::{GetPromptResult, Prompt as RmcpPrompt};
 
         // Build RMCP Prompt metadata
         let metadata = RmcpPrompt {
@@ -406,9 +415,11 @@ pub trait Tool: Send + Sync + Sized + 'static {
 
         // Handler captures the Arc<Tool>
         let handler = move |Parameters(args): Parameters<Self::PromptArgs>| {
-            let tool = tool.clone();  // Cheap Arc clone
+            let tool = tool.clone(); // Cheap Arc clone
             async move {
-                let messages = tool.prompt(args).await
+                let messages = tool
+                    .prompt(args)
+                    .await
                     .map_err(|e| rmcp::ErrorData::internal_error(e.to_string(), None))?;
 
                 Ok(GetPromptResult {

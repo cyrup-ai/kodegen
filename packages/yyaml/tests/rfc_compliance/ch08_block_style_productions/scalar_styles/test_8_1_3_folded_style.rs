@@ -16,9 +16,12 @@ folded: >
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     let content = docs[0]["folded"].as_str().unwrap();
-    
+
     // Folded style should join lines with spaces
-    assert_eq!(content, "This is a long line that should be folded into a single line.\n");
+    assert_eq!(
+        content,
+        "This is a long line that should be folded into a single line.\n"
+    );
 }
 
 /// Test folded style with blank lines
@@ -33,7 +36,7 @@ folded: >
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     let content = docs[0]["folded"].as_str().unwrap();
-    
+
     // Blank lines should be preserved
     assert_eq!(content, "Line 1 Line 2\n\nLine 4 after blank\n");
 }
@@ -49,7 +52,7 @@ strip: >-
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["strip"].as_str().unwrap(), "Content line");
-    
+
     // Keep chomping (+)
     let yaml = r#"
 keep: >+
@@ -72,7 +75,7 @@ folded: >
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     let content = docs[0]["folded"].as_str().unwrap();
-    
+
     // More indented lines should be preserved
     assert!(content.contains("  More indented line"));
 }

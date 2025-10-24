@@ -17,7 +17,11 @@ doc2: simple_value"#;
     if let Yaml::Hash(map) = &docs[0] {
         let key = Yaml::String("doc1".to_string());
         let expected = Yaml::String("value".to_string());
-        assert_eq!(map.get(&key), Some(&expected), "First document should have correct content");
+        assert_eq!(
+            map.get(&key),
+            Some(&expected),
+            "First document should have correct content"
+        );
     } else {
         panic!("First document should be a mapping");
     }
@@ -26,7 +30,11 @@ doc2: simple_value"#;
     if let Yaml::Hash(map) = &docs[1] {
         let key = Yaml::String("doc2".to_string());
         let expected = Yaml::String("simple_value".to_string());
-        assert_eq!(map.get(&key), Some(&expected), "Second document should have correct content");
+        assert_eq!(
+            map.get(&key),
+            Some(&expected),
+            "Second document should have correct content"
+        );
     } else {
         panic!("Second document should be a mapping");
     }
@@ -49,7 +57,8 @@ second: document
 ---
 third: document"#;
 
-    let docs = YamlLoader::load_from_str(multi_explicit).expect("Should parse multiple explicit documents");
+    let docs = YamlLoader::load_from_str(multi_explicit)
+        .expect("Should parse multiple explicit documents");
     assert_eq!(docs.len(), 3, "Expected 3 documents");
 }
 
@@ -66,7 +75,8 @@ fn test_directive_only_document() {
 %TAG ! tag:example.com,2000:app/
 ---"#;
 
-    let docs = YamlLoader::load_from_str(directive_only).expect("Should parse directive-only document");
+    let docs =
+        YamlLoader::load_from_str(directive_only).expect("Should parse directive-only document");
     assert_eq!(docs.len(), 1, "Expected 1 document");
     assert_eq!(docs[0], Yaml::Null, "Expected null document");
 }

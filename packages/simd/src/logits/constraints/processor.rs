@@ -8,8 +8,8 @@ use anyhow::Context;
 
 use crate::config::ProcessorConfig;
 use crate::context::ProcessingContext;
-use crate::logits::{LogitsProcessor, LogitsResult, LogitsError};
 use crate::logits::processor::DefaultLogitsProcessor;
+use crate::logits::{LogitsError, LogitsProcessor, LogitsResult};
 
 use super::GenerationConstraint;
 
@@ -45,7 +45,7 @@ impl ConstrainedLogitsProcessor {
     ///
     /// # Arguments
     /// * `config` - Configuration for standard logits processing
-    /// 
+    ///
     /// # Returns
     /// A new processor that can apply both standard and constraint processing
     #[must_use]
@@ -56,9 +56,9 @@ impl ConstrainedLogitsProcessor {
             last_tokens_masked: 0,
         }
     }
-    
+
     /// Create a processor with constraints disabled
-    /// 
+    ///
     /// This creates a processor that only does standard processing,
     /// effectively equivalent to `DefaultLogitsProcessor` but with
     /// the same API for seamless switching.
@@ -70,21 +70,21 @@ impl ConstrainedLogitsProcessor {
             last_tokens_masked: 0,
         }
     }
-    
+
     /// Enable or disable constraint processing
-    /// 
+    ///
     /// When disabled, this processor behaves identically to `DefaultLogitsProcessor`.
     /// When enabled, constraint masking is applied after standard processing.
     pub fn set_constraints_enabled(&mut self, enabled: bool) {
         self.constraints_enabled = enabled;
     }
-    
+
     /// Check if constraint processing is enabled
     #[must_use]
     pub fn constraints_enabled(&self) -> bool {
         self.constraints_enabled
     }
-    
+
     /// Apply constraint masking to logits
     ///
     /// This method iterates through all tokens in the vocabulary and masks
@@ -100,81 +100,82 @@ impl ConstrainedLogitsProcessor {
     /// * `Err(LogitsError)` - If constraint validation fails
     fn apply_constraint_masking(
         &self,
-        logits: &mut [f32], 
+        logits: &mut [f32],
         context: &ProcessingContext,
     ) -> LogitsResult<usize> {
         let mut masked_count = 0;
-        
+
         // Check JSON constraints first
         if let Some(ref constraint) = context.json_constraint
-            && let Some(ref state) = context.json_constraint_state {
+            && let Some(ref state) = context.json_constraint_state
+        {
             // Validate each token against the constraint
-                for (token_id, logit) in logits.iter_mut().enumerate() {
-                    // Skip tokens already masked by previous processing
-                    if *logit == f32::NEG_INFINITY {
-                        continue;
-                    }
+            for (token_id, logit) in logits.iter_mut().enumerate() {
+                // Skip tokens already masked by previous processing
+                if *logit == f32::NEG_INFINITY {
+                    continue;
+                }
 
-                    // Check if token is valid for current constraint state
-                    match constraint.try_next(state, token_id as u32) {
-                        Ok(is_valid) => {
-                            if !is_valid {
-                                *logit = f32::NEG_INFINITY;
-                                masked_count += 1;
-                            }
+                // Check if token is valid for current constraint state
+                match constraint.try_next(state, token_id as u32) {
+                    Ok(is_valid) => {
+                        if !is_valid {
+                            *logit = f32::NEG_INFINITY;
+                            masked_count += 1;
                         }
-                        Err(e) => {
-                            return Err(LogitsError::ConstraintError(
-                                format!("JSON constraint validation failed for token {token_id}: {e}")
-                            ));
-                        }
+                    }
+                    Err(e) => {
+                        return Err(LogitsError::ConstraintError(format!(
+                            "JSON constraint validation failed for token {token_id}: {e}"
+                        )));
                     }
                 }
+            }
         }
 
         // Check schema constraints
         if let Some(ref constraint) = context.schema_constraint
-            && let Some(ref state) = context.schema_constraint_state {
-                // Validate each token against the schema constraint
-                for (token_id, logit) in logits.iter_mut().enumerate() {
-                    // Skip tokens already masked by previous processing
-                    if *logit == f32::NEG_INFINITY {
-                        continue;
-                    }
+            && let Some(ref state) = context.schema_constraint_state
+        {
+            // Validate each token against the schema constraint
+            for (token_id, logit) in logits.iter_mut().enumerate() {
+                // Skip tokens already masked by previous processing
+                if *logit == f32::NEG_INFINITY {
+                    continue;
+                }
 
-                    // Check if token is valid for current constraint state
-                    match constraint.try_next(state, token_id as u32) {
-                        Ok(is_valid) => {
-                            if !is_valid {
-                                *logit = f32::NEG_INFINITY;
-                                masked_count += 1;
-                            }
+                // Check if token is valid for current constraint state
+                match constraint.try_next(state, token_id as u32) {
+                    Ok(is_valid) => {
+                        if !is_valid {
+                            *logit = f32::NEG_INFINITY;
+                            masked_count += 1;
                         }
-                        Err(e) => {
-                            return Err(LogitsError::ConstraintError(
-                                format!("Schema constraint validation failed for token {token_id}: {e}")
-                            ));
-                        }
+                    }
+                    Err(e) => {
+                        return Err(LogitsError::ConstraintError(format!(
+                            "Schema constraint validation failed for token {token_id}: {e}"
+                        )));
                     }
                 }
+            }
         }
-        
+
         Ok(masked_count)
     }
-    
-    
+
     /// Get statistics about constraint masking
     ///
     /// Returns information about how many tokens were masked and
     /// constraint validation performance for debugging/monitoring.
     #[must_use]
     pub fn get_constraint_stats(&self, context: &ProcessingContext) -> ConstraintStats {
-        let has_json_constraints = context.json_constraint.is_some() && 
-                                  context.json_constraint_state.is_some();
-        let has_schema_constraints = context.schema_constraint.is_some() && 
-                                    context.schema_constraint_state.is_some();
+        let has_json_constraints =
+            context.json_constraint.is_some() && context.json_constraint_state.is_some();
+        let has_schema_constraints =
+            context.schema_constraint.is_some() && context.schema_constraint_state.is_some();
         let has_constraints = has_json_constraints || has_schema_constraints;
-        
+
         let constraint_type = if has_json_constraints && has_schema_constraints {
             Some("JSON+Schema".to_string())
         } else if has_json_constraints {
@@ -184,7 +185,7 @@ impl ConstrainedLogitsProcessor {
         } else {
             None
         };
-        
+
         ConstraintStats {
             constraints_active: has_constraints,
             constraint_type,
@@ -214,44 +215,46 @@ impl LogitsProcessor for ConstrainedLogitsProcessor {
     /// - All existing SIMD optimizations preserved
     fn process(&mut self, logits: &mut [f32], context: &ProcessingContext) -> LogitsResult<()> {
         // First, apply standard logits processing
-        self.inner.process(logits, context)
+        self.inner
+            .process(logits, context)
             .context("Standard logits processing failed")
             .map_err(|e| LogitsError::NumericalError(e.to_string()))?;
-        
+
         // Then apply constraint masking if enabled and constraints are present
         if self.constraints_enabled
-            && (context.json_constraint.is_some() ||
-               context.json_constraint_state.is_some() ||
-               context.schema_constraint.is_some() ||
-               context.schema_constraint_state.is_some()) {
-            
+            && (context.json_constraint.is_some()
+                || context.json_constraint_state.is_some()
+                || context.schema_constraint.is_some()
+                || context.schema_constraint_state.is_some())
+        {
             // Apply constraint masking
             let masked_count = self.apply_constraint_masking(logits, context)?;
-            
+
             // Store for statistics
             self.last_tokens_masked = masked_count;
-            
+
             // Log constraint application for debugging
             if masked_count > 0 {
                 log::debug!(
                     "Constraint masking applied: {} tokens masked out of {} total",
-                    masked_count, 
+                    masked_count,
                     logits.len()
                 );
             }
-            
+
             // Verify we haven't masked all tokens (would cause sampling failure)
-            let valid_tokens = logits.iter()
+            let valid_tokens = logits
+                .iter()
                 .filter(|&&logit| logit > f32::NEG_INFINITY)
                 .count();
-                
+
             if valid_tokens == 0 {
                 return Err(LogitsError::SamplingError(
-                    "All tokens masked by constraints - cannot sample".to_string()
+                    "All tokens masked by constraints - cannot sample".to_string(),
                 ));
             }
         }
-        
+
         Ok(())
     }
 
@@ -286,12 +289,12 @@ impl ConstrainedLogitsProcessor {
     /// sampling parameters.
     pub fn for_json_generation() -> Self {
         let config = ProcessorConfig::default()
-            .with_temperature(0.7)  // Slightly lower temperature for more structured output
+            .with_temperature(0.7) // Slightly lower temperature for more structured output
             .with_top_p(Some(0.9)); // Enable nucleus sampling
-            
+
         Self::new(config)
     }
-    
+
     /// Create a processor optimized for schema-constrained generation
     ///
     /// This factory method creates a processor with configuration optimized
@@ -299,10 +302,10 @@ impl ConstrainedLogitsProcessor {
     /// conservative sampling parameters.
     pub fn for_schema_generation() -> Self {
         let config = ProcessorConfig::default()
-            .with_temperature(0.5)  // Lower temperature for more deterministic output
-            .with_top_p(Some(0.8))  // More focused sampling
-            .with_top_k(Some(50));  // Limit token choices for better structure
-            
+            .with_temperature(0.5) // Lower temperature for more deterministic output
+            .with_top_p(Some(0.8)) // More focused sampling
+            .with_top_k(Some(50)); // Limit token choices for better structure
+
         Self::new(config)
     }
 }
@@ -311,51 +314,51 @@ impl ConstrainedLogitsProcessor {
 mod tests {
     use super::*;
     use crate::context::ProcessingContext;
-    
+
     #[test]
     fn test_unconstrained_processing() {
         let config = ProcessorConfig::default();
         let mut processor = ConstrainedLogitsProcessor::new_unconstrained(config);
         let mut logits = vec![1.0, 2.0, 3.0, 4.0];
         let context = ProcessingContext::new();
-        
+
         // Should process normally without constraints
         let result = processor.process(&mut logits, &context);
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_constraint_stats() {
         let config = ProcessorConfig::default();
         let processor = ConstrainedLogitsProcessor::new(config);
         let context = ProcessingContext::new();
-        
+
         let stats = processor.get_constraint_stats(&context);
         assert!(!stats.constraints_active);
         assert!(stats.constraint_type.is_none());
     }
-    
+
     #[test]
     fn test_factory_methods() {
         let json_processor = ConstrainedLogitsProcessor::for_json_generation();
         assert!(json_processor.constraints_enabled());
         assert_eq!(json_processor.config().temperature, 0.7);
-        
+
         let schema_processor = ConstrainedLogitsProcessor::for_schema_generation();
         assert!(schema_processor.constraints_enabled());
         assert_eq!(schema_processor.config().temperature, 0.5);
     }
-    
+
     #[test]
     fn test_enable_disable_constraints() {
         let config = ProcessorConfig::default();
         let mut processor = ConstrainedLogitsProcessor::new(config);
-        
+
         assert!(processor.constraints_enabled());
-        
+
         processor.set_constraints_enabled(false);
         assert!(!processor.constraints_enabled());
-        
+
         processor.set_constraints_enabled(true);
         assert!(processor.constraints_enabled());
     }

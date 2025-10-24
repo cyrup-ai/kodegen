@@ -219,7 +219,7 @@ fn is_reserved_anchor_name(name: &str) -> bool {
 }
 
 /// Generate unique anchor name with prefix
-#[must_use] 
+#[must_use]
 pub fn generate_unique_anchor_name(prefix: &str, counter: usize) -> String {
     if prefix.is_empty() {
         format!("anchor_{counter}")
@@ -230,14 +230,14 @@ pub fn generate_unique_anchor_name(prefix: &str, counter: usize) -> String {
 
 /// Check if two anchor names are equivalent (case-sensitive comparison)
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn anchor_names_equal(name1: &str, name2: &str) -> bool {
     // YAML anchor names are case-sensitive
     name1 == name2
 }
 
 /// Normalize anchor name for consistent storage
-#[must_use] 
+#[must_use]
 pub fn normalize_anchor_name(name: &str) -> String {
     // YAML anchor names should not be normalized - they are case-sensitive
     // and should be stored exactly as written

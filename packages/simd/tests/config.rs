@@ -1,4 +1,4 @@
-use kodegen_simd::config::{ProcessorConfig, ConfigError};
+use kodegen_simd::config::{ConfigError, ProcessorConfig};
 
 #[test]
 fn test_default_config() {

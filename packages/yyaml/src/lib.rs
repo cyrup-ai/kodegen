@@ -27,7 +27,7 @@ pub use emitter::{EmitError, EmitResult, YamlEmitter};
 pub use error::{Marker, ScanError};
 pub use events::{Event, EventReceiver, MarkedEventReceiver, TEncoding, TScalarStyle, TokenType};
 pub use linked_hash_map::LinkedHashMap;
-pub use parser::{YamlLoader, Encoding};
+pub use parser::{Encoding, YamlLoader};
 pub use ser::*;
 pub use value::{Deserializer, Mapping, Number, Sequence, Value, from_value};
 pub use yaml::Yaml;
@@ -72,7 +72,7 @@ impl Error {
     /// Blazing-fast constructor for repetition limit exceeded error.
     /// Zero-allocation construction for hot path error handling.
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn repetition_limit_exceeded() -> Self {
         Self::RepetitionLimitExceeded
     }

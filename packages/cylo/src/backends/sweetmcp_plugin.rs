@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use extism::{Manifest, Plugin, Wasm};
 use serde::{Deserialize, Serialize};
@@ -52,8 +52,8 @@ pub struct ToolInfo {
 }
 
 use super::{
-    AsyncTask, ExecutionBackend, ExecutionRequest, ExecutionResult, HealthStatus,
-    BackendConfig, BackendError, BackendResult, ResourceUsage,
+    AsyncTask, BackendConfig, BackendError, BackendResult, ExecutionBackend, ExecutionRequest,
+    ExecutionResult, HealthStatus, ResourceUsage,
 };
 use crate::execution_env::CyloResult;
 
@@ -94,27 +94,28 @@ impl SweetMcpPluginBackend {
         // Load plugin manifest
         let wasm = Wasm::file(&plugin_path);
         let manifest = Manifest::new([wasm]);
-        
+
         // Create plugin instance
-        let mut plugin = Plugin::new(&manifest, [], true)
-            .map_err(|e| BackendError::Internal {
-                message: format!("Failed to load plugin: {}", e),
-            })?;
+        let mut plugin = Plugin::new(&manifest, [], true).map_err(|e| BackendError::Internal {
+            message: format!("Failed to load plugin: {}", e),
+        })?;
 
         // Query plugin for capabilities using describe() function
-        let describe_result = plugin
-            .call::<(), String>("describe", ())
-            .map_err(|e| BackendError::Internal {
-                message: format!("Failed to call describe: {}", e),
-            })?;
+        let describe_result =
+            plugin
+                .call::<(), String>("describe", ())
+                .map_err(|e| BackendError::Internal {
+                    message: format!("Failed to call describe: {}", e),
+                })?;
 
-        let capabilities: PluginCapabilities = serde_json::from_str(&describe_result)
-            .map_err(|e| BackendError::Internal {
+        let capabilities: PluginCapabilities =
+            serde_json::from_str(&describe_result).map_err(|e| BackendError::Internal {
                 message: format!("Invalid capabilities JSON: {}", e),
             })?;
-        
+
         // Extract supported languages from tool names
-        let supported_languages = capabilities.tools
+        let supported_languages = capabilities
+            .tools
             .iter()
             .filter_map(|tool| {
                 if tool.name.starts_with("eval_") {
@@ -154,10 +155,11 @@ impl SweetMcpPluginBackend {
         // Add environment variables
         if !request.env_vars.is_empty() {
             let env_json = JsonValue::Object(
-                request.env_vars
+                request
+                    .env_vars
                     .iter()
                     .map(|(k, v)| (k.clone(), JsonValue::String(v.clone())))
-                    .collect()
+                    .collect(),
             );
             arguments.insert("env".to_string(), env_json);
         }
@@ -172,10 +174,15 @@ impl SweetMcpPluginBackend {
     }
 
     /// Convert CallToolResult to ExecutionResult
-    fn tool_result_to_execution(&self, result: CallToolResult, duration: Duration) -> ExecutionResult {
+    fn tool_result_to_execution(
+        &self,
+        result: CallToolResult,
+        duration: Duration,
+    ) -> ExecutionResult {
         // Check if result is an error
         if result.is_error.unwrap_or(false) || result.content.is_none() {
-            let error_msg = result.content
+            let error_msg = result
+                .content
                 .and_then(|contents| contents.first().map(|c| c.text.clone()))
                 .unwrap_or_else(|| "Unknown plugin error".to_string());
 
@@ -190,22 +197,26 @@ impl SweetMcpPluginBackend {
         }
 
         // Extract content from successful result
-        let content_text = result.content
+        let content_text = result
+            .content
             .and_then(|contents| contents.first().map(|c| c.text.clone()))
             .unwrap_or_default();
 
         // Try to parse as JSON for structured output
         if let Ok(result_json) = serde_json::from_str::<JsonValue>(&content_text) {
-            let success = result_json.get("success")
+            let success = result_json
+                .get("success")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
 
-            let stdout = result_json.get("stdout")
+            let stdout = result_json
+                .get("stdout")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
 
-            let stderr = result_json.get("stderr")
+            let stderr = result_json
+                .get("stderr")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
@@ -305,19 +316,18 @@ impl ExecutionBackend for SweetMcpPluginBackend {
         tokio::spawn(async move {
             // Check if plugin file exists
             if !plugin_path.exists() {
-                return HealthStatus::unhealthy(format!("Plugin file not found: {}", plugin_path.display()));
+                return HealthStatus::unhealthy(format!(
+                    "Plugin file not found: {}",
+                    plugin_path.display()
+                ));
             }
 
             // Try calling describe function to verify plugin is functional
             let mut plugin_guard = plugin.lock().await;
             match plugin_guard.call::<(), String>("describe", ()) {
-                Ok(_) => {
-                    HealthStatus::healthy("Plugin is functional")
-                        .with_metric("plugin_path", plugin_path.display().to_string().as_str())
-                }
-                Err(e) => {
-                    HealthStatus::unhealthy(format!("Plugin health check failed: {}", e))
-                }
+                Ok(_) => HealthStatus::healthy("Plugin is functional")
+                    .with_metric("plugin_path", plugin_path.display().to_string().as_str()),
+                Err(e) => HealthStatus::unhealthy(format!("Plugin health check failed: {}", e)),
             }
         })
     }
@@ -348,7 +358,7 @@ impl ExecutionBackend for SweetMcpPluginBackend {
         unsafe {
             std::slice::from_raw_parts(
                 self.supported_languages.as_ptr() as *const &'static str,
-                self.supported_languages.len()
+                self.supported_languages.len(),
             )
         }
     }

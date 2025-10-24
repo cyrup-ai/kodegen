@@ -45,7 +45,7 @@ fn calculate_backoff(config: &ConfigManager, attempt: u32) -> Duration {
             _ => None,
         })
         .unwrap_or(500); // Default 500ms, not 100ms
-    
+
     let max_backoff_ms = config
         .get_value("db_max_backoff_ms")
         .and_then(|v| match v {
@@ -53,15 +53,13 @@ fn calculate_backoff(config: &ConfigManager, attempt: u32) -> Duration {
             _ => None,
         })
         .unwrap_or(5000); // Default 5 seconds cap
-    
+
     // Add jitter to prevent thundering herd
     let jitter = rand::random::<u64>() % 100; // 0-100ms random jitter
-    
+
     // Calculate backoff with exponential growth and cap
-    let backoff_ms = (base_backoff_ms * 2_u64.pow(attempt))
-        .min(max_backoff_ms)
-        + jitter;
-    
+    let backoff_ms = (base_backoff_ms * 2_u64.pow(attempt)).min(max_backoff_ms) + jitter;
+
     Duration::from_millis(backoff_ms)
 }
 
@@ -121,7 +119,7 @@ where
             _ => None,
         })
         .unwrap_or(default_timeout);
-    
+
     let max_retries = config
         .get_value("db_max_retries")
         .and_then(|v| match v {
@@ -129,9 +127,9 @@ where
             _ => None,
         })
         .unwrap_or(2); // Retry twice by default (3 total attempts)
-    
+
     let mut last_error = None;
-    
+
     for attempt in 0..=max_retries {
         // Execute with timeout
         match timeout(timeout_duration, query_fn()).await {
@@ -146,7 +144,7 @@ where
                         sqlx_err
                     );
                     last_error = Some(sqlx_err);
-                    
+
                     // Use configurable exponential backoff with jitter
                     tokio::time::sleep(calculate_backoff(config, attempt)).await;
                     continue;
@@ -186,13 +184,15 @@ where
             }
         }
     }
-    
+
     // If we exhausted retries
     Err(DatabaseError::QueryError(format!(
         "{}: Max retries ({}) exceeded. Last error: {}",
         operation_description,
         max_retries,
-        last_error.map(|e| e.to_string()).unwrap_or_else(|| "Unknown".to_string())
+        last_error
+            .map(|e| e.to_string())
+            .unwrap_or_else(|| "Unknown".to_string())
     ))
     .into())
 }
@@ -200,9 +200,7 @@ where
 /// Check if a sqlx error is connection-related and retryable
 fn is_connection_error(err: &sqlx::Error) -> bool {
     match err {
-        sqlx::Error::PoolClosed
-        | sqlx::Error::PoolTimedOut
-        | sqlx::Error::Io(_) => true,
+        sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut | sqlx::Error::Io(_) => true,
         sqlx::Error::Database(db_err) => {
             let msg = db_err.message().to_lowercase();
             msg.contains("connection")

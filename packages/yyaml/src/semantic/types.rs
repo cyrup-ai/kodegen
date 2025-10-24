@@ -74,7 +74,7 @@ pub enum SemanticWarning {
 
 impl<'input> SemanticResult<'input> {
     /// Create a new semantic result
-    #[must_use] 
+    #[must_use]
     pub fn new(documents: Vec<Document<'input>>) -> Self {
         Self {
             documents,
@@ -84,7 +84,7 @@ impl<'input> SemanticResult<'input> {
     }
 
     /// Create semantic result with metrics
-    #[must_use] 
+    #[must_use]
     pub const fn with_metrics(documents: Vec<Document<'input>>, metrics: AnalysisMetrics) -> Self {
         Self {
             documents,
@@ -99,19 +99,19 @@ impl<'input> SemanticResult<'input> {
     }
 
     /// Get the primary document (first document in the result)
-    #[must_use] 
+    #[must_use]
     pub fn primary_document(&self) -> Option<&Document<'input>> {
         self.documents.first()
     }
 
     /// Check if processing completed successfully (no warnings)
-    #[must_use] 
+    #[must_use]
     pub const fn is_clean(&self) -> bool {
         self.warnings.is_empty()
     }
 
     /// Get processing summary
-    #[must_use] 
+    #[must_use]
     pub const fn summary(&self) -> ProcessingSummary {
         ProcessingSummary {
             documents_count: self.documents.len(),
@@ -139,7 +139,7 @@ pub struct ProcessingSummary {
 
 impl AnalysisMetrics {
     /// Create new metrics with processing time
-    #[must_use] 
+    #[must_use]
     pub fn with_time(processing_time: Duration) -> Self {
         Self {
             processing_time,
@@ -173,7 +173,7 @@ impl AnalysisMetrics {
     }
 
     /// Calculate processing rate (nodes per second)
-    #[must_use] 
+    #[must_use]
     pub fn processing_rate(&self) -> f64 {
         if self.processing_time.as_secs_f64() > 0.0 {
             let total_operations =
@@ -185,7 +185,7 @@ impl AnalysisMetrics {
     }
 
     /// Check if metrics indicate efficient processing
-    #[must_use] 
+    #[must_use]
     pub fn is_efficient(&self) -> bool {
         // Consider processing efficient if:
         // - No cycles detected
@@ -196,7 +196,7 @@ impl AnalysisMetrics {
 
 impl SemanticWarning {
     /// Get the position associated with this warning
-    #[must_use] 
+    #[must_use]
     pub const fn position(&self) -> crate::lexer::Position {
         match self {
             Self::UnusedAnchor { position, .. } => *position,
@@ -207,7 +207,7 @@ impl SemanticWarning {
     }
 
     /// Get human-readable warning message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::UnusedAnchor { anchor_name, .. } => {
@@ -242,7 +242,7 @@ impl SemanticWarning {
     }
 
     /// Create an unused anchor warning
-    #[must_use] 
+    #[must_use]
     pub const fn unused_anchor(anchor_name: String, position: crate::lexer::Position) -> Self {
         Self::UnusedAnchor {
             anchor_name,
@@ -251,7 +251,7 @@ impl SemanticWarning {
     }
 
     /// Create a deprecated tag warning
-    #[must_use] 
+    #[must_use]
     pub const fn deprecated_tag(
         tag: String,
         suggested_replacement: Option<String>,
@@ -265,7 +265,7 @@ impl SemanticWarning {
     }
 
     /// Create an inefficiency warning
-    #[must_use] 
+    #[must_use]
     pub const fn inefficiency_warning(
         description: String,
         suggestion: String,
@@ -279,7 +279,7 @@ impl SemanticWarning {
     }
 
     /// Create a custom validation warning
-    #[must_use] 
+    #[must_use]
     pub const fn custom_validation_warning(
         validator_name: String,
         message: String,

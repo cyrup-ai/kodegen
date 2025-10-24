@@ -33,7 +33,7 @@ pub struct ReferenceTracker<'input> {
 impl<'input> ReferenceTracker<'input> {
     /// Create new reference tracker with optimized settings
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             graph: ReferenceGraph::new(),
@@ -53,7 +53,7 @@ impl<'input> ReferenceTracker<'input> {
     }
 
     /// Create tracker with specific configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: &crate::semantic::SemanticConfig<'_>) -> Self {
         let mut tracker = Self::new();
 
@@ -310,24 +310,24 @@ impl<'input> ReferenceTracker<'input> {
 
     /// Check if reference exists
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn has_anchor(&self, name: &str) -> bool {
         self.anchor_registry.contains_key(name)
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn has_alias(&self, name: &str) -> bool {
         self.alias_registry.contains_key(name)
     }
 
     /// Get reference by name
-    #[must_use] 
+    #[must_use]
     pub fn get_anchor(&self, name: &str) -> Option<ReferenceId> {
         self.anchor_registry.get(name).copied()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_alias(&self, name: &str) -> Option<ReferenceId> {
         self.alias_registry.get(name).copied()
     }
@@ -342,7 +342,7 @@ impl<'input> ReferenceTracker<'input> {
 
     /// Get node by ID
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn get_node(&self, node_id: ReferenceId) -> Option<&ReferenceNode<'input>> {
         self.graph.get_node(node_id)
     }
@@ -376,35 +376,35 @@ impl<'input> ReferenceTracker<'input> {
 
     /// Get current tracking context
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_context(&self) -> &TrackingContext {
         &self.context
     }
 
     /// Check if tracker is in optimized state
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_optimized(&self) -> bool {
         self.is_optimized
     }
 
     /// Get graph reference for advanced operations
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_graph(&self) -> &ReferenceGraph<'input> {
         &self.graph
     }
 
     /// Get memory manager reference
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_memory_manager(&self) -> &MemoryManager<'input> {
         &self.memory_manager
     }
 
     /// Get statistics collector reference
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn get_statistics_collector(&self) -> &StatisticsCollector {
         &self.statistics_collector
     }
@@ -472,28 +472,28 @@ impl<'input> ReferenceTracker<'input> {
 
     /// Get total number of tracked references
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn total_references(&self) -> usize {
         self.anchor_registry.len() + self.alias_registry.len()
     }
 
     /// Get number of anchors
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn anchor_count(&self) -> usize {
         self.anchor_registry.len()
     }
 
     /// Get number of aliases
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn alias_count(&self) -> usize {
         self.alias_registry.len()
     }
 
     /// Check if tracking is enabled
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_enabled(&self) -> bool {
         self.context.is_enabled
     }

@@ -2,7 +2,7 @@
 //!
 //! Provides validation to prevent crashes from corrupted or malicious SafeTensors files.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -55,12 +55,8 @@ pub fn validate_safetensors_file(path: &Path) -> Result<()> {
         .with_context(|| format!("Cannot open SafeTensors file '{}'", path.display()))?;
 
     let mut header = [0u8; 8];
-    file.read_exact(&mut header).with_context(|| {
-        format!(
-            "Cannot read SafeTensors header from '{}'",
-            path.display()
-        )
-    })?;
+    file.read_exact(&mut header)
+        .with_context(|| format!("Cannot read SafeTensors header from '{}'", path.display()))?;
 
     // Parse header: u64 little-endian JSON length
     let json_len = u64::from_le_bytes(header);
@@ -96,12 +92,8 @@ pub fn validate_safetensors_file(path: &Path) -> Result<()> {
     // Optional: Read and parse JSON metadata
     // This catches JSON syntax errors before mmap
     let mut json_bytes = vec![0u8; json_len as usize];
-    file.read_exact(&mut json_bytes).with_context(|| {
-        format!(
-            "Cannot read JSON metadata from '{}'",
-            path.display()
-        )
-    })?;
+    file.read_exact(&mut json_bytes)
+        .with_context(|| format!("Cannot read JSON metadata from '{}'", path.display()))?;
 
     // Validate JSON is parseable
     serde_json::from_slice::<serde_json::Value>(&json_bytes).with_context(|| {

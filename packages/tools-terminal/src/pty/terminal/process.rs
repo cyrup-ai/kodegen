@@ -1,5 +1,5 @@
 use std::io;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 use super::types::Terminal;
 
@@ -58,7 +58,9 @@ impl Terminal {
                     }
                 }
                 Err(_) => {
-                    log::error!("Reader task timeout after 5s - forcing drop. Task may still be running.");
+                    log::error!(
+                        "Reader task timeout after 5s - forcing drop. Task may still be running."
+                    );
                     // Handle dropped, task will be cancelled
                 }
             }
@@ -78,7 +80,9 @@ impl Terminal {
                     }
                 }
                 Err(_) => {
-                    log::error!("Writer task timeout after 5s - forcing drop. Task may still be running.");
+                    log::error!(
+                        "Writer task timeout after 5s - forcing drop. Task may still be running."
+                    );
                     // Handle dropped, task will be cancelled
                 }
             }
@@ -102,9 +106,7 @@ impl Terminal {
             let mut child_guard = child.lock().await;
             child_guard.wait()
         } else {
-            Err(io::Error::other(
-                "No child process to wait for",
-            ))
+            Err(io::Error::other("No child process to wait for"))
         }
     }
 
@@ -119,9 +121,7 @@ impl Terminal {
             let mut child_guard = child.lock().await;
             child_guard.try_wait()
         } else {
-            Err(io::Error::other(
-                "No child process to check",
-            ))
+            Err(io::Error::other("No child process to check"))
         }
     }
 
@@ -143,14 +143,10 @@ impl Terminal {
                 }
                 Ok(())
             } else {
-                Err(io::Error::other(
-                    "Failed to get process ID",
-                ))
+                Err(io::Error::other("Failed to get process ID"))
             }
         } else {
-            Err(io::Error::other(
-                "No child process to signal",
-            ))
+            Err(io::Error::other("No child process to signal"))
         }
     }
 }
@@ -160,7 +156,9 @@ impl Drop for Terminal {
         // If exit_on_close is true, kill the child process
         // Note: We can't await in Drop, so we spawn a task for best-effort cleanup
         // Users should call close() explicitly for guaranteed cleanup
-        if self.config.exit_on_close && let Some(child) = &self.child_process {
+        if self.config.exit_on_close
+            && let Some(child) = &self.child_process
+        {
             let child_clone = child.clone();
             // Try to spawn a task to kill the process
             // This may fail if the runtime is shutting down, which is expected

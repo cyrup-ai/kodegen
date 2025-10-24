@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 use toml::Value as TomlValue;
@@ -67,26 +67,34 @@ mcpServers:
       - http://localhost:8081/sse
     env: {}
 ";
-                serde_yaml::from_str(yaml_str).ok().unwrap_or(YamlValue::Null)
+                serde_yaml::from_str(yaml_str)
+                    .ok()
+                    .unwrap_or(YamlValue::Null)
             },
             #[cfg(target_os = "macos")]
             plist: {
                 use plist::Value;
-                
+
                 let mut kodegen = plist::Dictionary::new();
                 kodegen.insert("command".to_string(), Value::String("kodegen".to_string()));
-                kodegen.insert("args".to_string(), Value::Array(vec![
-                    Value::String("--proxy-sse".to_string()),
-                    Value::String("http://localhost:8081/sse".to_string()),
-                ]));
-                kodegen.insert("env".to_string(), Value::Dictionary(plist::Dictionary::new()));
-                
+                kodegen.insert(
+                    "args".to_string(),
+                    Value::Array(vec![
+                        Value::String("--proxy-sse".to_string()),
+                        Value::String("http://localhost:8081/sse".to_string()),
+                    ]),
+                );
+                kodegen.insert(
+                    "env".to_string(),
+                    Value::Dictionary(plist::Dictionary::new()),
+                );
+
                 let mut servers = plist::Dictionary::new();
                 servers.insert("kodegen".to_string(), Value::Dictionary(kodegen));
-                
+
                 let mut root = plist::Dictionary::new();
                 root.insert("mcpServers".to_string(), Value::Dictionary(servers));
-                
+
                 Value::Dictionary(root)
             },
         };
@@ -191,7 +199,8 @@ mcpServers:
 
         // Fast path: check if already configured
         if let YamlValue::Mapping(ref map) = config
-            && let Some(YamlValue::Mapping(servers)) = map.get(YamlValue::String("mcpServers".to_string()))
+            && let Some(YamlValue::Mapping(servers)) =
+                map.get(YamlValue::String("mcpServers".to_string()))
             && servers.contains_key(YamlValue::String("kodegen".to_string()))
         {
             return Ok(existing.to_string());
@@ -206,10 +215,13 @@ mcpServers:
                 );
             }
 
-            if let Some(YamlValue::Mapping(servers)) = map.get_mut(YamlValue::String("mcpServers".to_string()))
+            if let Some(YamlValue::Mapping(servers)) =
+                map.get_mut(YamlValue::String("mcpServers".to_string()))
                 && let YamlValue::Mapping(ref template_servers) = self.kodegen_config.yaml
-                && let Some(YamlValue::Mapping(kodegen_map)) = template_servers.get(YamlValue::String("mcpServers".to_string()))
-                && let Some(kodegen_entry) = kodegen_map.get(YamlValue::String("kodegen".to_string()))
+                && let Some(YamlValue::Mapping(kodegen_map)) =
+                    template_servers.get(YamlValue::String("mcpServers".to_string()))
+                && let Some(kodegen_entry) =
+                    kodegen_map.get(YamlValue::String("kodegen".to_string()))
             {
                 servers.insert(
                     YamlValue::String("kodegen".to_string()),
@@ -218,8 +230,7 @@ mcpServers:
             }
         }
 
-        serde_yaml::to_string(&config)
-            .map_err(|e| anyhow!("Failed to serialize YAML: {e}"))
+        serde_yaml::to_string(&config).map_err(|e| anyhow!("Failed to serialize YAML: {e}"))
     }
 
     /// Merge Plist config with proper plist parsing and serialization (macOS only)
@@ -227,14 +238,14 @@ mcpServers:
     #[inline]
     fn merge_plist(&self, existing: &str) -> Result<String> {
         use plist::Value;
-        
+
         let mut config: Value = if existing.trim().is_empty() {
             Value::Dictionary(plist::Dictionary::new())
         } else {
             plist::from_reader(std::io::Cursor::new(existing.as_bytes()))
                 .context("Failed to parse existing plist")?
         };
-        
+
         // Fast path: check if already configured
         if let Value::Dictionary(ref dict) = config
             && let Some(Value::Dictionary(servers)) = dict.get("mcpServers")
@@ -242,7 +253,7 @@ mcpServers:
         {
             return Ok(existing.to_string());
         }
-        
+
         // Merge efficiently
         if let Value::Dictionary(ref mut dict) = config {
             // Ensure mcpServers exists
@@ -252,7 +263,7 @@ mcpServers:
                     Value::Dictionary(plist::Dictionary::new()),
                 );
             }
-            
+
             // Insert kodegen config
             if let Some(Value::Dictionary(servers)) = dict.get_mut("mcpServers")
                 && let Value::Dictionary(ref template_root) = self.kodegen_config.plist
@@ -262,14 +273,12 @@ mcpServers:
                 servers.insert("kodegen".to_string(), kodegen_config.clone());
             }
         }
-        
+
         // Serialize to XML plist format
         let mut output = Vec::new();
-        plist::to_writer_xml(&mut output, &config)
-            .context("Failed to serialize plist")?;
-        
-        String::from_utf8(output)
-            .context("Failed to convert plist to UTF-8")
+        plist::to_writer_xml(&mut output, &config).context("Failed to serialize plist")?;
+
+        String::from_utf8(output).context("Failed to convert plist to UTF-8")
     }
 
     /// Plist format not supported on non-macOS platforms

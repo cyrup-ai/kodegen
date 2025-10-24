@@ -1,9 +1,9 @@
-use kodegen_mcp_tool::error::McpError;
 use kodegen_mcp_tool::Tool;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sysinfo::System;
 
 use crate::ProcessId;
@@ -100,7 +100,9 @@ impl Tool for ListProcessesTool {
                         name: process.name().to_string_lossy().to_string(),
                         cpu_percent: process.cpu_usage(),
                         // Note: Precision loss is acceptable for display purposes
-                        memory_mb: f64::from(u32::try_from(process.memory()).unwrap_or(u32::MAX)) / 1024.0 / 1024.0,
+                        memory_mb: f64::from(u32::try_from(process.memory()).unwrap_or(u32::MAX))
+                            / 1024.0
+                            / 1024.0,
                     }
                 })
                 .collect();
@@ -113,7 +115,9 @@ impl Tool for ListProcessesTool {
 
             // Sort by CPU usage (descending) for useful output
             process_list.sort_by(|a, b| {
-                b.cpu_percent.partial_cmp(&a.cpu_percent).unwrap_or(std::cmp::Ordering::Equal)
+                b.cpu_percent
+                    .partial_cmp(&a.cpu_percent)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
 
             // Apply limit if specified
@@ -165,7 +169,7 @@ impl Tool for ListProcessesTool {
                      - System monitoring\n\
                      - Finding PIDs for processes to terminate\n\
                      - Debugging performance issues\n\
-                     - Checking if a specific process is running"
+                     - Checking if a specific process is running",
                 ),
             },
         ])

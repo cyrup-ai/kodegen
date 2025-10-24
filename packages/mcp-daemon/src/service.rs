@@ -1,7 +1,7 @@
 mod autoconfig;
 
-pub mod sse;
 pub mod kodegen_sse;
+pub mod sse;
 
 use std::process::{Child, Command, Stdio};
 use std::thread;
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
-use crossbeam_channel::{bounded, select, tick, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded, select, tick};
 use log::{error, info, warn};
 use thiserror::Error;
 
@@ -26,7 +26,7 @@ pub enum ServiceError {
         #[source]
         source: std::io::Error,
     },
-    
+
     /// Channel communication error
     #[error("Channel send failed: {0}")]
     ChannelSend(#[from] crossbeam_channel::SendError<crate::ipc::Evt>),
@@ -45,7 +45,7 @@ impl ServiceWorker {
         let (tx, rx) = bounded::<Cmd>(16);
         let name: &'static str = Box::leak(def.name.clone().into_boxed_str());
         let tx_clone = tx.clone();
-        
+
         thread::Builder::new()
             .name(format!("svc-{name}"))
             .spawn(move || {
@@ -64,7 +64,7 @@ impl ServiceWorker {
                 service: name.to_string(),
                 source,
             })?;
-            
+
         Ok(tx)
     }
 

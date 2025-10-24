@@ -2,17 +2,20 @@
 //! This module provides file listing functionality for `Mode::Files`.
 //! Lists all files that would be searched without actually searching.
 
-use super::super::types::{SearchResult, SearchResultType, SearchError};
-use super::config::{RESULT_BUFFER_SIZE, LAST_READ_UPDATE_INTERVAL_MS, LAST_READ_UPDATE_MATCH_THRESHOLD, MAX_DETAILED_ERRORS, DEFAULT_MAX_RESULTS};
-use super::context::SearchContext;
-use super::super::types::SearchSessionOptions;
-use super::super::rg::flags::{
-    lowargs::{LowArgs, Mode, TypeChange},
-    hiargs::HiArgs,
-};
 use super::super::rg::flags::lowargs::CaseMode as RgCaseMode;
+use super::super::rg::flags::{
+    hiargs::HiArgs,
+    lowargs::{LowArgs, Mode, TypeChange},
+};
+use super::super::types::SearchSessionOptions;
+use super::super::types::{SearchError, SearchResult, SearchResultType};
+use super::config::{
+    DEFAULT_MAX_RESULTS, LAST_READ_UPDATE_INTERVAL_MS, LAST_READ_UPDATE_MATCH_THRESHOLD,
+    MAX_DETAILED_ERRORS, RESULT_BUFFER_SIZE,
+};
+use super::context::SearchContext;
 
-use ignore::{ParallelVisitor, ParallelVisitorBuilder, DirEntry, WalkBuilder};
+use ignore::{DirEntry, ParallelVisitor, ParallelVisitorBuilder, WalkBuilder};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -78,12 +81,13 @@ impl FilesListerVisitor {
     fn maybe_update_last_read_time(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_update_time);
-        
+
         if elapsed.as_millis() >= u128::from(LAST_READ_UPDATE_INTERVAL_MS)
             || self.matches_since_update >= LAST_READ_UPDATE_MATCH_THRESHOLD
         {
             let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-            self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+            self.last_read_time_atomic
+                .store(elapsed_micros, Ordering::Relaxed);
             self.last_update_time = now;
             self.matches_since_update = 0;
         }
@@ -94,16 +98,16 @@ impl FilesListerVisitor {
         if !self.buffer.is_empty() {
             // Check if this is the first batch of results
             let was_empty = self.results.blocking_read().is_empty();
-            
+
             let mut results = self.results.blocking_write();
             results.extend(self.buffer.drain(..));
             drop(results); // Release lock before calling maybe_update_last_read_time
-            
+
             // Signal first result if this was the first batch
             if was_empty {
                 let _ = self.first_result_tx.send(true);
             }
-            
+
             self.maybe_update_last_read_time();
         }
     }
@@ -114,7 +118,7 @@ impl FilesListerVisitor {
         let modified = entry_metadata.as_ref().and_then(|m| m.modified().ok());
         let accessed = entry_metadata.as_ref().and_then(|m| m.accessed().ok());
         let created = entry_metadata.as_ref().and_then(|m| m.created().ok());
-        
+
         let result = SearchResult {
             file: entry.path().display().to_string(),
             line: None,
@@ -145,7 +149,8 @@ impl Drop for FilesListerVisitor {
         self.flush_buffer();
         // Ensure final last_read_time update
         let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-        self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+        self.last_read_time_atomic
+            .store(elapsed_micros, Ordering::Relaxed);
     }
 }
 
@@ -170,16 +175,17 @@ impl ParallelVisitor for FilesListerVisitor {
             Ok(entry) => {
                 // Only process files, not directories
                 if let Some(file_type) = entry.file_type()
-                    && file_type.is_file() {
-                        self.add_file(&entry);
-                        self.total_matches.fetch_add(1, Ordering::Relaxed);
-                    }
+                    && file_type.is_file()
+                {
+                    self.add_file(&entry);
+                    self.total_matches.fetch_add(1, Ordering::Relaxed);
+                }
                 ignore::WalkState::Continue
             }
             Err(err) => {
                 // Record error
                 self.error_count.fetch_add(1, Ordering::Relaxed);
-                
+
                 let mut errors = self.errors.blocking_write();
                 if errors.len() < MAX_DETAILED_ERRORS {
                     errors.push(SearchError {
@@ -189,7 +195,7 @@ impl ParallelVisitor for FilesListerVisitor {
                     });
                 }
                 drop(errors);
-                
+
                 ignore::WalkState::Continue
             }
         }
@@ -197,20 +203,20 @@ impl ParallelVisitor for FilesListerVisitor {
 }
 
 /// Execute files mode: list all files that would be searched
-pub(super) fn execute(
-    options: &SearchSessionOptions,
-    root: &Path,
-    ctx: &mut SearchContext,
-) {
+pub(super) fn execute(options: &SearchSessionOptions, root: &Path, ctx: &mut SearchContext) {
     let max_results = options.max_results.unwrap_or(DEFAULT_MAX_RESULTS as u32) as usize;
 
     // Build type changes for filtering
     let mut type_changes = Vec::new();
     for type_name in &options.r#type {
-        type_changes.push(TypeChange::Select { name: type_name.clone() });
+        type_changes.push(TypeChange::Select {
+            name: type_name.clone(),
+        });
     }
     for type_name in &options.type_not {
-        type_changes.push(TypeChange::Negate { name: type_name.clone() });
+        type_changes.push(TypeChange::Negate {
+            name: type_name.clone(),
+        });
     }
 
     // Build LowArgs for type filtering
@@ -282,11 +288,11 @@ pub(super) fn execute(
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::types::{CaseMode, SearchType};
     use super::*;
-    use super::super::super::types::{SearchType, CaseMode};
-    use tempfile::TempDir;
     use std::fs;
     use std::sync::atomic::AtomicBool;
+    use tempfile::TempDir;
 
     #[test]
     fn test_files_mode_basic() {
@@ -297,7 +303,7 @@ mod tests {
         // Create test files
         fs::write(temp_path.join("file1.txt"), "content1").expect("Failed to write file1");
         fs::write(temp_path.join("file2.rs"), "content2").expect("Failed to write file2");
-        
+
         // Create subdirectory with file
         fs::create_dir(temp_path.join("subdir")).expect("Failed to create subdir");
         fs::write(temp_path.join("subdir/file3.md"), "content3").expect("Failed to write file3");
@@ -367,7 +373,7 @@ mod tests {
         // Verify results
         let results = ctx.results.blocking_read();
         assert_eq!(results.len(), 3, "Should find 3 files");
-        
+
         // Verify all results are FileList type
         for result in results.iter() {
             assert!(matches!(result.r#type, SearchResultType::FileList));
@@ -459,7 +465,11 @@ mod tests {
 
         // Verify results - should only find tracked.rs, not ignored.log
         let results = ctx.results.blocking_read();
-        assert_eq!(results.len(), 1, "Should find only 1 file (ignored.log should be excluded)");
+        assert_eq!(
+            results.len(),
+            1,
+            "Should find only 1 file (ignored.log should be excluded)"
+        );
         assert!(results[0].file.contains("tracked.rs"));
     }
 
@@ -550,15 +560,17 @@ mod tests {
 
         // Create files at different depths
         fs::write(temp_path.join("root.txt"), "root").expect("Failed to write root file");
-        
+
         fs::create_dir(temp_path.join("level1")).expect("Failed to create level1");
         fs::write(temp_path.join("level1/file1.txt"), "l1").expect("Failed to write level1 file");
-        
+
         fs::create_dir(temp_path.join("level1/level2")).expect("Failed to create level2");
-        fs::write(temp_path.join("level1/level2/file2.txt"), "l2").expect("Failed to write level2 file");
-        
+        fs::write(temp_path.join("level1/level2/file2.txt"), "l2")
+            .expect("Failed to write level2 file");
+
         fs::create_dir(temp_path.join("level1/level2/level3")).expect("Failed to create level3");
-        fs::write(temp_path.join("level1/level2/level3/file3.txt"), "l3").expect("Failed to write level3 file");
+        fs::write(temp_path.join("level1/level2/level3/file3.txt"), "l3")
+            .expect("Failed to write level3 file");
 
         // Create options with max_depth = 2
         let options = SearchSessionOptions {
@@ -627,9 +639,15 @@ mod tests {
         // So we get: root.txt + level1/file1.txt = 2 files
         // level1/level2 (depth 2) is excluded
         let results = ctx.results.blocking_read();
-        assert!(results.len() >= 2, "Should find at least 2 files (root and level1)");
-        assert!(results.len() <= 3, "Should not find more than 3 files (level3 should be excluded)");
-        
+        assert!(
+            results.len() >= 2,
+            "Should find at least 2 files (root and level1)"
+        );
+        assert!(
+            results.len() <= 3,
+            "Should not find more than 3 files (level3 should be excluded)"
+        );
+
         // Verify file3.txt at level3 is NOT included
         let has_level3 = results.iter().any(|r| r.file.contains("level3"));
         assert!(!has_level3, "Should not include files beyond max_depth");

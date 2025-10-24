@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::issues::Issue, Octocrab};
+use octocrab::{Octocrab, models::issues::Issue};
 use std::sync::Arc;
 
 /// Create a new issue.

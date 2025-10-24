@@ -3,7 +3,7 @@
 //! Pattern follows `create_release.rs` - direct async functions without `spawn_task`
 
 use bytes::Bytes;
-use octocrab::{models::repos::Asset, Octocrab};
+use octocrab::{Octocrab, models::repos::Asset};
 use std::sync::Arc;
 
 /// Options for uploading a release asset
@@ -42,24 +42,29 @@ pub async fn upload_release_asset(
             .per_page(100)
             .send()
             .await?;
-        
+
         // Find asset with matching name
-        if let Some(existing) = assets_page.items.iter().find(|a| a.name == options.asset_name) {
+        if let Some(existing) = assets_page
+            .items
+            .iter()
+            .find(|a| a.name == options.asset_name)
+        {
             // Delete the existing asset
             delete_release_asset(
                 client.clone(),
                 owner,
                 repo,
-                existing.id.0,  // AssetId is a newtype wrapper around u64
-            ).await?;
+                existing.id.0, // AssetId is a newtype wrapper around u64
+            )
+            .await?;
         }
         // If no match found, that's fine - proceed with upload
     }
-    
+
     // Step 2: Upload the new asset
     let repos = client.repos(owner, repo);
     let releases = repos.releases();
-    
+
     if let Some(label) = options.label {
         releases
             .upload_asset(options.release_id, &options.asset_name, options.content)

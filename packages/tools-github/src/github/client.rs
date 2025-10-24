@@ -26,7 +26,7 @@
 
 use crate::github::error::{GitHubError, GitHubResult};
 use jsonwebtoken::EncodingKey;
-use octocrab::{models::AppId, Octocrab};
+use octocrab::{Octocrab, models::AppId};
 use std::sync::Arc;
 
 /// GitHub API client wrapper that encapsulates Octocrab.
@@ -40,7 +40,7 @@ pub struct GitHubClient {
 
 impl GitHubClient {
     /// Create a new client builder
-    #[must_use] 
+    #[must_use]
     pub fn builder() -> GitHubClientBuilder {
         GitHubClientBuilder::new()
     }
@@ -51,7 +51,7 @@ impl GitHubClient {
     }
 
     /// Get inner Octocrab client
-    #[must_use] 
+    #[must_use]
     pub fn inner(&self) -> &Arc<Octocrab> {
         &self.inner
     }
@@ -80,7 +80,15 @@ impl GitHubClient {
         assignees: Option<Vec<String>>,
         labels: Option<Vec<String>>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::issues::Issue, GitHubError>> {
-        crate::github::create_issue::create_issue(self.inner.clone(), owner, repo, title, body, assignees, labels)
+        crate::github::create_issue::create_issue(
+            self.inner.clone(),
+            owner,
+            repo,
+            title,
+            body,
+            assignees,
+            labels,
+        )
     }
 
     /// Add a comment to an issue
@@ -91,7 +99,13 @@ impl GitHubClient {
         issue_number: u64,
         body: impl Into<String>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::issues::Comment, GitHubError>> {
-        crate::github::add_issue_comment::add_issue_comment(self.inner.clone(), owner, repo, issue_number, body)
+        crate::github::add_issue_comment::add_issue_comment(
+            self.inner.clone(),
+            owner,
+            repo,
+            issue_number,
+            body,
+        )
     }
 
     /// Get comments for an issue
@@ -101,11 +115,16 @@ impl GitHubClient {
         repo: impl Into<String>,
         issue_number: u64,
     ) -> crate::runtime::AsyncStream<Result<octocrab::models::issues::Comment, GitHubError>> {
-        crate::github::get_issue_comments::get_issue_comments(self.inner.clone(), owner, repo, issue_number)
+        crate::github::get_issue_comments::get_issue_comments(
+            self.inner.clone(),
+            owner,
+            repo,
+            issue_number,
+        )
     }
 
     /// List issues with filters
-    #[must_use] 
+    #[must_use]
     pub fn list_issues(
         &self,
         request: crate::github::ListIssuesRequest,
@@ -114,7 +133,7 @@ impl GitHubClient {
     }
 
     /// Update an issue
-    #[must_use] 
+    #[must_use]
     pub fn update_issue(
         &self,
         request: crate::github::UpdateIssueRequest,
@@ -131,7 +150,14 @@ impl GitHubClient {
         page: Option<u32>,
         per_page: Option<u8>,
     ) -> crate::runtime::AsyncStream<Result<octocrab::models::issues::Issue, GitHubError>> {
-        crate::github::search_issues::search_issues(self.inner.clone(), query, sort, order, page, per_page)
+        crate::github::search_issues::search_issues(
+            self.inner.clone(),
+            query,
+            sort,
+            order,
+            page,
+            per_page,
+        )
     }
 
     // ========================================================================
@@ -139,7 +165,7 @@ impl GitHubClient {
     // ========================================================================
 
     /// Create a pull request
-    #[must_use] 
+    #[must_use]
     pub fn create_pull_request(
         &self,
         request: crate::github::CreatePullRequestRequest,
@@ -154,7 +180,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         pr_number: u64,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::CombinedStatus, GitHubError>> {
-        crate::github::get_pull_request_status::get_pull_request_status(self.inner.clone(), owner, repo, pr_number)
+        crate::github::get_pull_request_status::get_pull_request_status(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+        )
     }
 
     /// Get pull request comments
@@ -164,7 +195,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         pr_number: u64,
     ) -> crate::runtime::AsyncStream<Result<octocrab::models::pulls::Comment, GitHubError>> {
-        crate::github::get_pull_request_comments::get_pull_request_comments(self.inner.clone(), owner, repo, pr_number)
+        crate::github::get_pull_request_comments::get_pull_request_comments(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+        )
     }
 
     /// Get pull request files
@@ -174,7 +210,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         pr_number: u64,
     ) -> crate::runtime::AsyncStream<Result<octocrab::models::repos::DiffEntry, GitHubError>> {
-        crate::github::get_pull_request_files::get_pull_request_files(self.inner.clone(), owner, repo, pr_number)
+        crate::github::get_pull_request_files::get_pull_request_files(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+        )
     }
 
     /// Get pull request reviews
@@ -184,7 +225,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         pr_number: u64,
     ) -> crate::runtime::AsyncStream<Result<octocrab::models::pulls::Review, GitHubError>> {
-        crate::github::get_pull_request_reviews::get_pull_request_reviews(self.inner.clone(), owner, repo, pr_number)
+        crate::github::get_pull_request_reviews::get_pull_request_reviews(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+        )
     }
 
     /// Create a pull request review
@@ -195,16 +241,26 @@ impl GitHubClient {
         pr_number: u64,
         options: crate::github::CreatePullRequestReviewOptions,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::pulls::Review, GitHubError>> {
-        crate::github::create_pull_request_review::create_pull_request_review(self.inner.clone(), owner, repo, pr_number, options)
+        crate::github::create_pull_request_review::create_pull_request_review(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+            options,
+        )
     }
 
     /// Add a review comment to a pull request
-    #[must_use] 
+    #[must_use]
     pub fn add_pull_request_review_comment(
         &self,
         request: crate::github::AddPullRequestReviewCommentRequest,
-    ) -> crate::runtime::AsyncTask<Result<octocrab::models::pulls::ReviewComment, GitHubError>> {
-        crate::github::add_pull_request_review_comment::add_pull_request_review_comment(self.inner.clone(), request)
+    ) -> crate::runtime::AsyncTask<Result<octocrab::models::pulls::ReviewComment, GitHubError>>
+    {
+        crate::github::add_pull_request_review_comment::add_pull_request_review_comment(
+            self.inner.clone(),
+            request,
+        )
     }
 
     /// Update a pull request
@@ -215,7 +271,13 @@ impl GitHubClient {
         pr_number: u64,
         options: crate::github::UpdatePullRequestOptions,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::pulls::PullRequest, GitHubError>> {
-        crate::github::update_pull_request::update_pull_request(self.inner.clone(), owner, repo, pr_number, options)
+        crate::github::update_pull_request::update_pull_request(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+            options,
+        )
     }
 
     /// Merge a pull request
@@ -226,7 +288,13 @@ impl GitHubClient {
         pr_number: u64,
         options: crate::github::MergePullRequestOptions,
     ) -> crate::runtime::AsyncTask<Result<serde_json::Value, GitHubError>> {
-        crate::github::merge_pull_request::merge_pull_request(self.inner.clone(), owner, repo, pr_number, options)
+        crate::github::merge_pull_request::merge_pull_request(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+            options,
+        )
     }
 
     // ========================================================================
@@ -241,11 +309,17 @@ impl GitHubClient {
         path: impl Into<String>,
         ref_name: Option<String>,
     ) -> crate::runtime::AsyncTask<Result<Vec<octocrab::models::repos::Content>, GitHubError>> {
-        crate::github::get_file_contents::get_file_contents(self.inner.clone(), owner, repo, path, ref_name)
+        crate::github::get_file_contents::get_file_contents(
+            self.inner.clone(),
+            owner,
+            repo,
+            path,
+            ref_name,
+        )
     }
 
     /// Create or update a file
-    #[must_use] 
+    #[must_use]
     pub fn create_or_update_file(
         &self,
         request: crate::github::CreateOrUpdateFileRequest,
@@ -272,7 +346,13 @@ impl GitHubClient {
         branch_name: impl Into<String>,
         sha: impl Into<String>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::repos::Ref, GitHubError>> {
-        crate::github::create_branch::create_branch(self.inner.clone(), owner, repo, branch_name, sha)
+        crate::github::create_branch::create_branch(
+            self.inner.clone(),
+            owner,
+            repo,
+            branch_name,
+            sha,
+        )
     }
 
     /// List commits
@@ -281,7 +361,8 @@ impl GitHubClient {
         owner: impl Into<String>,
         repo: impl Into<String>,
         options: crate::github::ListCommitsOptions,
-    ) -> crate::runtime::AsyncTask<Result<Vec<octocrab::models::repos::RepoCommit>, GitHubError>> {
+    ) -> crate::runtime::AsyncTask<Result<Vec<octocrab::models::repos::RepoCommit>, GitHubError>>
+    {
         crate::github::list_commits::list_commits(self.inner.clone(), owner, repo, options)
     }
 
@@ -294,7 +375,14 @@ impl GitHubClient {
         page: Option<u32>,
         per_page: Option<u8>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::repos::RepoCommit, GitHubError>> {
-        crate::github::get_commit::get_commit(self.inner.clone(), owner, repo, commit_sha, page, per_page)
+        crate::github::get_commit::get_commit(
+            self.inner.clone(),
+            owner,
+            repo,
+            commit_sha,
+            page,
+            per_page,
+        )
     }
 
     /// Search code
@@ -306,8 +394,17 @@ impl GitHubClient {
         page: Option<u32>,
         per_page: Option<u8>,
         enrich_stars: bool,
-    ) -> crate::runtime::AsyncTask<Result<octocrab::Page<octocrab::models::Code>, GitHubError>> {
-        crate::github::search_code::search_code(self.inner.clone(), query, sort, order, page, per_page, enrich_stars)
+    ) -> crate::runtime::AsyncTask<Result<octocrab::Page<octocrab::models::Code>, GitHubError>>
+    {
+        crate::github::search_code::search_code(
+            self.inner.clone(),
+            query,
+            sort,
+            order,
+            page,
+            per_page,
+            enrich_stars,
+        )
     }
 
     /// Create a repository
@@ -318,7 +415,13 @@ impl GitHubClient {
         private: Option<bool>,
         auto_init: Option<bool>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::Repository, GitHubError>> {
-        crate::github::create_repository::create_repository(self.inner.clone(), name, description, private, auto_init)
+        crate::github::create_repository::create_repository(
+            self.inner.clone(),
+            name,
+            description,
+            private,
+            auto_init,
+        )
     }
 
     /// Fork a repository
@@ -328,7 +431,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         organization: Option<String>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::Repository, GitHubError>> {
-        crate::github::fork_repository::fork_repository(self.inner.clone(), owner, repo, organization)
+        crate::github::fork_repository::fork_repository(
+            self.inner.clone(),
+            owner,
+            repo,
+            organization,
+        )
     }
 
     /// Push files to a repository
@@ -340,7 +448,14 @@ impl GitHubClient {
         files: std::collections::HashMap<String, String>,
         commit_message: impl Into<String>,
     ) -> crate::runtime::AsyncTask<Result<octocrab::models::repos::Commit, GitHubError>> {
-        crate::github::push_files::push_files(self.inner.clone(), owner, repo, branch, files, commit_message)
+        crate::github::push_files::push_files(
+            self.inner.clone(),
+            owner,
+            repo,
+            branch,
+            files,
+            commit_message,
+        )
     }
 
     // ========================================================================
@@ -348,8 +463,10 @@ impl GitHubClient {
     // ========================================================================
 
     /// Get the authenticated user
-    #[must_use] 
-    pub fn get_me(&self) -> crate::runtime::AsyncTask<Result<octocrab::models::Author, GitHubError>> {
+    #[must_use]
+    pub fn get_me(
+        &self,
+    ) -> crate::runtime::AsyncTask<Result<octocrab::models::Author, GitHubError>> {
         crate::github::get_me::get_me(self.inner.clone())
     }
 
@@ -361,8 +478,16 @@ impl GitHubClient {
         order: Option<crate::github::search_users::SearchOrder>,
         page: Option<u32>,
         per_page: Option<u8>,
-    ) -> crate::runtime::AsyncTask<Result<octocrab::Page<octocrab::models::Author>, GitHubError>> {
-        crate::github::search_users::search_users(self.inner.clone(), query, sort, order, page, per_page)
+    ) -> crate::runtime::AsyncTask<Result<octocrab::Page<octocrab::models::Author>, GitHubError>>
+    {
+        crate::github::search_users::search_users(
+            self.inner.clone(),
+            query,
+            sort,
+            order,
+            page,
+            per_page,
+        )
     }
 
     // ========================================================================
@@ -379,7 +504,15 @@ impl GitHubClient {
         tool_name: Option<String>,
         severity: Option<String>,
     ) -> crate::runtime::AsyncTask<Result<Vec<serde_json::Value>, GitHubError>> {
-        crate::github::code_scanning_alerts::list_code_scanning_alerts(self.inner.clone(), owner, repo, state, ref_name, tool_name, severity)
+        crate::github::code_scanning_alerts::list_code_scanning_alerts(
+            self.inner.clone(),
+            owner,
+            repo,
+            state,
+            ref_name,
+            tool_name,
+            severity,
+        )
     }
 
     /// Get a code scanning alert
@@ -389,7 +522,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         alert_number: u64,
     ) -> crate::runtime::AsyncTask<Result<serde_json::Value, GitHubError>> {
-        crate::github::code_scanning_alerts::get_code_scanning_alert(self.inner.clone(), owner, repo, alert_number)
+        crate::github::code_scanning_alerts::get_code_scanning_alert(
+            self.inner.clone(),
+            owner,
+            repo,
+            alert_number,
+        )
     }
 
     /// List secret scanning alerts
@@ -400,8 +538,20 @@ impl GitHubClient {
         state: Option<String>,
         secret_type: Option<String>,
         resolution: Option<String>,
-    ) -> crate::runtime::AsyncTask<Result<Vec<octocrab::models::repos::secret_scanning_alert::SecretScanningAlert>, GitHubError>> {
-        crate::github::secret_scanning_alerts::list_secret_scanning_alerts(self.inner.clone(), owner, repo, state, secret_type, resolution)
+    ) -> crate::runtime::AsyncTask<
+        Result<
+            Vec<octocrab::models::repos::secret_scanning_alert::SecretScanningAlert>,
+            GitHubError,
+        >,
+    > {
+        crate::github::secret_scanning_alerts::list_secret_scanning_alerts(
+            self.inner.clone(),
+            owner,
+            repo,
+            state,
+            secret_type,
+            resolution,
+        )
     }
 
     /// Get a secret scanning alert
@@ -410,8 +560,15 @@ impl GitHubClient {
         owner: impl Into<String>,
         repo: impl Into<String>,
         alert_number: u32,
-    ) -> crate::runtime::AsyncTask<Result<octocrab::models::repos::secret_scanning_alert::SecretScanningAlert, GitHubError>> {
-        crate::github::secret_scanning_alerts::get_secret_scanning_alert(self.inner.clone(), owner, repo, alert_number)
+    ) -> crate::runtime::AsyncTask<
+        Result<octocrab::models::repos::secret_scanning_alert::SecretScanningAlert, GitHubError>,
+    > {
+        crate::github::secret_scanning_alerts::get_secret_scanning_alert(
+            self.inner.clone(),
+            owner,
+            repo,
+            alert_number,
+        )
     }
 
     // ========================================================================
@@ -466,7 +623,12 @@ impl GitHubClient {
         repo: impl Into<String>,
         pr_number: u64,
     ) -> crate::runtime::AsyncTask<Result<(), GitHubError>> {
-        crate::github::request_copilot_review::request_copilot_review(self.inner.clone(), owner, repo, pr_number)
+        crate::github::request_copilot_review::request_copilot_review(
+            self.inner.clone(),
+            owner,
+            repo,
+            pr_number,
+        )
     }
 }
 
@@ -479,7 +641,7 @@ pub struct GitHubClientBuilder {
 
 impl GitHubClientBuilder {
     /// Create a new builder
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             token: None,

@@ -42,10 +42,10 @@ pub mod validation;
 pub mod prompts;
 
 pub mod keychain;
-pub mod setup;
 pub mod notarization;
+pub mod setup;
 
 // Re-export public API
-pub use setup::{show_config, interactive_setup, setup_from_config, ensure_api_key_file};
 pub use keychain::{TempKeychain, sign_with_entitlements};
-pub use notarization::{notarize, NotarizationAuth, diagnose_notarization_setup};
+pub use notarization::{NotarizationAuth, diagnose_notarization_setup, notarize};
+pub use setup::{ensure_api_key_file, interactive_setup, setup_from_config, show_config};

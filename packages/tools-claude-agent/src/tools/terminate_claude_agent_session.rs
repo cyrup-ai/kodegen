@@ -1,6 +1,6 @@
-use kodegen_mcp_tool::Tool;
 use crate::manager::AgentManager;
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -31,7 +31,7 @@ pub struct TerminateClaudeAgentSessionTool {
 
 impl TerminateClaudeAgentSessionTool {
     /// Create a new terminate session tool with required dependencies
-    #[must_use] 
+    #[must_use]
     pub fn new(agent_manager: Arc<AgentManager>) -> Self {
         Self { agent_manager }
     }
@@ -73,11 +73,12 @@ impl Tool for TerminateClaudeAgentSessionTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
-        let response = self.agent_manager
+        let response = self
+            .agent_manager
             .terminate_session(&args.session_id)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         serde_json::to_value(response)
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))
     }
@@ -86,7 +87,10 @@ impl Tool for TerminateClaudeAgentSessionTool {
         vec![]
     }
 
-    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
+    async fn prompt(
+        &self,
+        _args: Self::PromptArgs,
+    ) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
         Ok(vec![PromptMessage {
             role: PromptMessageRole::User,
             content: PromptMessageContent::Text {
@@ -117,7 +121,8 @@ Returns final statistics including:
 - Task completed successfully
 - Need to free resources
 - Agent reached unsatisfactory state
-- Shutting down parent process"#.to_string(),
+- Shutting down parent process"#
+                    .to_string(),
             },
         }])
     }

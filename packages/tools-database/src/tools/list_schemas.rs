@@ -11,8 +11,8 @@ use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::types::DatabaseType;
 use crate::tools::timeout::execute_with_timeout;
+use crate::types::DatabaseType;
 
 // =============================================================================
 // Args Structs
@@ -42,10 +42,18 @@ impl ListSchemasTool {
     ///
     /// # Errors
     /// Returns error if connection_url cannot be parsed to determine database type
-    pub fn new(pool: Arc<AnyPool>, connection_url: &str, config: ConfigManager) -> Result<Self, McpError> {
+    pub fn new(
+        pool: Arc<AnyPool>,
+        connection_url: &str,
+        config: ConfigManager,
+    ) -> Result<Self, McpError> {
         let db_type = DatabaseType::from_url(connection_url)
             .map_err(|e| McpError::Other(anyhow::anyhow!("Invalid database URL: {}", e)))?;
-        Ok(Self { pool, db_type, config })
+        Ok(Self {
+            pool,
+            db_type,
+            config,
+        })
     }
 }
 

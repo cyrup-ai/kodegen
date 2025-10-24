@@ -23,7 +23,7 @@ impl Lifecycle {
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn is_running(&self) -> bool {
         self.state == State::Running
     }

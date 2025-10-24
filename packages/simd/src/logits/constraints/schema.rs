@@ -12,10 +12,10 @@ use std::sync::Arc;
 use tokenizers::Tokenizer;
 
 pub use super::schema_index::{
-    IndexStats, SchemaConstraint, SchemaConstraintState, SchemaIndex, SchemaVocabulary,
-    StateId, TokenId
+    IndexStats, SchemaConstraint, SchemaConstraintState, SchemaIndex, SchemaVocabulary, StateId,
+    TokenId,
 };
-pub use super::schema_parser::{regex_from_value, regex_from_schema, SchemaParser};
+pub use super::schema_parser::{SchemaParser, regex_from_schema, regex_from_value};
 
 /// Schema constraint types supported by the system
 #[derive(Debug, Clone)]
@@ -47,14 +47,14 @@ pub enum PredefinedSchema {
         /// Minimum allowed value
         min: Option<i64>,
         /// Maximum allowed value
-        max: Option<i64>
+        max: Option<i64>,
     },
     /// Number with optional range
     Number {
         /// Minimum allowed value
         min: Option<f64>,
         /// Maximum allowed value
-        max: Option<f64>
+        max: Option<f64>,
     },
     /// String with optional pattern and length constraints
     String {
@@ -198,8 +198,7 @@ impl SchemaConstraintBuilder {
         T: JsonSchema + Serialize,
     {
         let schema = schemars::schema_for!(T);
-        let schema_value = serde_json::to_value(schema)
-            .context("Failed to serialize schema")?;
+        let schema_value = serde_json::to_value(schema).context("Failed to serialize schema")?;
 
         self.from_schema_value(&schema_value)
             .context("Failed to create constraint from type")
@@ -211,7 +210,8 @@ impl SchemaConstraintBuilder {
             schema,
             self.whitespace_pattern.as_deref(),
             self.max_recursion_depth,
-        ).context("Failed to convert schema to regex")?;
+        )
+        .context("Failed to convert schema to regex")?;
 
         SchemaConstraint::new(&regex_pattern, self.vocabulary.clone(), false)
             .context("Failed to create schema constraint")
@@ -258,7 +258,11 @@ impl SchemaConstraintBuilder {
                 }
                 schema
             }
-            PredefinedSchema::String { pattern, min_length, max_length } => {
+            PredefinedSchema::String {
+                pattern,
+                min_length,
+                max_length,
+            } => {
                 let mut schema = serde_json::json!({"type": "string"});
                 if let Some(pat) = pattern {
                     schema["pattern"] = serde_json::json!(pat);
@@ -274,7 +278,11 @@ impl SchemaConstraintBuilder {
             PredefinedSchema::StringEnum(values) => {
                 serde_json::json!({"enum": values})
             }
-            PredefinedSchema::Array { items, min_items, max_items } => {
+            PredefinedSchema::Array {
+                items,
+                min_items,
+                max_items,
+            } => {
                 let items_schema = self.schema_type_to_value(items)?;
                 let mut schema = serde_json::json!({
                     "type": "array",
@@ -288,7 +296,11 @@ impl SchemaConstraintBuilder {
                 }
                 schema
             }
-            PredefinedSchema::Object { properties, required, additional_properties } => {
+            PredefinedSchema::Object {
+                properties,
+                required,
+                additional_properties,
+            } => {
                 let mut props = serde_json::Map::new();
                 for (prop_name, prop_type) in properties {
                     let prop_schema = self.schema_type_to_value(prop_type)?;
@@ -324,9 +336,7 @@ impl SchemaConstraintBuilder {
                     "pattern": pattern
                 }))
             }
-            SchemaType::Predefined(predefined) => {
-                self.predefined_to_schema(predefined)
-            }
+            SchemaType::Predefined(predefined) => self.predefined_to_schema(predefined),
         }
     }
 }
@@ -337,14 +347,12 @@ pub mod presets {
 
     /// Create a boolean constraint (true/false)
     pub fn boolean(vocabulary: Arc<SchemaVocabulary>) -> AnyResult<SchemaConstraint> {
-        SchemaConstraintBuilder::new(vocabulary)
-            .from_predefined(&PredefinedSchema::Boolean)
+        SchemaConstraintBuilder::new(vocabulary).from_predefined(&PredefinedSchema::Boolean)
     }
 
     /// Create a null constraint
     pub fn null(vocabulary: Arc<SchemaVocabulary>) -> AnyResult<SchemaConstraint> {
-        SchemaConstraintBuilder::new(vocabulary)
-            .from_predefined(&PredefinedSchema::Null)
+        SchemaConstraintBuilder::new(vocabulary).from_predefined(&PredefinedSchema::Null)
     }
 
     /// Create an integer constraint with optional range
@@ -374,12 +382,11 @@ pub mod presets {
         min_length: Option<usize>,
         max_length: Option<usize>,
     ) -> AnyResult<SchemaConstraint> {
-        SchemaConstraintBuilder::new(vocabulary)
-            .from_predefined(&PredefinedSchema::String {
-                pattern,
-                min_length,
-                max_length,
-            })
+        SchemaConstraintBuilder::new(vocabulary).from_predefined(&PredefinedSchema::String {
+            pattern,
+            min_length,
+            max_length,
+        })
     }
 
     /// Create an enum constraint from string values
@@ -398,12 +405,11 @@ pub mod presets {
         min_items: Option<usize>,
         max_items: Option<usize>,
     ) -> AnyResult<SchemaConstraint> {
-        SchemaConstraintBuilder::new(vocabulary)
-            .from_predefined(&PredefinedSchema::Array {
-                items: Box::new(items),
-                min_items,
-                max_items,
-            })
+        SchemaConstraintBuilder::new(vocabulary).from_predefined(&PredefinedSchema::Array {
+            items: Box::new(items),
+            min_items,
+            max_items,
+        })
     }
 
     /// Create a simple object constraint
@@ -412,12 +418,11 @@ pub mod presets {
         properties: Vec<(String, SchemaType)>,
         required: Vec<String>,
     ) -> AnyResult<SchemaConstraint> {
-        SchemaConstraintBuilder::new(vocabulary)
-            .from_predefined(&PredefinedSchema::Object {
-                properties,
-                required,
-                additional_properties: false,
-            })
+        SchemaConstraintBuilder::new(vocabulary).from_predefined(&PredefinedSchema::Object {
+            properties,
+            required,
+            additional_properties: false,
+        })
     }
 
     /// Create constraint from Rust type

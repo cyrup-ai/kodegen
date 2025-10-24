@@ -517,13 +517,13 @@ fn validate_tag_directive(handle: &str, prefix: &str, position: Marker) -> Resul
 }
 
 /// Check if directive is valid YAML 1.2 directive
-#[must_use] 
+#[must_use]
 pub const fn is_standard_directive(directive: &Directive) -> bool {
     matches!(directive, Directive::Version { .. } | Directive::Tag { .. })
 }
 
 /// Get directive name as string
-#[must_use] 
+#[must_use]
 pub fn directive_name(directive: &Directive) -> &str {
     match directive {
         Directive::Version { .. } => "YAML",

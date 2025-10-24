@@ -3,8 +3,8 @@
 //! This module provides type-safe version bump operations with proper semver compliance.
 
 use crate::error::{Result, VersionError};
-use semver::{Version, Prerelease, BuildMetadata};
-use serde::{Serialize, Deserialize};
+use semver::{BuildMetadata, Prerelease, Version};
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 /// Type of version bump to perform
@@ -30,8 +30,8 @@ pub struct VersionBumper {
 impl VersionBumper {
     /// Create a new version bumper with the given current version
     pub fn new(current_version: &str) -> Result<Self> {
-        let version = Version::from_str(current_version)
-            .map_err(|e| VersionError::ParseFailed {
+        let version =
+            Version::from_str(current_version).map_err(|e| VersionError::ParseFailed {
                 version: current_version.to_string(),
                 source: e,
             })?;
@@ -103,7 +103,8 @@ impl VersionBumper {
                     "New version '{}' must be greater than current version '{}'",
                     new_version, self.current_version
                 ),
-            }.into());
+            }
+            .into());
         }
 
         // Check for valid semantic version progression
@@ -118,7 +119,8 @@ impl VersionBumper {
                 return Err(VersionError::InvalidVersion {
                     version: new_version.to_string(),
                     reason: "Major version bump should reset minor and patch to 0".to_string(),
-                }.into());
+                }
+                .into());
             }
         } else if minor_increased {
             // Minor bump: patch should be 0 for clean versioning
@@ -126,13 +128,15 @@ impl VersionBumper {
                 return Err(VersionError::InvalidVersion {
                     version: new_version.to_string(),
                     reason: "Minor version bump should reset patch to 0".to_string(),
-                }.into());
+                }
+                .into());
             }
         } else if !patch_increased {
             return Err(VersionError::InvalidVersion {
                 version: new_version.to_string(),
                 reason: "Version must increment at least one component".to_string(),
-            }.into());
+            }
+            .into());
         }
 
         Ok(())
@@ -145,11 +149,13 @@ impl VersionBumper {
 
     /// Check if a version string is valid semver
     pub fn validate_version_string(version: &str) -> Result<Version> {
-        Version::from_str(version)
-            .map_err(|e| VersionError::ParseFailed {
+        Version::from_str(version).map_err(|e| {
+            VersionError::ParseFailed {
                 version: version.to_string(),
                 source: e,
-            }.into())
+            }
+            .into()
+        })
     }
 
     /// Calculate version bump type needed to reach target version
@@ -158,7 +164,8 @@ impl VersionBumper {
             return Err(VersionError::InvalidVersion {
                 version: target_version.to_string(),
                 reason: "Target version must be greater than current version".to_string(),
-            }.into());
+            }
+            .into());
         }
 
         // Check which component changed
@@ -258,8 +265,8 @@ impl FromStr for VersionBump {
             "minor" => Ok(VersionBump::Minor),
             "patch" => Ok(VersionBump::Patch),
             version_str => {
-                let version = Version::from_str(version_str)
-                    .map_err(|e| VersionError::ParseFailed {
+                let version =
+                    Version::from_str(version_str).map_err(|e| VersionError::ParseFailed {
                         version: version_str.to_string(),
                         source: e,
                     })?;

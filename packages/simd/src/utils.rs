@@ -38,4 +38,3 @@ pub fn align_ptr_mut<T>(ptr: *mut T, align: usize) -> *mut T {
     let aligned = (addr + align - 1) & !(align - 1);
     aligned as *mut T
 }
-

@@ -1,11 +1,12 @@
+use log::warn;
 use regex::Regex;
 use std::collections::HashSet;
-use log::warn;
 
 // Compile regex once at startup (not on every command validation)
 static ENV_VAR_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"\w+=\S+\s*")
-        .expect("Hardcoded regex pattern r\"\\w+=\\S+\\s*\" is invalid - this is a compile-time bug")
+    Regex::new(r"\w+=\S+\s*").expect(
+        "Hardcoded regex pattern r\"\\w+=\\S+\\s*\" is invalid - this is a compile-time bug",
+    )
 });
 
 /// Command manager for validating and parsing commands
@@ -24,7 +25,7 @@ impl CommandManager {
             .into_iter()
             .map(|cmd| cmd.to_lowercase())
             .collect();
-        
+
         Self {
             blocked_commands: normalized,
         }
@@ -39,85 +40,74 @@ impl CommandManager {
             "rmdir".to_string(),
             "del".to_string(),
             "deltree".to_string(),
-            "mv".to_string(),          // NEW: Can rename/move critical files
+            "mv".to_string(), // NEW: Can rename/move critical files
             "dd".to_string(),
             "shred".to_string(),
             "wipe".to_string(),
-            "truncate".to_string(),    // NEW: Can destroy file contents
-            
+            "truncate".to_string(), // NEW: Can destroy file contents
             // Filesystem operations
             "format".to_string(),
             "fdisk".to_string(),
             "mkfs".to_string(),
-            "mount".to_string(),       // NEW: Can mount malicious filesystems
-            "umount".to_string(),      // NEW: Can unmount critical filesystems
-            
+            "mount".to_string(),  // NEW: Can mount malicious filesystems
+            "umount".to_string(), // NEW: Can unmount critical filesystems
             // System control
-            "reboot".to_string(),      // NEW
-            "shutdown".to_string(),    // NEW
-            "halt".to_string(),        // NEW
-            "poweroff".to_string(),    // NEW
-            "init".to_string(),        // NEW: Can change runlevels
-            
+            "reboot".to_string(),   // NEW
+            "shutdown".to_string(), // NEW
+            "halt".to_string(),     // NEW
+            "poweroff".to_string(), // NEW
+            "init".to_string(),     // NEW: Can change runlevels
             // Process control
-            "kill".to_string(),        // NEW
-            "killall".to_string(),     // NEW
-            "pkill".to_string(),       // NEW
-            "killall5".to_string(),    // NEW
-            
+            "kill".to_string(),     // NEW
+            "killall".to_string(),  // NEW
+            "pkill".to_string(),    // NEW
+            "killall5".to_string(), // NEW
             // Privilege escalation
             "sudo".to_string(),
             "su".to_string(),
-            "doas".to_string(),        // NEW: OpenBSD sudo alternative
-            
+            "doas".to_string(), // NEW: OpenBSD sudo alternative
             // Permission/ownership changes
             "chmod".to_string(),
             "chown".to_string(),
-            "chgrp".to_string(),       // NEW: Change group ownership
-            "chattr".to_string(),      // NEW: Change file attributes (immutable, etc.)
-            
+            "chgrp".to_string(),  // NEW: Change group ownership
+            "chattr".to_string(), // NEW: Change file attributes (immutable, etc.)
             // User management
             "passwd".to_string(),
             "useradd".to_string(),
             "userdel".to_string(),
-            "usermod".to_string(),     // NEW
+            "usermod".to_string(), // NEW
             "groupadd".to_string(),
             "groupdel".to_string(),
-            "groupmod".to_string(),    // NEW
-            "visudo".to_string(),      // NEW: Edit sudoers file
-            
+            "groupmod".to_string(), // NEW
+            "visudo".to_string(),   // NEW: Edit sudoers file
             // Network operations (exfiltration risk)
-            "nc".to_string(),          // NEW: netcat
-            "netcat".to_string(),      // NEW
-            "wget".to_string(),        // NEW
-            "curl".to_string(),        // NEW
-            "ftp".to_string(),         // NEW
-            "sftp".to_string(),        // NEW
-            "scp".to_string(),         // NEW
-            "rsync".to_string(),       // NEW
-            "ssh".to_string(),         // NEW: Can tunnel/forward
-            "telnet".to_string(),      // NEW
-            
+            "nc".to_string(),     // NEW: netcat
+            "netcat".to_string(), // NEW
+            "wget".to_string(),   // NEW
+            "curl".to_string(),   // NEW
+            "ftp".to_string(),    // NEW
+            "sftp".to_string(),   // NEW
+            "scp".to_string(),    // NEW
+            "rsync".to_string(),  // NEW
+            "ssh".to_string(),    // NEW: Can tunnel/forward
+            "telnet".to_string(), // NEW
             // Code execution
-            "eval".to_string(),        // NEW: Execute arbitrary code
-            "exec".to_string(),        // NEW
-            "source".to_string(),      // NEW: Execute script in current shell
-            ".".to_string(),           // NEW: Dot command (source alias)
-            
+            "eval".to_string(),   // NEW: Execute arbitrary code
+            "exec".to_string(),   // NEW
+            "source".to_string(), // NEW: Execute script in current shell
+            ".".to_string(),      // NEW: Dot command (source alias)
             // Command injection vectors
-            "find".to_string(),        // NEW: -exec flag allows command injection
-            "xargs".to_string(),       // NEW: Executes commands from input
-            
+            "find".to_string(),  // NEW: -exec flag allows command injection
+            "xargs".to_string(), // NEW: Executes commands from input
             // System modification
-            "sysctl".to_string(),      // NEW: Modify kernel parameters
-            "modprobe".to_string(),    // NEW: Load kernel modules
-            "insmod".to_string(),      // NEW: Insert kernel module
-            "rmmod".to_string(),       // NEW: Remove kernel module
-            
+            "sysctl".to_string(),   // NEW: Modify kernel parameters
+            "modprobe".to_string(), // NEW: Load kernel modules
+            "insmod".to_string(),   // NEW: Insert kernel module
+            "rmmod".to_string(),    // NEW: Remove kernel module
             // Symlink creation (can bypass restrictions)
-            "ln".to_string(),          // NEW: Create hard/soft links
-            "link".to_string(),        // NEW
-            "unlink".to_string(),      // NEW
+            "ln".to_string(),     // NEW: Create hard/soft links
+            "link".to_string(),   // NEW
+            "unlink".to_string(), // NEW
         ])
     }
 
@@ -125,12 +115,8 @@ impl CommandManager {
     /// Handles full paths by extracting just the executable name
     #[must_use]
     pub fn get_base_command(&self, command: &str) -> String {
-        let first_word = command
-            .split_whitespace()
-            .next()
-            .unwrap_or("")
-            .trim();
-        
+        let first_word = command.split_whitespace().next().unwrap_or("").trim();
+
         // Extract basename from path (handles /bin/rm, /usr/bin/sudo, ../../bin/chmod, etc.)
         let basename = if first_word.contains('/') || first_word.contains('\\') {
             // Use std::path::Path for cross-platform path handling
@@ -141,7 +127,7 @@ impl CommandManager {
         } else {
             first_word
         };
-        
+
         basename.to_lowercase()
     }
 
@@ -156,7 +142,7 @@ impl CommandManager {
                 log::error!(
                     "Error extracting commands from '{command_string}': {e}. Treating as potentially malicious."
                 );
-                
+
                 // SAFER: Return empty Vec to trigger validation failure
                 // validate_command() will check if empty and use get_base_command() as fallback
                 // This prevents bypasses via deliberately broken parsing
@@ -247,9 +233,10 @@ impl CommandManager {
                 if Self::starts_with_at(&chars, i, separator) {
                     // We found a separator - extract the command before it
                     if !current_cmd.trim().is_empty()
-                        && let Some(base_command) = self.extract_base_command(current_cmd.trim()) {
-                            commands.push(base_command);
-                        }
+                        && let Some(base_command) = self.extract_base_command(current_cmd.trim())
+                    {
+                        commands.push(base_command);
+                    }
 
                     // Move past the separator
                     i += separator.len();
@@ -267,9 +254,10 @@ impl CommandManager {
 
         // Don't forget to add the last command
         if !current_cmd.trim().is_empty()
-            && let Some(base_command) = self.extract_base_command(current_cmd.trim()) {
-                commands.push(base_command);
-            }
+            && let Some(base_command) = self.extract_base_command(current_cmd.trim())
+        {
+            commands.push(base_command);
+        }
 
         // Remove duplicates and return
         let unique_commands: Vec<String> = commands
@@ -322,7 +310,7 @@ impl CommandManager {
 
     /// Extract the actual command name from a command string
     /// Removes environment variables and returns the base command
-    #[must_use] 
+    #[must_use]
     pub fn extract_base_command(&self, command_str: &str) -> Option<String> {
         if let Ok(cmd) = Self::extract_base_command_internal(command_str) {
             cmd
@@ -369,9 +357,7 @@ impl CommandManager {
         // If extract_commands() returned empty (parsing error), check base command only
         // This is safer than allowing the command through
         if commands.is_empty() {
-            log::warn!(
-                "Command parsing failed, checking base command only: '{base_command}'"
-            );
+            log::warn!("Command parsing failed, checking base command only: '{base_command}'");
             return !self.blocked_commands.contains(&base_command);
         }
 

@@ -85,20 +85,20 @@ pub mod prelude {
         chat::message::types::CandleMessageRole,
         context::{
             FinishReason,
-            provider::{CandleContext, CandleDirectory, CandleFile, CandleFiles, CandleGithub},
             chunks::CandleStringChunk,
+            provider::{CandleContext, CandleDirectory, CandleFile, CandleFiles, CandleGithub},
         },
         image_generation::{
             ImageGenerationChunk, ImageGenerationConfig, ImageGenerationModel, tensor_to_image,
         },
         tool::{CandleToolRouter, CyloBackendConfig, RouterError},
     };
-    
+
     // Re-export workspace MCP types for convenience
-    pub use rmcp::model::Tool as ToolInfo;
-    pub use kodegen_mcp_tool::Tool;
     pub use kodegen_mcp_client::KodegenClient;
-    
+    pub use kodegen_mcp_tool::Tool;
+    pub use rmcp::model::Tool as ToolInfo;
+
     // Real workflow execution types - streams-only architecture
     pub use crate::workflow::{CandleExecutableWorkflow, CandleWorkflowStep, candle_workflow};
 

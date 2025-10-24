@@ -1,30 +1,30 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SystemInfo {
     /// Operating system family ("macos", "linux", "windows", etc.)
     pub platform: String,
-    
+
     /// CPU architecture ("`x86_64`", "`aarch64`", "`arm`", etc.)
     pub arch: String,
-    
+
     /// OS version string (e.g., "macOS 14.6", "Ubuntu 22.04")
     pub os_version: String,
-    
+
     /// Kernel version (e.g., "23.6.0" for macOS, "6.5.0-1" for Linux)
     pub kernel_version: String,
-    
+
     /// Machine hostname
     pub hostname: String,
-    
+
     /// Kodegen server version from Cargo.toml
     pub rust_version: String,
-    
+
     /// Number of logical CPU cores
     pub cpu_count: usize,
-    
+
     /// Memory information
     pub memory: MemoryInfo,
 }
@@ -64,28 +64,26 @@ pub fn get_system_info() -> SystemInfo {
     SystemInfo {
         // Platform from std::env (always available)
         platform: std::env::consts::OS.to_string(),
-        
+
         // Architecture from std::env (always available)
         arch: std::env::consts::ARCH.to_string(),
-        
+
         // OS version with fallback
         os_version: System::long_os_version()
             .unwrap_or_else(|| format!("{} (unknown version)", std::env::consts::OS)),
-        
+
         // Kernel version with fallback
-        kernel_version: System::kernel_version()
-            .unwrap_or_else(|| "unknown".to_string()),
-        
+        kernel_version: System::kernel_version().unwrap_or_else(|| "unknown".to_string()),
+
         // Hostname with fallback
-        hostname: System::host_name()
-            .unwrap_or_else(|| "unknown".to_string()),
-        
+        hostname: System::host_name().unwrap_or_else(|| "unknown".to_string()),
+
         // Server version from build-time environment variable
         rust_version: env!("CARGO_PKG_VERSION").to_string(),
-        
+
         // CPU count (number of logical cores)
         cpu_count: sys.cpus().len(),
-        
+
         // Memory info converted to MB for readability
         memory: MemoryInfo {
             total_mb: format!("{} MB", total_kb / 1024),
@@ -94,5 +92,3 @@ pub fn get_system_info() -> SystemInfo {
         },
     }
 }
-
-

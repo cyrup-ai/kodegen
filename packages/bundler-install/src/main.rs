@@ -1,22 +1,22 @@
 mod config;
-mod install;
-mod wizard;
 #[cfg(feature = "gui")]
 mod gui;
+mod install;
+mod wizard;
 
-use clap::{Parser, ValueEnum};
 use anyhow::{Context, Result};
-use std::path::PathBuf;
-use std::path::Path;
+use clap::{Parser, ValueEnum};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
-use sha2::{Sha256, Digest};
 use tokio::time::timeout;
 
 // Timeout constants for network operations
-const CHECKSUM_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30);   // Small text file
-const BINARY_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);    // 10 min for 120MB
-const CHROMIUM_INSTALL_TIMEOUT: Duration = Duration::from_secs(900);   // 15 min for Chromium
+const CHECKSUM_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30); // Small text file
+const BINARY_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600); // 10 min for 120MB
+const CHROMIUM_INSTALL_TIMEOUT: Duration = Duration::from_secs(900); // 15 min for Chromium
 
 /// Platform source indicator for installer behavior
 #[derive(Clone, Debug, ValueEnum)]
@@ -52,35 +52,30 @@ fn detect_platform_arch() -> Result<String> {
         ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
         ("windows", "x86_64") => "x86_64-pc-windows-msvc",
         _ => return Err(anyhow::anyhow!("Unsupported platform: {os}-{arch}")),
-    }.to_string())
+    }
+    .to_string())
 }
 
 fn verify_checksum(file_path: &Path, expected_hash: &str) -> Result<bool> {
     let mut file = std::fs::File::open(file_path)
         .with_context(|| format!("Failed to open file for checksum: {}", file_path.display()))?;
-    
+
     let mut hasher = Sha256::new();
     std::io::copy(&mut file, &mut hasher)
         .with_context(|| format!("Failed to read file for checksum: {}", file_path.display()))?;
-    
+
     let result = hasher.finalize();
     let actual_hash = hex::encode(result);
-    
+
     Ok(actual_hash.eq_ignore_ascii_case(expected_hash))
 }
 
 async fn download_checksums(version: &str) -> Result<HashMap<String, String>> {
-    let url = format!(
-        "https://github.com/cyrup-ai/kodegen/releases/download/{version}/checksums.txt"
-    );
-    
-    let response = match timeout(
-        CHECKSUM_DOWNLOAD_TIMEOUT,
-        reqwest::get(&url)
-    ).await {
-        Ok(result) => result.with_context(|| {
-            format!("Failed to download checksums from {url}")
-        })?,
+    let url =
+        format!("https://github.com/cyrup-ai/kodegen/releases/download/{version}/checksums.txt");
+
+    let response = match timeout(CHECKSUM_DOWNLOAD_TIMEOUT, reqwest::get(&url)).await {
+        Ok(result) => result.with_context(|| format!("Failed to download checksums from {url}"))?,
         Err(_) => anyhow::bail!(
             "Timeout downloading checksums after {} seconds. \
              Check network connection or try: KODEGEN_HTTP_TIMEOUT={} {}",
@@ -92,23 +87,28 @@ async fn download_checksums(version: &str) -> Result<HashMap<String, String>> {
                 .unwrap_or_else(|| "kodegen_install".to_string())
         ),
     };
-    
+
     if !response.status().is_success() {
-        anyhow::bail!("Failed to download checksums (status: {})", response.status());
+        anyhow::bail!(
+            "Failed to download checksums (status: {})",
+            response.status()
+        );
     }
-    
-    let text = response.text().await
+
+    let text = response
+        .text()
+        .await
         .context("Failed to read checksums response")?;
-    
+
     let mut checksums = HashMap::new();
-    
+
     for line in text.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 2 {
             checksums.insert(parts[1].to_string(), parts[0].to_string());
         }
     }
-    
+
     Ok(checksums)
 }
 
@@ -128,7 +128,7 @@ impl TempFile {
     fn new(path: PathBuf) -> Self {
         TempFile(path)
     }
-    
+
     /// Prevent cleanup on drop (for files that should persist)
     fn persist(self) {
         std::mem::forget(self);
@@ -138,33 +138,39 @@ impl TempFile {
 async fn download_signed_binary() -> Result<PathBuf> {
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+
     let platform = detect_platform_arch()?;
-    
+
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
-    let _ = writeln!(stdout, "📦 Downloading pre-built kodegend for {platform}...");
+    let _ = writeln!(
+        stdout,
+        "📦 Downloading pre-built kodegend for {platform}..."
+    );
     let _ = stdout.reset();
-    
+
     // Determine archive extension and binary names
     let ext = if cfg!(windows) { "zip" } else { "tar.gz" };
-    let source_binary_name = if cfg!(windows) { "sweetmcp-daemon.exe" } else { "sweetmcp-daemon" };
-    let target_binary_name = if cfg!(windows) { "kodegend.exe" } else { "kodegend" };
-    
+    let source_binary_name = if cfg!(windows) {
+        "sweetmcp-daemon.exe"
+    } else {
+        "sweetmcp-daemon"
+    };
+    let target_binary_name = if cfg!(windows) {
+        "kodegend.exe"
+    } else {
+        "kodegend"
+    };
+
     // Download binary archive (GitHub releases use sweetmcp-daemon naming)
     let archive_url = format!(
         "https://github.com/cyrup-ai/kodegen/releases/latest/download/sweetmcp-daemon-{platform}.{ext}"
     );
-    
+
     let _ = writeln!(stdout, "   Downloading from: {archive_url}");
-    
-    let response = match timeout(
-        BINARY_DOWNLOAD_TIMEOUT,
-        reqwest::get(&archive_url)
-    ).await {
-        Ok(result) => result.with_context(|| {
-            format!("Failed to request {archive_url}")
-        })?,
+
+    let response = match timeout(BINARY_DOWNLOAD_TIMEOUT, reqwest::get(&archive_url)).await {
+        Ok(result) => result.with_context(|| format!("Failed to request {archive_url}"))?,
         Err(_) => anyhow::bail!(
             "Timeout downloading binary after {} seconds ({} minutes). \
              The binary is ~120MB. On slow connections, increase timeout with: \
@@ -178,20 +184,17 @@ async fn download_signed_binary() -> Result<PathBuf> {
                 .unwrap_or_else(|| "kodegen_install".to_string())
         ),
     };
-    
+
     if !response.status().is_success() {
         anyhow::bail!("Failed to download binary (status: {})", response.status());
     }
-    
+
     // Save archive to temp
     let temp_dir = std::env::temp_dir();
     let archive_path = temp_dir.join(format!("kodegend-{platform}.{ext}"));
     let _archive_guard = TempFile::new(archive_path.clone());
-    
-    let archive_bytes = match timeout(
-        BINARY_DOWNLOAD_TIMEOUT,
-        response.bytes()
-    ).await {
+
+    let archive_bytes = match timeout(BINARY_DOWNLOAD_TIMEOUT, response.bytes()).await {
         Ok(result) => result.context("Failed to read archive bytes")?,
         Err(_) => anyhow::bail!(
             "Timeout reading binary archive after {} seconds. \
@@ -199,19 +202,19 @@ async fn download_signed_binary() -> Result<PathBuf> {
             BINARY_DOWNLOAD_TIMEOUT.as_secs()
         ),
     };
-    
+
     std::fs::write(&archive_path, &archive_bytes)
         .with_context(|| format!("Failed to write archive to {}", archive_path.display()))?;
-    
+
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(stdout, "   ✓ Downloaded archive");
     let _ = stdout.reset();
-    
+
     // Download and verify checksum
     let _ = writeln!(stdout, "   Verifying checksum...");
     let checksums = download_checksums("latest").await?;
     let archive_name = format!("sweetmcp-daemon-{platform}.{ext}");
-    
+
     if let Some(expected_hash) = checksums.get(&archive_name) {
         if !verify_checksum(&archive_path, expected_hash)? {
             // archive will be automatically cleaned up by _archive_guard on error
@@ -225,86 +228,106 @@ async fn download_signed_binary() -> Result<PathBuf> {
         let _ = writeln!(stdout, "   ⚠ No checksum available, skipping verification");
         let _ = stdout.reset();
     }
-    
+
     // Extract binary from archive and rename to target name
     let temp_binary_path = temp_dir.join(source_binary_name);
     let _temp_binary_guard = TempFile::new(temp_binary_path.clone());
     let binary_path = temp_dir.join(target_binary_name);
     let binary_guard = TempFile::new(binary_path.clone());
-    
+
     // Signature guard for Unix platforms - will be initialized during tar extraction
     let mut sig_guard: Option<TempFile> = None;
-    
+
     if cfg!(windows) {
         // Extract ZIP
         let file = std::fs::File::open(&archive_path)
             .with_context(|| format!("Failed to open archive: {}", archive_path.display()))?;
-        
-        let mut archive = zip::ZipArchive::new(file)
-            .context("Failed to read ZIP archive")?;
-        
-        let mut binary_file = archive.by_name(source_binary_name)
+
+        let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+
+        let mut binary_file = archive
+            .by_name(source_binary_name)
             .with_context(|| format!("Binary {source_binary_name} not found in archive"))?;
-        
+
         let mut output = std::fs::File::create(&temp_binary_path)
             .with_context(|| format!("Failed to create file: {}", temp_binary_path.display()))?;
-        
+
         std::io::copy(&mut binary_file, &mut output)
             .context("Failed to extract binary from ZIP")?;
     } else {
         // Extract tar.gz
         use flate2::read::GzDecoder;
         use tar::Archive;
-        
+
         let tar_gz = std::fs::File::open(&archive_path)
             .with_context(|| format!("Failed to open archive: {}", archive_path.display()))?;
-        
+
         let tar = GzDecoder::new(tar_gz);
         let mut archive = Archive::new(tar);
-        
+
         let mut found_binary = false;
         let source_sig_name = format!("{source_binary_name}.asc");
         let temp_sig_path = temp_dir.join(&source_sig_name);
         let _temp_sig_guard = TempFile::new(temp_sig_path.clone());
-        
+
         for entry_result in archive.entries().context("Failed to read tar entries")? {
             let mut entry = entry_result.context("Failed to read tar entry")?;
             let path = entry.path().context("Failed to get entry path")?;
             let filename = path.file_name();
-            
+
             if filename == Some(std::ffi::OsStr::new(source_binary_name)) {
-                entry.unpack(&temp_binary_path)
-                    .with_context(|| format!("Failed to extract {} to {}", source_binary_name, temp_binary_path.display()))?;
+                entry.unpack(&temp_binary_path).with_context(|| {
+                    format!(
+                        "Failed to extract {} to {}",
+                        source_binary_name,
+                        temp_binary_path.display()
+                    )
+                })?;
                 found_binary = true;
             } else if filename == Some(std::ffi::OsStr::new(&source_sig_name)) {
                 // Extract signature file for Linux
-                entry.unpack(&temp_sig_path)
-                    .with_context(|| format!("Failed to extract {} to {}", source_sig_name, temp_sig_path.display()))?;
+                entry.unpack(&temp_sig_path).with_context(|| {
+                    format!(
+                        "Failed to extract {} to {}",
+                        source_sig_name,
+                        temp_sig_path.display()
+                    )
+                })?;
             }
         }
-        
+
         if !found_binary {
             // All temp files will be automatically cleaned up by their TempFile guards on error
             anyhow::bail!("Binary {source_binary_name} not found in tar.gz archive");
         }
-        
+
         // Rename signature file if it exists (Linux only)
         if temp_sig_path.exists() {
             let target_sig_path = binary_path.with_extension("asc");
             sig_guard = Some(TempFile::new(target_sig_path.clone()));
-            std::fs::rename(&temp_sig_path, &target_sig_path)
-                .with_context(|| format!("Failed to rename signature file {} to {}", temp_sig_path.display(), target_sig_path.display()))?;
+            std::fs::rename(&temp_sig_path, &target_sig_path).with_context(|| {
+                format!(
+                    "Failed to rename signature file {} to {}",
+                    temp_sig_path.display(),
+                    target_sig_path.display()
+                )
+            })?;
         }
     }
-    
+
     // Rename extracted binary from sweetmcp-daemon to kodegend
-    std::fs::rename(&temp_binary_path, &binary_path)
-        .with_context(|| format!("Failed to rename {} to {}", temp_binary_path.display(), binary_path.display()))?;
-    
+    std::fs::rename(&temp_binary_path, &binary_path).with_context(|| {
+        format!(
+            "Failed to rename {} to {}",
+            temp_binary_path.display(),
+            binary_path.display()
+        )
+    })?;
+
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(stdout, "   ✓ Binary extracted");
     let _ = stdout.reset();
-    
+
     // Set executable permissions (Unix only)
     #[cfg(unix)]
     {
@@ -316,7 +339,7 @@ async fn download_signed_binary() -> Result<PathBuf> {
         std::fs::set_permissions(&binary_path, perms)
             .with_context(|| format!("Failed to set permissions: {}", binary_path.display()))?;
     }
-    
+
     // Verify signature
     match is_binary_signed(&binary_path) {
         Ok(true) => {
@@ -335,16 +358,16 @@ async fn download_signed_binary() -> Result<PathBuf> {
             let _ = stdout.reset();
         }
     }
-    
+
     // Prevent cleanup of final binary and signature files (they should persist)
     binary_guard.persist();
     if let Some(guard) = sig_guard {
         guard.persist();
     }
-    
+
     // archive_path, temp_binary_path, and temp_sig_path will be automatically cleaned up
     // by their TempFile guards when they go out of scope
-    
+
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     let _ = writeln!(stdout, "✓ Binary ready at: {}", binary_path.display());
     let _ = stdout.reset();
@@ -366,11 +389,13 @@ fn is_binary_signed(binary: &Path) -> Result<bool> {
         // Check for .asc signature file and verify with gpg
         let sig_path = binary.with_extension("asc");
         if sig_path.exists() {
-            let binary_str = binary.to_str()
+            let binary_str = binary
+                .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid binary path"))?;
-            let sig_str = sig_path.to_str()
+            let sig_str = sig_path
+                .to_str()
                 .ok_or_else(|| anyhow::anyhow!("Invalid signature path"))?;
-            
+
             let output = std::process::Command::new("gpg")
                 .args(["--verify", sig_str, binary_str])
                 .output()
@@ -389,12 +414,12 @@ fn is_binary_signed(binary: &Path) -> Result<bool> {
             "(Get-AuthenticodeSignature '{}').Status -eq 'Valid'",
             binary_display
         );
-        
+
         let output = std::process::Command::new("powershell")
             .args(["-Command", &ps_command])
             .output()
             .context("Failed to run PowerShell signature check")?;
-        
+
         Ok(output.status.success())
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
@@ -462,7 +487,10 @@ async fn get_bundled_binaries(
         None => {
             // Legacy behavior: download from GitHub releases
             let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
-            let _ = writeln!(stdout, "📦 No platform source specified, downloading from GitHub");
+            let _ = writeln!(
+                stdout,
+                "📦 No platform source specified, downloading from GitHub"
+            );
             let _ = stdout.reset();
 
             let kodegend_path = download_signed_binary().await?;
@@ -542,11 +570,11 @@ fn extract_from_app_bundle() -> Result<(PathBuf, PathBuf)> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        
+
         for (name, path) in [("kodegen", &kodegen_source), ("kodegend", &kodegend_source)] {
             let metadata = std::fs::metadata(path)
                 .with_context(|| format!("Failed to read metadata for {name}"))?;
-            
+
             if metadata.permissions().mode() & 0o111 == 0 {
                 anyhow::bail!(
                     "{} binary is not executable: {}\n\
@@ -569,26 +597,22 @@ fn extract_from_app_bundle() -> Result<(PathBuf, PathBuf)> {
 }
 
 /// Install Chromium using citescrape's `download_managed_browser`
-/// 
+///
 /// Chromium is REQUIRED - installation fails if this fails
 async fn install_chromium() -> Result<PathBuf> {
     use kodegen_tools_citescrape::download_managed_browser;
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
     let _ = writeln!(stdout, "\n📥 Installing Chromium...");
     let _ = stdout.reset();
     let _ = writeln!(stdout, "   This may take 30-60 seconds (~100MB download)");
-    
-    let chromium_path = match timeout(
-        CHROMIUM_INSTALL_TIMEOUT,
-        download_managed_browser()
-    ).await {
-        Ok(result) => result.context(
-            "Failed to download Chromium - check network connection and disk space"
-        )?,
+
+    let chromium_path = match timeout(CHROMIUM_INSTALL_TIMEOUT, download_managed_browser()).await {
+        Ok(result) => result
+            .context("Failed to download Chromium - check network connection and disk space")?,
         Err(_) => anyhow::bail!(
             "Timeout installing Chromium after {} seconds ({} minutes). \
              Chromium is ~100MB and required for citescrape functionality. \
@@ -602,12 +626,12 @@ async fn install_chromium() -> Result<PathBuf> {
                 .unwrap_or_else(|| "kodegen_install".to_string())
         ),
     };
-    
+
     // Verify installation
     if !chromium_path.exists() {
         anyhow::bail!("Chromium path not found: {}", chromium_path.display());
     }
-    
+
     Ok(chromium_path)
 }
 
@@ -630,31 +654,31 @@ struct Cli {
     /// Uninstall instead of install
     #[arg(long)]
     uninstall: bool,
-    
+
     /// Force building from source instead of downloading binary
     #[arg(long)]
     from_source: bool,
-    
+
     /// Only download binary (fail if unavailable, don't fall back to local build)
     #[arg(long, conflicts_with = "from_source")]
     binary_only: bool,
-    
+
     /// Platform source indicator (affects binary location detection)
-    /// 
+    ///
     /// Tells the installer where binaries are located based on the
     /// installation source. Used by `BUNDLE_2` for binary extraction logic.
     #[arg(long = "from-platform", value_enum)]
     pub from_platform: Option<PlatformSource>,
 
     /// Force GUI wizard mode (default: auto-detect based on TTY)
-    /// 
+    ///
     /// Enables interactive wizard even when other flags are set.
     /// Used for .msi/.nsis/.app installers to show GUI.
     #[arg(long)]
     pub gui: bool,
 
     /// Non-interactive mode for CI/server environments
-    /// 
+    ///
     /// Runs installation without any prompts or interaction.
     /// Used for .deb/.rpm postinst scripts.
     #[arg(long)]
@@ -668,16 +692,16 @@ fn should_use_gui(cli: &Cli) -> bool {
     if cli.gui {
         return true;
     }
-    
+
     // Platform sources that expect GUI (graphical installers)
     if let Some(ref platform) = cli.from_platform {
         match platform {
-            PlatformSource::Dmg | PlatformSource::Pkg => true,  // macOS installers
+            PlatformSource::Dmg | PlatformSource::Pkg => true, // macOS installers
             PlatformSource::Msi | PlatformSource::Nsis => true, // Windows installers
-            _ => false,  // Deb/Rpm are headless (package manager postinst)
+            _ => false, // Deb/Rpm are headless (package manager postinst)
         }
     } else {
-        false  // No platform indicator = CLI wizard mode
+        false // No platform indicator = CLI wizard mode
     }
 }
 
@@ -686,17 +710,17 @@ fn should_use_gui(cli: &Cli) -> bool {
 async fn run_gui_mode(cli: &Cli) -> Result<()> {
     // Delegate to GUI module's run_gui_installation (implemented in SUBTASK 5)
     let result = gui::run_gui_installation(cli).await?;
-    
+
     // Log completion to stdout for CI/logging integration
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
     let _ = writeln!(stdout, "\n✅ Installation completed successfully");
     let _ = stdout.reset();
     let _ = writeln!(stdout, "   Data directory: {}", result.data_dir.display());
-    
+
     Ok(())
 }
 
@@ -735,7 +759,7 @@ async fn main() -> Result<()> {
     if wizard::is_non_interactive(&cli) {
         use std::io::Write;
         use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-        
+
         let mut stdout = StandardStream::stdout(ColorChoice::Always);
         let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
         let _ = writeln!(stdout, "🤖 Running in non-interactive mode");
@@ -749,7 +773,7 @@ async fn main() -> Result<()> {
         Err(e) => {
             use std::io::Write;
             use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-            
+
             let mut stderr = StandardStream::stderr(ColorChoice::Always);
             let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true));
             let _ = writeln!(stderr, "❌ Installation cancelled: {e}");
@@ -762,25 +786,25 @@ async fn main() -> Result<()> {
 /// Run installation with wizard-collected options
 async fn run_install_with_options(options: &wizard::InstallOptions, cli: &Cli) -> Result<()> {
     use indicatif::{ProgressBar, ProgressStyle};
-    use tokio::sync::mpsc;
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+    use tokio::sync::mpsc;
+
     // Use termcolor for starting message
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
     let _ = writeln!(stdout, "\n⚡ Starting installation...\n");
     let _ = stdout.reset();
-    
+
     // Create progress bar with enhanced style
     let pb = ProgressBar::new(100);
     pb.set_style(
         ProgressStyle::default_bar()
             .template("\n[{bar:50.cyan/blue}] {pos:>3}%  {msg}\n")
             .context("Invalid progress bar template")?
-            .progress_chars("█▓░")
+            .progress_chars("█▓░"),
     );
-    
+
     // Determine binary paths (kodegen + kodegend) using platform-aware detection
     let (_kodegen_path, kodegend_path) = if options.dry_run {
         // Dry run doesn't need real binaries
@@ -798,24 +822,24 @@ async fn run_install_with_options(options: &wizard::InstallOptions, cli: &Cli) -
 
     pb.set_message("Binaries located");
     pb.set_position(10);
-    
+
     // Determine config path
     let config_path = dirs::config_dir()
         .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
         .join("kodegen")
         .join("config.toml");
-    
+
     pb.set_message("Validating prerequisites...");
     pb.set_position(20);
-    
+
     if !options.dry_run && !binary_path.exists() {
         pb.finish_and_clear();
         anyhow::bail!("Binary not found: {}", binary_path.display());
     }
-    
+
     // Create channel for real progress updates
     let (tx, mut rx) = mpsc::unbounded_channel::<install::core::InstallProgress>();
-    
+
     // Spawn task to update progress bar from installation events
     let pb_clone = pb.clone();
     let progress_task = tokio::spawn(async move {
@@ -829,46 +853,51 @@ async fn run_install_with_options(options: &wizard::InstallOptions, cli: &Cli) -
             }
         }
     });
-    
+
     pb.set_message("Installing daemon...");
     pb.set_position(25);
-    
+
     // Call installation with real progress channel
     let result = install::config::install_kodegen_daemon(
         binary_path.clone(),
         config_path,
         options.auto_start,
         Some(tx),
-    ).await;
-    
+    )
+    .await;
+
     // Wait for all progress updates to complete
     progress_task.await.ok();
-    
+
     // Check if daemon installation failed and get results
     let install_result = result?;
-    
+
     pb.set_message("Daemon installed");
     pb.set_position(60);
-    
+
     // Install Chromium (REQUIRED)
     pb.set_message("Installing Chromium (~100MB)...");
     pb.set_position(65);
-    
+
     match install_chromium().await {
         Ok(chromium_path) => {
             pb.set_message("Chromium installed successfully");
             pb.set_position(85);
-            
+
             let mut stdout = StandardStream::stdout(ColorChoice::Always);
             let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
-            let _ = writeln!(stdout, "\n✓ Chromium installed at: {}", chromium_path.display());
+            let _ = writeln!(
+                stdout,
+                "\n✓ Chromium installed at: {}",
+                chromium_path.display()
+            );
             let _ = stdout.reset();
         }
         Err(e) => {
             // Chromium is REQUIRED - fail installation
             pb.set_message("Chromium installation FAILED");
             pb.finish_and_clear();
-            
+
             let mut stderr = StandardStream::stderr(ColorChoice::Always);
             let _ = stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true));
             let _ = writeln!(stderr, "\n❌ FATAL: Chromium installation failed");
@@ -880,24 +909,27 @@ async fn run_install_with_options(options: &wizard::InstallOptions, cli: &Cli) -
             let _ = writeln!(stderr, "   Please check:");
             let _ = writeln!(stderr, "   • Network connection is available");
             let _ = writeln!(stderr, "   • ~100MB free disk space");
-            let _ = writeln!(stderr, "   • Firewall allows access to chromium download servers\n");
+            let _ = writeln!(
+                stderr,
+                "   • Firewall allows access to chromium download servers\n"
+            );
             return Err(e);
         }
     }
-    
+
     pb.set_message("Complete!");
     pb.set_position(100);
     pb.finish_and_clear();
-    
+
     wizard::show_completion(options, &install_result);
-    
+
     Ok(())
 }
 
 async fn run_install(cli: &Cli) -> Result<()> {
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true));
     let _ = writeln!(stdout, "🔧 Kodegen Daemon Installation");
@@ -987,18 +1019,22 @@ async fn run_install(cli: &Cli) -> Result<()> {
 
     // Call the actual installation logic (no progress channel in CLI mode)
     let auto_start = !cli.no_start;
-    let install_result = install::config::install_kodegen_daemon(
-        binary_path,
-        config_path,
-        auto_start,
-        None,
-    ).await?;
-    
+    let install_result =
+        install::config::install_kodegen_daemon(binary_path, config_path, auto_start, None).await?;
+
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
-    let _ = writeln!(stdout, "\n✅ Daemon installed to: {}", install_result.data_dir.display());
+    let _ = writeln!(
+        stdout,
+        "\n✅ Daemon installed to: {}",
+        install_result.data_dir.display()
+    );
     let _ = stdout.reset();
-    let _ = writeln!(stdout, "   Service: {}", install_result.service_path.display());
-    
+    let _ = writeln!(
+        stdout,
+        "   Service: {}",
+        install_result.service_path.display()
+    );
+
     if !install_result.certificates_installed {
         let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)));
         let _ = writeln!(stdout, "   ⚠ Certificate installation had issues");
@@ -1013,11 +1049,15 @@ async fn run_install(cli: &Cli) -> Result<()> {
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)));
     let _ = writeln!(stdout, "\n📦 Installing Chromium (required)...");
     let _ = stdout.reset();
-    
+
     match install_chromium().await {
         Ok(chromium_path) => {
             let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
-            let _ = writeln!(stdout, "✓ Chromium installed at: {}", chromium_path.display());
+            let _ = writeln!(
+                stdout,
+                "✓ Chromium installed at: {}",
+                chromium_path.display()
+            );
             let _ = stdout.reset();
         }
         Err(e) => {
@@ -1043,7 +1083,7 @@ async fn run_install(cli: &Cli) -> Result<()> {
 async fn run_uninstall(_cli: &Cli) -> Result<()> {
     use std::io::Write;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    
+
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let _ = stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true));
     let _ = writeln!(stdout, "🗑️  Kodegen Daemon Uninstallation\n");

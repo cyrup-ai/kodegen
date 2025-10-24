@@ -8,22 +8,22 @@ use std::fmt::Debug;
 use anyhow::Result as AnyResult;
 
 pub mod json;
+pub mod processor;
 pub mod schema;
 pub mod schema_index;
 pub mod schema_parser;
-pub mod processor;
 pub mod types;
 
 pub use json::JsonConstraint;
+pub use processor::{ConstrainedLogitsProcessor, ConstraintStats};
 pub use schema::{
-    PredefinedSchema, SchemaConstraintBuilder, SchemaFactory, SchemaState, SchemaType, presets
+    PredefinedSchema, SchemaConstraintBuilder, SchemaFactory, SchemaState, SchemaType, presets,
 };
 pub use schema_index::{
-    SchemaConstraint, SchemaConstraintState, SchemaVocabulary, SchemaIndex,
-    IndexStats, StateId, TokenId
+    IndexStats, SchemaConstraint, SchemaConstraintState, SchemaIndex, SchemaVocabulary, StateId,
+    TokenId,
 };
-pub use schema_parser::{regex_from_value, regex_from_schema, SchemaParser};
-pub use processor::{ConstrainedLogitsProcessor, ConstraintStats};
+pub use schema_parser::{SchemaParser, regex_from_schema, regex_from_value};
 pub use types::*;
 
 /// Core trait for generation constraints that can be applied during logits processing
@@ -87,4 +87,3 @@ pub trait GenerationConstraint: Debug + Send + Sync {
     /// * `Err(_)` if there was an error determining the sequence
     fn get_deterministic_sequence(&self, state: &Self::State) -> AnyResult<Vec<u32>>;
 }
-

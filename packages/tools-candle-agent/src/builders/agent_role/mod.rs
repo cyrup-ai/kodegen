@@ -14,6 +14,7 @@ pub(crate) use crate::domain::agent::role::CandleAgentConversation;
 pub(crate) use crate::domain::chat::CandleChatLoop;
 pub(crate) use crate::domain::chat::message::{CandleMessageChunk, CandleMessageRole};
 pub(crate) use crate::domain::completion::CandleCompletionChunk;
+pub(crate) use crate::domain::completion::types::ToolInfo;
 pub(crate) use crate::domain::context::provider::{
     CandleContext, CandleDirectory, CandleFile, CandleFiles, CandleGithub,
 };
@@ -26,7 +27,6 @@ pub use role_builder_impl::{CandleMcpServerBuilderImpl, McpServerConfig};
 pub(crate) use serde_json;
 pub(crate) use std::pin::Pin;
 pub(crate) use std::sync::Arc;
-pub(crate) use crate::domain::completion::types::ToolInfo;
 pub(crate) use tokio_stream::{Stream, StreamExt};
 pub use traits::{CandleAgentBuilder, CandleAgentRoleBuilder, CandleMcpServerBuilder};
 

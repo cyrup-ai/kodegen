@@ -1,11 +1,11 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
-use log::{error, info};
 use kodegen_bundler_autoconfig::{clients::all_clients, watcher::AutoConfigWatcher};
+use log::{error, info};
 use tokio_util::sync::CancellationToken;
 
 use crate::config::ServiceDefinition;
@@ -158,7 +158,10 @@ impl AutoConfigService {
 }
 
 /// Spawn the auto-configuration service thread
-pub fn spawn_autoconfig(def: ServiceDefinition, bus: Sender<Evt>) -> Result<Sender<Cmd>, crate::service::ServiceError> {
+pub fn spawn_autoconfig(
+    def: ServiceDefinition,
+    bus: Sender<Evt>,
+) -> Result<Sender<Cmd>, crate::service::ServiceError> {
     let (cmd_tx, cmd_rx) = crossbeam_channel::bounded(16);
     let service_name = def.name.clone();
 

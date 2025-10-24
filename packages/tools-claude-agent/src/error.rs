@@ -194,7 +194,7 @@ impl ClaudeError {
     }
 
     /// Create a max sessions error
-    #[must_use] 
+    #[must_use]
     pub fn max_sessions_reached(max: usize) -> Self {
         Self::MaxSessionsReached(max)
     }
@@ -205,12 +205,11 @@ impl ClaudeError {
     }
 }
 
-
 // Conversion to kodegen_tool McpError
 impl From<ClaudeError> for kodegen_mcp_tool::error::McpError {
     fn from(err: ClaudeError) -> Self {
         use kodegen_mcp_tool::error::McpError;
-        
+
         match err {
             ClaudeError::CliNotFound(msg) => McpError::ResourceNotFound(msg),
             ClaudeError::Connection(msg) => McpError::Network(msg),
@@ -219,16 +218,28 @@ impl From<ClaudeError> for kodegen_mcp_tool::error::McpError {
             ClaudeError::Io(e) => McpError::Io(e),
             ClaudeError::InvalidConfig(msg) => McpError::InvalidArguments(msg),
             ClaudeError::Timeout(msg) => McpError::Other(anyhow::anyhow!("Timeout: {msg}")),
-            ClaudeError::Process { message, .. } => McpError::Other(anyhow::anyhow!("Process error: {message}")),
-            ClaudeError::MessageParse { message, .. } => McpError::Other(anyhow::anyhow!("Parse error: {message}")),
-            ClaudeError::ControlProtocol(msg) => McpError::Other(anyhow::anyhow!("Protocol error: {msg}")),
+            ClaudeError::Process { message, .. } => {
+                McpError::Other(anyhow::anyhow!("Process error: {message}"))
+            }
+            ClaudeError::MessageParse { message, .. } => {
+                McpError::Other(anyhow::anyhow!("Parse error: {message}"))
+            }
+            ClaudeError::ControlProtocol(msg) => {
+                McpError::Other(anyhow::anyhow!("Protocol error: {msg}"))
+            }
             ClaudeError::Hook(msg) => McpError::Other(anyhow::anyhow!("Hook error: {msg}")),
             ClaudeError::Mcp(msg) => McpError::Other(anyhow::anyhow!("MCP error: {msg}")),
             ClaudeError::SessionNotFound(msg) => McpError::ResourceNotFound(msg),
-            ClaudeError::SessionComplete(msg) => McpError::InvalidArguments(format!("Session complete: {msg}")),
-            ClaudeError::MaxSessionsReached(max) => McpError::Other(anyhow::anyhow!("Max sessions reached: {max}")),
+            ClaudeError::SessionComplete(msg) => {
+                McpError::InvalidArguments(format!("Session complete: {msg}"))
+            }
+            ClaudeError::MaxSessionsReached(max) => {
+                McpError::Other(anyhow::anyhow!("Max sessions reached: {max}"))
+            }
             ClaudeError::InvalidAgentConfiguration(msg) => McpError::InvalidArguments(msg),
-            ClaudeError::PromptTemplateError { template, message } => McpError::Other(anyhow::anyhow!("Template '{template}' error: {message}")),
+            ClaudeError::PromptTemplateError { template, message } => {
+                McpError::Other(anyhow::anyhow!("Template '{template}' error: {message}"))
+            }
         }
     }
 }

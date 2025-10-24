@@ -8,7 +8,7 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tracing;
 use uuid::Uuid;
 
@@ -128,9 +128,10 @@ impl MCTS002AltAlphaStrategy {
         // Calculate value estimate directly (same as inner_strategy.estimate_value)
         // This avoids dealing with the async Result return type in estimate_value
         let immediate_value = policy_node.base.score;
-        let depth_potential = 1.0 - (policy_node.base.depth as f64 / crate::types::CONFIG.max_depth as f64);
+        let depth_potential =
+            1.0 - (policy_node.base.depth as f64 / crate::types::CONFIG.max_depth as f64);
         let novelty_value = policy_node.novelty_score.unwrap_or(0.0);
-        
+
         // Same weights as in the original function
         let value_estimate = 0.5 * immediate_value + 0.3 * depth_potential + 0.2 * novelty_value;
 
@@ -164,8 +165,8 @@ impl MCTS002AltAlphaStrategy {
                     stats.meeting_points += 1;
 
                     // Save the updated node
-                    if let Err(_) = self.base.save_node(current.base.base.clone()).await {
-                        return Some(current);  // Return meeting point despite error, just log it
+                    if (self.base.save_node(current.base.base.clone()).await).is_err() {
+                        return Some(current); // Return meeting point despite error, just log it
                     }
 
                     return Some(current);
@@ -176,60 +177,57 @@ impl MCTS002AltAlphaStrategy {
                 if direction == "forward" {
                     // Forward direction: get children
                     for id in &current.base.base.children {
-                        if let Ok(Some(child_node)) = self.base.get_node(id).await {
-                            if let Ok(policy_child) =
+                        if let Ok(Some(child_node)) = self.base.get_node(id).await
+                            && let Ok(policy_child) =
                                 self.inner_strategy.thought_to_policy(child_node).await
-                            {
-                                let search_depth = current.search_depth.unwrap_or(0) + 1;
-                                let parent_g = current.g;
+                        {
+                            let search_depth = current.search_depth.unwrap_or(0) + 1;
+                            let parent_g = current.g;
 
-                                let mut bi_child = BidirectionalPolicyNode {
-                                    base: policy_child,
-                                    g: parent_g + 1.0,
-                                    h: 0.0, // Will calculate below
-                                    f: 0.0, // Will calculate below
-                                    parent: Some(current.base.base.id.clone()),
-                                    direction: Some(direction.to_string()),
-                                    search_depth: Some(search_depth),
-                                    meeting_point: None,
-                                };
+                            let mut bi_child = BidirectionalPolicyNode {
+                                base: policy_child,
+                                g: parent_g + 1.0,
+                                h: 0.0, // Will calculate below
+                                f: 0.0, // Will calculate below
+                                parent: Some(current.base.base.id.clone()),
+                                direction: Some(direction.to_string()),
+                                search_depth: Some(search_depth),
+                                meeting_point: None,
+                            };
 
-                                // Calculate h and f
-                                bi_child.h = 1.0 - bi_child.base.value_estimate;
-                                bi_child.f = bi_child.g + bi_child.h;
+                            // Calculate h and f
+                            bi_child.h = 1.0 - bi_child.base.value_estimate;
+                            bi_child.f = bi_child.g + bi_child.h;
 
-                                neighbors.push(bi_child);
-                            }
+                            neighbors.push(bi_child);
                         }
                     }
                 } else {
                     // Backward direction: get parent
-                    if let Some(parent_id) = &current.base.base.parent_id {
-                        if let Ok(Some(parent_node)) = self.base.get_node(parent_id).await {
-                            if let Ok(policy_parent) =
-                                self.inner_strategy.thought_to_policy(parent_node).await
-                            {
-                                let search_depth = current.search_depth.unwrap_or(0) + 1;
-                                let parent_g = current.g;
+                    if let Some(parent_id) = &current.base.base.parent_id
+                        && let Ok(Some(parent_node)) = self.base.get_node(parent_id).await
+                        && let Ok(policy_parent) =
+                            self.inner_strategy.thought_to_policy(parent_node).await
+                    {
+                        let search_depth = current.search_depth.unwrap_or(0) + 1;
+                        let parent_g = current.g;
 
-                                let mut bi_parent = BidirectionalPolicyNode {
-                                    base: policy_parent,
-                                    g: parent_g + 1.0,
-                                    h: 0.0, // Will calculate below
-                                    f: 0.0, // Will calculate below
-                                    parent: Some(current.base.base.id.clone()),
-                                    direction: Some(direction.to_string()),
-                                    search_depth: Some(search_depth),
-                                    meeting_point: None,
-                                };
+                        let mut bi_parent = BidirectionalPolicyNode {
+                            base: policy_parent,
+                            g: parent_g + 1.0,
+                            h: 0.0, // Will calculate below
+                            f: 0.0, // Will calculate below
+                            parent: Some(current.base.base.id.clone()),
+                            direction: Some(direction.to_string()),
+                            search_depth: Some(search_depth),
+                            meeting_point: None,
+                        };
 
-                                // Calculate h and f
-                                bi_parent.h = 1.0 - bi_parent.base.value_estimate;
-                                bi_parent.f = bi_parent.g + bi_parent.h;
+                        // Calculate h and f
+                        bi_parent.h = 1.0 - bi_parent.base.value_estimate;
+                        bi_parent.f = bi_parent.g + bi_parent.h;
 
-                                neighbors.push(bi_parent);
-                            }
-                        }
+                        neighbors.push(bi_parent);
                     }
                 }
 
@@ -248,7 +246,7 @@ impl MCTS002AltAlphaStrategy {
                         // Save updated node
                         if let Err(e) = self.base.save_node(neighbor.base.base.clone()).await {
                             tracing::error!("Error saving neighbor node: {}", e);
-                            continue;  // Skip this neighbor if we can't save it
+                            continue; // Skip this neighbor if we can't save it
                         }
 
                         queue.enqueue(neighbor);
@@ -362,29 +360,27 @@ impl MCTS002AltAlphaStrategy {
             updated_node.base.value_estimate = (updated_node.base.value_estimate + 1.0) / 2.0;
 
             // Update action probabilities with path information
-            if let Some(parent_id) = &updated_node.base.base.parent_id {
-                if let Ok(Some(parent_node)) = self.base.get_node(parent_id).await {
-                    if let Ok(mut policy_parent) = self
-                        .inner_strategy
-                        .thought_to_policy(parent_node.clone())
-                        .await
-                    {
-                        let action_key = self.get_action_key(&updated_node.base.base.thought);
-                        let current_prob = *policy_parent
-                            .prior_action_probs
-                            .get(&action_key)
-                            .unwrap_or(&0.0);
-                        let new_prob = current_prob.max(0.8); // Strong preference for path actions
-                        policy_parent
-                            .prior_action_probs
-                            .insert(action_key, new_prob);
+            if let Some(parent_id) = &updated_node.base.base.parent_id
+                && let Ok(Some(parent_node)) = self.base.get_node(parent_id).await
+                && let Ok(mut policy_parent) = self
+                    .inner_strategy
+                    .thought_to_policy(parent_node.clone())
+                    .await
+            {
+                let action_key = self.get_action_key(&updated_node.base.base.thought);
+                let current_prob = *policy_parent
+                    .prior_action_probs
+                    .get(&action_key)
+                    .unwrap_or(&0.0);
+                let new_prob = current_prob.max(0.8); // Strong preference for path actions
+                policy_parent
+                    .prior_action_probs
+                    .insert(action_key, new_prob);
 
-                        // Save updated parent node
-                        let updated_parent = policy_parent.base.clone();
-                        if let Err(e) = self.base.save_node(updated_parent).await {
-                            tracing::error!("Error saving updated parent: {}", e);
-                        }
-                    }
+                // Save updated parent node
+                let updated_parent = policy_parent.base.clone();
+                if let Err(e) = self.base.save_node(updated_parent).await {
+                    tracing::error!("Error saving updated parent: {}", e);
                 }
             }
 
@@ -551,53 +547,51 @@ impl Strategy for MCTS002AltAlphaStrategy {
             // Track start and goal nodes for bidirectional search
             if request.parent_id.is_none() {
                 // This is a start node
-                if let Ok(Some(node)) = self_clone.base.get_node(&policy_response.node_id).await {
-                    if let Ok(policy_node) = self_clone.inner_strategy.thought_to_policy(node).await
-                    {
-                        let mut bi_node = BidirectionalPolicyNode {
-                            base: policy_node,
-                            g: 0.0,
-                            h: 0.0,
-                            f: 0.0,
-                            parent: None,
-                            direction: Some("forward".to_string()),
-                            search_depth: Some(0),
-                            meeting_point: None,
-                        };
+                if let Ok(Some(node)) = self_clone.base.get_node(&policy_response.node_id).await
+                    && let Ok(policy_node) = self_clone.inner_strategy.thought_to_policy(node).await
+                {
+                    let mut bi_node = BidirectionalPolicyNode {
+                        base: policy_node,
+                        g: 0.0,
+                        h: 0.0,
+                        f: 0.0,
+                        parent: None,
+                        direction: Some("forward".to_string()),
+                        search_depth: Some(0),
+                        meeting_point: None,
+                    };
 
-                        // Calculate h and f
-                        bi_node.h = 1.0 - bi_node.base.value_estimate;
-                        bi_node.f = bi_node.g + bi_node.h;
+                    // Calculate h and f
+                    bi_node.h = 1.0 - bi_node.base.value_estimate;
+                    bi_node.f = bi_node.g + bi_node.h;
 
-                        let mut start_node = self_clone.start_node.lock().await;
-                        *start_node = Some(bi_node);
-                    }
+                    let mut start_node = self_clone.start_node.lock().await;
+                    *start_node = Some(bi_node);
                 }
             }
 
             if !request.next_thought_needed {
                 // This is a goal node
-                if let Ok(Some(node)) = self_clone.base.get_node(&policy_response.node_id).await {
-                    if let Ok(policy_node) = self_clone.inner_strategy.thought_to_policy(node).await
-                    {
-                        let mut bi_node = BidirectionalPolicyNode {
-                            base: policy_node,
-                            g: 0.0,
-                            h: 0.0,
-                            f: 0.0,
-                            parent: None,
-                            direction: Some("backward".to_string()),
-                            search_depth: Some(0),
-                            meeting_point: None,
-                        };
+                if let Ok(Some(node)) = self_clone.base.get_node(&policy_response.node_id).await
+                    && let Ok(policy_node) = self_clone.inner_strategy.thought_to_policy(node).await
+                {
+                    let mut bi_node = BidirectionalPolicyNode {
+                        base: policy_node,
+                        g: 0.0,
+                        h: 0.0,
+                        f: 0.0,
+                        parent: None,
+                        direction: Some("backward".to_string()),
+                        search_depth: Some(0),
+                        meeting_point: None,
+                    };
 
-                        // Calculate h and f
-                        bi_node.h = 1.0 - bi_node.base.value_estimate;
-                        bi_node.f = bi_node.g + bi_node.h;
+                    // Calculate h and f
+                    bi_node.h = 1.0 - bi_node.base.value_estimate;
+                    bi_node.f = bi_node.g + bi_node.h;
 
-                        let mut goal_node = self_clone.goal_node.lock().await;
-                        *goal_node = Some(bi_node);
-                    }
+                    let mut goal_node = self_clone.goal_node.lock().await;
+                    *goal_node = Some(bi_node);
                 }
             }
 
@@ -607,10 +601,10 @@ impl Strategy for MCTS002AltAlphaStrategy {
                 let start_node = self_clone.start_node.lock().await;
                 let goal_node = self_clone.goal_node.lock().await;
 
-                if let (Some(start), Some(goal)) = (start_node.clone(), goal_node.clone()) {
-                    if let Ok(found_path) = self_clone.bidirectional_search(start, goal).await {
-                        path = found_path;
-                    }
+                if let (Some(start), Some(goal)) = (start_node.clone(), goal_node.clone())
+                    && let Ok(found_path) = self_clone.bidirectional_search(start, goal).await
+                {
+                    path = found_path;
                 }
             }
 
@@ -670,7 +664,7 @@ impl Strategy for MCTS002AltAlphaStrategy {
 
         tokio::spawn(async move {
             let mut inner_metrics_stream = self_clone.inner_strategy.get_metrics();
-            
+
             // Get the metrics from the stream (should be just one item)
             let base_metrics = match inner_metrics_stream.next().await {
                 Some(Ok(metrics)) => metrics,

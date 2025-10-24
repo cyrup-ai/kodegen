@@ -3,11 +3,11 @@
 //! This module performs comprehensive validation to ensure the workspace is ready
 //! for release operations, preventing failures during the release process.
 
-use crate::error::{Result, GitError, PublishError};
+use crate::error::{GitError, PublishError, Result};
 use crate::workspace::SharedWorkspaceInfo;
 use gix::bstr::ByteSlice;
 use kodegen_tools_git;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use tokio::process::Command as AsyncCommand;
 
@@ -49,8 +49,7 @@ pub struct ValidationCheck {
 impl WorkspaceValidator {
     /// Create a new workspace validator
     pub fn new(workspace: SharedWorkspaceInfo) -> Result<Self> {
-        let repository = gix::discover(&workspace.root)
-            .map_err(|_| GitError::NotRepository)?;
+        let repository = gix::discover(&workspace.root).map_err(|_| GitError::NotRepository)?;
 
         Ok(Self {
             workspace,
@@ -65,22 +64,28 @@ impl WorkspaceValidator {
         let mut warnings = Vec::new();
 
         // Git repository validation
-        self.validate_git_state(&mut checks, &mut critical_errors).await?;
+        self.validate_git_state(&mut checks, &mut critical_errors)
+            .await?;
 
         // Version consistency validation
-        self.validate_version_consistency(&mut checks, &mut critical_errors, &mut warnings).await?;
+        self.validate_version_consistency(&mut checks, &mut critical_errors, &mut warnings)
+            .await?;
 
         // Build validation
-        self.validate_builds(&mut checks, &mut critical_errors, &mut warnings).await?;
+        self.validate_builds(&mut checks, &mut critical_errors, &mut warnings)
+            .await?;
 
         // Credentials validation
-        self.validate_credentials(&mut checks, &mut warnings).await?;
+        self.validate_credentials(&mut checks, &mut warnings)
+            .await?;
 
         // Dependency validation
-        self.validate_dependencies(&mut checks, &mut critical_errors, &mut warnings).await?;
+        self.validate_dependencies(&mut checks, &mut critical_errors, &mut warnings)
+            .await?;
 
         // Crates.io validation
-        self.validate_crates_io_readiness(&mut checks, &mut warnings).await?;
+        self.validate_crates_io_readiness(&mut checks, &mut warnings)
+            .await?;
 
         let success = critical_errors.is_empty();
 
@@ -174,20 +179,26 @@ impl WorkspaceValidator {
         let repo_handle = kodegen_tools_git::RepoHandle::new(self.repository.clone());
         kodegen_tools_git::is_clean(&repo_handle)
             .await
-            .map_err(|_| GitError::RemoteOperationFailed {
-                operation: "status check".to_string(),
-                reason: "Channel error".to_string(),
-            }.into())
+            .map_err(|_| {
+                GitError::RemoteOperationFailed {
+                    operation: "status check".to_string(),
+                    reason: "Channel error".to_string(),
+                }
+                .into()
+            })
     }
 
     /// Check if we're on a valid branch
     async fn check_valid_branch(&self) -> Result<String> {
-        let head = self.repository.head()
+        let head = self
+            .repository
+            .head()
             .map_err(|e| GitError::BranchOperationFailed {
                 reason: e.to_string(),
             })?;
 
-        let branch_name = head.referent_name()
+        let branch_name = head
+            .referent_name()
             .and_then(|name| name.shorten().to_str().ok())
             .map(|s| s.to_string())
             .unwrap_or_else(|| "detached HEAD".to_string());
@@ -239,13 +250,14 @@ impl WorkspaceValidator {
                 if let Some(dep_package) = self.workspace.packages.get(dep_name)
                     && let Some(dep_spec) = package_info.all_dependencies.get(dep_name)
                     && let Some(dep_version) = &dep_spec.version
-                    && dep_version != &dep_package.version {
-                        let issue = format!(
-                            "Package '{}' depends on '{}' version '{}' but '{}' is at version '{}'",
-                            package_name, dep_name, dep_version, dep_name, dep_package.version
-                        );
-                        dependency_version_issues.push(issue);
-                    }
+                    && dep_version != &dep_package.version
+                {
+                    let issue = format!(
+                        "Package '{}' depends on '{}' version '{}' but '{}' is at version '{}'",
+                        package_name, dep_name, dep_version, dep_name, dep_package.version
+                    );
+                    dependency_version_issues.push(issue);
+                }
             }
         }
 
@@ -255,19 +267,22 @@ impl WorkspaceValidator {
             checks.push(ValidationCheck {
                 name: "Version Consistency".to_string(),
                 passed: true,
-                message: format!("All packages consistent with workspace version {}", workspace_version),
+                message: format!(
+                    "All packages consistent with workspace version {}",
+                    workspace_version
+                ),
                 critical: true,
                 duration_ms: duration,
             });
         } else {
             let mut message_parts = Vec::new();
             let has_version_mismatches = !version_mismatches.is_empty();
-            
+
             if has_version_mismatches {
                 message_parts.extend(version_mismatches.iter().cloned());
                 critical_errors.extend(version_mismatches);
             }
-            
+
             if !dependency_version_issues.is_empty() {
                 message_parts.extend(dependency_version_issues.iter().cloned());
                 warnings.extend(dependency_version_issues);
@@ -316,7 +331,10 @@ impl WorkspaceValidator {
             let message = if build_warnings.is_empty() {
                 "All packages build successfully".to_string()
             } else {
-                format!("All packages build successfully ({} warnings)", build_warnings.len())
+                format!(
+                    "All packages build successfully ({} warnings)",
+                    build_warnings.len()
+                )
             };
 
             checks.push(ValidationCheck {
@@ -349,7 +367,7 @@ impl WorkspaceValidator {
         eprintln!("🔍 Validating workspace build:");
         eprintln!("   Working directory: {}", self.workspace.root.display());
         eprintln!("   Command: cargo check --workspace --all-targets");
-        
+
         let mut cmd = AsyncCommand::new("cargo");
         cmd.arg("check")
             .arg("--workspace")
@@ -358,7 +376,9 @@ impl WorkspaceValidator {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let output = cmd.output().await
+        let output = cmd
+            .output()
+            .await
             .map_err(|e| PublishError::PublishFailed {
                 package: "workspace".to_string(),
                 reason: format!("Failed to execute cargo check: {}", e),
@@ -369,7 +389,10 @@ impl WorkspaceValidator {
             if stderr.contains("warning:") {
                 // Count warnings
                 let warning_count = stderr.matches("warning:").count();
-                Ok(BuildResult::Warning(format!("{} warning(s) found", warning_count)))
+                Ok(BuildResult::Warning(format!(
+                    "{} warning(s) found",
+                    warning_count
+                )))
             } else {
                 Ok(BuildResult::Success)
             }
@@ -378,7 +401,8 @@ impl WorkspaceValidator {
             Err(PublishError::DryRunFailed {
                 package: "workspace".to_string(),
                 reason: stderr.to_string(),
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -437,13 +461,16 @@ impl WorkspaceValidator {
 
         // Try to get current login status by attempting a dry run operation
         let mut whoami_cmd = AsyncCommand::new("cargo");
-        whoami_cmd.arg("owner")
+        whoami_cmd
+            .arg("owner")
             .arg("--list")
             .arg("nonexistent-crate-name-12345")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let output = whoami_cmd.output().await
+        let output = whoami_cmd
+            .output()
+            .await
             .map_err(|_| PublishError::AuthenticationError)?;
 
         // If we get an authentication error, we're not logged in
@@ -475,12 +502,14 @@ impl WorkspaceValidator {
 
                 // Check for version specification in published dependencies
                 if let Some(dep_spec) = package_info.all_dependencies.get(dep_name)
-                    && dep_spec.version.is_none() && dep_spec.path.is_some() {
-                        version_conflicts.push(format!(
-                            "Package '{}' dependency on '{}' lacks version (needed for crates.io)",
-                            package_name, dep_name
-                        ));
-                    }
+                    && dep_spec.version.is_none()
+                    && dep_spec.path.is_some()
+                {
+                    version_conflicts.push(format!(
+                        "Package '{}' dependency on '{}' lacks version (needed for crates.io)",
+                        package_name, dep_name
+                    ));
+                }
             }
         }
 
@@ -621,7 +650,9 @@ impl ValidationResult {
             } else {
                 format!(
                     "✅ {}/{} checks passed ({} warnings)",
-                    passed_checks, total_checks, self.warnings.len()
+                    passed_checks,
+                    total_checks,
+                    self.warnings.len()
                 )
             }
         } else {
@@ -648,7 +679,7 @@ impl ValidationCheck {
     pub fn format_result(&self) -> String {
         let status = if self.passed { "✅" } else { "❌" };
         let criticality = if self.critical { " [CRITICAL]" } else { "" };
-        
+
         format!(
             "{} {} ({}ms){}: {}",
             status, self.name, self.duration_ms, criticality, self.message

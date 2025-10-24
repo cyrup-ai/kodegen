@@ -31,7 +31,7 @@ pub struct TaggedValue {
 }
 
 impl TaggedValue {
-    #[must_use] 
+    #[must_use]
     pub const fn new(tag: Tag, value: Value) -> Self {
         Self { tag, value }
     }
@@ -65,7 +65,7 @@ pub mod sequence {
     use super::Value;
 
     /// Create a sequence from a Vec (for test compatibility)
-    #[must_use] 
+    #[must_use]
     pub const fn from_vec(vec: Vec<Value>) -> Vec<Value> {
         vec
     }
@@ -150,7 +150,7 @@ impl std::str::FromStr for Number {
 
 impl Number {
     /// Get the number as an f64
-    #[must_use] 
+    #[must_use]
     pub const fn as_f64(&self) -> Option<f64> {
         match self {
             Self::Float(f) => Some(*f),
@@ -159,7 +159,7 @@ impl Number {
     }
 
     /// Get the number as an i64
-    #[must_use] 
+    #[must_use]
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             Self::Integer(i) => Some(*i),
@@ -174,13 +174,13 @@ impl Number {
     }
 
     /// Check if the number is an integer
-    #[must_use] 
+    #[must_use]
     pub const fn is_i64(&self) -> bool {
         matches!(self, Self::Integer(_))
     }
 
     /// Check if the number is a float
-    #[must_use] 
+    #[must_use]
     pub const fn is_f64(&self) -> bool {
         matches!(self, Self::Float(_))
     }
@@ -188,43 +188,43 @@ impl Number {
 
 impl Value {
     /// Check if the value is an f64
-    #[must_use] 
+    #[must_use]
     pub const fn is_f64(&self) -> bool {
         matches!(self, Self::Number(Number::Float(_)))
     }
 
     /// Check if the value is an i64
-    #[must_use] 
+    #[must_use]
     pub const fn is_i64(&self) -> bool {
         matches!(self, Self::Number(Number::Integer(_)))
     }
 
     /// Check if the value is a number
-    #[must_use] 
+    #[must_use]
     pub const fn is_number(&self) -> bool {
         matches!(self, Self::Number(_))
     }
 
     /// Check if the value is a string
-    #[must_use] 
+    #[must_use]
     pub const fn is_string(&self) -> bool {
         matches!(self, Self::String(_))
     }
 
     /// Check if the value is a boolean
-    #[must_use] 
+    #[must_use]
     pub const fn is_bool(&self) -> bool {
         matches!(self, Self::Bool(_))
     }
 
     /// Check if the value is a sequence
-    #[must_use] 
+    #[must_use]
     pub const fn is_sequence(&self) -> bool {
         matches!(self, Self::Sequence(_))
     }
 
     /// Check if the value is a mapping
-    #[must_use] 
+    #[must_use]
     pub const fn is_mapping(&self) -> bool {
         matches!(self, Self::Mapping(_))
     }
@@ -274,7 +274,7 @@ impl Value {
     }
 
     /// Get value as deserializer for serde integration
-    #[must_use] 
+    #[must_use]
     pub const fn into_deserializer(self) -> Deserializer {
         Deserializer::new(self)
     }
@@ -315,13 +315,13 @@ impl Value {
     }
 
     /// Check if the value is null
-    #[must_use] 
+    #[must_use]
     pub const fn is_null(&self) -> bool {
         matches!(self, Self::Null)
     }
 
     /// Get the value as a boolean if it is one
-    #[must_use] 
+    #[must_use]
     pub const fn as_bool(&self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(*b),
@@ -330,7 +330,7 @@ impl Value {
     }
 
     /// Get the value as an i64 if it is an integer
-    #[must_use] 
+    #[must_use]
     pub const fn as_i64(&self) -> Option<i64> {
         match self {
             Self::Number(Number::Integer(i)) => Some(*i),
@@ -339,7 +339,7 @@ impl Value {
     }
 
     /// Get the value as an f64 if it is a float
-    #[must_use] 
+    #[must_use]
     pub const fn as_f64(&self) -> Option<f64> {
         match self {
             Self::Number(Number::Float(f)) => Some(*f),
@@ -349,7 +349,7 @@ impl Value {
     }
 
     /// Get the value as a string if it is one
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::String(s) => Some(s),
@@ -358,7 +358,7 @@ impl Value {
     }
 
     /// Get the value as a sequence if it is one
-    #[must_use] 
+    #[must_use]
     pub const fn as_sequence(&self) -> Option<&Sequence> {
         match self {
             Self::Sequence(seq) => Some(seq),
@@ -367,7 +367,7 @@ impl Value {
     }
 
     /// Get the value as a mapping if it is one
-    #[must_use] 
+    #[must_use]
     pub const fn as_mapping(&self) -> Option<&Mapping> {
         match self {
             Self::Mapping(map) => Some(map),
@@ -595,7 +595,7 @@ pub struct DocumentIterator {
 
 impl DocumentIterator {
     /// Create new iterator from parsed documents
-    #[must_use] 
+    #[must_use]
     pub const fn new(docs: Vec<crate::yaml::Yaml>) -> Self {
         Self { docs, index: 0 }
     }
@@ -667,14 +667,14 @@ impl Index<&str> for Value {
 
 impl Deserializer {
     /// Create a new deserializer from a Value
-    #[must_use] 
+    #[must_use]
     pub const fn new(value: Value) -> Self {
         Self { value }
     }
 
     /// Parse a YAML string and return a high-performance document iterator
     /// This matches the expected test API: deserializer.next() -> Option<Result<Deserializer, Error>>
-    #[must_use] 
+    #[must_use]
     pub fn parse_str(s: &str) -> DocumentIterator {
         use crate::parser::YamlLoader;
         match YamlLoader::load_from_str(s) {
@@ -684,7 +684,7 @@ impl Deserializer {
     }
 
     /// Add into_deserializer method for serde compatibility
-    #[must_use] 
+    #[must_use]
     pub const fn into_deserializer(self) -> Self {
         self
     }
@@ -697,7 +697,7 @@ pub struct DeserializerIter {
 }
 
 impl DeserializerIter {
-    #[must_use] 
+    #[must_use]
     pub const fn new(docs: Vec<crate::yaml::Yaml>) -> Self {
         Self { docs, index: 0 }
     }

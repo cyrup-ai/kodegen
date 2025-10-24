@@ -27,9 +27,7 @@ use std::sync::OnceLock;
 /// # Returns
 ///
 /// * `(native, containerized)` - Tuple of (platforms to build locally, platforms to build in Docker)
-pub fn split_platforms_by_host(
-    platforms: &[PackageType],
-) -> (Vec<PackageType>, Vec<PackageType>) {
+pub fn split_platforms_by_host(platforms: &[PackageType]) -> (Vec<PackageType>, Vec<PackageType>) {
     let mut native = Vec::new();
     let mut containerized = Vec::new();
 
@@ -67,7 +65,7 @@ fn has_wine() -> bool {
     /// This static is initialized once on first access and reused thereafter,
     /// avoiding repeated process spawns for `wine --version` checks.
     static WINE_AVAILABLE: OnceLock<bool> = OnceLock::new();
-    
+
     *WINE_AVAILABLE.get_or_init(|| {
         use std::process::Stdio;
         std::process::Command::new("wine")
@@ -105,21 +103,21 @@ fn has_wine() -> bool {
 /// - `false` - Platform requires Docker container
 fn is_native_platform(platform: PackageType) -> bool {
     use PackageType::*;
-    
+
     match (std::env::consts::OS, platform) {
         // macOS native packages (cannot be built in Linux containers)
         ("macos", MacOsBundle | Dmg) => true,
-        
+
         // Linux native packages
         ("linux", Deb | Rpm | AppImage) => true,
-        
+
         // Linux with Wine can build Windows packages
         // Runtime check ensures Wine is actually installed
         ("linux", Nsis | WindowsMsi) => has_wine(),
-        
+
         // Windows native packages
         ("windows", Nsis | WindowsMsi) => true,
-        
+
         // Everything else needs Docker
         _ => false,
     }

@@ -3,7 +3,7 @@
 //! This module contains the constructor and public API methods for `ClaudeSDKClient`.
 
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::control::ProtocolHandler;
 use crate::error::{ClaudeError, Result};
@@ -30,15 +30,18 @@ impl super::ClaudeSDKClient {
         cli_path: Option<std::path::PathBuf>,
     ) -> Result<super::ClaudeSDKClient> {
         // Initialize hook manager if hooks are configured
-        let (hook_manager, hook_rx) = options.hooks.as_ref().map_or_else(|| (None, Some(mpsc::unbounded_channel().1)), |hooks_config| {
-            let mut manager = HookManager::new();
-            for matchers in hooks_config.values() {
-                for matcher in matchers {
-                    manager.register(matcher.clone());
+        let (hook_manager, hook_rx) = options.hooks.as_ref().map_or_else(
+            || (None, Some(mpsc::unbounded_channel().1)),
+            |hooks_config| {
+                let mut manager = HookManager::new();
+                for matchers in hooks_config.values() {
+                    for matcher in matchers {
+                        manager.register(matcher.clone());
+                    }
                 }
-            }
-            (Some(Arc::new(Mutex::new(manager))), None)
-        });
+                (Some(Arc::new(Mutex::new(manager))), None)
+            },
+        );
 
         // Initialize permission manager if callback is configured
         let (permission_manager, permission_rx) = if options.can_use_tool.is_some() {
@@ -85,14 +88,24 @@ impl super::ClaudeSDKClient {
         let protocol_clone = protocol.clone();
         let message_tx_clone = message_tx;
         tokio::spawn(async move {
-            super::ClaudeSDKClient::message_reader_task(transport_clone, protocol_clone, message_tx_clone).await;
+            super::ClaudeSDKClient::message_reader_task(
+                transport_clone,
+                protocol_clone,
+                message_tx_clone,
+            )
+            .await;
         });
 
         // Spawn control message writer task
         let transport_clone = transport.clone();
         let protocol_clone = protocol.clone();
         tokio::spawn(async move {
-            super::ClaudeSDKClient::control_writer_task(transport_clone, protocol_clone, control_rx).await;
+            super::ClaudeSDKClient::control_writer_task(
+                transport_clone,
+                protocol_clone,
+                control_rx,
+            )
+            .await;
         });
 
         // Spawn hook handler task if hook manager is configured
@@ -101,7 +114,13 @@ impl super::ClaudeSDKClient {
             let protocol_clone = protocol.clone();
             let control_tx_clone = control_tx.clone();
             tokio::spawn(async move {
-                super::ClaudeSDKClient::hook_handler_task(manager_clone, protocol_clone, hook_rx_internal, control_tx_clone).await;
+                super::ClaudeSDKClient::hook_handler_task(
+                    manager_clone,
+                    protocol_clone,
+                    hook_rx_internal,
+                    control_tx_clone,
+                )
+                .await;
             });
         }
 
@@ -184,7 +203,9 @@ impl super::ClaudeSDKClient {
     /// Take the hook event receiver
     ///
     /// This allows the caller to handle hook events independently
-    pub const fn take_hook_receiver(&mut self) -> Option<mpsc::UnboundedReceiver<(String, HookEvent, serde_json::Value)>> {
+    pub const fn take_hook_receiver(
+        &mut self,
+    ) -> Option<mpsc::UnboundedReceiver<(String, HookEvent, serde_json::Value)>> {
         self.hook_rx.take()
     }
 

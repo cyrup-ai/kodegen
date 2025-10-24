@@ -78,11 +78,11 @@ impl Tool for BrowserNavigateTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
 
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard
-            .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+        let wrapper = browser_guard.as_ref().ok_or_else(|| {
+            McpError::Other(anyhow::anyhow!(
                 "Browser not available. This is an internal error - please report it."
-            )))?;
+            ))
+        })?;
 
         // Close all existing pages to enforce single-page model
         // Prevents non-deterministic page selection in get_current_page()
@@ -96,7 +96,7 @@ impl Tool for BrowserNavigateTool {
         // Create new blank page (now guaranteed to be the ONLY page)
         let page = crate::browser::create_blank_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(e.into()))?;
+            .map_err(McpError::Other)?;
 
         // Navigate to URL
         let timeout = validate_navigation_timeout(args.timeout_ms, 30000)?;
@@ -119,7 +119,8 @@ impl Tool for BrowserNavigateTool {
                      (2) Network connectivity, \
                      (3) URL returns a valid HTTP response. \
                      Error: {}",
-                    args.url, e
+                    args.url,
+                    e
                 ))
             })?;
 
@@ -127,7 +128,7 @@ impl Tool for BrowserNavigateTool {
         if let Some(selector) = &args.wait_for_selector {
             let start = std::time::Instant::now();
             let mut poll_interval = Duration::from_millis(100); // Start with 100ms
-            let max_interval = Duration::from_secs(1);          // Cap at 1 second
+            let max_interval = Duration::from_secs(1); // Cap at 1 second
 
             loop {
                 // Try to find element
@@ -150,7 +151,7 @@ impl Tool for BrowserNavigateTool {
 
                 // Wait with exponential backoff
                 tokio::time::sleep(poll_interval).await;
-                
+
                 // Double the interval, but cap at max_interval
                 poll_interval = (poll_interval * 2).min(max_interval);
             }

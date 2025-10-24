@@ -1,4 +1,4 @@
-use kodegen_simd::utils::{simd_available, align_ptr, align_ptr_mut};
+use kodegen_simd::utils::{align_ptr, align_ptr_mut, simd_available};
 
 #[test]
 fn test_simd_available() {

@@ -43,11 +43,7 @@ pub enum SortDirection {
 /// - `created` timestamp is available on Windows, may be None on some Unix systems
 ///
 /// Results with missing timestamps are sorted to the end (ascending) or beginning (descending)
-pub fn sort_results(
-    results: &mut [SearchResult],
-    sort_by: SortBy,
-    direction: SortDirection,
-) {
+pub fn sort_results(results: &mut [SearchResult], sort_by: SortBy, direction: SortDirection) {
     results.sort_by(|a, b| {
         let ordering = match sort_by {
             SortBy::Path => compare_paths(&a.file, &b.file),
@@ -78,9 +74,9 @@ fn compare_paths(a: &str, b: &str) -> Ordering {
 fn compare_optional_times(a: &Option<SystemTime>, b: &Option<SystemTime>) -> Ordering {
     match (a, b) {
         (Some(a_time), Some(b_time)) => a_time.cmp(b_time),
-        (Some(_), None) => Ordering::Less,     // Has timestamp comes first
-        (None, Some(_)) => Ordering::Greater,  // Missing timestamp goes last
-        (None, None) => Ordering::Equal,       // Both missing, maintain order
+        (Some(_), None) => Ordering::Less, // Has timestamp comes first
+        (None, Some(_)) => Ordering::Greater, // Missing timestamp goes last
+        (None, None) => Ordering::Equal,   // Both missing, maintain order
     }
 }
 
@@ -204,7 +200,11 @@ mod tests {
         let mut results_desc = results_asc.clone();
 
         sort_results(&mut results_asc, SortBy::Modified, SortDirection::Ascending);
-        sort_results(&mut results_desc, SortBy::Modified, SortDirection::Descending);
+        sort_results(
+            &mut results_desc,
+            SortBy::Modified,
+            SortDirection::Descending,
+        );
 
         // Verify reversed order
         assert_eq!(results_asc[0].file, "old.rs");

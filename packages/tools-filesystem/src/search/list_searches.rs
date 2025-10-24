@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::SearchManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -82,9 +82,7 @@ impl Tool for ListSearchesTool {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I see all my running searches?"
-                ),
+                content: PromptMessageContent::text("How do I see all my running searches?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -142,7 +140,7 @@ impl Tool for ListSearchesTool {
                      2. start_search({\\\"pattern\\\": \\\"*.rs\\\", \\\"search_type\\\": \\\"files\\\"}) → search_2\n\
                      3. list_searches() → [{id: search_1, ...}, {id: search_2, ...}]\n\
                      4. get_more_search_results({\\\"session_id\\\": \\\"search_1\\\"}) → Get TODO results\n\
-                     5. stop_search({\\\"session_id\\\": \\\"search_2\\\"}) → Cancel file search if needed"
+                     5. stop_search({\\\"session_id\\\": \\\"search_2\\\"}) → Cancel file search if needed",
                 ),
             },
         ])

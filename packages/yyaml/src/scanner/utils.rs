@@ -121,35 +121,35 @@ pub fn skip_to_next_line<T: Iterator<Item = char>>(
 
 /// Check if character is YAML whitespace - delegates to consolidated API
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn is_whitespace(ch: char) -> bool {
     CharacterProductions::is_white(ch)
 }
 
 /// Check if character is line break - delegates to consolidated API
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn is_line_break(ch: char) -> bool {
     CharacterProductions::is_break(ch)
 }
 
 /// Check if character is blank (whitespace or line break) - delegates to consolidated API
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn is_blank(ch: char) -> bool {
     CharacterProductions::is_blank(ch)
 }
 
 /// Check if character can start a plain scalar - delegates to consolidated API
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn can_start_plain_scalar(ch: char) -> bool {
     CharacterProductions::can_start_plain_scalar(ch)
 }
 
 /// Check if character can continue a plain scalar - enhanced with flow context
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn can_continue_plain_scalar(ch: char, in_flow: bool) -> bool {
     if CharacterProductions::is_blank(ch) {
         return false;
@@ -168,7 +168,7 @@ pub const fn can_continue_plain_scalar(ch: char, in_flow: bool) -> bool {
 
 /// Check if character needs escaping in double-quoted strings
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn needs_escaping_in_double_quoted(ch: char) -> bool {
     matches!(
         ch,
@@ -178,14 +178,14 @@ pub const fn needs_escaping_in_double_quoted(ch: char) -> bool {
 
 /// Check if character is printable YAML character - delegates to consolidated API
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn is_printable(ch: char) -> bool {
     CharacterProductions::is_printable(ch)
 }
 
 /// Check if character is valid YAML identifier character
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn is_yaml_identifier_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-')
 }
@@ -309,7 +309,7 @@ pub fn at_end<T: Iterator<Item = char>>(state: &mut ScannerState<T>) -> bool {
 }
 
 /// Get current position info as string
-#[must_use] 
+#[must_use]
 pub fn position_info(marker: Marker) -> String {
     format!("line {}, column {}", marker.line, marker.col + 1)
 }
@@ -333,7 +333,7 @@ pub fn validate_char_in_set(
 }
 
 /// Normalize line endings to LF
-#[must_use] 
+#[must_use]
 pub fn normalize_line_endings(input: &str) -> String {
     if !input.contains('\r') {
         return input.to_string();
@@ -359,13 +359,13 @@ pub fn normalize_line_endings(input: &str) -> String {
 
 /// Count UTF-8 byte length of string slice
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn byte_length(s: &str) -> usize {
     s.len()
 }
 
 /// Count Unicode grapheme clusters (user-perceived characters)
-#[must_use] 
+#[must_use]
 pub fn grapheme_count(s: &str) -> usize {
     // Simplified grapheme counting - in production would use unicode-segmentation crate
     s.chars().count()
@@ -380,7 +380,7 @@ pub struct StringBuilder {
 impl StringBuilder {
     /// Create new string builder with capacity hint
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: String::with_capacity(capacity),
@@ -402,14 +402,14 @@ impl StringBuilder {
 
     /// Get current length
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.buffer.len()
     }
 
     /// Check if empty
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
@@ -422,14 +422,14 @@ impl StringBuilder {
 
     /// Convert to final string
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn into_string(self) -> String {
         self.buffer
     }
 
     /// Get string slice view
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.buffer
     }

@@ -3,21 +3,21 @@
 //! This module provides comprehensive version management capabilities including
 //! semantic version bumping, workspace synchronization, and TOML editing.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 mod bumper;
 mod toml_editor;
 mod updater;
 
-pub use bumper::{VersionBump, VersionBumper, BumpPreview};
-pub use toml_editor::{TomlEditor, TomlBackup, DependencySection, DependencyInfo};
+pub use bumper::{BumpPreview, VersionBump, VersionBumper};
+pub use toml_editor::{DependencyInfo, DependencySection, TomlBackup, TomlEditor};
 pub use updater::{
-    VersionUpdater, UpdateResult, UpdateConfig, ConsistencyReport, UpdatePreview,
-    VersionInconsistency, InconsistencyType, PackageUpdate, DependencyUpdate, VersionChange,
+    ConsistencyReport, DependencyUpdate, InconsistencyType, PackageUpdate, UpdateConfig,
+    UpdatePreview, UpdateResult, VersionChange, VersionInconsistency, VersionUpdater,
 };
 
 use crate::error::{Result, VersionError};
-use crate::workspace::{WorkspaceInfo, SharedWorkspaceInfo};
+use crate::workspace::{SharedWorkspaceInfo, WorkspaceInfo};
 use semver::Version;
 use std::sync::Arc;
 
@@ -34,19 +34,16 @@ impl VersionManager {
     /// Create a new version manager for the workspace
     pub fn new(workspace: SharedWorkspaceInfo) -> Self {
         let updater = VersionUpdater::new(workspace.clone());
-        
-        Self {
-            workspace,
-            updater,
-        }
+
+        Self { workspace, updater }
     }
 
     /// Perform a complete version release cycle
     pub fn release_version(&mut self, bump: VersionBump) -> Result<ReleaseVersionResult> {
         // Get current workspace version
         let current_version_str = self.workspace.workspace_version()?;
-        let current_version = Version::parse(&current_version_str)
-            .map_err(|e| VersionError::ParseFailed {
+        let current_version =
+            Version::parse(&current_version_str).map_err(|e| VersionError::ParseFailed {
                 version: current_version_str,
                 source: e,
             })?;
@@ -61,8 +58,12 @@ impl VersionManager {
             return Err(VersionError::DependencyMismatch {
                 dependency: "workspace".to_string(),
                 expected: current_version.to_string(),
-                found: format!("{} inconsistencies", consistency_report.inconsistencies.len()),
-            }.into());
+                found: format!(
+                    "{} inconsistencies",
+                    consistency_report.inconsistencies.len()
+                ),
+            }
+            .into());
         }
 
         // Preview the update
@@ -70,7 +71,9 @@ impl VersionManager {
 
         // Perform the update
         let update_config = UpdateConfig::default();
-        let update_result = self.updater.update_workspace_version(&new_version, update_config)?;
+        let update_result = self
+            .updater
+            .update_workspace_version(&new_version, update_config)?;
 
         // Note: Backups are not cleared here to allow caller to extract them for state storage
         // Caller should call clear_backups() after saving backups to state
@@ -93,8 +96,8 @@ impl VersionManager {
     /// Preview version bump without making changes
     pub fn preview_bump(&self, bump: VersionBump) -> Result<BumpPreviewResult> {
         let current_version_str = self.workspace.workspace_version()?;
-        let current_version = Version::parse(&current_version_str)
-            .map_err(|e| VersionError::ParseFailed {
+        let current_version =
+            Version::parse(&current_version_str).map_err(|e| VersionError::ParseFailed {
                 version: current_version_str,
                 source: e,
             })?;
@@ -119,11 +122,13 @@ impl VersionManager {
     /// Get current workspace version
     pub fn current_version(&self) -> Result<Version> {
         let version_str = self.workspace.workspace_version()?;
-        Version::parse(&version_str)
-            .map_err(|e| VersionError::ParseFailed {
+        Version::parse(&version_str).map_err(|e| {
+            VersionError::ParseFailed {
                 version: version_str,
                 source: e,
-            }.into())
+            }
+            .into()
+        })
     }
 
     /// Check if workspace uses version inheritance
@@ -133,7 +138,7 @@ impl VersionManager {
 
         for (package_name, package_info) in &self.workspace.packages {
             let editor = TomlEditor::open(&package_info.cargo_toml_path)?;
-            
+
             if editor.uses_workspace_version() {
                 packages_using_inheritance.push(package_name.clone());
             } else {
@@ -156,7 +161,9 @@ impl VersionManager {
             preserve_workspace_inheritance: false, // Force synchronization
         };
 
-        let result = self.updater.update_workspace_version(&current_version, update_config)?;
+        let result = self
+            .updater
+            .update_workspace_version(&current_version, update_config)?;
         self.updater.clear_backups();
         Ok(result)
     }
@@ -169,7 +176,9 @@ impl VersionManager {
             preserve_workspace_inheritance: true,
         };
 
-        let result = self.updater.update_workspace_version(&current_version, update_config)?;
+        let result = self
+            .updater
+            .update_workspace_version(&current_version, update_config)?;
         self.updater.clear_backups();
         Ok(result)
     }
@@ -244,13 +253,25 @@ impl ReleaseVersionResult {
 
     /// Format detailed report
     pub fn format_report(&self) -> String {
-        let mut report = format!("🚀 Version Release: {} → {}\n", self.previous_version, self.new_version);
+        let mut report = format!(
+            "🚀 Version Release: {} → {}\n",
+            self.previous_version, self.new_version
+        );
         report.push_str(&format!("Bump Type: {}\n\n", self.bump_type));
-        
+
         report.push_str("📊 Changes Summary:\n");
-        report.push_str(&format!("  - Packages updated: {}\n", self.update_result.packages_updated));
-        report.push_str(&format!("  - Dependencies updated: {}\n", self.update_result.dependencies_updated));
-        report.push_str(&format!("  - Files modified: {}\n\n", self.update_result.modified_files.len()));
+        report.push_str(&format!(
+            "  - Packages updated: {}\n",
+            self.update_result.packages_updated
+        ));
+        report.push_str(&format!(
+            "  - Dependencies updated: {}\n",
+            self.update_result.dependencies_updated
+        ));
+        report.push_str(&format!(
+            "  - Files modified: {}\n\n",
+            self.update_result.modified_files.len()
+        ));
 
         if !self.update_result.modified_files.is_empty() {
             report.push_str("📝 Modified Files:\n");
@@ -271,10 +292,10 @@ impl BumpPreviewResult {
     /// Format preview for display
     pub fn format_preview(&self) -> String {
         let mut preview = format!("🔍 Version Bump Preview ({})\n\n", self.bump_type);
-        
+
         preview.push_str("📈 Version Options:\n");
         preview.push_str(&format!("  {}\n\n", self.bump_preview.format_preview()));
-        
+
         preview.push_str("📋 Workspace Changes:\n");
         preview.push_str(&format!("  {}\n", self.update_preview.format_preview()));
 

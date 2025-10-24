@@ -2,7 +2,10 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::pulls::{Review, ReviewAction, ReviewComment}, Octocrab};
+use octocrab::{
+    Octocrab,
+    models::pulls::{Review, ReviewAction, ReviewComment},
+};
 use std::sync::Arc;
 
 /// Options for creating a pull request review.
@@ -20,7 +23,7 @@ pub struct CreatePullRequestReviewOptions {
 
 impl CreatePullRequestReviewOptions {
     /// Create options with the specified review action.
-    #[must_use] 
+    #[must_use]
     pub fn new(event: ReviewAction) -> Self {
         Self {
             event,

@@ -36,13 +36,9 @@ impl ScanError {
 impl fmt::Display for ScanError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Parsing(mark, info) => write!(
-                f,
-                "{} at line {} col {}",
-                info,
-                mark.line,
-                mark.col + 1
-            ),
+            Self::Parsing(mark, info) => {
+                write!(f, "{} at line {} col {}", info, mark.line, mark.col + 1)
+            }
             Self::EncodingError(msg) => write!(f, "Encoding error: {}", msg),
         }
     }

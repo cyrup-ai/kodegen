@@ -1,25 +1,25 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use super::manager::PromptManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GetPromptArgs {
     /// Action to perform
     pub action: GetPromptAction,
-    
+
     /// Prompt name (for get/render actions)
     #[serde(default)]
     pub name: Option<String>,
-    
+
     /// Category filter (for `list_prompts` action)
     #[serde(default)]
     pub category: Option<String>,
-    
+
     /// Parameters for rendering (for render action)
     #[serde(default)]
     pub parameters: Option<HashMap<String, serde_json::Value>>,
@@ -141,7 +141,7 @@ impl Tool for GetPromptTool {
                        \"name\": \"analyze_project\",\n\
                        \"parameters\": {\"project_path\": \"/my/project\"}\n\
                      })\n\
-                     ```"
+                     ```",
                 ),
             },
         ])
@@ -150,10 +150,8 @@ impl Tool for GetPromptTool {
 
 impl GetPromptTool {
     async fn list_categories(&self) -> Result<Value, McpError> {
-        let prompts = self.manager.list_prompts()
-            .await
-            .map_err(McpError::Other)?;
-        
+        let prompts = self.manager.list_prompts().await.map_err(McpError::Other)?;
+
         // Group by category and count
         let mut category_map: HashMap<String, usize> = HashMap::new();
         for prompt in prompts {
@@ -161,51 +159,55 @@ impl GetPromptTool {
                 *category_map.entry(cat).or_insert(0) += 1;
             }
         }
-        
-        let categories: Vec<_> = category_map.into_iter()
+
+        let categories: Vec<_> = category_map
+            .into_iter()
             .map(|(name, count)| json!({"name": name, "count": count}))
             .collect();
-        
+
         Ok(json!({
             "categories": categories,
             "total": categories.len()
         }))
     }
-    
+
     async fn list_prompts(&self, category: Option<&str>) -> Result<Value, McpError> {
-        let mut prompts = self.manager.list_prompts()
-            .await
-            .map_err(McpError::Other)?;
-        
+        let mut prompts = self.manager.list_prompts().await.map_err(McpError::Other)?;
+
         // Filter by category if specified
         if let Some(cat) = category {
             prompts.retain(|p| p.metadata.categories.contains(&cat.to_string()));
         }
-        
-        let prompts_json: Vec<_> = prompts.iter()
-            .map(|p| json!({
-                "name": p.filename,
-                "title": p.metadata.title,
-                "description": p.metadata.description,
-                "categories": p.metadata.categories,
-                "author": p.metadata.author,
-                "verified": p.metadata.verified,
-                "parameters": p.metadata.parameters,
-            }))
+
+        let prompts_json: Vec<_> = prompts
+            .iter()
+            .map(|p| {
+                json!({
+                    "name": p.filename,
+                    "title": p.metadata.title,
+                    "description": p.metadata.description,
+                    "categories": p.metadata.categories,
+                    "author": p.metadata.author,
+                    "verified": p.metadata.verified,
+                    "parameters": p.metadata.parameters,
+                })
+            })
             .collect();
-        
+
         Ok(json!({
             "prompts": prompts_json,
             "count": prompts_json.len(),
             "category": category
         }))
     }
-    
+
     async fn get_prompt(&self, name: &str) -> Result<Value, McpError> {
-        let template = self.manager.load_prompt(name)
+        let template = self
+            .manager
+            .load_prompt(name)
             .await
             .map_err(McpError::Other)?;
-        
+
         Ok(json!({
             "name": name,
             "metadata": template.metadata,
@@ -213,16 +215,18 @@ impl GetPromptTool {
             "rendered": false
         }))
     }
-    
+
     async fn render_prompt(
         &self,
         name: &str,
         parameters: Option<HashMap<String, serde_json::Value>>,
     ) -> Result<Value, McpError> {
-        let rendered = self.manager.render_prompt(name, parameters)
+        let rendered = self
+            .manager
+            .render_prompt(name, parameters)
             .await
             .map_err(McpError::Other)?;
-        
+
         Ok(json!({
             "name": name,
             "content": rendered,

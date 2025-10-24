@@ -3,16 +3,14 @@
 //! This module provides the visitor and builder for searching file contents
 //! using regex patterns with the `grep` and `ignore` crates.
 
-use super::super::types::{SearchResult, SearchError, SearchOutputMode};
+use super::super::types::{SearchError, SearchOutputMode, SearchResult};
 use super::config::{
-    MAX_DETAILED_ERRORS, 
-    RESULT_BUFFER_SIZE, 
-    LAST_READ_UPDATE_INTERVAL_MS, 
-    LAST_READ_UPDATE_MATCH_THRESHOLD
+    LAST_READ_UPDATE_INTERVAL_MS, LAST_READ_UPDATE_MATCH_THRESHOLD, MAX_DETAILED_ERRORS,
+    RESULT_BUFFER_SIZE,
 };
 use crate::search::rg::PatternMatcher;
-use ignore::{ParallelVisitor, ParallelVisitorBuilder, DirEntry, WalkBuilder};
-use std::collections::{HashSet, HashMap};
+use ignore::{DirEntry, ParallelVisitor, ParallelVisitorBuilder, WalkBuilder};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
@@ -20,11 +18,11 @@ use tokio::sync::{RwLock, watch};
 
 /// Convert MCP API `EngineChoice` to ripgrep's internal `EngineChoice`
 fn convert_engine_choice(
-    engine: crate::search::types::EngineChoice
+    engine: crate::search::types::EngineChoice,
 ) -> crate::search::rg::flags::lowargs::EngineChoice {
-    use crate::search::types::EngineChoice as MCP;
     use crate::search::rg::flags::lowargs::EngineChoice as RG;
-    
+    use crate::search::types::EngineChoice as MCP;
+
     match engine {
         MCP::Auto => RG::Auto,
         MCP::Rust => RG::Default,
@@ -49,7 +47,7 @@ pub(super) struct ContentSearchBuilder {
     pub(super) errors: Arc<RwLock<Vec<SearchError>>>,
     // Deduplication for FilesOnly mode
     pub(super) seen_files: Arc<RwLock<HashSet<String>>>,
-    // Aggregation for CountPerFile mode  
+    // Aggregation for CountPerFile mode
     pub(super) file_counts: Arc<RwLock<HashMap<String, super::super::types::FileCountData>>>,
     pub(super) start_time: Instant,
 }
@@ -156,21 +154,25 @@ impl ContentSearchVisitor {
     fn track_error(&self, error: &ignore::Error) {
         // Increment atomic counter (lock-free)
         self.error_count.fetch_add(1, Ordering::SeqCst);
-        
+
         // Log at debug level
         log::debug!("Search error: {error}");
-        
+
         // Check if we should store BEFORE allocating
         let should_store = {
             let errors = self.errors.blocking_read();
             errors.len() < MAX_DETAILED_ERRORS
         };
-        
+
         if should_store {
             // Only allocate if we're going to use it
             let error_str = error.to_string();
-            let path_str = error_str.split(':').next().unwrap_or("<unknown>").to_string();
-            
+            let path_str = error_str
+                .split(':')
+                .next()
+                .unwrap_or("<unknown>")
+                .to_string();
+
             let mut errors = self.errors.blocking_write();
             // Double-check in case another thread added while we were allocating
             if errors.len() < MAX_DETAILED_ERRORS {
@@ -182,7 +184,7 @@ impl ContentSearchVisitor {
             }
         }
     }
-    
+
     /// Categorize `ignore::Error` for user-friendly display
     fn categorize_ignore_error(error: &ignore::Error) -> String {
         let err_str = error.to_string().to_lowercase();
@@ -196,75 +198,78 @@ impl ContentSearchVisitor {
             "unknown".to_string()
         }
     }
-    
+
     /// Flush buffered results to shared storage
-    /// 
+    ///
     /// Acquires write lock ONCE for entire buffer batch.
     /// This is the core optimization: batch writes reduce lock contention.
     fn flush_buffer(&mut self) {
         if self.buffer.is_empty() {
             return;
         }
-        
+
         // Check if this is the first batch of results
         let was_empty = self.results.blocking_read().is_empty();
-        
+
         // Single lock acquisition for entire buffer
         {
             let mut results_guard = self.results.blocking_write();
             results_guard.extend(self.buffer.drain(..));
         }
-        
+
         // Signal first result if this was the first batch
         if was_empty {
             let _ = self.first_result_tx.send(true);
         }
-        
+
         // Update last read time once per flush
         {
             let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-            self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+            self.last_read_time_atomic
+                .store(elapsed_micros, Ordering::Relaxed);
         }
     }
-    
+
     /// Add result to thread-local buffer, flush if full
-    /// 
+    ///
     /// This replaces direct `results.push()` calls to avoid per-match locking.
     fn add_result(&mut self, result: SearchResult) {
         self.buffer.push(result);
-        
+
         // Flush when buffer reaches capacity
         if self.buffer.len() >= RESULT_BUFFER_SIZE {
             self.flush_buffer();
         }
     }
-    
+
     /// Update `last_read_time` if throttle threshold exceeded
-    /// 
+    ///
     /// Prevents excessive atomic stores by updating only every N matches or T milliseconds.
     fn maybe_update_last_read_time(&mut self) {
         self.matches_since_update += 1;
-        
+
         let now = Instant::now();
         let time_since_update = now.duration_since(self.last_update_time);
-        
+
         // Update if time threshold OR match count threshold exceeded
         let should_update = time_since_update.as_millis() as u64 >= LAST_READ_UPDATE_INTERVAL_MS
             || self.matches_since_update >= LAST_READ_UPDATE_MATCH_THRESHOLD;
-        
+
         if should_update {
             let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-            self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+            self.last_read_time_atomic
+                .store(elapsed_micros, Ordering::Relaxed);
             self.last_update_time = now;
             self.matches_since_update = 0;
         }
     }
-    
+
     /// Force update `last_read_time` (used in Drop)
     fn force_update_last_read_time(&mut self) {
         let now = Instant::now();
         let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-        self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+        self.last_read_time_atomic
+            .store(elapsed_micros, Ordering::Relaxed);
         self.last_update_time = now;
         self.matches_since_update = 0;
     }
@@ -294,7 +299,7 @@ impl ParallelVisitor for ContentSearchVisitor {
                     self.total_matches.load(Ordering::SeqCst)
                 }
             };
-            
+
             if current_count >= max {
                 return ignore::WalkState::Quit;
             }
@@ -372,7 +377,7 @@ impl ParallelVisitor for ContentSearchVisitor {
                                             } else {
                                                 Some(current + 1)
                                             }
-                                        }
+                                        },
                                     ) {
                                         Ok(_) => {
                                             // Use buffered approach for better performance
@@ -385,7 +390,7 @@ impl ParallelVisitor for ContentSearchVisitor {
                                         }
                                     }
                                 }
-                                
+
                                 SearchOutputMode::FilesOnly => {
                                     // FilesOnly mode: Deduplicate BEFORE reserving
                                     let mut seen = self.seen_files.blocking_write();
@@ -404,13 +409,13 @@ impl ParallelVisitor for ContentSearchVisitor {
                                                 } else {
                                                     Some(current + 1)
                                                 }
-                                            }
+                                            },
                                         ) {
                                             Ok(_) => {
                                                 // Reserved successfully - mark as seen
                                                 seen.insert(result.file.clone());
-                                                drop(seen);  // Release lock before next operation
-                                                
+                                                drop(seen); // Release lock before next operation
+
                                                 // Add deduplicated result
                                                 let file_result = SearchResult {
                                                     file: result.file,
@@ -436,18 +441,18 @@ impl ParallelVisitor for ContentSearchVisitor {
                                     }
                                     // else: already seen this file, skip entirely
                                 }
-                                
+
                                 SearchOutputMode::CountPerFile => {
                                     // CountPerFile mode: Use total_files for limiting
                                     // DO NOT touch total_matches during search
                                     // (finalization at line 604 will set total_matches = total_files)
-                                    
+
                                     // Check if this is a new file (read-only check)
                                     let is_new_file = {
                                         let counts = self.file_counts.blocking_read();
                                         !counts.contains_key(&result.file)
                                     };
-                                    
+
                                     if is_new_file {
                                         // New file - atomically reserve a slot in total_files
                                         match self.total_files.fetch_update(
@@ -456,28 +461,33 @@ impl ParallelVisitor for ContentSearchVisitor {
                                             |current| {
                                                 if let Some(max) = self.max_results {
                                                     if current < max {
-                                                        Some(current + 1)  // Reserve slot for this file
+                                                        Some(current + 1) // Reserve slot for this file
                                                     } else {
-                                                        None  // Hit limit - reject
+                                                        None // Hit limit - reject
                                                     }
                                                 } else {
-                                                    Some(current + 1)  // No limit
+                                                    Some(current + 1) // No limit
                                                 }
-                                            }
+                                            },
                                         ) {
                                             Ok(_) => {
                                                 // Successfully reserved - add to HashMap
                                                 let mut counts = self.file_counts.blocking_write();
-                                                counts.entry(result.file.clone())
+                                                counts
+                                                    .entry(result.file.clone())
                                                     .and_modify(|data| data.count += 1)
-                                                    .or_insert(super::super::types::FileCountData {
-                                                        count: 1,
-                                                        modified: result.modified,
-                                                        accessed: result.accessed,
-                                                        created: result.created,
-                                                    });
-                                                let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-                                                self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+                                                    .or_insert(
+                                                        super::super::types::FileCountData {
+                                                            count: 1,
+                                                            modified: result.modified,
+                                                            accessed: result.accessed,
+                                                            created: result.created,
+                                                        },
+                                                    );
+                                                let elapsed_micros =
+                                                    self.start_time.elapsed().as_micros() as u64;
+                                                self.last_read_time_atomic
+                                                    .store(elapsed_micros, Ordering::Relaxed);
                                             }
                                             Err(_) => {
                                                 // Hit file limit - stop search immediately
@@ -489,15 +499,21 @@ impl ParallelVisitor for ContentSearchVisitor {
                                         let mut counts = self.file_counts.blocking_write();
                                         if let Some(data) = counts.get_mut(&result.file) {
                                             data.count += 1;
-                                            let elapsed_micros = self.start_time.elapsed().as_micros() as u64;
-                                            self.last_read_time_atomic.store(elapsed_micros, Ordering::Relaxed);
+                                            let elapsed_micros =
+                                                self.start_time.elapsed().as_micros() as u64;
+                                            self.last_read_time_atomic
+                                                .store(elapsed_micros, Ordering::Relaxed);
                                         }
                                     }
                                 }
                             }
                         }
                     } else if let Err(e) = results_parsed {
-                        log::error!("JSON parsing error for {}: {}", haystack.path().display(), e);
+                        log::error!(
+                            "JSON parsing error for {}: {}",
+                            haystack.path().display(),
+                            e
+                        );
                     }
                 }
                 Err(e) => {
@@ -515,7 +531,7 @@ impl Drop for ContentSearchVisitor {
         // CRITICAL: Flush any remaining buffered results
         // Without this, the last batch of results would be lost!
         self.flush_buffer();
-        
+
         // Ensure final last_read_time update
         self.force_update_last_read_time();
     }
@@ -543,7 +559,7 @@ impl ParallelVisitor for ErrorVisitor {
             });
             *self.was_incomplete.blocking_write() = true;
         }
-        
+
         // Immediately quit to prevent further thread spawning
         ignore::WalkState::Quit
     }
@@ -555,13 +571,12 @@ pub(super) fn execute(
     root: &std::path::PathBuf,
     ctx: &mut super::context::SearchContext,
 ) {
-
     // Build LowArgs from SearchSessionOptions
-    use super::super::rg::flags::lowargs::{
-        LowArgs, SearchMode, Mode, PatternSource,
-        BoundaryMode as RgBoundaryMode, ContextMode, BinaryMode as RgBinaryMode, EncodingMode
-    };
     use super::super::rg::flags::hiargs::HiArgs;
+    use super::super::rg::flags::lowargs::{
+        BinaryMode as RgBinaryMode, BoundaryMode as RgBoundaryMode, ContextMode, EncodingMode,
+        LowArgs, Mode, PatternSource, SearchMode,
+    };
     use super::super::types::{BinaryMode, BoundaryMode};
     use super::utils::{build_type_changes, convert_case_mode};
 
@@ -588,27 +603,28 @@ pub(super) fn execute(
     // Map MCP BinaryMode to ripgrep's internal BinaryMode
     // Matches ripgrep's --binary and -a/--text flags
     let binary_mode = match options.binary_mode {
-        BinaryMode::Auto => RgBinaryMode::Auto,           // Default: skip binaries
-        BinaryMode::Binary => RgBinaryMode::SearchAndSuppress,  // --binary: search but suppress
-        BinaryMode::Text => RgBinaryMode::AsText,         // -a/--text: treat as text
+        BinaryMode::Auto => RgBinaryMode::Auto, // Default: skip binaries
+        BinaryMode::Binary => RgBinaryMode::SearchAndSuppress, // --binary: search but suppress
+        BinaryMode::Text => RgBinaryMode::AsText, // -a/--text: treat as text
     };
 
     // Convert encoding string to EncodingMode for rg
     let encoding_mode = match options.encoding.as_deref() {
         None | Some("auto") => EncodingMode::Auto,
         Some("none") => EncodingMode::Disabled,
-        Some(enc_str) => {
-            match grep::searcher::Encoding::new(enc_str) {
-                Ok(enc) => EncodingMode::Some(enc),
-                Err(e) => {
-                    log::warn!("Invalid encoding '{enc_str}': {e}, using auto");
-                    EncodingMode::Auto
-                }
+        Some(enc_str) => match grep::searcher::Encoding::new(enc_str) {
+            Ok(enc) => EncodingMode::Some(enc),
+            Err(e) => {
+                log::warn!("Invalid encoding '{enc_str}': {e}, using auto");
+                EncodingMode::Auto
             }
-        }
+        },
     };
 
-    log::debug!("content_search: case_mode from options = {:?}", options.case_mode);
+    log::debug!(
+        "content_search: case_mode from options = {:?}",
+        options.case_mode
+    );
     let mut low_args = LowArgs {
         patterns: vec![PatternSource::Regexp(options.pattern.clone())],
         positional: vec![root.as_os_str().to_owned()],
@@ -620,7 +636,7 @@ pub(super) fn execute(
         fixed_strings: options.literal_search,
         context,
         max_count: if ctx.output_mode == SearchOutputMode::FilesOnly {
-            Some(1)  // Limit to 1 match per file for FilesOnly mode (optimization)
+            Some(1) // Limit to 1 match per file for FilesOnly mode (optimization)
         } else {
             options.max_results.map(u64::from)
         },
@@ -723,16 +739,16 @@ pub(super) fn execute(
     // Finalize CountPerFile mode - convert HashMap counts to SearchResults
     if effective_output_mode == SearchOutputMode::CountPerFile {
         use super::super::types::SearchResultType;
-        
+
         // Phase 1: Build results Vec while holding only read lock on file_counts
         let results_to_add: Vec<SearchResult> = {
             let counts = ctx.file_counts.blocking_read();
             let mut results = Vec::with_capacity(counts.len());
-            
+
             for (file, data) in counts.iter() {
                 results.push(SearchResult {
                     file: file.clone(),
-                    line: Some(data.count as u32),  // Count stored in line field
+                    line: Some(data.count as u32), // Count stored in line field
                     r#match: None,
                     r#type: SearchResultType::Content,
                     is_context: false,
@@ -743,25 +759,26 @@ pub(super) fn execute(
                     created: data.created,
                 });
             }
-            
+
             results
         }; // Read lock on file_counts released here
-        
+
         // Phase 2: Swap into results with brief write lock
         {
             let mut results_guard = ctx.results.blocking_write();
-            
+
             // CountPerFile accumulates in file_counts HashMap, not results vec
             debug_assert!(
                 results_guard.is_empty(),
                 "CountPerFile: results vec should be empty before finalization"
             );
-            
+
             *results_guard = results_to_add;
-            
+
             // Update total_matches to reflect number of unique files with counts
             // In CountPerFile mode, total_matches should reflect unique file count for API consistency
-            ctx.total_matches.store(ctx.total_files.load(Ordering::SeqCst), Ordering::SeqCst);
+            ctx.total_matches
+                .store(ctx.total_files.load(Ordering::SeqCst), Ordering::SeqCst);
         } // Write lock on results released here
     }
 

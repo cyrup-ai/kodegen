@@ -1,6 +1,5 @@
-use std::env;
-
 /// System prompt for browser automation agent
+#[derive(Debug, Clone)]
 pub struct SystemPrompt {
     prompt_template: String,
     task_prefix: String,
@@ -16,30 +15,30 @@ impl SystemPrompt {
             add_info_prefix: "Additional information:".to_string(),
         }
     }
-    
+
     /// Set a  prompt template
     pub fn with_prompt_template(mut self, template: &str) -> Self {
         self.prompt_template = template.to_string();
         self
     }
-    
+
     /// Set a  task prefix
     pub fn with_task_prefix(mut self, prefix: &str) -> Self {
         self.task_prefix = prefix.to_string();
         self
     }
-    
+
     /// Set a  additional information prefix
     pub fn with_add_info_prefix(mut self, prefix: &str) -> Self {
         self.add_info_prefix = prefix.to_string();
         self
     }
-    
+
     /// Build the full system prompt
     pub fn build_prompt(&self) -> String {
         self.prompt_template.clone()
     }
-    
+
     /// Get the default prompt template for browser automation
     fn default_prompt_template() -> String {
         // Protocol-compliant system prompt from docs/browser_automation_mcp.md section 3.1
@@ -151,6 +150,7 @@ impl Default for SystemPrompt {
 }
 
 /// Message prompt for agent communication
+#[derive(Debug, Clone)]
 pub struct AgentMessagePrompt {
     prompt_template: String,
 }
@@ -162,20 +162,49 @@ impl AgentMessagePrompt {
             prompt_template: Self::default_prompt_template(),
         }
     }
-    
+
     /// Set a  prompt template
     pub fn with_prompt_template(mut self, template: &str) -> Self {
         self.prompt_template = template.to_string();
         self
     }
-    
-    /// Build the message prompt
-    pub fn build_message_prompt(&self, browser_state: &str) -> String {
+
+    /// Build the message prompt with available context
+    ///
+    /// Replaces template placeholders with provided values.
+    /// For unavailable context (step numbers, history, etc.), uses placeholder values
+    /// until the architecture is enhanced to track this information.
+    pub fn build_message_prompt(&self, browser_state: &str, task: &str, add_infos: &str) -> String {
         let mut prompt = self.prompt_template.clone();
+
+        // Replace available context
         prompt = prompt.replace("{browser_state}", browser_state);
+        prompt = prompt.replace("{task}", task);
+        prompt = prompt.replace("{add_infos}", add_infos);
+
+        // Replace timestamp with current time
+        let now = chrono::Local::now();
+        prompt = prompt.replace(
+            "{time_str}",
+            &now.format("%Y-%m-%d %H:%M:%S %Z").to_string(),
+        );
+
+        // Replace unavailable context with placeholders
+        // These will be properly populated when architecture is enhanced
+        prompt = prompt.replace("{step_number}/{max_steps}", "current step");
+        prompt = prompt.replace("{step_number_minus_1}/{max_steps}", "previous step");
+        prompt = prompt.replace("{memory}", "[No memory system implemented yet]");
+        prompt = prompt.replace("{url}", "[See browser state below]");
+        prompt = prompt.replace("{tabs}", "[See browser state below]");
+        prompt = prompt.replace("{elements_text}", "[See browser state below]");
+        prompt = prompt.replace(
+            "{previous_actions_and_results}",
+            "[No history tracking yet - first step]",
+        );
+
         prompt
     }
-    
+
     /// Get the default prompt template for agent messages
     fn default_prompt_template() -> String {
         // Protocol-compliant agent message prompt: instructs LLM to output only the required JSON structure.
@@ -235,7 +264,8 @@ RESPONSE FORMAT (strictly required):
     // e.g. { "click_element": { "index": 3 } }, { "input_text": { "index": 1, "text": "foo" } }
   ]
 }
-"#.to_string()
+"#
+        .to_string()
     }
 }
 

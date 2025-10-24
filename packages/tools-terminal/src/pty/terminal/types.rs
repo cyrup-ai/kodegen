@@ -7,8 +7,8 @@ use std::{
 use bytes::Bytes;
 use tokio::{
     sync::{
-        mpsc::{Receiver, Sender},
         Mutex,
+        mpsc::{Receiver, Sender},
     },
     task,
 };
@@ -45,14 +45,14 @@ impl Clone for Terminal {
 
 impl Terminal {
     /// Check if the PTY has been detected as closed by the output reader task
-    #[must_use] 
+    #[must_use]
     pub fn is_pty_closed(&self) -> bool {
         self.pty_closed.load(Ordering::SeqCst)
     }
 
     /// Get the terminal screen
     /// Returns None if the parser lock is poisoned.
-    #[must_use] 
+    #[must_use]
     pub fn screen(&self) -> Option<Screen> {
         match self.parser.read() {
             Ok(p) => Some(p.screen().clone()),

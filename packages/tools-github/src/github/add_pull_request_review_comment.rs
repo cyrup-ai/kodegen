@@ -39,13 +39,16 @@ pub(crate) fn add_pull_request_review_comment(
     inner: Arc<Octocrab>,
     request: AddPullRequestReviewCommentRequest,
 ) -> AsyncTask<Result<octocrab::models::pulls::ReviewComment, GitHubError>> {
-
     spawn_task(async move {
         // If this is a reply to an existing comment, use reply_to_comment
         if let Some(comment_id) = request.in_reply_to {
             return inner
                 .pulls(&request.owner, &request.repo)
-                .reply_to_comment(request.pr_number, octocrab::models::CommentId(comment_id), request.body)
+                .reply_to_comment(
+                    request.pr_number,
+                    octocrab::models::CommentId(comment_id),
+                    request.body,
+                )
                 .await
                 .map_err(GitHubError::from);
         }
@@ -80,7 +83,7 @@ pub(crate) fn add_pull_request_review_comment(
         let owner = &request.owner;
         let repo = &request.repo;
         let pr_number = request.pr_number;
-        
+
         inner
             .post(
                 format!("/repos/{owner}/{repo}/pulls/{pr_number}/comments"),

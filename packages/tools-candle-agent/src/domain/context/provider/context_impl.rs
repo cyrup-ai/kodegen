@@ -4,8 +4,7 @@
 //! for File, Files, Directory, and GitHub context operations.
 
 use kodegen_tools_git::{
-    CloneOpts, FetchOpts, GitError as GitGixError, MergeOpts, clone_repo, fetch,
-    merge, open_repo,
+    CloneOpts, FetchOpts, GitError as GitGixError, MergeOpts, clone_repo, fetch, merge, open_repo,
 };
 use std::collections::HashMap;
 use std::marker::PhantomData;

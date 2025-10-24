@@ -10,7 +10,7 @@ pub struct LinkedHashMap<K: PartialEq + Eq, V> {
 }
 
 impl<K: PartialEq + Eq, V> LinkedHashMap<K, V> {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             map: BTreeMap::new(),
@@ -19,12 +19,12 @@ impl<K: PartialEq + Eq, V> LinkedHashMap<K, V> {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.order.is_empty()
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.order.len()
     }
@@ -103,7 +103,7 @@ impl<'a, K: PartialEq + Eq, V> Iterator for Iter<'a, K, V> {
 
 impl<K: PartialEq + Eq, V> LinkedHashMap<K, V> {
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             map: &self.map,
@@ -112,7 +112,7 @@ impl<K: PartialEq + Eq, V> LinkedHashMap<K, V> {
     }
 
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: BTreeMap::new(),

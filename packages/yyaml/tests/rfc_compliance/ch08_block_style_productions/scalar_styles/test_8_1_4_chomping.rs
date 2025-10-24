@@ -17,7 +17,7 @@ literal: |-
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["literal"].as_str().unwrap(), "Content");
-    
+
     // Folded with strip
     let yaml = r#"
 folded: >-
@@ -41,7 +41,7 @@ literal: |
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["literal"].as_str().unwrap(), "Content\n");
-    
+
     // Folded with clip (default)
     let yaml = r#"
 folded: >
@@ -66,7 +66,7 @@ literal: |+
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["literal"].as_str().unwrap(), "Content\n\n\n\n");
-    
+
     // Folded with keep
     let yaml = r#"
 folded: >+

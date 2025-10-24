@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::repos::RepoCommit, Octocrab};
+use octocrab::{Octocrab, models::repos::RepoCommit};
 use std::sync::Arc;
 
 /// Get a specific commit by SHA.
@@ -17,12 +17,12 @@ pub(crate) fn get_commit(
     let owner = owner.into();
     let repo = repo.into();
     let sha = sha.into();
-    
+
     spawn_task(async move {
         // Note: octocrab's get_commit returns detailed commit info
         // Page/per_page parameters are for the files list in the commit
         let mut url = format!("/repos/{owner}/{repo}/commits/{sha}");
-        
+
         // Add pagination parameters if provided
         let mut params = vec![];
         if let Some(p) = page {
@@ -34,12 +34,12 @@ pub(crate) fn get_commit(
         if !params.is_empty() {
             url.push_str(&format!("?{}", params.join("&")));
         }
-        
+
         let commit: RepoCommit = inner
             .get(url, None::<&()>)
             .await
             .map_err(GitHubError::from)?;
-        
+
         Ok(commit)
     })
 }

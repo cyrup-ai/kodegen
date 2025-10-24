@@ -16,9 +16,7 @@ pub(crate) fn request_copilot_review(
 
     spawn_task(async move {
         // Raw endpoint until Octocrab exposes it natively.
-        let route = format!(
-            "repos/{owner}/{repo}/pulls/{pr_number}/copilot-review"
-        );
+        let route = format!("repos/{owner}/{repo}/pulls/{pr_number}/copilot-review");
 
         inner
             .post::<(), ()>(route, Some(&()))

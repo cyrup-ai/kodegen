@@ -1,12 +1,12 @@
 //! GitHub issues search tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use futures::StreamExt;
 use anyhow;
+use futures::StreamExt;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 /// Tool for searching GitHub issues using GitHub's search syntax
 #[derive(Clone)]
@@ -17,19 +17,19 @@ pub struct SearchIssuesTool;
 pub struct SearchIssuesArgs {
     /// GitHub search query (supports complex syntax)
     pub query: String,
-    
+
     /// Sort results by: "comments", "reactions", "created", "updated" (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
-    
+
     /// Sort order: "asc" or "desc" (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order: Option<String>,
-    
+
     /// Page number for pagination (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<u32>,
-    
+
     /// Results per page, max 100 (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<u32>,
@@ -42,81 +42,75 @@ pub struct SearchIssuesPromptArgs {}
 impl Tool for SearchIssuesTool {
     type Args = SearchIssuesArgs;
     type PromptArgs = SearchIssuesPromptArgs;
-    
+
     fn name() -> &'static str {
         "search_issues"
     }
-    
+
     fn description() -> &'static str {
         "Search for issues across GitHub using GitHub's powerful search syntax. \
          Supports filtering by repository, state, labels, assignee, author, dates, and more. \
          Returns matching issues with relevance ranking. \
          Requires GITHUB_TOKEN environment variable. Note: Search API has stricter rate limits."
     }
-    
+
     fn read_only() -> bool {
         true
     }
-    
+
     fn destructive() -> bool {
         false
     }
-    
+
     fn idempotent() -> bool {
         true
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Convert per_page to u8 (GitHub API expects u8)
         let per_page = args.per_page.map(|p| p.min(100) as u8);
-        
+
         // Call API wrapper
-        let mut issue_stream = client.search_issues(
-            args.query,
-            args.sort,
-            args.order,
-            args.page,
-            per_page,
-        );
-        
+        let mut issue_stream =
+            client.search_issues(args.query, args.sort, args.order, args.page, per_page);
+
         // Collect stream results
         let mut issues = Vec::new();
         while let Some(result) = issue_stream.next().await {
-            let issue = result
-                .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+            let issue =
+                result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
             issues.push(issue);
         }
-        
+
         // Return serialized issues
         Ok(json!({ "issues": issues, "count": issues.len() }))
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I search for GitHub issues using the search_issues tool?"
+                    "How do I search for GitHub issues using the search_issues tool?",
                 ),
             },
             PromptMessage {
@@ -173,7 +167,7 @@ impl Tool for SearchIssuesTool {
                      - Combine multiple filters with spaces\n\
                      - Date format: YYYY-MM-DD\n\
                      - Use quotes for multi-word searches: \"bug report\"\n\
-                     - GITHUB_TOKEN environment variable must be set"
+                     - GITHUB_TOKEN environment variable must be set",
                 ),
             },
         ])

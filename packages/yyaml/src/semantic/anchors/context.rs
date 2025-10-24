@@ -30,7 +30,7 @@ impl Default for ResolutionContext {
 
 impl ResolutionContext {
     /// Create new resolution context with custom max depth
-    #[must_use] 
+    #[must_use]
     pub fn with_max_depth(max_depth: usize) -> Self {
         Self {
             current_depth: 0,
@@ -42,7 +42,7 @@ impl ResolutionContext {
     }
 
     /// Create new resolution context with custom configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(max_depth: usize, initial_capacity: usize) -> Self {
         Self {
             current_depth: 0,
@@ -55,13 +55,13 @@ impl ResolutionContext {
 
     /// Check if at maximum depth
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn at_max_depth(&self) -> bool {
         self.current_depth >= self.max_depth
     }
 
     /// Check if depth is near maximum (within warning threshold)
-    #[must_use] 
+    #[must_use]
     pub const fn near_max_depth(&self, warning_threshold: usize) -> bool {
         self.current_depth + warning_threshold >= self.max_depth
     }
@@ -110,20 +110,20 @@ impl ResolutionContext {
 
     /// Check if anchor is currently being resolved (in the resolution path)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn is_resolving(&self, anchor_name: &str) -> bool {
         self.visited_anchors.contains(anchor_name)
     }
 
     /// Get current resolution path as string
-    #[must_use] 
+    #[must_use]
     pub fn path_string(&self) -> String {
         self.resolution_path.join(" -> ")
     }
 
     /// Get remaining depth before hitting maximum
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn remaining_depth(&self) -> usize {
         self.max_depth.saturating_sub(self.current_depth)
     }
@@ -137,7 +137,7 @@ impl ResolutionContext {
     }
 
     /// Create snapshot of current context state
-    #[must_use] 
+    #[must_use]
     pub fn snapshot(&self) -> ResolutionSnapshot {
         ResolutionSnapshot {
             depth: self.current_depth,
@@ -148,7 +148,7 @@ impl ResolutionContext {
     }
 
     /// Check if context is in valid state
-    #[must_use] 
+    #[must_use]
     pub fn is_valid(&self) -> bool {
         self.current_depth <= self.max_depth
             && self.resolution_path.len() == self.current_depth
@@ -156,7 +156,7 @@ impl ResolutionContext {
     }
 
     /// Get context statistics
-    #[must_use] 
+    #[must_use]
     pub fn statistics(&self) -> ContextStatistics {
         ContextStatistics {
             current_depth: self.current_depth,
@@ -186,7 +186,7 @@ impl ResolutionContext {
     }
 
     /// Estimate memory usage of current context
-    #[must_use] 
+    #[must_use]
     pub fn estimated_memory_usage(&self) -> usize {
         // Rough estimation in bytes
         let path_memory = self
@@ -240,13 +240,13 @@ pub struct ContextStatistics {
 
 impl ContextStatistics {
     /// Check if context is approaching limits
-    #[must_use] 
+    #[must_use]
     pub fn is_approaching_limits(&self, threshold: f64) -> bool {
         self.depth_utilization >= threshold
     }
 
     /// Get efficiency score (lower is better)
-    #[must_use] 
+    #[must_use]
     pub fn efficiency_score(&self) -> f64 {
         if self.alias_count > 0 {
             self.current_depth as f64 / self.alias_count as f64
@@ -270,7 +270,7 @@ pub enum ContextValidationError {
 
 impl ContextValidationError {
     /// Get error message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::InvalidMaxDepth(depth) => {
@@ -302,7 +302,7 @@ pub struct ResolutionContextBuilder {
 
 impl ResolutionContextBuilder {
     /// Create new context builder
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             max_depth: 100,
@@ -312,28 +312,28 @@ impl ResolutionContextBuilder {
     }
 
     /// Set maximum resolution depth
-    #[must_use] 
+    #[must_use]
     pub const fn max_depth(mut self, max_depth: usize) -> Self {
         self.max_depth = max_depth;
         self
     }
 
     /// Set initial capacity for collections
-    #[must_use] 
+    #[must_use]
     pub const fn initial_capacity(mut self, capacity: usize) -> Self {
         self.initial_capacity = capacity;
         self
     }
 
     /// Set warning threshold for depth monitoring
-    #[must_use] 
+    #[must_use]
     pub const fn warning_threshold(mut self, threshold: usize) -> Self {
         self.warning_threshold = Some(threshold);
         self
     }
 
     /// Build resolution context
-    #[must_use] 
+    #[must_use]
     pub fn build(self) -> ResolutionContext {
         ResolutionContext::with_config(self.max_depth, self.initial_capacity)
     }

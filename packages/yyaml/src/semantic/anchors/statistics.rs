@@ -45,7 +45,7 @@ impl Default for AnchorStatistics {
 impl AnchorStatistics {
     /// Create new statistics instance
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -92,7 +92,7 @@ impl AnchorStatistics {
     }
 
     /// Get cache hit rate as percentage
-    #[must_use] 
+    #[must_use]
     pub fn cache_hit_rate(&self) -> f64 {
         let total_lookups = self.cache_hits + self.cache_misses;
         if total_lookups > 0 {
@@ -103,7 +103,7 @@ impl AnchorStatistics {
     }
 
     /// Get alias resolution rate as percentage
-    #[must_use] 
+    #[must_use]
     pub fn alias_resolution_rate(&self) -> f64 {
         if self.total_aliases > 0 {
             (self.resolved_aliases as f64 / self.total_aliases as f64) * 100.0
@@ -113,7 +113,7 @@ impl AnchorStatistics {
     }
 
     /// Check if performance is acceptable based on thresholds
-    #[must_use] 
+    #[must_use]
     pub fn is_performance_acceptable(
         &self,
         min_cache_hit_rate: f64,
@@ -124,7 +124,7 @@ impl AnchorStatistics {
     }
 
     /// Get performance summary
-    #[must_use] 
+    #[must_use]
     pub fn performance_summary(&self) -> PerformanceSummary {
         PerformanceSummary {
             cache_efficiency: self.cache_hit_rate(),
@@ -144,7 +144,7 @@ impl AnchorStatistics {
     }
 
     /// Generate performance report
-    #[must_use] 
+    #[must_use]
     pub fn generate_report(&self) -> String {
         let summary = self.performance_summary();
 
@@ -188,7 +188,7 @@ pub struct PerformanceSummary {
 
 impl PerformanceSummary {
     /// Get overall performance score (0-100)
-    #[must_use] 
+    #[must_use]
     pub fn overall_score(&self) -> f64 {
         let cache_score = self.cache_efficiency.min(100.0);
         let resolution_score = self.resolution_efficiency.min(100.0);
@@ -237,7 +237,7 @@ pub enum AnchorValidationWarning {
 
 impl AnchorValidationWarning {
     /// Get warning message
-    #[must_use] 
+    #[must_use]
     pub fn message(&self) -> String {
         match self {
             Self::UnusedAnchor {
@@ -294,7 +294,7 @@ impl AnchorValidationWarning {
     }
 
     /// Get warning position
-    #[must_use] 
+    #[must_use]
     pub fn position(&self) -> Position {
         match self {
             Self::UnusedAnchor { position, .. }
@@ -307,7 +307,7 @@ impl AnchorValidationWarning {
     }
 
     /// Get warning severity level
-    #[must_use] 
+    #[must_use]
     pub fn severity(&self) -> WarningSeverity {
         match self {
             Self::CircularReference { .. } => WarningSeverity::High,
@@ -346,8 +346,7 @@ impl AnchorValidationWarning {
                     WarningSeverity::Low
                 }
             }
-            Self::UnusedAnchor { .. }
-            | Self::NamingConflict { .. } => WarningSeverity::Low,
+            Self::UnusedAnchor { .. } | Self::NamingConflict { .. } => WarningSeverity::Low,
         }
     }
 }
@@ -362,7 +361,7 @@ pub enum WarningSeverity {
 
 impl WarningSeverity {
     /// Get severity as string
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Low => "LOW",
@@ -377,7 +376,7 @@ pub struct AnchorValidator;
 
 impl AnchorValidator {
     /// Validate anchor registry and generate warnings
-    #[must_use] 
+    #[must_use]
     pub fn validate_anchors<'input>(
         registry: &AnchorRegistry<'input>,
     ) -> Vec<AnchorValidationWarning> {

@@ -27,7 +27,7 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
             return Err(crate::bundler::Error::ArchError(format!(
                 "Unsupported architecture for RPM: {:?}",
                 settings.binary_arch()
-            )))
+            )));
         }
     };
 
@@ -130,40 +130,34 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
         let src_path = settings.binary_path(binary);
         let dest_path = format!("/usr/bin/{}", binary.name());
 
-        log::debug!(
-            "Adding binary: {} -> {}",
-            src_path.display(),
-            dest_path
-        );
+        log::debug!("Adding binary: {} -> {}", src_path.display(), dest_path);
 
         // Read binary content
         let content = std::fs::read(&src_path)
             .with_context(|| format!("Failed to read binary {:?}", src_path))?;
 
         // Add with executable permissions
-        builder = builder
-            .with_file_contents(
-                content,
-                rpm::FileOptions::new(&dest_path)
-                    .mode(rpm::FileMode::regular(0o755))
-                    .user("root")
-                    .group("root"),
-            )?;
+        builder = builder.with_file_contents(
+            content,
+            rpm::FileOptions::new(&dest_path)
+                .mode(rpm::FileMode::regular(0o755))
+                .user("root")
+                .group("root"),
+        )?;
     }
 
     // Add custom files from RpmSettings
     for (dest, src) in &settings.rpm_settings().files {
-        let content = std::fs::read(src)
-            .with_context(|| format!("Failed to read custom file {:?}", src))?;
+        let content =
+            std::fs::read(src).with_context(|| format!("Failed to read custom file {:?}", src))?;
 
-        builder = builder
-            .with_file_contents(
-                content,
-                rpm::FileOptions::new(dest.to_string_lossy().as_ref())
-                    .mode(rpm::FileMode::regular(0o644))
-                    .user("root")
-                    .group("root"),
-            )?;
+        builder = builder.with_file_contents(
+            content,
+            rpm::FileOptions::new(dest.to_string_lossy().as_ref())
+                .mode(rpm::FileMode::regular(0o644))
+                .user("root")
+                .group("root"),
+        )?;
     }
 
     // Add install/uninstall scripts
@@ -192,9 +186,7 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
     }
 
     // Build the package
-    let pkg = builder
-        .build()
-        .context("Failed to build RPM package")?;
+    let pkg = builder.build().context("Failed to build RPM package")?;
 
     // Create output directory
     let output_dir = settings.project_out_directory().join("bundle/rpm");
@@ -213,14 +205,12 @@ pub fn bundle_project(settings: &Settings) -> Result<Vec<PathBuf>> {
     let output_path = output_dir.join(package_name);
 
     // Write RPM to disk
-    let mut file = File::create(&output_path)
-        .fs_context("creating RPM file", &output_path)?;
+    let mut file = File::create(&output_path).fs_context("creating RPM file", &output_path)?;
 
     pkg.write(&mut file)
         .context("Failed to write RPM package")?;
 
-    file.flush()
-        .fs_context("flushing RPM file", &output_path)?;
+    file.flush().fs_context("flushing RPM file", &output_path)?;
 
     log::info!("✓ Created RPM: {}", output_path.display());
 

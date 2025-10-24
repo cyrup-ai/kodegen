@@ -2,7 +2,7 @@
 //!
 //! Demonstrates basic navigation and text extraction.
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use serde_json::json;
 use tracing::info;
 
@@ -11,14 +11,12 @@ mod common;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     // Connect to kodegen server with browser category
-    let (conn, mut server) = common::connect_to_server_with_categories(
-        Some(vec![common::ToolCategory::Browser])
-    ).await?;
+    let (conn, mut server) =
+        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Browser]))
+            .await?;
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from("/tmp/mcp-client/browser_navigate.log");
@@ -38,28 +36,35 @@ async fn main() -> Result<()> {
 
 async fn run_example(client: &common::LoggingClient) -> Result<()> {
     info!("🌐 Navigating to example.com...");
-    let result = client.call_tool(
-        "browser_navigate",
-        json!({
-            "url": "https://example.com"
-        })
-    ).await?;
-    
+    let result = client
+        .call_tool(
+            "browser_navigate",
+            json!({
+                "url": "https://example.com"
+            }),
+        )
+        .await?;
+
     if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text() {
+        && let Some(text) = content.as_text()
+    {
         let response: serde_json::Value = serde_json::from_str(&text.text)?;
         info!("✓ Navigation successful!");
-        info!("  URL: {}", response.get("url").and_then(|v| v.as_str()).unwrap_or("unknown"));
+        info!(
+            "  URL: {}",
+            response
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
     }
 
     info!("\n📄 Extracting page text...");
-    let result = client.call_tool(
-        "browser_extract_text",
-        json!({})
-    ).await?;
-    
+    let result = client.call_tool("browser_extract_text", json!({})).await?;
+
     if let Some(content) = result.content.first()
-        && let Some(text) = content.as_text() {
+        && let Some(text) = content.as_text()
+    {
         let response: serde_json::Value = serde_json::from_str(&text.text)?;
         let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
         info!("✓ Extracted {} characters", extracted.len());

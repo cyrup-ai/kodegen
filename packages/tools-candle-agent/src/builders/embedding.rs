@@ -3,22 +3,22 @@
 //! All embedding construction logic and builder patterns with zero allocation.
 //! Integrates with the registry system to access text embedding models.
 
-use crate::domain::embedding_result::Embedding;
-use cylo::{AsyncTask, async_task::AsyncTaskBuilder};
 use crate::capability::registry::{self, TextEmbeddingModel};
 use crate::capability::traits::TextEmbeddingCapable;
+use crate::domain::embedding_result::Embedding;
+use cylo::{AsyncTask, async_task::AsyncTaskBuilder};
 
 /// Embedding builder trait - elegant zero-allocation builder pattern
 pub trait EmbeddingBuilder: Sized {
     /// Set the model to use for embedding - EXACT syntax: .model("registry_key")
     fn model(self, registry_key: &str) -> impl EmbeddingBuilder;
-    
+
     /// Set task instruction for embedding - EXACT syntax: .with_task("query")
     fn with_task(self, task: impl Into<String>) -> impl EmbeddingBuilder;
-    
+
     /// Set dimensions (for validation only) - EXACT syntax: .with_dims(512)
     fn with_dims(self, dims: usize) -> impl EmbeddingBuilder;
-    
+
     /// Generate embedding - EXACT syntax: .embed()
     fn embed(self) -> AsyncTask<Result<Embedding, Box<dyn std::error::Error + Send + Sync>>>;
 }
@@ -49,29 +49,30 @@ impl EmbeddingBuilder for EmbeddingBuilderImpl {
         self.model_key = Some(registry_key.to_string());
         self
     }
-    
+
     /// Set task instruction for embedding
     fn with_task(mut self, task: impl Into<String>) -> impl EmbeddingBuilder {
         self.task = Some(task.into());
         self
     }
-    
+
     /// Set expected dimensions (for validation only)
     fn with_dims(mut self, dims: usize) -> impl EmbeddingBuilder {
         self.expected_dims = Some(dims);
         self
     }
-    
+
     /// Generate embedding - EXACT syntax: .embed()
     fn embed(self) -> AsyncTask<Result<Embedding, Box<dyn std::error::Error + Send + Sync>>> {
         AsyncTaskBuilder::new(async move {
             // Get model from registry (defaults to Stella if not specified)
-            let model_key = self.model_key
+            let model_key = self
+                .model_key
                 .unwrap_or_else(|| "dunzhang/stella_en_400M_v5".to_string());
-            
+
             let model: TextEmbeddingModel = registry::get(&model_key)
                 .ok_or_else(|| format!("Model not found in registry: {}", model_key))?;
-            
+
             // Validate dimensions if specified
             if let Some(expected) = self.expected_dims {
                 let actual = model.embedding_dimension();
@@ -79,28 +80,28 @@ impl EmbeddingBuilder for EmbeddingBuilderImpl {
                     return Err(format!(
                         "Dimension mismatch: expected {}, model provides {}",
                         expected, actual
-                    ).into());
+                    )
+                    .into());
                 }
             }
-            
+
             // Generate embedding via capability trait
             let vec = model.embed(&self.document, self.task).await?;
-            
+
             Ok(Embedding::new(self.document, vec))
-        }).spawn()
+        })
+        .spawn()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_embedding_builder_default_model() {
         // This test requires the Stella model to be registered
-        let join_result = Embedding::from_document("Hello world")
-            .embed()
-            .await;
+        let join_result = Embedding::from_document("Hello world").embed().await;
 
         // Handle JoinHandle result first, then embedding result
         match join_result {
@@ -119,7 +120,7 @@ mod tests {
             }
         }
     }
-    
+
     #[tokio::test]
     async fn test_embedding_builder_with_model() {
         let join_result = Embedding::from_document("Hello world")

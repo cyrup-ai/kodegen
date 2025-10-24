@@ -314,11 +314,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Provides MCP tools for spawning, managing, and interacting with Claude agent sessions.
 pub mod tools;
 pub use tools::{
-    SpawnClaudeAgentTool,
-    ReadClaudeAgentOutputTool,
-    SendClaudeAgentPromptTool,
-    TerminateClaudeAgentSessionTool,
-    ListClaudeAgentsTool,
+    ListClaudeAgentsTool, ReadClaudeAgentOutputTool, SendClaudeAgentPromptTool,
+    SpawnClaudeAgentTool, TerminateClaudeAgentSessionTool,
 };
 
 // Agent session management

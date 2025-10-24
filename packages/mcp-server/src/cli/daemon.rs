@@ -16,25 +16,40 @@ impl std::fmt::Display for DaemonError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotInstalled => {
-                write!(f, "kodegend daemon is not installed.\n\
-                          Install with: cargo install kodegend")
+                write!(
+                    f,
+                    "kodegend daemon is not installed.\n\
+                          Install with: cargo install kodegend"
+                )
             }
             Self::NotRunning => {
-                write!(f, "kodegend daemon is not running.\n\
-                          Start with: kodegend start")
+                write!(
+                    f,
+                    "kodegend daemon is not running.\n\
+                          Start with: kodegend start"
+                )
             }
             Self::StartFailed(msg) => {
-                write!(f, "Failed to start kodegend daemon: {msg}\n\
-                          Check logs with: kodegend logs")
+                write!(
+                    f,
+                    "Failed to start kodegend daemon: {msg}\n\
+                          Check logs with: kodegend logs"
+                )
             }
             Self::Timeout => {
-                write!(f, "Timeout waiting for kodegend to start.\n\
+                write!(
+                    f,
+                    "Timeout waiting for kodegend to start.\n\
                           The daemon may be starting slowly or failing to start.\n\
-                          Try: kodegend run --foreground")
+                          Try: kodegend run --foreground"
+                )
             }
             Self::PermissionDenied => {
-                write!(f, "Permission denied accessing kodegend daemon.\n\
-                          You may need to run with sudo or check socket permissions.")
+                write!(
+                    f,
+                    "Permission denied accessing kodegend daemon.\n\
+                          You may need to run with sudo or check socket permissions."
+                )
             }
             Self::Other(msg) => write!(f, "{msg}"),
         }
@@ -63,7 +78,7 @@ pub async fn ensure_daemon_running() -> Result<(), DaemonError> {
     // Always call start - it should be idempotent
     let start = Command::new("kodegend")
         .arg("start")
-        .output()  // Use output() to capture stderr
+        .output() // Use output() to capture stderr
         .await
         .map_err(daemon_error)?;
 
@@ -118,9 +133,9 @@ async fn wait_for_daemon_ready() -> Result<(), DaemonError> {
     // Check every 1ms for first 50ms
     const FAST_INTERVAL_MS: u64 = 1;
     const FAST_DURATION_MS: u64 = 50;
-    
+
     let fast_attempts = FAST_DURATION_MS / FAST_INTERVAL_MS;
-    
+
     for attempt in 1..=fast_attempts {
         if check_daemon_status().await?.success() {
             log::debug!(
@@ -130,26 +145,26 @@ async fn wait_for_daemon_ready() -> Result<(), DaemonError> {
             );
             return Ok(());
         }
-        
+
         // Yield to scheduler between checks (prevents CPU spinning)
         tokio::time::sleep(Duration::from_millis(FAST_INTERVAL_MS)).await;
     }
-    
+
     // ===== PHASE 2: SLOW PATH =====
     // Daemon didn't start quickly - use exponential backoff
     log::debug!("Daemon not ready after 50ms, switching to exponential backoff");
-    
+
     const SLOW_INITIAL_MS: u64 = 100;
     const SLOW_MAX_MS: u64 = 1600;
     const SLOW_ATTEMPTS: u32 = 5;
-    
+
     let mut backoff_ms = SLOW_INITIAL_MS;
     let mut total_elapsed_ms: u64 = FAST_DURATION_MS;
-    
+
     for attempt in 1..=SLOW_ATTEMPTS {
         tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
         total_elapsed_ms += backoff_ms;
-        
+
         if check_daemon_status().await?.success() {
             log::info!(
                 "Daemon started after {} attempt(s) ({}ms total)",
@@ -158,14 +173,14 @@ async fn wait_for_daemon_ready() -> Result<(), DaemonError> {
             );
             return Ok(());
         }
-        
+
         backoff_ms = (backoff_ms * 2).min(SLOW_MAX_MS);
-        
+
         if attempt == SLOW_ATTEMPTS {
             return Err(DaemonError::Timeout);
         }
     }
-    
+
     Ok(())
 }
 

@@ -61,7 +61,7 @@ use futures::StreamExt;
 pub async fn search_repositories(token: &str, query: SearchQuery) -> SearchResult<Output> {
     let search = GithubSearch::new(token.to_string())?;
     let mut session = search.search(query);
-    
+
     // Get the single result from the stream
     session
         .next()
@@ -120,7 +120,7 @@ pub async fn search_repositories_with_config(
 ) -> SearchResult<Output> {
     let search = GithubSearch::with_config(token.to_string(), config)?;
     let mut session = search.search(query);
-    
+
     // Get the single result from the stream
     session
         .next()

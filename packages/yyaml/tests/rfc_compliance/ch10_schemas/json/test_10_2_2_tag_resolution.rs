@@ -9,7 +9,7 @@ use yyaml::YamlLoader;
 #[test]
 fn test_json_null_resolution() {
     let null_values = vec!["null", "Null", "NULL", "~"];
-    
+
     for value in null_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
@@ -19,7 +19,7 @@ fn test_json_null_resolution() {
             value
         );
     }
-    
+
     // Empty value should also resolve to null
     let yaml = "key:";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
@@ -31,7 +31,7 @@ fn test_json_null_resolution() {
 fn test_json_boolean_resolution() {
     let true_values = vec!["true", "True", "TRUE"];
     let false_values = vec!["false", "False", "FALSE"];
-    
+
     for value in true_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
@@ -41,7 +41,7 @@ fn test_json_boolean_resolution() {
             value
         );
     }
-    
+
     for value in false_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
@@ -51,7 +51,8 @@ fn test_json_boolean_resolution() {
             value
         );
     }
-}/// Test JSON schema integer resolution
+}
+/// Test JSON schema integer resolution
 #[test]
 fn test_json_integer_resolution() {
     let test_cases = vec![
@@ -60,7 +61,7 @@ fn test_json_integer_resolution() {
         ("-456", -456i64),
         ("+789", 789i64),
     ];
-    
+
     for (input, expected) in test_cases {
         let yaml = format!("key: {}", input);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
@@ -81,12 +82,12 @@ fn test_json_float_resolution() {
     let yaml = "key: 3.14159";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert!((docs[0]["key"].as_f64().unwrap() - std::f64::consts::PI).abs() < f64::EPSILON);
-    
+
     // Scientific notation
     let yaml = "key: 1.23e-4";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert!((docs[0]["key"].as_f64().unwrap() - 0.000123).abs() < f64::EPSILON);
-    
+
     // Negative floats
     let yaml = "key: -2.718";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
@@ -97,13 +98,8 @@ fn test_json_float_resolution() {
 #[test]
 fn test_json_string_fallback() {
     // Values that don't match other types should be strings
-    let string_values = vec![
-        "hello",
-        "123abc",
-        "true_but_not_bool",
-        "null_but_not_null",
-    ];
-    
+    let string_values = vec!["hello", "123abc", "true_but_not_bool", "null_but_not_null"];
+
     for value in string_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();

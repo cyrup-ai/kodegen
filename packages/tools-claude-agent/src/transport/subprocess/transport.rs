@@ -2,16 +2,16 @@
 
 use std::env;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::io::{AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::Transport;
 use crate::error::{ClaudeError, Result};
 use crate::types::options::ClaudeAgentOptions;
-use crate::Transport;
 
 use super::config::{DEFAULT_MAX_BUFFER_SIZE, PromptInput};
 

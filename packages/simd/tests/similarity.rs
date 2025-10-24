@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use kodegen_simd::similarity::{cosine_similarity, metrics, reset_metrics, active_implementation};
+use kodegen_simd::similarity::{active_implementation, cosine_similarity, metrics, reset_metrics};
 
 #[test]
 fn test_cosine_similarity() {

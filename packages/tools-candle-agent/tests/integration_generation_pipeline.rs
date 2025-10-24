@@ -161,7 +161,9 @@ async fn test_text_generator_with_mock_model() {
         ) -> std::pin::Pin<
             Box<
                 dyn std::future::Future<
-                        Output = kodegen_candle_agent::core::generation::types::CandleResult<Tensor>,
+                        Output = kodegen_candle_agent::core::generation::types::CandleResult<
+                            Tensor,
+                        >,
                     > + Send
                     + '_,
             >,

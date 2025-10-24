@@ -19,7 +19,10 @@ doc2: second document
             }
         }
         Err(e) => {
-            panic!("❌ Failed to parse multi-document YAML with directive: {}", e);
+            panic!(
+                "❌ Failed to parse multi-document YAML with directive: {}",
+                e
+            );
         }
     }
 }
@@ -36,14 +39,20 @@ second: value
     let result = YamlLoader::load_from_str(tag_directive_yaml);
     match result {
         Ok(docs) => {
-            println!("✅ Successfully parsed {} documents with TAG directive", docs.len());
+            println!(
+                "✅ Successfully parsed {} documents with TAG directive",
+                docs.len()
+            );
             assert_eq!(docs.len(), 2, "Should parse exactly 2 documents");
             for (i, doc) in docs.iter().enumerate() {
                 println!("  Document {}: {:?}", i + 1, doc);
             }
         }
         Err(e) => {
-            panic!("❌ Failed to parse multi-document YAML with TAG directive: {}", e);
+            panic!(
+                "❌ Failed to parse multi-document YAML with TAG directive: {}",
+                e
+            );
         }
     }
 }
@@ -59,7 +68,10 @@ second: document
     let result = YamlLoader::load_from_str(simple_multi_doc);
     match result {
         Ok(docs) => {
-            println!("✅ Successfully parsed {} simple multi-documents", docs.len());
+            println!(
+                "✅ Successfully parsed {} simple multi-documents",
+                docs.len()
+            );
             assert_eq!(docs.len(), 2, "Should parse exactly 2 documents");
             for (i, doc) in docs.iter().enumerate() {
                 println!("  Document {}: {:?}", i + 1, doc);

@@ -2,14 +2,14 @@
 //!
 //! Defines the data structures for tracking active and completed agent sessions.
 
+use chrono::{DateTime, Utc};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{Mutex, mpsc};
-use chrono::{DateTime, Utc};
 
-use crate::types::agent::SerializedMessage;
 use super::commands::SessionCommand;
+use crate::types::agent::SerializedMessage;
 
 /// Active session data (stored while client is running)
 ///
@@ -19,28 +19,28 @@ use super::commands::SessionCommand;
 pub(super) struct AgentSessionInfo {
     /// Unique session identifier
     pub session_id: String,
-    
+
     /// Human-readable label for the session
     pub label: String,
-    
+
     /// Channel for sending commands to the background task
     pub command_tx: mpsc::UnboundedSender<SessionCommand>,
-    
+
     /// Circular buffer of messages (FIFO with capacity limit)
     pub messages: Arc<Mutex<VecDeque<SerializedMessage>>>,
-    
+
     /// When the session was created
     pub created_at: Instant,
-    
+
     /// Last time a message was received
     pub last_message_at: Arc<Mutex<Instant>>,
-    
+
     /// Current turn count
     pub turn_count: Arc<Mutex<u32>>,
-    
+
     /// Maximum turns allowed
     pub max_turns: u32,
-    
+
     /// Whether the session has completed
     pub is_complete: Arc<Mutex<bool>>,
 }
@@ -53,19 +53,19 @@ pub(super) struct AgentSessionInfo {
 pub(super) struct CompletedAgentSession {
     /// Unique session identifier
     pub session_id: String,
-    
+
     /// Human-readable label for the session
     pub label: String,
-    
+
     /// Final message buffer snapshot
     pub messages: VecDeque<SerializedMessage>,
-    
+
     /// Final turn count when completed
     pub final_turn_count: u32,
-    
+
     /// Total runtime in milliseconds
     pub runtime_ms: u64,
-    
+
     /// When the session completed (wall-clock time)
     pub completed_at: DateTime<Utc>,
 }

@@ -1,9 +1,9 @@
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::{json, Value};
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 /// Tool for requesting GitHub Copilot to review a pull request
 #[derive(Clone)]
@@ -14,10 +14,10 @@ pub struct RequestCopilotReviewTool;
 pub struct RequestCopilotReviewArgs {
     /// Repository owner (user or organization)
     pub owner: String,
-    
+
     /// Repository name
     pub repo: String,
-    
+
     /// Pull request number
     pub pull_number: u64,
 }
@@ -29,78 +29,72 @@ pub struct RequestCopilotReviewPromptArgs {}
 impl Tool for RequestCopilotReviewTool {
     type Args = RequestCopilotReviewArgs;
     type PromptArgs = RequestCopilotReviewPromptArgs;
-    
+
     fn name() -> &'static str {
         "request_copilot_review"
     }
-    
+
     fn description() -> &'static str {
         "Request GitHub Copilot to review a pull request (experimental feature). \
          Triggers automated code review from Copilot. Requires GITHUB_TOKEN and Copilot access."
     }
-    
+
     fn read_only() -> bool {
-        false  // Triggers an action
+        false // Triggers an action
     }
-    
+
     fn destructive() -> bool {
-        false  // Doesn't delete anything
+        false // Doesn't delete anything
     }
-    
+
     fn idempotent() -> bool {
-        true  // Can be called multiple times safely
+        true // Can be called multiple times safely
     }
-    
+
     fn open_world() -> bool {
-        true  // Calls external GitHub API
+        true // Calls external GitHub API
     }
-    
+
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Get GitHub token from environment
-        let token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_| McpError::Other(anyhow::anyhow!(
-                "GITHUB_TOKEN environment variable not set"
-            )))?;
-        
+        let token = std::env::var("GITHUB_TOKEN").map_err(|_| {
+            McpError::Other(anyhow::anyhow!("GITHUB_TOKEN environment variable not set"))
+        })?;
+
         // Build GitHub client
         let client = crate::GitHubClient::builder()
             .personal_token(token)
             .build()
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create GitHub client: {e}")))?;
-        
+
         // Call API wrapper (returns AsyncTask<Result<(), GitHubError>>)
-        let task_result = client.request_copilot_review(
-            args.owner,
-            args.repo,
-            args.pull_number,
-        ).await;
-        
+        let task_result = client
+            .request_copilot_review(args.owner, args.repo, args.pull_number)
+            .await;
+
         // Handle outer Result (channel error)
-        let api_result = task_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
-        
+        let api_result =
+            task_result.map_err(|e| McpError::Other(anyhow::anyhow!("Task channel error: {e}")))?;
+
         // Handle inner Result (GitHub API error)
-        api_result
-            .map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
-        
+        api_result.map_err(|e| McpError::Other(anyhow::anyhow!("GitHub API error: {e}")))?;
+
         // Return success message (convert unit to JSON)
         Ok(json!({
             "success": true,
             "message": "Copilot review requested successfully"
         }))
     }
-    
+
     fn prompt_arguments() -> Vec<PromptArgument> {
         vec![]
     }
-    
+
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
         Ok(vec![
             PromptMessage {
                 role: PromptMessageRole::User,
-                content: PromptMessageContent::text(
-                    "How do I request a GitHub Copilot review?"
-                ),
+                content: PromptMessageContent::text("How do I request a GitHub Copilot review?"),
             },
             PromptMessage {
                 role: PromptMessageRole::Assistant,
@@ -146,7 +140,7 @@ impl Tool for RequestCopilotReviewTool {
                      - Security and quality checks\n\
                      - Learn from AI-generated best practices\n\n\
                      Tip: Combine with get_pull_request_reviews to see all reviews\n\
-                     including Copilot's automated feedback."
+                     including Copilot's automated feedback.",
                 ),
             },
         ])

@@ -28,13 +28,13 @@ pub struct SemanticAnalyzer<'input> {
 impl<'input> SemanticAnalyzer<'input> {
     /// Create new semantic analyzer with optimized configuration
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self::with_config(SemanticConfig::default())
     }
 
     /// Create semantic analyzer with custom configuration
-    #[must_use] 
+    #[must_use]
     pub fn with_config(config: SemanticConfig<'input>) -> Self {
         let context = AnalysisContext::from_config(&config);
 
@@ -492,13 +492,13 @@ impl<'input> SemanticAnalyzer<'input> {
 
     /// Get current analysis context
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn context(&self) -> &AnalysisContext<'input> {
         &self.analysis_context
     }
 
     /// Get analysis metrics
-    #[must_use] 
+    #[must_use]
     pub fn metrics(&self) -> AnalysisMetrics {
         AnalysisMetrics {
             processing_time: std::time::Duration::default(),

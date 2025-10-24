@@ -3,8 +3,10 @@
 //! This module provides the `SearchContext` which bundles all the shared state
 //! needed by search visitors to coordinate their work across threads.
 
-use super::super::types::{SearchResult, SearchError, SearchSession, SearchOutputMode, FileCountData};
-use std::collections::{HashSet, HashMap};
+use super::super::types::{
+    FileCountData, SearchError, SearchOutputMode, SearchResult, SearchSession,
+};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
 use std::time::Instant;
@@ -32,7 +34,10 @@ pub(super) struct SearchContext {
 
 impl SearchContext {
     /// Create a `SearchContext` from a `SearchSession` and cancellation receiver
-    pub(super) fn from_session(session: &SearchSession, cancellation_rx: watch::Receiver<bool>) -> Self {
+    pub(super) fn from_session(
+        session: &SearchSession,
+        cancellation_rx: watch::Receiver<bool>,
+    ) -> Self {
         Self {
             results: Arc::clone(&session.results),
             total_matches: Arc::clone(&session.total_matches),

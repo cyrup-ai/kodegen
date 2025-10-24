@@ -20,9 +20,11 @@ fn test_init_request_creation() {
     let handler = ProtocolHandler::new();
     let init_req = handler.create_init_request();
     assert_eq!(init_req.protocol_version, "1.0");
-    assert!(init_req
-        .capabilities
-        .contains(ClientCapabilities::BIDIRECTIONAL));
+    assert!(
+        init_req
+            .capabilities
+            .contains(ClientCapabilities::BIDIRECTIONAL)
+    );
     assert_eq!(init_req.capabilities, ClientCapabilities::all_features());
 }
 

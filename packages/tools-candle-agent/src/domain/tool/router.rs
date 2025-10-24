@@ -3,14 +3,14 @@
 //! This module provides the unified tool routing interface for the chat loop architecture,
 //! providing transparent routing between local tools, remote MCP servers, and Cylo execution.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::borrow::Cow;
 
+use parking_lot::RwLock;
 use serde_json::Value;
 use std::pin::Pin;
 use tokio_stream::Stream;
-use parking_lot::RwLock;
 
 use crate::domain::context::chunks::CandleJsonChunk;
 use cylo::{BackendConfig, Cylo, ExecutionRequest, ExecutionResult, create_backend};
@@ -25,13 +25,13 @@ use rmcp::model::Tool as RmcpTool;
 pub struct CandleToolRouter {
     /// Remote MCP client (optional - for connecting to external MCP servers)
     mcp_client: Option<KodegenClient>,
-    
+
     /// Local tools registered via Tool trait
     local_tools: Arc<RwLock<HashMap<String, Arc<dyn ToolExecutor>>>>,
-    
+
     /// Cylo backend configuration for code execution
     cylo_config: Option<CyloBackendConfig>,
-    
+
     /// Tool routing map: `tool_name` -> execution strategy
     tool_routes: Arc<RwLock<HashMap<String, ToolRoute>>>,
 }
@@ -42,7 +42,10 @@ enum ToolRoute {
     /// Local tool via Tool trait
     Local,
     /// Cylo code execution
-    Cylo { backend_type: String, config: String },
+    Cylo {
+        backend_type: String,
+        config: String,
+    },
 }
 
 /// Configuration for Cylo execution backend
@@ -72,7 +75,10 @@ pub enum RouterError {
 /// Internal trait for executing tools with type erasure
 trait ToolExecutor: Send + Sync {
     fn metadata(&self) -> RmcpTool;
-    fn execute(&self, args: Value) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>>;
+    fn execute(
+        &self,
+        args: Value,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>>;
 }
 
 /// Wrapper for Tool trait implementations
@@ -82,14 +88,16 @@ struct ToolWrapper<T: kodegen_mcp_tool::Tool> {
 
 impl<T: kodegen_mcp_tool::Tool> ToolWrapper<T> {
     fn new(tool: T) -> Self {
-        Self { tool: Arc::new(tool) }
+        Self {
+            tool: Arc::new(tool),
+        }
     }
 }
 
 impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
     fn metadata(&self) -> RmcpTool {
         use rmcp::model::ToolAnnotations;
-        
+
         RmcpTool {
             name: Cow::Borrowed(T::name()),
             title: None,
@@ -101,16 +109,19 @@ impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
                     .read_only(T::read_only())
                     .destructive(T::destructive())
                     .idempotent(T::idempotent())
-                    .open_world(T::open_world())
+                    .open_world(T::open_world()),
             ),
             icons: None,
         }
     }
-    
-    fn execute(&self, args: Value) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>> {
+
+    fn execute(
+        &self,
+        args: Value,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>> {
         // Deserialize args to tool's Args type
         let typed_args: Result<T::Args, _> = serde_json::from_value(args);
-        
+
         match typed_args {
             Ok(args) => {
                 let tool = Arc::clone(&self.tool);
@@ -120,13 +131,11 @@ impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
                         .map_err(|e| RouterError::ToolError(e.to_string()))
                 })
             }
-            Err(e) => {
-                Box::pin(async move {
-                    Err(RouterError::InvalidArguments(format!(
-                        "Failed to deserialize arguments: {e}"
-                    )))
-                })
-            }
+            Err(e) => Box::pin(async move {
+                Err(RouterError::InvalidArguments(format!(
+                    "Failed to deserialize arguments: {e}"
+                )))
+            }),
         }
     }
 }
@@ -152,7 +161,7 @@ impl CandleToolRouter {
         });
         self
     }
-    
+
     /// Register a local tool
     pub fn register_tool<T>(&self, tool: T)
     where
@@ -163,7 +172,7 @@ impl CandleToolRouter {
         self.local_tools.write().insert(name.clone(), executor);
         self.tool_routes.write().insert(name, ToolRoute::Local);
     }
-    
+
     /// Initialize router by discovering available tools
     ///
     /// This adds Cylo execution tools if configured.
@@ -176,31 +185,31 @@ impl CandleToolRouter {
         self.add_native_execution_tools();
         Ok(())
     }
-    
+
     /// List all available tools (local + remote + cylo)
     pub async fn get_available_tools(&self) -> Vec<RmcpTool> {
         let mut tools = Vec::new();
-        
+
         // Add local tools
         for (_name, executor) in self.local_tools.read().iter() {
             tools.push(executor.metadata());
         }
-        
+
         // Add remote MCP tools
         if let Some(client) = &self.mcp_client
             && let Ok(remote_tools) = client.list_tools().await
         {
             tools.extend(remote_tools);
         }
-        
+
         // Add Cylo execution tools if configured
         if self.cylo_config.is_some() {
             tools.extend(Self::create_cylo_tool_metadata());
         }
-        
+
         tools
     }
-    
+
     /// Execute a tool by name
     ///
     /// # Errors
@@ -211,7 +220,7 @@ impl CandleToolRouter {
         if let Some(executor) = executor {
             return executor.execute(args).await;
         }
-        
+
         // Try remote MCP client
         if let Some(client) = &self.mcp_client {
             match client.call_tool(name, args.clone()).await {
@@ -222,19 +231,25 @@ impl CandleToolRouter {
                 Err(e) => return Err(RouterError::McpClientError(e.to_string())),
             }
         }
-        
+
         // Try Cylo execution (for execute_* tools)
         if name.starts_with("execute_") && self.cylo_config.is_some() {
             // Get the route to know backend config
             let route = self.tool_routes.read().get(name).cloned();
-            if let Some(ToolRoute::Cylo { backend_type, config }) = route {
-                return self.execute_cylo_backend(&backend_type, &config, args).await;
+            if let Some(ToolRoute::Cylo {
+                backend_type,
+                config,
+            }) = route
+            {
+                return self
+                    .execute_cylo_backend(&backend_type, &config, args)
+                    .await;
             }
         }
-        
+
         Err(RouterError::ToolNotFound(name.to_string()))
     }
-    
+
     /// Execute tool and return stream
     #[must_use]
     pub fn call_tool_stream(
@@ -244,7 +259,7 @@ impl CandleToolRouter {
     ) -> Pin<Box<dyn Stream<Item = CandleJsonChunk> + Send>> {
         let router = self.clone();
         let tool_name = tool_name.to_string();
-        
+
         Box::pin(crate::async_stream::spawn_stream(move |tx| async move {
             tokio::spawn(async move {
                 match router.call_tool(&tool_name, args).await {
@@ -259,11 +274,11 @@ impl CandleToolRouter {
             });
         }))
     }
-    
+
     // ========================================================================
     // CYLO EXECUTION LOGIC (PRESERVED FROM ORIGINAL)
     // ========================================================================
-    
+
     /// Add native code execution tools via Cylo (if configured)
     fn add_native_execution_tools(&self) {
         // Only add native execution tools if Cylo backend is configured
@@ -292,7 +307,7 @@ impl CandleToolRouter {
             );
         }
     }
-    
+
     /// Create Cylo tool metadata
     fn create_cylo_tool_metadata() -> Vec<RmcpTool> {
         let languages = vec![
@@ -302,20 +317,25 @@ impl CandleToolRouter {
             ("execute_bash", "Bash"),
             ("execute_go", "Go"),
         ];
-        
-        languages.into_iter().map(|(tool_name, language)| {
-            RmcpTool {
+
+        languages
+            .into_iter()
+            .map(|(tool_name, language)| RmcpTool {
                 name: Cow::Owned(tool_name.to_string()),
                 title: None,
-                description: Some(Cow::Owned(format!("Execute {language} code securely via Cylo"))),
-                input_schema: Self::create_code_execution_schema(&format!("{language} code to execute")),
+                description: Some(Cow::Owned(format!(
+                    "Execute {language} code securely via Cylo"
+                ))),
+                input_schema: Self::create_code_execution_schema(&format!(
+                    "{language} code to execute"
+                )),
                 output_schema: None,
                 annotations: None,
                 icons: None,
-            }
-        }).collect()
+            })
+            .collect()
     }
-    
+
     /// Execute via Cylo backend directly
     async fn execute_cylo_backend(
         &self,
@@ -352,7 +372,7 @@ impl CandleToolRouter {
         // Convert ExecutionResult to JSON Value
         Ok(Self::execution_result_to_json(&result))
     }
-    
+
     /// Convert Value arguments to `ExecutionRequest`
     fn json_args_to_execution_request(args: &Value) -> Result<ExecutionRequest, RouterError> {
         let code = args
@@ -382,7 +402,7 @@ impl CandleToolRouter {
 
         Ok(request)
     }
-    
+
     /// Convert `ExecutionResult` to JSON Value
     fn execution_result_to_json(result: &ExecutionResult) -> Value {
         serde_json::json!({
@@ -398,7 +418,7 @@ impl CandleToolRouter {
             }
         })
     }
-    
+
     /// Create a code execution input schema
     fn create_code_execution_schema(description: &str) -> Arc<serde_json::Map<String, Value>> {
         let schema = serde_json::json!({
@@ -417,7 +437,7 @@ impl CandleToolRouter {
             },
             "required": ["code"]
         });
-        
+
         // Convert to Map and wrap in Arc
         if let Value::Object(map) = schema {
             Arc::new(map)
@@ -425,20 +445,22 @@ impl CandleToolRouter {
             Arc::new(serde_json::Map::new())
         }
     }
-    
+
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
-    
+
     /// Convert `CallToolResult` to JSON Value
     fn call_result_to_json(result: &rmcp::model::CallToolResult) -> Result<Value, RouterError> {
         // Extract text content from result
-        let text_content = result.content.first()
+        let text_content = result
+            .content
+            .first()
             .and_then(|c| c.as_text())
-            .ok_or_else(|| RouterError::ExecutionFailed(
-                "No text content in MCP response".to_string()
-            ))?;
-        
+            .ok_or_else(|| {
+                RouterError::ExecutionFailed("No text content in MCP response".to_string())
+            })?;
+
         // Try to parse as JSON, or return as string if not JSON
         serde_json::from_str(&text_content.text)
             .or_else(|_| Ok(serde_json::json!({"result": text_content.text})))

@@ -6,7 +6,7 @@
 use crate::error::ScanError;
 use crate::linked_hash_map::LinkedHashMap;
 use crate::parser::character_productions::CharacterProductions;
-use crate::parser::grammar::{YamlContext, ParametricContext};
+use crate::parser::grammar::{ParametricContext, YamlContext};
 use crate::parser::structural_productions::StructuralProductions;
 use crate::scanner::state::ScannerState;
 use crate::yaml::Yaml;
@@ -215,7 +215,10 @@ impl FlowProductions {
         // Check for alias node (*anchor)
         if state.peek_char()? == '*' {
             // Alias parsing - would need anchor resolution
-            return Err(ScanError::new(state.mark(), "alias nodes not yet implemented"));
+            return Err(ScanError::new(
+                state.mark(),
+                "alias nodes not yet implemented",
+            ));
         }
 
         // For now, handle simple content nodes
@@ -257,7 +260,10 @@ impl FlowProductions {
     ) -> Result<Vec<Yaml>, ScanError> {
         // Consume '['
         if state.peek_char()? != '[' {
-            return Err(ScanError::new(state.mark(), "expected '[' for flow sequence"));
+            return Err(ScanError::new(
+                state.mark(),
+                "expected '[' for flow sequence",
+            ));
         }
         state.consume_char()?;
 
@@ -273,7 +279,10 @@ impl FlowProductions {
 
         // Consume ']'
         if state.peek_char()? != ']' {
-            return Err(ScanError::new(state.mark(), "expected ']' for flow sequence"));
+            return Err(ScanError::new(
+                state.mark(),
+                "expected ']' for flow sequence",
+            ));
         }
         state.consume_char()?;
 
@@ -288,7 +297,10 @@ impl FlowProductions {
     ) -> Result<LinkedHashMap<Yaml, Yaml>, ScanError> {
         // Consume '{'
         if state.peek_char()? != '{' {
-            return Err(ScanError::new(state.mark(), "expected '{' for flow mapping"));
+            return Err(ScanError::new(
+                state.mark(),
+                "expected '{' for flow mapping",
+            ));
         }
         state.consume_char()?;
 
@@ -304,7 +316,10 @@ impl FlowProductions {
 
         // Consume '}'
         if state.peek_char()? != '}' {
-            return Err(ScanError::new(state.mark(), "expected '}' for flow mapping"));
+            return Err(ScanError::new(
+                state.mark(),
+                "expected '}' for flow mapping",
+            ));
         }
         state.consume_char()?;
 
@@ -347,7 +362,10 @@ impl FlowProductions {
             } else if ch == ']' {
                 break;
             } else {
-                return Err(ScanError::new(state.mark(), "expected ',' or ']' in flow sequence"));
+                return Err(ScanError::new(
+                    state.mark(),
+                    "expected ',' or ']' in flow sequence",
+                ));
             }
         }
 
@@ -395,7 +413,10 @@ impl FlowProductions {
             } else if ch == '}' {
                 break;
             } else {
-                return Err(ScanError::new(state.mark(), "expected ',' or '}' in flow mapping"));
+                return Err(ScanError::new(
+                    state.mark(),
+                    "expected ',' or '}' in flow mapping",
+                ));
             }
         }
 
@@ -436,8 +457,7 @@ impl FlowProductions {
 
         // Parse value
         StructuralProductions::process_separation(state, context, n)?;
-        let value = Self::parse_flow_yaml_node(state, context, n)?
-            .unwrap_or(Yaml::Null);
+        let value = Self::parse_flow_yaml_node(state, context, n)?.unwrap_or(Yaml::Null);
 
         map.insert(key, value);
         Ok(())

@@ -134,13 +134,13 @@ pub fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     if let Some(parent) = to.parent() {
         fs::create_dir_all(parent)?;
     }
-    
+
     for entry in walkdir::WalkDir::new(from) {
         let entry = entry?;
         debug_assert!(entry.path().starts_with(from));
         let rel_path = entry.path().strip_prefix(from)?;
         let dest_path = to.join(rel_path);
-        
+
         if entry.file_type().is_symlink() {
             let target = fs::read_link(entry.path())?;
             if entry.path().is_dir() {
@@ -154,7 +154,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> Result<()> {
             fs::copy(entry.path(), dest_path)?;
         }
     }
-    
+
     Ok(())
 }
 
@@ -171,10 +171,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-pub fn copy_custom_files(
-    files_map: &HashMap<PathBuf, PathBuf>,
-    data_dir: &Path,
-) -> Result<()> {
+pub fn copy_custom_files(files_map: &HashMap<PathBuf, PathBuf>, data_dir: &Path) -> Result<()> {
     for (pkg_path, path) in files_map.iter() {
         let pkg_path = if pkg_path.is_absolute() {
             pkg_path.strip_prefix("/")?

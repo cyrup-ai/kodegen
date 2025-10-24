@@ -35,7 +35,6 @@ impl<T> AsyncTask<T> {
     {
         AsyncTask::FutureVariant(Box::pin(fut))
     }
-
 }
 
 impl<T> std::future::Future for AsyncTask<T> {
@@ -87,7 +86,9 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => Ok(f(value)),
                     Some(Err(err)) => Err(err),
-                    None => unreachable!("StreamVariant has no constructor and should never be used"),
+                    None => {
+                        unreachable!("StreamVariant has no constructor and should never be used")
+                    }
                 }
             }),
         }
@@ -113,7 +114,9 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => Ok(value),
                     Some(Err(err)) => Err(f(err)),
-                    None => unreachable!("StreamVariant has no constructor and should never be used"),
+                    None => {
+                        unreachable!("StreamVariant has no constructor and should never be used")
+                    }
                 }
             }),
         }
@@ -140,7 +143,9 @@ impl<T, E> AsyncTask<Result<T, E>> {
                 match stream.next().await {
                     Some(Ok(value)) => f(value).await,
                     Some(Err(err)) => Err(err),
-                    None => unreachable!("StreamVariant has no constructor and should never be used"),
+                    None => {
+                        unreachable!("StreamVariant has no constructor and should never be used")
+                    }
                 }
             }),
         }
@@ -387,29 +392,29 @@ impl InstallContext {
         {
             PathBuf::from("/usr/local/var/kodegen")
         }
-        
+
         #[cfg(target_os = "linux")]
         {
             PathBuf::from("/var/lib/kodegen")
         }
-        
+
         #[cfg(target_os = "freebsd")]
         {
             PathBuf::from("/var/db/kodegen")
         }
-        
+
         #[cfg(target_os = "openbsd")]
         {
             PathBuf::from("/var/db/kodegen")
         }
-        
+
         #[cfg(target_os = "windows")]
         {
             std::env::var("ProgramData")
                 .map(|p| PathBuf::from(p).join("Kodegen"))
                 .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData\\Kodegen"))
         }
-        
+
         #[cfg(not(any(
             target_os = "macos",
             target_os = "linux",
@@ -572,9 +577,7 @@ impl InstallContext {
         let server_key_path = self.cert_dir.join("server.key");
 
         fs::write(&server_cert_path, server_cert.pem()).with_context(|| {
-            format!(
-                "Failed to write server certificate to {server_cert_path:?}"
-            )
+            format!("Failed to write server certificate to {server_cert_path:?}")
         })?;
 
         fs::write(&server_key_path, server_key_pair.serialize_pem())
@@ -645,13 +648,12 @@ impl InstallContext {
         use std::process::Command;
 
         // Get the current executable path and arguments
-        let exe_path = std::env::current_exe()
-            .context("Failed to get current executable path")?;
+        let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
         let args: Vec<String> = std::env::args().collect();
 
         eprintln!("   Current exe: {exe_path:?}");
         eprintln!("   Args: {args:?}");
-        
+
         // Check if sudo is available
         let sudo_check = Command::new("which")
             .arg("sudo")
@@ -671,7 +673,7 @@ impl InstallContext {
         }
 
         eprintln!("   Executing: sudo {:?} {:?}", exe_path, &args[1..]);
-        
+
         // Flush stderr to ensure messages are visible before exec
         let _ = std::io::stderr().flush();
 

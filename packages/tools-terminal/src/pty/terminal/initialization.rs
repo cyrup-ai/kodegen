@@ -1,6 +1,9 @@
-use std::{io::{self, BufWriter, Read, Write}, sync::{atomic::Ordering, Arc}};
 use log::error;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use std::{
+    io::{self, BufWriter, Read, Write},
+    sync::{Arc, atomic::Ordering},
+};
 use tokio::{sync::Mutex, task};
 
 use super::{shell::get_default_shell, types::Terminal};
@@ -35,7 +38,7 @@ impl Terminal {
         if self.writer_task.is_some() || self.reader_task.is_some() {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
-                "Terminal already initialized, cannot call init() again"
+                "Terminal already initialized, cannot call init() again",
             ));
         }
 
@@ -45,9 +48,7 @@ impl Terminal {
                 // Run command through shell
                 // Use custom shell if specified, otherwise detect default
                 let default_shell = get_default_shell();
-                let shell_exe = self.config.shell_path
-                    .as_deref()
-                    .unwrap_or(&default_shell);
+                let shell_exe = self.config.shell_path.as_deref().unwrap_or(&default_shell);
                 let mut builder = CommandBuilder::new(shell_exe);
                 builder.arg("-c");
                 builder.arg(command);
@@ -70,16 +71,12 @@ impl Terminal {
         } else if self.config.shell {
             // Just run shell with no command
             let default_shell = get_default_shell();
-            let shell_exe = self.config.shell_path
-                .as_deref()
-                .unwrap_or(&default_shell);
+            let shell_exe = self.config.shell_path.as_deref().unwrap_or(&default_shell);
             CommandBuilder::new(shell_exe)
         } else {
             // Default to shell if nothing specified
             let default_shell = get_default_shell();
-            let shell_exe = self.config.shell_path
-                .as_deref()
-                .unwrap_or(&default_shell);
+            let shell_exe = self.config.shell_path.as_deref().unwrap_or(&default_shell);
             CommandBuilder::new(shell_exe)
         };
 
@@ -103,9 +100,7 @@ impl Terminal {
             Ok(pair) => pair,
             Err(e) => {
                 error!("Failed to open PTY: {e}");
-                return Err(io::Error::other(
-                    format!("Failed to open PTY: {e}"),
-                ));
+                return Err(io::Error::other(format!("Failed to open PTY: {e}")));
             }
         };
 
@@ -114,9 +109,9 @@ impl Terminal {
             Ok(child) => child,
             Err(e) => {
                 error!("Failed to spawn command in PTY: {e}");
-                return Err(io::Error::other(
-                    format!("Failed to spawn command in PTY: {e}"),
-                ));
+                return Err(io::Error::other(format!(
+                    "Failed to spawn command in PTY: {e}"
+                )));
             }
         };
 
@@ -158,8 +153,8 @@ impl Terminal {
 
         // Process output from the terminal
         let reader_handle = task::spawn_blocking(move || {
-            let mut buf = [0u8; 65536];  // 64KB buffer for better throughput
-            let mut processed_buf = Vec::with_capacity(65536);  // Pre-allocate to avoid reallocs
+            let mut buf = [0u8; 65536]; // 64KB buffer for better throughput
+            let mut processed_buf = Vec::with_capacity(65536); // Pre-allocate to avoid reallocs
             loop {
                 let size = match reader.read(&mut buf) {
                     Ok(size) => size,
@@ -184,9 +179,7 @@ impl Terminal {
                         // Handle potential poison error
                         Ok(mut p) => p.process(&processed_buf),
                         Err(e) => {
-                            error!(
-                                "Parser lock poisoned: {e}. Stopping PTY output processing."
-                            );
+                            error!("Parser lock poisoned: {e}. Stopping PTY output processing.");
                             break; // Exit loop if lock is poisoned
                         }
                     }

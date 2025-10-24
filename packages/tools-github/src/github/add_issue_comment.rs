@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::issues::Comment, Octocrab};
+use octocrab::{Octocrab, models::issues::Comment};
 use std::sync::Arc;
 
 /// Add a comment to an existing issue.

@@ -1,16 +1,16 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
 use mime_guess::from_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+use std::collections::VecDeque;
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::time::{Duration, timeout};
-use std::collections::VecDeque;
 
 // ============================================================================
 // HELPERS
@@ -21,12 +21,12 @@ fn is_image_mime(mt: &str) -> bool {
 }
 
 /// Read lines starting from offset, returning both lines and total count in ONE pass
-/// 
+///
 /// This is more efficient than separate counting because we iterate once:
 /// - Count all lines while processing
 /// - Skip lines until we reach start position
 /// - Collect lines until we reach start + count
-/// 
+///
 /// Memory: O(count) instead of `O(total_lines)`
 async fn read_lines_forward_with_total(
     path: &std::path::Path,
@@ -34,47 +34,47 @@ async fn read_lines_forward_with_total(
     count: usize,
 ) -> Result<(Vec<String>, Option<usize>), McpError> {
     let file = tokio::fs::File::open(path).await?;
-    
+
     let reader = BufReader::new(file);
     let mut lines_stream = reader.lines();
-    
+
     let mut result = Vec::with_capacity(count);
     let mut line_number = 0;
-    
+
     while let Some(line) = lines_stream.next_line().await? {
         // Collect lines in target range
         if line_number >= start && result.len() < count {
             result.push(line);
         }
-        
+
         line_number += 1;
-        
+
         // Early exit optimization: we have enough lines, skip total count
         if result.len() == count {
             return Ok((result, None));
         }
     }
-    
+
     Ok((result, Some(line_number)))
 }
 
 /// Read last N lines using ring buffer, returning both lines and total count in ONE pass
-/// 
+///
 /// Uses `VecDeque` as circular buffer:
 /// - Capacity = `tail_count` (memory efficient)
 /// - Pop oldest when full, push newest
 /// - Result: last N lines + total line count
-/// 
+///
 /// Memory: `O(tail_count)` instead of `O(total_lines)`
 async fn read_lines_tail_with_total(
     path: &std::path::Path,
     tail_count: usize,
 ) -> Result<(Vec<String>, Option<usize>), McpError> {
     let file = tokio::fs::File::open(path).await?;
-    
+
     let reader = BufReader::new(file);
     let mut lines_stream = reader.lines();
-    
+
     // Handle tail_count = 0 edge case
     if tail_count == 0 {
         // Count total lines but don't collect any
@@ -84,19 +84,19 @@ async fn read_lines_tail_with_total(
         }
         return Ok((Vec::new(), Some(total_lines)));
     }
-    
+
     // Ring buffer for last N lines
     let mut ring_buffer = VecDeque::with_capacity(tail_count);
     let mut total_lines = 0;
-    
+
     while let Some(line) = lines_stream.next_line().await? {
         if ring_buffer.len() == tail_count {
-            ring_buffer.pop_front();  // Remove oldest
+            ring_buffer.pop_front(); // Remove oldest
         }
         ring_buffer.push_back(line);
         total_lines += 1;
     }
-    
+
     Ok((ring_buffer.into_iter().collect(), Some(total_lines)))
 }
 
@@ -144,8 +144,11 @@ pub struct ReadFileTool {
 
 impl ReadFileTool {
     #[must_use]
-    pub fn new(default_line_limit: usize, config_manager: kodegen_tools_config::ConfigManager) -> Self {
-        Self { 
+    pub fn new(
+        default_line_limit: usize,
+        config_manager: kodegen_tools_config::ConfigManager,
+    ) -> Self {
+        Self {
             default_line_limit,
             config_manager,
         }
@@ -212,7 +215,7 @@ impl ReadFileTool {
         };
 
         let mut content = truncated;
-        
+
         // Determine if this is a partial read
         let is_partial = offset != 0 || total.is_none_or(|t| end < t);
 
@@ -230,10 +233,7 @@ impl ReadFileTool {
                     )
                 } else {
                     // Fallback (should not happen for tail reads)
-                    format!(
-                        "[Reading last {} lines]\n\n",
-                        end - start
-                    )
+                    format!("[Reading last {} lines]\n\n", end - start)
                 }
             } else {
                 // Forward read: may or may not have total
@@ -244,11 +244,7 @@ impl ReadFileTool {
                         start,
                         t
                     ),
-                    None => format!(
-                        "[Reading {} lines from line {}]\n\n",
-                        end - start,
-                        start
-                    ),
+                    None => format!("[Reading {} lines from line {}]\n\n", end - start, start),
                 }
             };
             content = format!("{notice}{content}");
@@ -269,11 +265,15 @@ impl ReadFileTool {
         const FETCH_TIMEOUT_MS: u64 = 30000;
 
         let fetch_operation = async {
-            let resp = reqwest::get(url).await
+            let resp = reqwest::get(url)
+                .await
                 .map_err(|e| McpError::Network(e.to_string()))?;
 
             if !resp.status().is_success() {
-                return Err(McpError::Network(format!("HTTP error, status: {}", resp.status())));
+                return Err(McpError::Network(format!(
+                    "HTTP error, status: {}",
+                    resp.status()
+                )));
             }
 
             let content_type = resp
@@ -282,7 +282,9 @@ impl ReadFileTool {
                 .map_or("text/plain", |v| v.to_str().unwrap_or("text/plain"))
                 .to_owned();
 
-            let bytes = resp.bytes().await
+            let bytes = resp
+                .bytes()
+                .await
                 .map_err(|e| McpError::Network(e.to_string()))?;
 
             let is_image = is_image_mime(&content_type);
@@ -344,14 +346,14 @@ impl Tool for ReadFileTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
         // Auto-detect URL if not specified
-        let is_url = args.is_url
-            || args.path.starts_with("http://")
-            || args.path.starts_with("https://");
+        let is_url =
+            args.is_url || args.path.starts_with("http://") || args.path.starts_with("https://");
 
         if is_url {
             self.read_file_from_url(&args.path).await
         } else {
-            self.read_file_from_disk(&args.path, args.offset, args.length).await
+            self.read_file_from_disk(&args.path, args.offset, args.length)
+                .await
         }
     }
 
@@ -359,7 +361,10 @@ impl Tool for ReadFileTool {
         vec![PromptArgument {
             name: "file_type".to_string(),
             title: None,
-            description: Some("Optional file type to focus examples on (e.g., 'json', 'rust', 'markdown')".to_string()),
+            description: Some(
+                "Optional file type to focus examples on (e.g., 'json', 'rust', 'markdown')"
+                    .to_string(),
+            ),
             required: Some(false),
         }]
     }
@@ -369,7 +374,7 @@ impl Tool for ReadFileTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I use the read_file tool to read a large file in chunks?"
+                    "How do I use the read_file tool to read a large file in chunks?",
                 ),
             },
             PromptMessage {
@@ -388,7 +393,7 @@ impl Tool for ReadFileTool {
                      - Adds partial read notices for text files\n\
                      - Handles URL fetching with 30-second timeout\n\
                      - Validates paths are within allowed directories\n\
-                     - Ignores length parameter when offset is negative (tail behavior)"
+                     - Ignores length parameter when offset is negative (tail behavior)",
                 ),
             },
         ])

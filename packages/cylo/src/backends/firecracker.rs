@@ -744,8 +744,7 @@ impl FireCrackerBackend {
                 .cloned()
                 .unwrap_or_else(|| "root".to_string());
 
-            let auth = if let Some(key_path) = backend_config.backend_specific.get("ssh_key_path")
-            {
+            let auth = if let Some(key_path) = backend_config.backend_specific.get("ssh_key_path") {
                 SshAuth::Key(PathBuf::from(key_path))
             } else if let Some(password) = backend_config.backend_specific.get("ssh_password") {
                 SshAuth::Password(password.clone())
@@ -1002,10 +1001,9 @@ impl FireCrackerBackend {
                 for attempt in 0..30 {
                     let addr_str = format!("{}:{}", ssh_cfg.host, ssh_cfg.port);
                     if let Ok(addr) = addr_str.parse::<std::net::SocketAddr>() {
-                        if let Ok(tcp) = std::net::TcpStream::connect_timeout(
-                            &addr,
-                            Duration::from_secs(1),
-                        ) {
+                        if let Ok(tcp) =
+                            std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(1))
+                        {
                             drop(tcp);
                             break;
                         }
@@ -1044,9 +1042,11 @@ impl FireCrackerBackend {
         })?;
 
         session.set_tcp_stream(tcp);
-        session.handshake().map_err(|e| BackendError::ProcessFailed {
-            details: format!("SSH handshake failed: {}", e),
-        })?;
+        session
+            .handshake()
+            .map_err(|e| BackendError::ProcessFailed {
+                details: format!("SSH handshake failed: {}", e),
+            })?;
 
         match &ssh_config.auth {
             SshAuth::Agent => {
@@ -1100,9 +1100,11 @@ impl FireCrackerBackend {
             let exec_script = Self::prepare_execution_script(&request)?;
 
             // Get SSH config or return error
-            let ssh_config = vm.ssh_config.ok_or_else(|| BackendError::ConfigurationFailed {
-                details: "SSH configuration not available for VM".to_string(),
-            })?;
+            let ssh_config = vm
+                .ssh_config
+                .ok_or_else(|| BackendError::ConfigurationFailed {
+                    details: "SSH configuration not available for VM".to_string(),
+                })?;
 
             // Create temporary script file on host
             let script_path = format!("/tmp/exec-{}.sh", vm.vm_id);
@@ -1119,11 +1121,10 @@ impl FireCrackerBackend {
                 let guest_script = guest_script_path.clone();
                 move || -> BackendResult<()> {
                     let session = Self::create_ssh_session(&ssh_cfg)?;
-                    let metadata = fs::metadata(&script).map_err(|e| {
-                        BackendError::FileSystemFailed {
+                    let metadata =
+                        fs::metadata(&script).map_err(|e| BackendError::FileSystemFailed {
                             details: format!("Failed to read script metadata: {}", e),
-                        }
-                    })?;
+                        })?;
 
                     let mut local_file = std::fs::File::open(&script).map_err(|e| {
                         BackendError::FileSystemFailed {
@@ -1143,9 +1144,11 @@ impl FireCrackerBackend {
                         }
                     })?;
 
-                    remote_file.send_eof().map_err(|e| BackendError::ProcessFailed {
-                        details: format!("EOF failed: {}", e),
-                    })?;
+                    remote_file
+                        .send_eof()
+                        .map_err(|e| BackendError::ProcessFailed {
+                            details: format!("EOF failed: {}", e),
+                        })?;
                     remote_file
                         .wait_close()
                         .map_err(|e| BackendError::ProcessFailed {
@@ -1166,11 +1169,12 @@ impl FireCrackerBackend {
                 let guest_script = guest_script_path.clone();
                 move || -> BackendResult<(i32, String, String)> {
                     let session = Self::create_ssh_session(&ssh_cfg)?;
-                    let mut channel = session.channel_session().map_err(|e| {
-                        BackendError::ProcessFailed {
-                            details: format!("Failed to create channel: {}", e),
-                        }
-                    })?;
+                    let mut channel =
+                        session
+                            .channel_session()
+                            .map_err(|e| BackendError::ProcessFailed {
+                                details: format!("Failed to create channel: {}", e),
+                            })?;
 
                     channel
                         .exec(&format!("bash {}", guest_script))
@@ -1198,11 +1202,12 @@ impl FireCrackerBackend {
                             details: format!("Wait close failed: {}", e),
                         })?;
 
-                    let exit_code = channel.exit_status().map_err(|e| {
-                        BackendError::ProcessFailed {
-                            details: format!("Get exit status failed: {}", e),
-                        }
-                    })?;
+                    let exit_code =
+                        channel
+                            .exit_status()
+                            .map_err(|e| BackendError::ProcessFailed {
+                                details: format!("Get exit status failed: {}", e),
+                            })?;
 
                     Ok((exit_code, stdout, stderr))
                 }
@@ -1540,12 +1545,14 @@ mod tests {
     #[test]
     fn execution_script_preparation() {
         let request = ExecutionRequest::new("print('hello')", "python");
-        let script = FireCrackerBackend::prepare_execution_script(&request).expect("Failed to prepare Python execution script");
+        let script = FireCrackerBackend::prepare_execution_script(&request)
+            .expect("Failed to prepare Python execution script");
         assert!(script.contains("python3"));
         assert!(script.contains("print('hello')"));
 
         let request = ExecutionRequest::new("console.log('hello')", "javascript");
-        let script = FireCrackerBackend::prepare_execution_script(&request).expect("Failed to prepare JavaScript execution script");
+        let script = FireCrackerBackend::prepare_execution_script(&request)
+            .expect("Failed to prepare JavaScript execution script");
         assert!(script.contains("node"));
 
         let request = ExecutionRequest::new("some code", "cobol");
@@ -1556,7 +1563,8 @@ mod tests {
     fn vm_instance_creation() {
         let request = ExecutionRequest::new("test", "python");
         let backend_config = BackendConfig::default();
-        let vm = FireCrackerBackend::create_vm_instance(&request, &backend_config).expect("Failed to create VM instance for test");
+        let vm = FireCrackerBackend::create_vm_instance(&request, &backend_config)
+            .expect("Failed to create VM instance for test");
 
         assert!(vm.vm_id.starts_with("cylo-"));
         assert!(vm.socket_path.to_string_lossy().contains(&vm.vm_id));

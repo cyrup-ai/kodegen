@@ -70,29 +70,29 @@ pub struct PackageSettings {
     /// This is the human-readable name shown in installers and system menus.
     /// Usually derived from `Cargo.toml` `package.name`.
     pub product_name: String,
-    
+
     /// Version string in semantic versioning format.
     ///
     /// Example: "1.0.0", "0.2.3-beta.1"
     pub version: String,
-    
+
     /// Brief description of the application.
     ///
     /// Used in package managers and installer descriptions.
     pub description: String,
-    
+
     /// Homepage URL for the application.
     ///
     /// Default: None
     pub homepage: Option<String>,
-    
+
     /// List of package authors.
     ///
     /// Format: "Name <email@example.com>"
     ///
     /// Default: None
     pub authors: Option<Vec<String>>,
-    
+
     /// Default binary to run when multiple binaries exist.
     ///
     /// If the package contains multiple binaries, this specifies which one
@@ -149,85 +149,85 @@ pub struct DebianSettings {
     ///
     /// Default: None
     pub depends: Option<Vec<String>>,
-    
+
     /// Package recommendations (optional dependencies).
     ///
     /// These packages enhance functionality but aren't required.
     ///
     /// Default: None
     pub recommends: Option<Vec<String>>,
-    
+
     /// Virtual packages this package provides.
     ///
     /// Used for package alternatives and virtual package names.
     ///
     /// Default: None
     pub provides: Option<Vec<String>>,
-    
+
     /// Packages that cannot be installed alongside this one.
     ///
     /// Default: None
     pub conflicts: Option<Vec<String>>,
-    
+
     /// Packages this one replaces (for upgrades).
     ///
     /// Default: None
     pub replaces: Option<Vec<String>>,
-    
+
     /// Custom files to add to package (destination -> source).
     ///
     /// Maps installation paths to source files.
     ///
     /// Default: Empty
     pub files: HashMap<PathBuf, PathBuf>,
-    
+
     /// Path to custom `.desktop` file template.
     ///
     /// Will be installed to `/usr/share/applications/`.
     ///
     /// Default: None (auto-generated if not provided)
     pub desktop_template: Option<PathBuf>,
-    
+
     /// Debian control file section.
     ///
     /// Common values: "utils", "devel", "admin", "net"
     ///
     /// Default: None (uses "utils")
     pub section: Option<String>,
-    
+
     /// Package priority in Debian repository.
     ///
     /// Values: "required", "important", "standard", "optional", "extra"
     ///
     /// Default: None (uses "optional")
     pub priority: Option<String>,
-    
+
     /// Path to Debian changelog file.
     ///
     /// Default: None (auto-generated)
     pub changelog: Option<PathBuf>,
-    
+
     /// Pre-install script path (preinst).
     ///
     /// Executed before package installation.
     ///
     /// Default: None
     pub pre_install_script: Option<PathBuf>,
-    
+
     /// Post-install script path (postinst).
     ///
     /// Executed after package installation.
     ///
     /// Default: None
     pub post_install_script: Option<PathBuf>,
-    
+
     /// Pre-remove script path (prerm).
     ///
     /// Executed before package removal.
     ///
     /// Default: None
     pub pre_remove_script: Option<PathBuf>,
-    
+
     /// Post-remove script path (postrm).
     ///
     /// Executed after package removal.
@@ -271,34 +271,34 @@ pub struct RpmSettings {
     ///
     /// Default: None
     pub depends: Option<Vec<String>>,
-    
+
     /// Package recommendations (weak dependencies).
     ///
     /// Default: None
     pub recommends: Option<Vec<String>>,
-    
+
     /// Virtual packages this package provides.
     ///
     /// Default: None
     pub provides: Option<Vec<String>>,
-    
+
     /// Packages that cannot be installed alongside this one.
     ///
     /// Default: None
     pub conflicts: Option<Vec<String>>,
-    
+
     /// Packages this one obsoletes (supersedes).
     ///
     /// Default: None
     pub obsoletes: Option<Vec<String>>,
-    
+
     /// Release number appended to version.
     ///
     /// Incremented for packaging changes without version bumps.
     ///
     /// Default: "1"
     pub release: String,
-    
+
     /// Epoch number for version ordering.
     ///
     /// Used to force version ordering when normal comparison fails.
@@ -306,37 +306,37 @@ pub struct RpmSettings {
     ///
     /// Default: 0
     pub epoch: u32,
-    
+
     /// Custom files to add to package (destination -> source).
     ///
     /// Default: Empty
     pub files: HashMap<PathBuf, PathBuf>,
-    
+
     /// Path to custom `.desktop` file template.
     ///
     /// Default: None (auto-generated)
     pub desktop_template: Option<PathBuf>,
-    
+
     /// Pre-install script path (%pre).
     ///
     /// Default: None
     pub pre_install_script: Option<PathBuf>,
-    
+
     /// Post-install script path (%post).
     ///
     /// Default: None
     pub post_install_script: Option<PathBuf>,
-    
+
     /// Pre-remove script path (%preun).
     ///
     /// Default: None
     pub pre_remove_script: Option<PathBuf>,
-    
+
     /// Post-remove script path (%postun).
     ///
     /// Default: None
     pub post_remove_script: Option<PathBuf>,
-    
+
     /// Compression algorithm: "gzip", "xz", "zstd", "bzip2".
     ///
     /// Default: None (uses RPM default, typically "gzip")
@@ -395,14 +395,14 @@ pub struct AppImageSettings {
     ///
     /// Default: Empty
     pub files: HashMap<PathBuf, PathBuf>,
-    
+
     /// Bundle GStreamer media framework.
     ///
     /// Enable this if your application uses audio/video playback.
     ///
     /// Default: false
     pub bundle_media_framework: bool,
-    
+
     /// Bundle xdg-open binary for opening URLs/files.
     ///
     /// Enable this if your application needs to open web browsers or files.
@@ -444,14 +444,14 @@ pub struct MacOsSettings {
     ///
     /// Default: None (no additional frameworks)
     pub frameworks: Option<Vec<String>>,
-    
+
     /// Minimum macOS version required (LSMinimumSystemVersion).
     ///
     /// Example: "10.15", "11.0", "12.0"
     ///
     /// Default: None (uses current SDK version)
     pub minimum_system_version: Option<String>,
-    
+
     /// Code signing identity name.
     ///
     /// Example: "Developer ID Application: Your Name (TEAMID)"
@@ -460,19 +460,19 @@ pub struct MacOsSettings {
     ///
     /// Default: None (unsigned)
     pub signing_identity: Option<String>,
-    
+
     /// Path to entitlements.plist for code signing.
     ///
     /// Required for certain macOS features (network, camera, etc.).
     ///
     /// Default: None
     pub entitlements: Option<PathBuf>,
-    
+
     /// Custom files to include (destination -> source).
     ///
     /// Default: Empty
     pub files: HashMap<PathBuf, PathBuf>,
-    
+
     /// Skip notarization with Apple.
     ///
     /// Notarization is required for distribution outside the Mac App Store.
@@ -480,7 +480,7 @@ pub struct MacOsSettings {
     ///
     /// Default: false (notarization enabled)
     pub skip_notarization: bool,
-    
+
     /// Skip stapling the notarization ticket.
     ///
     /// Stapling attaches the notarization ticket to the bundle for offline verification.
@@ -514,7 +514,7 @@ pub struct DmgSettings {
     ///
     /// Default: None (plain background)
     pub background: Option<PathBuf>,
-    
+
     /// DMG window size (width, height) in pixels.
     ///
     /// Default: None (uses default size)
@@ -549,49 +549,46 @@ pub struct DmgSettings {
 #[derive(Clone, Debug, Default)]
 pub struct WindowsSettings {
     // === Signing Configuration ===
-    
     /// Path to certificate file (.pem, .crt, .pfx).
     ///
     /// For PKCS#12 (.pfx), also set `password`.
     ///
     /// Default: None (unsigned)
     pub cert_path: Option<PathBuf>,
-    
+
     /// Path to private key file (.pem, .key).
     ///
     /// Not needed for PKCS#12 (.pfx) files which contain both cert and key.
     ///
     /// Default: None
     pub key_path: Option<PathBuf>,
-    
+
     /// Password for encrypted key or PKCS#12 file.
     ///
     /// Default: None
     pub password: Option<String>,
-    
+
     /// Timestamp server URL for signature timestamping.
     ///
     /// Recommended: "http://timestamp.digicert.com"
     ///
     /// Default: None (uses default timestamp server)
     pub timestamp_url: Option<String>,
-    
+
     // === Legacy/Alternative Fields ===
-    
     /// Custom sign command for alternative signing tools.
     ///
     /// Example: "signtool sign /sha1 ABC123... %1"
     ///
     /// Default: None (uses osslsigncode)
     pub sign_command: Option<String>,
-    
+
     // === Installer Settings ===
-    
     /// WiX MSI installer settings.
     ///
     /// See [`WixSettings`] for details.
     pub wix: WixSettings,
-    
+
     /// NSIS EXE installer settings.
     ///
     /// See [`NsisSettings`] for details.
@@ -624,68 +621,68 @@ pub struct WixSettings {
     ///
     /// Default: Empty (uses "en-US")
     pub language: Vec<String>,
-    
+
     /// Path to custom WiX template (.wxs file).
     ///
     /// Default: None (uses built-in template)
     pub template: Option<PathBuf>,
-    
+
     /// Paths to WiX fragment files to include.
     ///
     /// Default: Empty
     pub fragment_paths: Vec<PathBuf>,
-    
+
     /// Component group references to include.
     ///
     /// Default: Empty
     pub component_group_refs: Vec<String>,
-    
+
     /// Component references to include.
     ///
     /// Default: Empty
     pub component_refs: Vec<String>,
-    
+
     /// Feature group references to include.
     ///
     /// Default: Empty
     pub feature_group_refs: Vec<String>,
-    
+
     /// Feature references to include.
     ///
     /// Default: Empty
     pub feature_refs: Vec<String>,
-    
+
     /// Merge module (.msm) references to include.
     ///
     /// Default: Empty
     pub merge_refs: Vec<String>,
-    
+
     /// Skip WebView2 runtime installation.
     ///
     /// Set to true if your app doesn't use WebView2.
     ///
     /// Default: false
     pub skip_webview_install: bool,
-    
+
     /// Path to license file (.rtf format required).
     ///
     /// Shown during installation.
     ///
     /// Default: None
     pub license: Option<PathBuf>,
-    
+
     /// Enable elevated update task for automatic updates.
     ///
     /// Default: false
     pub enable_elevated_update_task: bool,
-    
+
     /// Path to banner image (493×58 pixels).
     ///
     /// Shown at top of installer dialogs.
     ///
     /// Default: None
     pub banner_path: Option<PathBuf>,
-    
+
     /// Path to dialog image (493×312 pixels).
     ///
     /// Shown on installer welcome screen.
@@ -712,12 +709,12 @@ pub enum NSISInstallerMode {
     /// Installs to `%LOCALAPPDATA%`.
     #[default]
     CurrentUser,
-    
+
     /// Per-machine installation (requires admin rights).
     ///
     /// Installs to `%PROGRAMFILES%`.
     PerMachine,
-    
+
     /// Let user choose during installation.
     Both,
 }
@@ -745,14 +742,14 @@ pub enum NSISInstallerMode {
 pub enum NsisCompression {
     /// No compression - fastest, largest size.
     None,
-    
+
     /// zlib compression - good balance (default).
     #[default]
     Zlib,
-    
+
     /// bzip2 compression - smaller than zlib.
     Bzip2,
-    
+
     /// LZMA compression - smallest size, slowest.
     Lzma,
 }
@@ -784,40 +781,40 @@ pub struct NsisSettings {
     ///
     /// Default: None (uses built-in template)
     pub template: Option<PathBuf>,
-    
+
     /// Path to header image (150×57 pixels).
     ///
     /// Shown at top of installer window.
     ///
     /// Default: None
     pub header_image: Option<PathBuf>,
-    
+
     /// Path to sidebar image (164×314 pixels).
     ///
     /// Shown on left side of installer window.
     ///
     /// Default: None
     pub sidebar_image: Option<PathBuf>,
-    
+
     /// Path to installer icon (.ico file).
     ///
     /// Icon for the installer executable itself.
     ///
     /// Default: None (uses application icon)
     pub installer_icon: Option<PathBuf>,
-    
+
     /// Installation mode (per-user, per-machine, or both).
     ///
     /// Default: [`NSISInstallerMode::CurrentUser`]
     pub install_mode: NSISInstallerMode,
-    
+
     /// Supported installer languages.
     ///
     /// Example: `["en-US", "de-DE"]`
     ///
     /// Default: None (uses English)
     pub languages: Option<Vec<String>>,
-    
+
     /// Compression algorithm for installer.
     ///
     /// Default: None (uses [`NsisCompression::Zlib`])
@@ -857,12 +854,12 @@ pub struct BundleSettings {
     ///
     /// Default: None
     pub identifier: Option<String>,
-    
+
     /// Publisher/company name.
     ///
     /// Default: None
     pub publisher: Option<String>,
-    
+
     /// Icon file paths (PNG recommended).
     ///
     /// Provide multiple sizes for best quality:
@@ -872,42 +869,42 @@ pub struct BundleSettings {
     ///
     /// Default: None
     pub icon: Option<Vec<PathBuf>>,
-    
+
     /// Resource glob patterns to bundle.
     ///
     /// Example: `["config/**/*", "templates/**/*"]`
     ///
     /// Default: None
     pub resources: Option<Vec<String>>,
-    
+
     /// Copyright notice string.
     ///
     /// Example: "Copyright © 2024 Example Inc."
     ///
     /// Default: None
     pub copyright: Option<String>,
-    
+
     /// Application category.
     ///
     /// Common values: "Utility", "Developer Tools", "Graphics", "Productivity"
     ///
     /// Default: None
     pub category: Option<String>,
-    
+
     /// Short description (one line).
     ///
     /// Used in package managers and installer summaries.
     ///
     /// Default: None
     pub short_description: Option<String>,
-    
+
     /// Long description (multiple paragraphs).
     ///
     /// Used in package details and documentation.
     ///
     /// Default: None
     pub long_description: Option<String>,
-    
+
     /// External binaries to bundle.
     ///
     /// List of binary names (without path). Each must have a platform-specific
@@ -917,32 +914,32 @@ pub struct BundleSettings {
     ///
     /// Default: None
     pub external_bin: Option<Vec<String>>,
-    
+
     /// Debian-specific settings.
     ///
     /// See [`DebianSettings`] for details.
     pub deb: DebianSettings,
-    
+
     /// RPM-specific settings.
     ///
     /// See [`RpmSettings`] for details.
     pub rpm: RpmSettings,
-    
+
     /// AppImage-specific settings.
     ///
     /// See [`AppImageSettings`] for details.
     pub appimage: AppImageSettings,
-    
+
     /// macOS-specific settings.
     ///
     /// See [`MacOsSettings`] for details.
     pub macos: MacOsSettings,
-    
+
     /// DMG-specific settings.
     ///
     /// See [`DmgSettings`] for details.
     pub dmg: DmgSettings,
-    
+
     /// Windows-specific settings.
     ///
     /// See [`WindowsSettings`] for details.
@@ -1068,23 +1065,23 @@ impl BundleBinary {
 pub struct Settings {
     /// Package metadata.
     package: PackageSettings,
-    
+
     /// Bundle configuration.
     bundle_settings: BundleSettings,
-    
+
     /// Output directory for bundles.
     ///
     /// Typically `target/release` or `target/debug`.
     project_out_directory: PathBuf,
-    
+
     /// Package types to create.
     ///
     /// None means use platform defaults (.deb on Debian, .rpm on Fedora, etc.).
     package_types: Option<Vec<crate::bundler::platform::PackageType>>,
-    
+
     /// Binaries to bundle.
     binaries: Vec<BundleBinary>,
-    
+
     /// Target triple (e.g., "x86_64-unknown-linux-gnu").
     ///
     /// Used for architecture detection.
@@ -1174,9 +1171,11 @@ impl Settings {
     /// # Errors
     ///
     /// Returns `IconPathError` if no icon paths are configured.
-    pub fn icon_files(&self) -> crate::bundler::Result<Vec<crate::bundler::resources::icons::IconInfo>> {
+    pub fn icon_files(
+        &self,
+    ) -> crate::bundler::Result<Vec<crate::bundler::resources::icons::IconInfo>> {
         use crate::bundler::resources::icons::load_icons;
-        
+
         if let Some(icon_paths) = &self.bundle_settings.icon {
             load_icons(icon_paths)
         } else {
@@ -1311,8 +1310,7 @@ impl SettingsBuilder {
         use crate::bundler::error::Context;
 
         let target = self.target.unwrap_or_else(|| {
-            std::env::var("TARGET")
-                .unwrap_or_else(|_| std::env::consts::ARCH.to_string())
+            std::env::var("TARGET").unwrap_or_else(|_| std::env::consts::ARCH.to_string())
         });
 
         Ok(Settings {

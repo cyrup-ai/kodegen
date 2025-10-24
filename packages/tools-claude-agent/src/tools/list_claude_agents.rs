@@ -1,6 +1,6 @@
-use kodegen_mcp_tool::Tool;
 use crate::manager::AgentManager;
-use rmcp::model::{PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,14 +15,18 @@ pub struct ListClaudeAgentsArgs {
     /// Include completed sessions (default: true)
     #[serde(default = "default_true")]
     pub include_completed: bool,
-    
+
     /// Lines of last output per agent (default: 3)
     #[serde(default = "default_last_output_lines")]
     pub last_output_lines: usize,
 }
 
-fn default_true() -> bool { true }
-fn default_last_output_lines() -> usize { 3 }
+fn default_true() -> bool {
+    true
+}
+fn default_last_output_lines() -> usize {
+    3
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ListClaudeAgentsPromptArgs {}
@@ -39,7 +43,7 @@ pub struct ListClaudeAgentsTool {
 
 impl ListClaudeAgentsTool {
     /// Create a new list agents tool with required dependencies
-    #[must_use] 
+    #[must_use]
     pub fn new(agent_manager: Arc<AgentManager>) -> Self {
         Self { agent_manager }
     }
@@ -81,11 +85,12 @@ impl Tool for ListClaudeAgentsTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
-        let response = self.agent_manager
+        let response = self
+            .agent_manager
             .list_sessions(args.include_completed, args.last_output_lines)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
-        
+
         serde_json::to_value(response)
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))
     }
@@ -94,7 +99,10 @@ impl Tool for ListClaudeAgentsTool {
         vec![]
     }
 
-    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
+    async fn prompt(
+        &self,
+        _args: Self::PromptArgs,
+    ) -> Result<Vec<PromptMessage>, kodegen_mcp_tool::error::McpError> {
         Ok(vec![PromptMessage {
             role: PromptMessageRole::User,
             content: PromptMessageContent::Text {
@@ -135,7 +143,8 @@ Each agent includes:
 - Check which agents are still working
 - View progress across all tasks
 - Identify stuck or completed agents
-- Get quick output preview without full read"#.to_string(),
+- Get quick output preview without full read"#
+                    .to_string(),
             },
         }])
     }

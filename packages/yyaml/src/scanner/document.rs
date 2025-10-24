@@ -235,7 +235,7 @@ pub fn validate_document_marker_context<T: Iterator<Item = char>>(
 
 /// Get marker character for document marker type
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn marker_character(marker_type: DocumentMarker) -> char {
     match marker_type {
         DocumentMarker::Start => '-',
@@ -245,7 +245,7 @@ pub const fn marker_character(marker_type: DocumentMarker) -> char {
 
 /// Get marker string for document marker type
 #[inline]
-#[must_use] 
+#[must_use]
 pub const fn marker_string(marker_type: DocumentMarker) -> &'static str {
     match marker_type {
         DocumentMarker::Start => "---",
@@ -254,7 +254,7 @@ pub const fn marker_string(marker_type: DocumentMarker) -> &'static str {
 }
 
 /// Create formatted error message for document marker
-#[must_use] 
+#[must_use]
 pub fn format_marker_error(marker_type: DocumentMarker, context: &str) -> String {
     let marker_str = marker_string(marker_type);
     let marker_name = match marker_type {

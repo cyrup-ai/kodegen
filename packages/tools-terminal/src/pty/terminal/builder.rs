@@ -1,8 +1,11 @@
-use std::{collections::HashMap, sync::{atomic::AtomicBool, Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock, atomic::AtomicBool},
+};
 use tokio::sync::mpsc::channel;
 use vt100::Parser;
 
-use super::types::{BellStyle, ColorMode, Terminal, TermSize, TerminalConfig};
+use super::types::{BellStyle, ColorMode, TermSize, Terminal, TerminalConfig};
 
 /// Builder for creating Terminal instances with a fluent API
 #[derive(Default)]
@@ -27,7 +30,7 @@ pub struct TerminalBuilder {
 
 impl TerminalBuilder {
     /// Create a new terminal builder with optimized defaults
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             // Default to a comfortable terminal size
@@ -58,7 +61,7 @@ impl TerminalBuilder {
     }
 
     /// Set terminal dimensions
-    #[must_use] 
+    #[must_use]
     pub fn size(mut self, rows: u16, cols: u16) -> Self {
         self.rows = Some(rows);
         self.cols = Some(cols);
@@ -97,7 +100,7 @@ impl TerminalBuilder {
     }
 
     /// Use interactive shell mode
-    #[must_use] 
+    #[must_use]
     pub fn shell(mut self, enable: bool) -> Self {
         self.shell = enable;
         self
@@ -110,21 +113,21 @@ impl TerminalBuilder {
     }
 
     /// Set color mode
-    #[must_use] 
+    #[must_use]
     pub fn colors(mut self, mode: ColorMode) -> Self {
         self.colors = mode;
         self
     }
 
     /// Set scrollback buffer size
-    #[must_use] 
+    #[must_use]
     pub fn scrollback(mut self, lines: usize) -> Self {
         self.scrollback = lines;
         self
     }
 
     /// Force color output for child processes
-    #[must_use] 
+    #[must_use]
     pub fn force_color(mut self, enable: bool) -> Self {
         if enable {
             self.env_vars
@@ -138,56 +141,56 @@ impl TerminalBuilder {
     }
 
     /// Configure cursor blinking
-    #[must_use] 
+    #[must_use]
     pub fn cursor_blink(mut self, enable: bool) -> Self {
         self.cursor_blink = enable;
         self
     }
 
     /// Enable/disable application cursor keys mode
-    #[must_use] 
+    #[must_use]
     pub fn application_cursor_keys(mut self, enable: bool) -> Self {
         self.application_cursor_keys = enable;
         self
     }
 
     /// Enable/disable bracketed paste mode
-    #[must_use] 
+    #[must_use]
     pub fn bracketed_paste(mut self, enable: bool) -> Self {
         self.bracketed_paste = enable;
         self
     }
 
     /// Enable/disable mouse reporting
-    #[must_use] 
+    #[must_use]
     pub fn mouse_reporting(mut self, enable: bool) -> Self {
         self.mouse_reporting = enable;
         self
     }
 
     /// Use alternate screen buffer
-    #[must_use] 
+    #[must_use]
     pub fn alternate_screen(mut self, enable: bool) -> Self {
         self.alternate_screen = enable;
         self
     }
 
     /// Control whether to kill process on terminal close
-    #[must_use] 
+    #[must_use]
     pub fn exit_on_close(mut self, enable: bool) -> Self {
         self.exit_on_close = enable;
         self
     }
 
     /// Set bell style
-    #[must_use] 
+    #[must_use]
     pub fn bell_style(mut self, style: BellStyle) -> Self {
         self.bell_style = style;
         self
     }
 
     /// Preset for minimal terminal (good for running simple commands)
-    #[must_use] 
+    #[must_use]
     pub fn minimal(mut self) -> Self {
         self.scrollback = 100;
         self.cursor_blink = false;
@@ -200,7 +203,7 @@ impl TerminalBuilder {
     }
 
     /// Preset for full-featured interactive terminal
-    #[must_use] 
+    #[must_use]
     pub fn interactive(mut self) -> Self {
         self.scrollback = 10000;
         self.cursor_blink = true;
@@ -214,7 +217,7 @@ impl TerminalBuilder {
     }
 
     /// Build the terminal with all the configured options
-    #[must_use] 
+    #[must_use]
     pub fn build(self) -> Terminal {
         // Use sensible defaults for anything not specified
         let rows = self.rows.unwrap_or(30);

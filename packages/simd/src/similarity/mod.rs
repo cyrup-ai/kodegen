@@ -3,7 +3,6 @@
 //! This module provides optimized implementations of common similarity metrics
 //! with automatic selection of the best available implementation at runtime.
 
-
 pub mod metrics;
 mod scalar;
 mod simd;
@@ -86,4 +85,3 @@ pub fn reset_metrics() {
 pub fn builder() -> SimilarityBuilder {
     SimilarityBuilder::new()
 }
-

@@ -5,10 +5,10 @@ use crate::github::search_repositories::config::SearchConfig;
 use crate::github::search_repositories::helpers::{is_git_dir, is_hidden, is_vendor_dir};
 use crate::github::search_repositories::types::SecurityMetrics;
 use lazy_static::lazy_static;
+use log::warn;
 use octocrab::models::repos::dependabot::State;
 use regex::Regex;
 use std::path::Path;
-use log::warn;
 use walkdir::WalkDir;
 
 /// Collects security metrics
@@ -47,9 +47,7 @@ pub(crate) async fn collect_security_metrics(
             .filter(|alert| matches!(alert.state, State::Open))
             .count() as u32,
         Err(e) => {
-            warn!(
-                "Failed to fetch security advisories for {owner}/{repo}: {e} - defaulting to 0"
-            );
+            warn!("Failed to fetch security advisories for {owner}/{repo}: {e} - defaulting to 0");
             0
         }
     };

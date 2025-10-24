@@ -94,12 +94,12 @@ pub fn benchmark_logits_processing() -> Vec<BenchmarkResult> {
 /// Print benchmark results in a formatted table
 pub fn print_benchmark_results(results: &[BenchmarkResult]) -> std::io::Result<()> {
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-    
+
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))?;
     writeln!(&mut stdout, "\n=== Benchmark Results ===")?;
     stdout.reset()?;
     writeln!(&mut stdout)?;
-    
+
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Blue)).set_bold(true))?;
     writeln!(
         &mut stdout,
@@ -126,7 +126,7 @@ pub fn print_benchmark_results(results: &[BenchmarkResult]) -> std::io::Result<(
     writeln!(&mut stdout, "\n=== End of Results ===")?;
     stdout.reset()?;
     writeln!(&mut stdout)?;
-    
+
     Ok(())
 }
 

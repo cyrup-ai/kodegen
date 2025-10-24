@@ -2,9 +2,9 @@
 
 use crate::github::search_repositories::types::{SearchError, SearchResult};
 use chrono::{DateTime, Utc};
+use log::info;
 use std::time::Duration;
 use tokio::time::sleep;
-use log::info;
 
 /// Rate limiting support
 pub(crate) struct RateLimiter {

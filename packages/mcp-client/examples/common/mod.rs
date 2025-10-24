@@ -3,15 +3,15 @@
 //! This module provides common functionality for spawning and connecting to
 //! the kodegen server during development/testing.
 
-use anyhow::{Result, Context};
-use kodegen_mcp_client::{KodegenConnection, KodegenClient, create_sse_client};
+use anyhow::{Context, Result};
+use kodegen_mcp_client::{KodegenClient, KodegenConnection, create_sse_client};
 use rmcp::model::{CallToolResult, ServerInfo};
-use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, Mutex as StdMutex, Arc};
-use tokio::process::{Child, Command};
-use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio::sync::Mutex;
 use serde::de::DeserializeOwned;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::process::{Child, Command};
+use tokio::sync::Mutex;
 
 /// Default SSE server URL for examples
 ///
@@ -30,7 +30,9 @@ pub fn find_workspace_root() -> Result<&'static PathBuf> {
         return Ok(root);
     }
 
-    let _lock = WORKSPACE_ROOT_INIT.lock().map_err(|e| anyhow::anyhow!("Lock poisoned: {e}"))?;
+    let _lock = WORKSPACE_ROOT_INIT
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Lock poisoned: {e}"))?;
 
     if let Some(root) = WORKSPACE_ROOT.get() {
         return Ok(root);
@@ -43,19 +45,26 @@ pub fn find_workspace_root() -> Result<&'static PathBuf> {
         .context("Failed to execute cargo metadata")?;
 
     if !output.status.success() {
-        anyhow::bail!("cargo metadata failed (exit code: {:?})", output.status.code());
+        anyhow::bail!(
+            "cargo metadata failed (exit code: {:?})",
+            output.status.code()
+        );
     }
 
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .context("Invalid JSON from cargo metadata")?;
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("Invalid JSON from cargo metadata")?;
 
     let workspace_root = metadata["workspace_root"]
         .as_str()
         .context("No workspace_root in metadata")?;
 
     let path = PathBuf::from(workspace_root);
-    WORKSPACE_ROOT.set(path).map_err(|_| anyhow::anyhow!("Failed to cache workspace root"))?;
-    WORKSPACE_ROOT.get().ok_or_else(|| anyhow::anyhow!("Failed to retrieve cached workspace root"))
+    WORKSPACE_ROOT
+        .set(path)
+        .map_err(|_| anyhow::anyhow!("Failed to cache workspace root"))?;
+    WORKSPACE_ROOT
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Failed to retrieve cached workspace root"))
 }
 
 /// Tool categories supported by the kodegen server
@@ -178,9 +187,7 @@ pub struct ServerHandle {
 impl ServerHandle {
     /// Create a new server handle
     pub fn new(child: Child) -> Self {
-        Self {
-            child: Some(child),
-        }
+        Self { child: Some(child) }
     }
 
     /// Gracefully shutdown the server process
@@ -211,13 +218,12 @@ impl ServerHandle {
             }
 
             // Wait up to 5 seconds for graceful shutdown
-            match tokio::time::timeout(
-                std::time::Duration::from_secs(5),
-                child.wait()
-            ).await {
+            match tokio::time::timeout(std::time::Duration::from_secs(5), child.wait()).await {
                 Ok(Ok(status)) => {
-                    eprintln!("✅ Server shut down gracefully (exit code: {})",
-                        status.code().unwrap_or(-1));
+                    eprintln!(
+                        "✅ Server shut down gracefully (exit code: {})",
+                        status.code().unwrap_or(-1)
+                    );
                 }
                 Ok(Err(e)) => {
                     eprintln!("⚠️  Error waiting for server: {e}");
@@ -264,10 +270,7 @@ pub async fn cleanup_port(port: u16) -> Result<()> {
             let pid_str = pid_str.trim();
             if !pid_str.is_empty() {
                 eprintln!("   Killing PID {pid_str} on port {port}");
-                let _ = Command::new("kill")
-                    .args(["-9", pid_str])
-                    .status()
-                    .await;
+                let _ = Command::new("kill").args(["-9", pid_str]).status().await;
             }
         }
     }
@@ -294,7 +297,11 @@ pub async fn connect_with_retry(
         // Try to connect
         match create_sse_client(url).await {
             Ok(result) => {
-                eprintln!("✅ Connected to SSE server in {:?} (attempt {})", start.elapsed(), attempt);
+                eprintln!(
+                    "✅ Connected to SSE server in {:?} (attempt {})",
+                    start.elapsed(),
+                    attempt
+                );
                 return Ok(result);
             }
             Err(e) => {
@@ -307,7 +314,10 @@ pub async fn connect_with_retry(
 
                 // Log progress every 10 seconds
                 if last_progress_log.elapsed() >= std::time::Duration::from_secs(10) {
-                    eprintln!("   Still waiting for server... ({:?} elapsed)", start.elapsed());
+                    eprintln!(
+                        "   Still waiting for server... ({:?} elapsed)",
+                        start.elapsed()
+                    );
                     last_progress_log = std::time::Instant::now();
                 }
 
@@ -347,14 +357,24 @@ pub async fn connect_with_retry(
 /// Returns error if the server fails to spawn or connection fails.
 // APPROVED BY DAVID MAPLE on 2025-10-23: Shared library code used by multiple examples
 #[allow(dead_code)]
-pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCategory>>) -> Result<(KodegenConnection, ServerHandle)> {
-    let workspace_root = find_workspace_root()
-        .context("Failed to find workspace root")?;
+pub async fn connect_to_server_with_categories(
+    categories: Option<Vec<ToolCategory>>,
+) -> Result<(KodegenConnection, ServerHandle)> {
+    let workspace_root = find_workspace_root().context("Failed to find workspace root")?;
 
     // Spawn SSE server as child process
     let mut cmd = Command::new("cargo");
     cmd.current_dir(workspace_root);
-    cmd.args(["run", "--package", "kodegen", "--bin", "kodegen", "--", "--sse", "127.0.0.1:18080"]);
+    cmd.args([
+        "run",
+        "--package",
+        "kodegen",
+        "--bin",
+        "kodegen",
+        "--",
+        "--sse",
+        "127.0.0.1:18080",
+    ]);
 
     // Pass through GITHUB_TOKEN if set
     if let Ok(token) = std::env::var("GITHUB_TOKEN") {
@@ -373,8 +393,7 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
     eprintln!("🚀 Starting SSE server...");
 
     // Spawn the server process and keep the handle
-    let child = cmd.spawn()
-        .context("Failed to spawn SSE server process")?;
+    let child = cmd.spawn().context("Failed to spawn SSE server process")?;
 
     let server_handle = ServerHandle::new(child);
 
@@ -382,7 +401,7 @@ pub async fn connect_to_server_with_categories(categories: Option<Vec<ToolCatego
     eprintln!("⏳ Waiting for server to be ready (this may take up to 90s on first compile)...");
     let (_client, connection) = connect_with_retry(
         DEFAULT_SSE_URL,
-        std::time::Duration::from_secs(90),   // Total timeout (generous for first compile)
+        std::time::Duration::from_secs(90), // Total timeout (generous for first compile)
         std::time::Duration::from_millis(500), // Retry interval (fast enough to connect quickly)
     )
     .await
@@ -420,7 +439,8 @@ impl LoggingClient {
     pub async fn new(client: KodegenClient, log_path: impl AsRef<Path>) -> Result<Self> {
         // Create parent directory if needed
         if let Some(parent) = log_path.as_ref().parent() {
-            tokio::fs::create_dir_all(parent).await
+            tokio::fs::create_dir_all(parent)
+                .await
                 .context("Failed to create log directory")?;
         }
 
@@ -434,7 +454,10 @@ impl LoggingClient {
 
         let log_file = Arc::new(Mutex::new(BufWriter::new(file)));
 
-        Ok(Self { inner: client, log_file })
+        Ok(Self {
+            inner: client,
+            log_file,
+        })
     }
 
     /// Call a tool and log the request/response
@@ -462,17 +485,22 @@ impl LoggingClient {
         let result = self.call_tool(name, arguments).await?;
 
         // Extract text content from response
-        let text_content = result.content.first()
+        let text_content = result
+            .content
+            .first()
             .and_then(|c| c.as_text())
-            .ok_or_else(|| kodegen_mcp_client::ClientError::ParseError(
-                format!("No text content in response from tool '{name}'")
-            ))?;
+            .ok_or_else(|| {
+                kodegen_mcp_client::ClientError::ParseError(format!(
+                    "No text content in response from tool '{name}'"
+                ))
+            })?;
 
         // Deserialize to target type with context
-        serde_json::from_str(&text_content.text)
-            .map_err(|e| kodegen_mcp_client::ClientError::ParseError(
-                format!("Failed to parse response from tool '{name}': {e}")
+        serde_json::from_str(&text_content.text).map_err(|e| {
+            kodegen_mcp_client::ClientError::ParseError(format!(
+                "Failed to parse response from tool '{name}': {e}"
             ))
+        })
     }
 
     /// Get server info (passthrough to inner client)
@@ -495,7 +523,9 @@ impl LoggingClient {
                     .unwrap_or_else(|_| serde_json::json!({"serialization_error": true}));
                 LogResult::Success { response }
             }
-            Err(e) => LogResult::Error { error: e.to_string() },
+            Err(e) => LogResult::Error {
+                error: e.to_string(),
+            },
         };
 
         self.log_entry(name, args, log_result, duration).await;
@@ -524,16 +554,18 @@ impl LoggingClient {
 
     // Private helper to write JSONL
     async fn write_log_entry(&self, entry: &LogEntry) -> Result<()> {
-        let json = serde_json::to_string(entry)
-            .context("Failed to serialize log entry")?;
+        let json = serde_json::to_string(entry).context("Failed to serialize log entry")?;
 
         let mut guard = self.log_file.lock().await;
-        guard.write_all(json.as_bytes()).await
+        guard
+            .write_all(json.as_bytes())
+            .await
             .context("Failed to write log entry")?;
-        guard.write_all(b"\n").await
+        guard
+            .write_all(b"\n")
+            .await
             .context("Failed to write newline")?;
-        guard.flush().await
-            .context("Failed to flush log")?;
+        guard.flush().await.context("Failed to flush log")?;
 
         Ok(())
     }
@@ -550,7 +582,11 @@ mod tests {
         // dead_code analysis across example binaries.
         for category in ToolCategory::all() {
             let s = category.as_str();
-            assert!(!s.is_empty(), "Category {:?} has empty string representation", category);
+            assert!(
+                !s.is_empty(),
+                "Category {:?} has empty string representation",
+                category
+            );
         }
     }
 

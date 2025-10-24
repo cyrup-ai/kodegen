@@ -1,10 +1,10 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::manager::TerminalManager;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 // ============================================================================
@@ -15,11 +15,11 @@ use std::sync::Arc;
 pub struct ReadTerminalOutputArgs {
     /// Process ID to read output from
     pub pid: u32,
-    
+
     /// Offset for pagination (0 = start, negative = tail from end)
     #[serde(default)]
     pub offset: i64,
-    
+
     /// Maximum lines to return (default: 100)
     #[serde(default = "default_length")]
     pub length: usize,
@@ -83,29 +83,33 @@ impl Tool for ReadTerminalOutputTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        let response = self.terminal_manager
+        let response = self
+            .terminal_manager
             .get_output(args.pid, args.offset, args.length)
             .await
-            .ok_or_else(|| McpError::InvalidArguments(
-                format!("Terminal session {} not found", args.pid)
-            ))?;
-        
+            .ok_or_else(|| {
+                McpError::InvalidArguments(format!("Terminal session {} not found", args.pid))
+            })?;
+
         // Transform lines from Vec<String> to Vec<{line: usize, output: String}>
         let start_line = if args.offset < 0 {
             response.total_lines.saturating_sub(response.lines.len())
         } else {
             args.offset.max(0) as usize
         };
-        
-        let formatted_lines: Vec<Value> = response.lines
+
+        let formatted_lines: Vec<Value> = response
+            .lines
             .into_iter()
             .enumerate()
-            .map(|(idx, io)| json!({
-                "line": start_line + idx,
-                "io": io
-            }))
+            .map(|(idx, io)| {
+                json!({
+                    "line": start_line + idx,
+                    "io": io
+                })
+            })
             .collect();
-        
+
         Ok(json!({
             "pid": response.pid,
             "lines": formatted_lines,
@@ -127,7 +131,7 @@ impl Tool for ReadTerminalOutputTool {
             PromptMessage {
                 role: PromptMessageRole::User,
                 content: PromptMessageContent::text(
-                    "How do I read paginated output from a terminal command?"
+                    "How do I read paginated output from a terminal command?",
                 ),
             },
             PromptMessage {
@@ -157,7 +161,7 @@ impl Tool for ReadTerminalOutputTool {
                      - buffer_truncated: Indicates if older output was dropped due to scrollback limit\n\
                      \n\
                      Output is persistent and can be read multiple times.\n\
-                     Non-destructive - does not consume/clear output."
+                     Non-destructive - does not consume/clear output.",
                 ),
             },
         ])

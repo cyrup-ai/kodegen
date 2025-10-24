@@ -17,7 +17,7 @@ impl Drop for ContainerGuard {
     fn drop(&mut self) {
         // Best-effort cleanup with timeout protection
         // We use spawn() + wait_timeout() instead of output() to avoid infinite hangs
-        
+
         // Attempt to spawn docker command
         let mut child = match std::process::Command::new("docker")
             .args(["rm", "-f", &self.name])
@@ -32,7 +32,7 @@ impl Drop for ContainerGuard {
                 return;
             }
         };
-        
+
         // Wait up to 5 seconds for cleanup to complete
         // Docker daemon should respond instantly if alive (just removing a container entry)
         let timeout = Duration::from_secs(5);
@@ -55,7 +55,7 @@ impl Drop for ContainerGuard {
                 // Kill the hanging docker command to prevent zombie process
                 let _ = child.kill();
                 let _ = child.wait(); // Reap zombie process
-                
+
                 eprintln!(
                     "Warning: Timed out cleaning up container '{}' after {} seconds. \
                      Docker daemon may be down.",
@@ -70,7 +70,7 @@ impl Drop for ContainerGuard {
                 let _ = child.wait();
             }
         }
-        
+
         // Note: We deliberately ignore all errors and don't panic
         // Drop must never panic, and we're already in an error/cleanup path
     }

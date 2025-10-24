@@ -1,6 +1,6 @@
 use crate::state::StateManager;
 use crate::strategies::factory::{ReasoningStrategy, StrategyFactory};
-use crate::types::{ReasoningRequest, ReasoningResponse, ReasoningStats, ThoughtNode, CONFIG};
+use crate::types::{CONFIG, ReasoningRequest, ReasoningResponse, ReasoningStats, ThoughtNode};
 use futures::StreamExt;
 use std::sync::Arc;
 
@@ -19,11 +19,10 @@ impl Reasoner {
     pub async fn process_thought(&self, request: ReasoningRequest) -> ReasoningResponse {
         // Determine which strategy to use
         let strategy_type = match &request.strategy_type {
-            Some(strategy_str) => ReasoningStrategy::from_str(strategy_str)
-                .unwrap_or_else(|| {
-                    ReasoningStrategy::from_str(CONFIG.default_strategy)
-                        .unwrap_or(ReasoningStrategy::BeamSearch)
-                }),
+            Some(strategy_str) => ReasoningStrategy::from_str(strategy_str).unwrap_or_else(|| {
+                ReasoningStrategy::from_str(CONFIG.default_strategy)
+                    .unwrap_or(ReasoningStrategy::BeamSearch)
+            }),
             None => ReasoningStrategy::from_str(CONFIG.default_strategy)
                 .unwrap_or(ReasoningStrategy::BeamSearch),
         };
@@ -38,7 +37,7 @@ impl Reasoner {
 
         // Process thought with selected strategy - convert stream to single item
         let mut reasoning_stream = strategy.process_thought(request);
-        
+
         // Take the first item from the stream
         let response_result = match reasoning_stream.next().await {
             Some(result) => result,
@@ -83,11 +82,10 @@ impl Reasoner {
     pub async fn get_best_reasoning_path(&self, strategy_type: Option<&str>) -> Vec<ThoughtNode> {
         // Determine which strategy to use
         let strategy_type = match strategy_type {
-            Some(strategy_str) => ReasoningStrategy::from_str(strategy_str)
-                .unwrap_or_else(|| {
-                    ReasoningStrategy::from_str(CONFIG.default_strategy)
-                        .unwrap_or(ReasoningStrategy::BeamSearch)
-                }),
+            Some(strategy_str) => ReasoningStrategy::from_str(strategy_str).unwrap_or_else(|| {
+                ReasoningStrategy::from_str(CONFIG.default_strategy)
+                    .unwrap_or(ReasoningStrategy::BeamSearch)
+            }),
             None => ReasoningStrategy::from_str(CONFIG.default_strategy)
                 .unwrap_or(ReasoningStrategy::BeamSearch),
         };
@@ -102,10 +100,7 @@ impl Reasoner {
 
         // Get the best path and handle errors
         let async_path = strategy.get_best_path();
-        match async_path.await {
-            Ok(path) => path,
-            Err(_) => Vec::new(),
-        }
+        (async_path.await).unwrap_or_default()
     }
 
     pub async fn get_stats(&self, strategy_types: Vec<&str>) -> ReasoningStats {

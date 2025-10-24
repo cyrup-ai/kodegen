@@ -1,12 +1,13 @@
 //! Browser scroll tool - scrolls page or to specific element
 
+use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallArgument, CallFunctionOnParams};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallFunctionOnParams, CallArgument};
+use tracing::warn;
 
 use crate::manager::BrowserManager;
 
@@ -67,18 +68,21 @@ impl Tool for BrowserScrollTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Browser error: {}", e)))?;
 
         let browser_guard = browser_arc.lock().await;
-        let wrapper = browser_guard
-            .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+        let wrapper = browser_guard.as_ref().ok_or_else(|| {
+            McpError::Other(anyhow::anyhow!(
                 "Browser not available. This is an internal error - please report it."
-            )))?;
+            ))
+        })?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!(
-                "Failed to get page. Did you call browser_navigate first? Error: {}", e
-            )))?;
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Failed to get page. Did you call browser_navigate first? Error: {}",
+                    e
+                ))
+            })?;
 
         // Perform scroll
         if let Some(selector) = &args.selector {
@@ -90,22 +94,22 @@ impl Tool for BrowserScrollTool {
                      (2) Element exists on current page, \
                      (3) Element is not in an iframe (unsupported). \
                      Error: {}",
-                    selector, e
+                    selector,
+                    e
                 ))
             })?;
 
             // Use chromiumoxide's scroll_into_view() (has IntersectionObserver check)
-            element
-                .scroll_into_view()
-                .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
+            element.scroll_into_view().await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
                     "Scroll to element failed. \
                      Possible causes: (1) Element is not scrollable or not in viewport, \
                      (2) Page structure prevents scrolling, \
                      (3) Element is detached from DOM. \
                      Error: {}",
                     e
-                )))?;
+                ))
+            })?;
 
             Ok(json!({
                 "success": true,
@@ -115,8 +119,15 @@ impl Tool for BrowserScrollTool {
             }))
         } else {
             // Scroll by amount
-            let x = args.x.unwrap_or(0);
-            let y = args.y.unwrap_or(0);
+            // Validate scroll amounts (defense-in-depth)
+            // Agent validates, but tool should also validate since it's a public MCP tool
+            let x = args.x.unwrap_or(0).clamp(-10_000, 10_000);
+            let y = args.y.unwrap_or(0).clamp(-10_000, 10_000);
+
+            // Warn if attempting to scroll zero pixels
+            if x == 0 && y == 0 {
+                warn!("Scroll called with x=0, y=0 (no-op)");
+            }
 
             // Safe: parameterized evaluation prevents injection
             let call = CallFunctionOnParams::builder()
@@ -124,18 +135,20 @@ impl Tool for BrowserScrollTool {
                 .argument(CallArgument::builder().value(json!(x)).build())
                 .argument(CallArgument::builder().value(json!(y)).build())
                 .build()
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build scroll params: {}", e)))?;
+                .map_err(|e| {
+                    McpError::Other(anyhow::anyhow!("Failed to build scroll params: {}", e))
+                })?;
 
-            page.evaluate_function(call)
-                .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!(
+            page.evaluate_function(call).await.map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
                     "Scroll by amount failed. \
                      Possible causes: (1) Page does not support scrolling, \
                      (2) Scroll amount exceeds page boundaries, \
                      (3) JavaScript execution was blocked. \
                      Error: {}",
                     e
-                )))?;
+                ))
+            })?;
 
             Ok(json!({
                 "success": true,

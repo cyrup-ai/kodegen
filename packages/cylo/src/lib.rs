@@ -141,7 +141,6 @@ use serde::{Deserialize, Serialize};
 // Use our own async task implementations
 pub use crate::async_task::{AsyncTask, AsyncTaskBuilder};
 
-
 // ============================================================================
 // Performance monitoring and diagnostics
 // ============================================================================

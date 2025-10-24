@@ -23,21 +23,18 @@ pub fn find_bundle_directory(
     workspace_path: &Path,
     platform_str: &str,
 ) -> Result<PathBuf, ReleaseError> {
-    let bundle_base = workspace_path
-        .join("target")
-        .join("release")
-        .join("bundle");
-    
+    let bundle_base = workspace_path.join("target").join("release").join("bundle");
+
     if !bundle_base.exists() {
         return Err(ReleaseError::Cli(CliError::ExecutionFailed {
             command: "find bundle directory".to_string(),
             reason: format!("Bundle directory does not exist: {}", bundle_base.display()),
         }));
     }
-    
+
     // All bundlers use lowercase directory names
     let bundle_dir = bundle_base.join(platform_str.to_lowercase());
-    
+
     if bundle_dir.exists() && bundle_dir.is_dir() {
         Ok(bundle_dir)
     } else {
@@ -73,11 +70,12 @@ pub fn verify_artifacts(
 ) -> Result<(), ReleaseError> {
     for artifact in artifacts {
         // Check file exists and get metadata
-        let metadata = std::fs::metadata(artifact)
-            .map_err(|e| ReleaseError::Cli(CliError::ExecutionFailed {
+        let metadata = std::fs::metadata(artifact).map_err(|e| {
+            ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "verify artifact".to_string(),
                 reason: format!("Cannot read artifact {}: {}", artifact.display(), e),
-            }))?;
+            })
+        })?;
 
         // Check file is not empty
         if metadata.len() == 0 {
@@ -94,7 +92,8 @@ pub fn verify_artifacts(
         // Success - log verification
         runtime_config.indent(&format!(
             "  ✓ Verified: {} ({} bytes)",
-            artifact.file_name()
+            artifact
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("<unknown>"),
             metadata.len()

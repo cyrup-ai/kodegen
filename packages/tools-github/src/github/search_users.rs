@@ -2,7 +2,7 @@
 
 use crate::github::{error::GitHubError, util::spawn_task};
 use crate::runtime::AsyncTask;
-use octocrab::{models::Author, Octocrab};
+use octocrab::{Octocrab, models::Author};
 use std::sync::Arc;
 
 /// Sort field for user search results.
@@ -23,7 +23,7 @@ impl UserSearchSort {
     ///
     /// This is a zero-cost conversion that returns a static string slice.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Followers => "followers",
@@ -49,7 +49,7 @@ impl SearchOrder {
     ///
     /// This is a zero-cost conversion that returns a static string slice.
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Asc => "asc",
@@ -138,48 +138,46 @@ pub(crate) fn search_users(
         // Validate query is not empty
         if query.is_empty() {
             return Err(GitHubError::InvalidInput(
-                "search query cannot be empty".into()
+                "search query cannot be empty".into(),
             ));
         }
-        
+
         // Validate page number if provided
         if let Some(p) = page
             && p < 1
         {
-            return Err(GitHubError::InvalidInput(
-                "page must be >= 1".into()
-            ));
+            return Err(GitHubError::InvalidInput("page must be >= 1".into()));
         }
-        
+
         // Validate per_page is within GitHub API limits
         if let Some(pp) = per_page
             && !(1..=100).contains(&pp)
         {
             return Err(GitHubError::InvalidInput(
-                "per_page must be between 1 and 100".into()
+                "per_page must be between 1 and 100".into(),
             ));
         }
-        
+
         let mut request = inner.search().users(&query);
-        
+
         if let Some(s) = sort {
             request = request.sort(s.as_str());
         }
-        
+
         if let Some(o) = order {
             request = request.order(o.as_str());
         }
-        
+
         if let Some(p) = page {
             request = request.page(p);
         }
-        
+
         if let Some(pp) = per_page {
             request = request.per_page(pp);
         }
-        
+
         let results = request.send().await.map_err(GitHubError::from)?;
-        
+
         Ok(results)
     })
 }

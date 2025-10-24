@@ -316,11 +316,14 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
     page.evaluate(webdriver_js).await?;
 
     // 2. User agent consistency
-    let user_agent_js = format!(r"
+    let user_agent_js = format!(
+        r"
         Object.defineProperty(navigator, 'userAgent', {{
             value: '{}'
         }});
-    ", CHROME_USER_AGENT);
+    ",
+        CHROME_USER_AGENT
+    );
     page.evaluate(user_agent_js.as_str()).await?;
 
     // 3. Languages

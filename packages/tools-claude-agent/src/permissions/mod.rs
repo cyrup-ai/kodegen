@@ -78,12 +78,10 @@ impl PermissionManager {
         if let Some(ref allowed) = self.allowed_tools
             && !allowed.contains(&tool_name)
         {
-            return Ok(PermissionResult::Deny(
-                PermissionResultDeny {
-                    message: format!("Tool {} is not in allowed list", tool_name.as_str()),
-                    interrupt: false,
-                },
-            ));
+            return Ok(PermissionResult::Deny(PermissionResultDeny {
+                message: format!("Tool {} is not in allowed list", tool_name.as_str()),
+                interrupt: false,
+            }));
         }
 
         // Invoke callback if set

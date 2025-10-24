@@ -197,7 +197,6 @@ impl BaseStrategy {
         (dot_product / (magnitude1 * magnitude2)) as f64
     }
 
-
     pub async fn evaluate_thought(&self, node: &ThoughtNode, parent: Option<&ThoughtNode>) -> f64 {
         // Base evaluation logic - Semantic coherence is now handled async by strategies
         let logical_score = self.calculate_logical_score(node, parent).await;
@@ -207,7 +206,11 @@ impl BaseStrategy {
         (logical_score + depth_penalty + completion_bonus) / 3.0
     }
 
-    async fn calculate_logical_score(&self, node: &ThoughtNode, parent: Option<&ThoughtNode>) -> f64 {
+    async fn calculate_logical_score(
+        &self,
+        node: &ThoughtNode,
+        parent: Option<&ThoughtNode>,
+    ) -> f64 {
         let mut score = 0.0;
 
         // Length and complexity
@@ -225,15 +228,15 @@ impl BaseStrategy {
 
         // Parent-child semantic coherence using Stella embeddings
         if let Some(parent_node) = parent {
-            let coherence = self.calculate_semantic_coherence(&parent_node.thought, &node.thought)
+            let coherence = self
+                .calculate_semantic_coherence(&parent_node.thought, &node.thought)
                 .await
                 .unwrap_or(0.5); // Fallback only on embedding error
             score += coherence * 0.3; // CORRECT WEIGHT: 0.3 (matches TypeScript)
         }
 
-
         // Ensure score is within a reasonable range (e.g., 0 to 1) before returning
-        score.max(0.0).min(1.0)
+        score.clamp(0.0, 1.0)
     }
 
     fn calculate_depth_penalty(&self, node: &ThoughtNode) -> f64 {
@@ -264,21 +267,23 @@ impl BaseStrategy {
                     Some(vec) => vec.clone(),
                     None => {
                         let _ = tx.send(Err(ReasoningError::Other(
-                            "Parent embedding vector is empty".into()
+                            "Parent embedding vector is empty".into(),
                         )));
                         return;
                     }
                 },
                 Ok(Err(e)) => {
-                    let _ = tx.send(Err(ReasoningError::Other(
-                        format!("Failed to generate parent embedding: {}", e)
-                    )));
+                    let _ = tx.send(Err(ReasoningError::Other(format!(
+                        "Failed to generate parent embedding: {}",
+                        e
+                    ))));
                     return;
                 }
                 Err(e) => {
-                    let _ = tx.send(Err(ReasoningError::Other(
-                        format!("Task join error for parent embedding: {}", e)
-                    )));
+                    let _ = tx.send(Err(ReasoningError::Other(format!(
+                        "Task join error for parent embedding: {}",
+                        e
+                    ))));
                     return;
                 }
             };
@@ -294,21 +299,23 @@ impl BaseStrategy {
                     Some(vec) => vec.clone(),
                     None => {
                         let _ = tx.send(Err(ReasoningError::Other(
-                            "Child embedding vector is empty".into()
+                            "Child embedding vector is empty".into(),
                         )));
                         return;
                     }
                 },
                 Ok(Err(e)) => {
-                    let _ = tx.send(Err(ReasoningError::Other(
-                        format!("Failed to generate child embedding: {}", e)
-                    )));
+                    let _ = tx.send(Err(ReasoningError::Other(format!(
+                        "Failed to generate child embedding: {}",
+                        e
+                    ))));
                     return;
                 }
                 Err(e) => {
-                    let _ = tx.send(Err(ReasoningError::Other(
-                        format!("Task join error for child embedding: {}", e)
-                    )));
+                    let _ = tx.send(Err(ReasoningError::Other(format!(
+                        "Task join error for child embedding: {}",
+                        e
+                    ))));
                     return;
                 }
             };
@@ -328,8 +335,8 @@ impl BaseStrategy {
     // Original word overlap coherence function (kept for reference or fallback if needed)
     #[allow(dead_code)]
     fn calculate_word_overlap_coherence(&self, parent_thought: &str, child_thought: &str) -> f64 {
-         let parent_terms: HashSet<String> = parent_thought
-             .to_lowercase()
+        let parent_terms: HashSet<String> = parent_thought
+            .to_lowercase()
             .split(|c: char| !c.is_alphanumeric())
             .filter(|s| !s.is_empty())
             .map(String::from)
@@ -350,9 +357,8 @@ impl BaseStrategy {
         if child_terms.is_empty() {
             return 0.0;
         }
-        let overlap_score = (shared_terms as f64 / child_terms.len() as f64).min(1.0);
 
-        overlap_score
+        (shared_terms as f64 / child_terms.len() as f64).min(1.0)
     }
 
     /// Get base metrics
@@ -418,7 +424,9 @@ impl Strategy for BaseStrategy {
             }
 
             completed_nodes.sort_by(|a, b| {
-                b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
             let path = state_manager.get_path(&completed_nodes[0].id).await;
             let _ = tx.send(Ok(path));
@@ -431,18 +439,18 @@ impl Strategy for BaseStrategy {
         // Convert AsyncTask to TaskStream
         let async_metrics = self.get_base_metrics();
         let (tx, rx) = mpsc::channel(1);
-        
+
         tokio::spawn(async move {
             match async_metrics.await {
                 Ok(metrics) => {
                     let _ = tx.send(Ok(metrics)).await;
-                },
+                }
                 Err(err) => {
                     let _ = tx.send(Err(err)).await;
                 }
             }
         });
-        
+
         TaskStream::new(rx)
     }
 

@@ -5,10 +5,10 @@ use super::instruction::{format_single_with_instruction, format_with_instruction
 use super::utils::{
     configure_stella_tokenizer, create_stella_config, detect_device_and_dtype, load_stella_weights,
 };
-use anyhow::{anyhow, Context, Result as AnyResult};
 use crate::capability::traits::TextEmbeddingCapable;
 use crate::domain::model::CandleModelInfo;
 use crate::domain::model::traits::CandleModel;
+use anyhow::{Context, Result as AnyResult, anyhow};
 use candle_core::{DType, Device, Tensor};
 use candle_transformers::models::stella_en_v5::{Config, EmbeddingModel, ModelVariant};
 use tokenizers::Tokenizer;
@@ -78,7 +78,8 @@ impl LoadedStellaModel {
         let dimension = base_model
             .info()
             .embedding_dimension
-            .ok_or_else(|| anyhow!("embedding_dimension missing in ModelInfo"))? as usize;
+            .ok_or_else(|| anyhow!("embedding_dimension missing in ModelInfo"))?
+            as usize;
 
         let variant = detect_variant(base_model.info().registry_key);
         let embed_dim = embed_dim(dimension as u32)?;
@@ -229,49 +230,50 @@ impl TextEmbeddingCapable for LoadedStellaModel {
 
         Box::pin(async move {
             // Wrap CPU-intensive operations in spawn_blocking to avoid blocking async runtime
-            let embeddings_vec = tokio::task::spawn_blocking(move || -> AnyResult<Vec<Vec<f32>>> {
-                let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+            let embeddings_vec =
+                tokio::task::spawn_blocking(move || -> AnyResult<Vec<Vec<f32>>> {
+                    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
 
-                // Format with instruction prefix
-                let formatted_texts = format_with_instruction(&text_refs, task.as_deref());
+                    // Format with instruction prefix
+                    let formatted_texts = format_with_instruction(&text_refs, task.as_deref());
 
-                // Tokenize batch
-                let encodings = tokenizer
-                    .encode_batch(formatted_texts, true)
-                    .map_err(|e| anyhow!("Batch tokenization failed: {}", e))?;
+                    // Tokenize batch
+                    let encodings = tokenizer
+                        .encode_batch(formatted_texts, true)
+                        .map_err(|e| anyhow!("Batch tokenization failed: {}", e))?;
 
-                // Create batch tensors
-                let ids_vecs: Vec<Vec<u32>> =
-                    encodings.iter().map(|e| e.get_ids().to_vec()).collect();
-                let mask_vecs: Vec<Vec<u32>> = encodings
-                    .iter()
-                    .map(|e| e.get_attention_mask().to_vec())
-                    .collect();
+                    // Create batch tensors
+                    let ids_vecs: Vec<Vec<u32>> =
+                        encodings.iter().map(|e| e.get_ids().to_vec()).collect();
+                    let mask_vecs: Vec<Vec<u32>> = encodings
+                        .iter()
+                        .map(|e| e.get_attention_mask().to_vec())
+                        .collect();
 
-                let input_ids = Tensor::new(ids_vecs, &device)
-                    .context("Failed to create batch input tensor")?;
-                let attention_mask = Tensor::new(mask_vecs, &device)
-                    .context("Failed to create batch attention mask")?
-                    .to_dtype(DType::U8)
-                    .context("Failed to convert mask dtype")?;
+                    let input_ids = Tensor::new(ids_vecs, &device)
+                        .context("Failed to create batch input tensor")?;
+                    let attention_mask = Tensor::new(mask_vecs, &device)
+                        .context("Failed to create batch attention mask")?
+                        .to_dtype(DType::U8)
+                        .context("Failed to convert mask dtype")?;
 
-                // Forward pass - lock synchronous mutex in blocking context
-                let mut model_guard = model.lock().unwrap_or_else(|poisoned| {
-                    log::error!("Model mutex was poisoned, attempting recovery");
-                    log::error!("Poison error: {:?}", poisoned);
-                    poisoned.into_inner()
-                });
-                let embeddings = model_guard
-                    .forward_norm(&input_ids, &attention_mask)
-                    .context("Stella batch forward pass failed")?;
+                    // Forward pass - lock synchronous mutex in blocking context
+                    let mut model_guard = model.lock().unwrap_or_else(|poisoned| {
+                        log::error!("Model mutex was poisoned, attempting recovery");
+                        log::error!("Poison error: {:?}", poisoned);
+                        poisoned.into_inner()
+                    });
+                    let embeddings = model_guard
+                        .forward_norm(&input_ids, &attention_mask)
+                        .context("Stella batch forward pass failed")?;
 
-                // Convert to Vec<Vec<f32>>
-                embeddings
-                    .to_vec2::<f32>()
-                    .context("Failed to convert batch embeddings to vec")
-            })
-            .await
-            .context("Spawn blocking failed")??;
+                    // Convert to Vec<Vec<f32>>
+                    embeddings
+                        .to_vec2::<f32>()
+                        .context("Failed to convert batch embeddings to vec")
+                })
+                .await
+                .context("Spawn blocking failed")??;
 
             Ok(embeddings_vec)
         })

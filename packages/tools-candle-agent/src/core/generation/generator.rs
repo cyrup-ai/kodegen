@@ -393,8 +393,9 @@ impl TextGenerator {
                 presence_penalty: config.presence_penalty,
             };
 
-            let mut processor =
-                kodegen_simd::logits::constraints::ConstrainedLogitsProcessor::new(processor_config);
+            let mut processor = kodegen_simd::logits::constraints::ConstrainedLogitsProcessor::new(
+                processor_config,
+            );
             processor.process(&mut logits, &context).map_err(|e| {
                 crate::domain::model::error::CandleModelError::OperationNotSupported(
                     e.to_string().into(),

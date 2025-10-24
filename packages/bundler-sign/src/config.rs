@@ -64,21 +64,21 @@ pub enum CertificateType {
 
 impl CertificateType {
     /// Convert to Apple API certificate type string
-    /// 
+    ///
     /// Apple's App Store Connect API expects these exact strings.
     /// See: <https://developer.apple.com/documentation/appstoreconnectapi/certificatetype>
-    #[must_use] 
+    #[must_use]
     pub fn to_apple_api_string(&self) -> &'static str {
         match self {
             Self::DeveloperIdApplication => "DEVELOPER_ID_APPLICATION",
             Self::MacAppDistribution => "MAC_APP_DISTRIBUTION",
         }
     }
-    
+
     /// Get human-readable certificate type name
-    /// 
+    ///
     /// Used in logging and user-facing messages.
-    #[must_use] 
+    #[must_use]
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::DeveloperIdApplication => "Developer ID Application",

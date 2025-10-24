@@ -31,7 +31,10 @@ fn test_matcher_wildcard() {
         Some("*".to_string()).as_ref(),
         Some("any_tool".to_string()).as_ref()
     ));
-    assert!(HookManager::matches(None, Some("any_tool".to_string()).as_ref()));
+    assert!(HookManager::matches(
+        None,
+        Some("any_tool".to_string()).as_ref()
+    ));
 }
 
 #[test]

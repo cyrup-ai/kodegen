@@ -1,12 +1,12 @@
-use kodegen_mcp_tool::error::McpError;
-use kodegen_mcp_tool::Tool;
 use crate::validate_path;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use tokio::fs;
+use serde_json::{Value, json};
 use std::time::SystemTime;
+use tokio::fs;
 
 // ============================================================================
 // TOOL ARGUMENTS
@@ -92,7 +92,8 @@ impl Tool for GetFileInfoTool {
         }
 
         // For text files under 10MB, calculate line count
-        if stats.is_file() && stats.len() < 10 * 1024 * 1024
+        if stats.is_file()
+            && stats.len() < 10 * 1024 * 1024
             && let Ok(content) = fs::read_to_string(&valid_path).await
         {
             let line_count = content.lines().count();
@@ -136,7 +137,7 @@ impl Tool for GetFileInfoTool {
                      The tool automatically:\n\
                      - Validates and normalizes paths\n\
                      - Handles platform-specific permission formats\n\
-                     - Efficiently calculates line counts for small text files"
+                     - Efficiently calculates line counts for small text files",
                 ),
             },
         ])

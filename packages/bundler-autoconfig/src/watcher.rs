@@ -1,7 +1,7 @@
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Result;
 use dashmap::DashMap;
@@ -44,7 +44,7 @@ impl AutoConfigWatcher {
 
         // Perform initial scan
         self.perform_initial_scan().await?;
-        
+
         info!("✅ Initial scan complete. Setting up file watchers...");
 
         // Build list of all paths to watch
@@ -53,9 +53,10 @@ impl AutoConfigWatcher {
             .iter()
             .flat_map(|client| {
                 client.watch_paths().into_iter().chain(
-                    client.config_paths()
+                    client
+                        .config_paths()
                         .into_iter()
-                        .filter_map(|cp| cp.path.parent().map(std::path::Path::to_path_buf))
+                        .filter_map(|cp| cp.path.parent().map(std::path::Path::to_path_buf)),
                 )
             })
             .collect();
@@ -79,44 +80,48 @@ impl AutoConfigWatcher {
                             for config_path in client.config_paths() {
                                 // Only process the exact config file
                                 if config_path.path == *path {
-                                    info!("📝 Config change detected for {}: {}", 
-                                        client.client_name(), 
+                                    info!(
+                                        "📝 Config change detected for {}: {}",
+                                        client.client_name(),
                                         path.display()
                                     );
-                                    
+
                                     let config_path_clone = config_path.path.clone();
-                                    
+
                                     // Check if already processing this file
                                     if processing_files.contains_key(&config_path_clone) {
-                                        debug!("Already processing {}, skipping duplicate event", 
-                                            config_path_clone.display());
+                                        debug!(
+                                            "Already processing {}, skipping duplicate event",
+                                            config_path_clone.display()
+                                        );
                                         break;
                                     }
-                                    
+
                                     // Mark as in-progress
                                     processing_files.insert(config_path_clone.clone(), ());
                                     active_tasks.fetch_add(1, Ordering::SeqCst);
-                                    
+
                                     // Process the config file asynchronously
                                     let client_clone = client.clone();
                                     let processing_files_clone = processing_files.clone();
                                     let active_tasks_clone = active_tasks.clone();
                                     tokio::spawn(async move {
                                         let result = Self::process_config_file_static(
-                                            client_clone.as_ref(), 
-                                            &config_path_clone
-                                        ).await;
-                                        
+                                            client_clone.as_ref(),
+                                            &config_path_clone,
+                                        )
+                                        .await;
+
                                         // Remove from in-progress when done
                                         processing_files_clone.remove(&config_path_clone);
                                         active_tasks_clone.fetch_sub(1, Ordering::SeqCst);
-                                        
+
                                         if let Err(e) = result {
                                             error!("Failed to process config: {e}");
                                         }
                                     });
-                                    
-                                    break;  // Found the matching config, no need to check others
+
+                                    break; // Found the matching config, no need to check others
                                 }
                             }
                         }
@@ -125,15 +130,20 @@ impl AutoConfigWatcher {
             }
 
             // Handle shutdown signals
-            if action.signals().any(|sig| matches!(sig, Signal::Interrupt | Signal::Terminate)) {
-                info!("🛑 Received shutdown signal, waiting for {} active tasks...", 
-                    active_tasks.load(Ordering::SeqCst));
-                
+            if action
+                .signals()
+                .any(|sig| matches!(sig, Signal::Interrupt | Signal::Terminate))
+            {
+                info!(
+                    "🛑 Received shutdown signal, waiting for {} active tasks...",
+                    active_tasks.load(Ordering::SeqCst)
+                );
+
                 // Wait for all tasks to complete
                 while active_tasks.load(Ordering::SeqCst) > 0 {
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
-                
+
                 info!("✅ All tasks completed, shutting down");
                 action.quit();
             }
@@ -152,7 +162,7 @@ impl AutoConfigWatcher {
 
         // Start the watchexec main loop
         let main = wx.main();
-        
+
         // Run until shutdown
         match main.await {
             Ok(_) => {
@@ -170,11 +180,11 @@ impl AutoConfigWatcher {
     async fn perform_initial_scan(&self) -> Result<()> {
         for client in &self.clients {
             info!("Checking for {} installation", client.client_name());
-            
+
             for watch_path in client.watch_paths() {
                 if client.is_installed(&watch_path) {
                     info!("Found {} at {}", client.client_name(), watch_path.display());
-                    
+
                     for config_path in client.config_paths() {
                         if let Err(e) = self
                             .process_config_file(client.as_ref(), &config_path.path)
@@ -194,10 +204,7 @@ impl AutoConfigWatcher {
     }
 
     /// Process a single config file (shared implementation)
-    async fn process_config_file_impl(
-        client: &dyn ClientConfigPlugin,
-        path: &Path,
-    ) -> Result<()> {
+    async fn process_config_file_impl(client: &dyn ClientConfigPlugin, path: &Path) -> Result<()> {
         // Read existing config if it exists
         let config_content = match fs::read_to_string(path).await {
             Ok(content) => content,
@@ -247,7 +254,8 @@ impl AutoConfigWatcher {
         };
 
         // Fail-fast if backup fails (don't risk data loss)
-        fs::copy(path, &backup_path).await
+        fs::copy(path, &backup_path)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to create backup: {e}"))?;
 
         // Write updated config
