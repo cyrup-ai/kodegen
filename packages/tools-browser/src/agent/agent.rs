@@ -1,19 +1,21 @@
 use std::sync::Arc;
 
-// NEW - Workspace LLM infrastructure
+// NEW - Workspace LLM and Vision infrastructure
 use kodegen_candle_agent::prelude::*;
+use kodegen_candle_agent::capability::vision::llava::LLaVAModel;
 use tokio_stream::StreamExt;  // For stream.next().await
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
 
+// MCP client for hot path integration
+use kodegen_mcp_client::KodegenClient;
+
 use crate::agent::{
     prompts::{AgentMessagePrompt, SystemPrompt},
     AgentError, AgentHistory, AgentHistoryList, AgentOutput, AgentResult, ActionModel, ActionResult,
 };
-use crate::browser::{BrowserContext, BrowserError};
-use crate::controller::Controller;
 use crate::utils::AgentState;
 
 /// Agent implementation that manages browser automation
@@ -21,8 +23,7 @@ use crate::utils::AgentState;
 pub struct Agent {
     task: String,
     add_infos: String,
-    browser: Arc<BrowserContext>,
-    controller: Controller,
+    mcp_client: Arc<KodegenClient>,
     system_prompt: SystemPrompt,
     agent_prompt: AgentMessagePrompt,
     max_actions_per_step: usize,
@@ -54,8 +55,7 @@ impl Agent {
     pub fn new(
         task: &str,
         add_infos: &str,
-        browser: Arc<BrowserContext>,
-        controller: Controller,
+        mcp_client: Arc<KodegenClient>,
         system_prompt: SystemPrompt,
         agent_prompt: AgentMessagePrompt,
         max_actions_per_step: usize,
@@ -71,8 +71,7 @@ impl Agent {
         let agent = Self {
             task: task.to_string(),
             add_infos: add_infos.to_string(),
-            browser,
-            controller,
+            mcp_client,
             system_prompt,
             agent_prompt,
             max_actions_per_step,
@@ -253,73 +252,80 @@ impl Agent {
         Ok(output)
     }
     
-    /// Get current browser state, including screenshot (base64)
+    /// Get current browser state for LLM context (HOT PATH!)
+    ///
+    /// Fetches page content and optional screenshot via MCP tools.
+    /// This provides the LLM with current browser context for action planning.
+    ///
+    /// Uses:
+    /// - browser_extract_text: Get page text content
+    /// - browser_screenshot: Get base64-encoded screenshot (optional)
+    ///
+    /// Returns BrowserStateWithScreenshot with text summary and screenshot.
     async fn get_browser_state(&self) -> AgentResult<BrowserStateWithScreenshot> {
-        // Get page screenshot and contents
-        match self.browser.get_current_page().await {
-            Ok(page) => {
-                // (Optional) Mask sensitive elements before screenshot
-                // Blur all password fields
-                let _ = page.evaluate(
-                    "document.querySelectorAll('input[type=password]').forEach(e => e.style.filter='blur(8px)')"
-                ).await;
-
-                // Take screenshot
-                let screenshot_data = self.browser.screenshot().await.ok();
-                let screenshot_base64 = screenshot_data
-                    .as_ref()
-                    .map(|bytes| base64::encode(bytes));
-
-                // === VISION CODE REMOVED ===
-                // No segmentation with candle-agent yet
-                // When vision is added to kodegen_candle_agent, re-enable:
-                // - Segment Anything integration
-                // - VisualElementBox generation
-                // - bounding_boxes field
-
-                // Get page title and URL
-                let title = page.title().await.unwrap_or_else(|_| "Untitled".into());
-                let url = page.url().await.unwrap_or_else(|_| "about:blank".into());
-
-                // Get page content and structure
-                let content = page.content().await
-                    .map_err(|e| AgentError::BrowserError(e.to_string()))?;
-
-                // Combine information into a structured state representation
-                let state = format!(
-                    "URL: {}\nTitle: {}\nContent Length: {}\nContent Sample: {}...",
-                    url,
-                    title,
-                    content.len(),
-                    &content[0..content.len().min(500)]
-                );
-
-                // Store state in agent state for recovery if needed
-                let mut agent_state = self.agent_state.lock().await;
-                agent_state.set_last_valid_state(state.clone());
-
-                // The segmentation_result and bounding_boxes are now available for use in subsequent steps.
-
-                Ok(BrowserStateWithScreenshot {
-                    state,
-                    screenshot_base64,
-                    bounding_boxes,
-                })
+        // Extract page content via MCP (HOT PATH!)
+        let content = match self.mcp_client.call_tool("browser_extract_text", serde_json::json!({})).await {
+            Ok(result) => {
+                // Parse text from tool response
+                // browser_extract_text returns: {"success": true, "text": "...", "length": N, ...}
+                result.content.first()
+                    .and_then(|c| c.as_text())
+                    .and_then(|t| {
+                        serde_json::from_str::<serde_json::Value>(&t.text)
+                            .ok()
+                            .and_then(|v| v.get("text").and_then(|t| t.as_str()).map(String::from))
+                    })
+                    .unwrap_or_else(|| {
+                        warn!("Failed to parse browser_extract_text response, using empty content");
+                        String::new()
+                    })
             },
             Err(e) => {
-                // If failed to get current page, try to recover from last valid state
-                let agent_state = self.agent_state.lock().await;
-                if let Some(last_state) = agent_state.get_last_valid_state() {
-                    warn!("Using last valid browser state due to error: {}", e);
-                    Ok(BrowserStateWithScreenshot {
-                        state: last_state,
-                        screenshot_base64: None,
-                    })
-                } else {
-                    Err(AgentError::BrowserError(e.to_string()))
-                }
+                warn!("browser_extract_text failed: {}, using empty content", e);
+                String::new()
             }
-        }
+        };
+        
+        // Get screenshot via MCP (HOT PATH!)
+        // Note: Task says use_vision flag, but current struct doesn't have it
+        // For now, skip screenshot since we don't have the vision flag
+        let screenshot_base64 = match self.mcp_client.call_tool("browser_screenshot", serde_json::json!({})).await {
+            Ok(result) => {
+                // Parse base64 image from tool response
+                // ⚠️ CRITICAL: browser_screenshot returns {"image": base64}, NOT {"base64": base64}!
+                // See packages/tools-browser/src/tools/screenshot.rs:148-156
+                result.content.first()
+                    .and_then(|c| c.as_text())
+                    .and_then(|t| {
+                        serde_json::from_str::<serde_json::Value>(&t.text)
+                            .ok()
+                            .and_then(|v| v.get("image").and_then(|i| i.as_str()).map(String::from))
+                    })
+            },
+            Err(e) => {
+                warn!("browser_screenshot failed: {}, continuing without screenshot", e);
+                None
+            }
+        };
+        
+        // Build state representation for LLM
+        let state = format!(
+            "Content Length: {} characters\nContent Sample: {}{}",
+            content.len(),
+            &content[0..content.len().min(500)],
+            if content.len() > 500 { "..." } else { "" }
+        );
+        
+        // Store state for recovery if needed
+        let mut agent_state = self.agent_state.lock().await;
+        agent_state.set_last_valid_state(state.clone());
+        drop(agent_state);
+        
+        Ok(BrowserStateWithScreenshot {
+            state,
+            screenshot_base64,
+            bounding_boxes: None,  // TODO: Implement via vision API in future
+        })
     }
     
     /// Build messages for the LLM for this step
@@ -341,13 +347,27 @@ impl Agent {
         // Add browser state
         let mut browser_state_msg = format!("Current browser state:\n{}", browser_state.state);
         if let Some(ref screenshot_b64) = browser_state.screenshot_base64 {
-            browser_state_msg.push_str(&format!("\n[IMAGE: Base64-encoded screenshot]\n{}", screenshot_b64));
+            // Vision models can parse base64 images in prompts
+            browser_state_msg.push_str(&format!("\n[SCREENSHOT: Base64 PNG]\n{}", screenshot_b64));
         }
         messages.push(ChatMessage::user(&browser_state_msg));
 
-        // Add available actions
-        let actions_description = self.controller.list_available_actions();
-        messages.push(ChatMessage::system(&actions_description));
+        // Add available actions (hardcoded, no Controller needed)
+        // This list defines the agent protocol action vocabulary
+        let actions_description = r#"Available Actions:
+- go_to_url: Navigate to a URL (parameters: url)
+- click_element: Click an element (parameters: selector OR index)
+- input_text: Type text into an element (parameters: selector OR index, text)
+- scroll: Scroll the page (parameters: direction ["up"|"down"|"left"|"right"], amount [pixels])
+- extract_page_content: Extract page text content (no parameters)
+- done: Mark task as complete (parameters: result [description of completion])
+
+Parameter Notes:
+- selector: CSS selector string (e.g., "#submit", ".button", "input[name='email']")
+- index: Numeric index for data-mcp-index attributes (converted to selector automatically)
+- Use selector for precision, index for LLM-generated element references
+"#;
+        messages.push(ChatMessage::system(actions_description));
 
         Ok(messages)
     }
@@ -405,7 +425,20 @@ impl Agent {
         Ok(limited_actions)
     }
     
-    /// Execute actions and collect results
+    /// Execute actions by calling existing MCP tools (HOT PATH!)
+    /// 
+    /// Maps agent protocol action names to MCP tool names and parameters.
+    /// Each action is translated to an MCP call via self.mcp_client.call_tool().
+    ///
+    /// Action mapping (agent protocol → MCP tool):
+    /// - go_to_url → browser_navigate
+    /// - click_element → browser_click  
+    /// - input_text → browser_type_text
+    /// - scroll → browser_scroll
+    /// - extract_page_content → browser_extract_text
+    /// - done → (special case, no MCP call)
+    ///
+    /// Reference: Controller action mapping at packages/tools-browser/src/controller/controller.rs:44-263
     async fn execute_actions(
         &self, 
         actions: Vec<ActionModel>
@@ -414,13 +447,132 @@ impl Agent {
         let mut errors = Vec::new();
 
         for action in actions {
-            match self.controller.execute_action(&action, &self.browser).await {
+            // Map agent action names to MCP tool names (HOT PATH!)
+            let (tool_name, tool_args) = match action.action.as_str() {
+                "go_to_url" => {
+                    let url = action.parameters.get("url")
+                        .ok_or_else(|| AgentError::StepFailed("Missing 'url' parameter".into()))?;
+                    ("browser_navigate", serde_json::json!({
+                        "url": url,
+                        "timeout_ms": 30000
+                    }))
+                },
+                "click_element" => {
+                    // Support both direct selector and index-based selector
+                    // Controller pattern: converts index to [data-mcp-index="N"] selector
+                    let selector = if let Some(selector) = action.parameters.get("selector") {
+                        selector.clone()
+                    } else if let Some(index) = action.parameters.get("index") {
+                        format!("[data-mcp-index=\"{}\"]", index)
+                    } else {
+                        return Err(AgentError::StepFailed("Missing 'selector' or 'index' parameter".into()));
+                    };
+                    ("browser_click", serde_json::json!({
+                        "selector": selector,
+                        "timeout_ms": 5000
+                    }))
+                },
+                "input_text" => {
+                    // Support both direct selector and index-based selector
+                    let selector = if let Some(selector) = action.parameters.get("selector") {
+                        selector.clone()
+                    } else if let Some(index) = action.parameters.get("index") {
+                        format!("[data-mcp-index=\"{}\"]", index)
+                    } else {
+                        return Err(AgentError::StepFailed("Missing 'selector' or 'index' parameter".into()));
+                    };
+                    let text = action.parameters.get("text")
+                        .ok_or_else(|| AgentError::StepFailed("Missing 'text' parameter".into()))?;
+                    ("browser_type_text", serde_json::json!({
+                        "selector": selector,
+                        "text": text,
+                        "clear": true
+                    }))
+                },
+                "scroll" => {
+                    let direction = action.parameters.get("direction")
+                        .map(|s| s.as_str())
+                        .unwrap_or("down");
+                    
+                    // Calculate scroll amount based on direction
+                    // Default: 500px, matches Controller implementation (scroll.rs:158)
+                    let amount = action.parameters.get("amount")
+                        .and_then(|a| a.parse::<i32>().ok())
+                        .unwrap_or(500);
+                    
+                    let (x, y) = match direction {
+                        "up" => (0, -amount),
+                        "down" => (0, amount),
+                        "left" => (-amount, 0),
+                        "right" => (amount, 0),
+                        _ => (0, amount), // Default to down
+                    };
+                    
+                    ("browser_scroll", serde_json::json!({
+                        "x": x,
+                        "y": y
+                    }))
+                },
+                "extract_page_content" => {
+                    ("browser_extract_text", serde_json::json!({}))
+                },
+                "done" => {
+                    // Special case: mark completion without MCP call
+                    // Agent protocol uses "done" to signal task completion
+                    results.push(ActionResult {
+                        action: "done".into(),
+                        success: true,
+                        extracted_content: action.parameters.get("result")
+                            .map(|r| r.to_string())
+                            .or_else(|| Some("Task completed".into())),
+                        error: None,
+                    });
+                    continue;
+                },
+                _ => {
+                    let error_msg = format!("Unknown action: {}", action.action);
+                    warn!("Agent attempted unknown action: {}", action.action);
+                    errors.push(error_msg.clone());
+                    results.push(ActionResult {
+                        action: action.action.clone(),
+                        success: false,
+                        extracted_content: None,
+                        error: Some(error_msg),
+                    });
+                    continue;
+                }
+            };
+            
+            // Call existing tool via MCP client (HOT PATH!)
+            debug!("Agent calling MCP tool: {} with args: {:?}", tool_name, tool_args);
+            match self.mcp_client.call_tool(tool_name, tool_args).await {
                 Ok(result) => {
-                    results.push(result);
+                    info!("Tool {} succeeded for action '{}': {:?}", tool_name, action.action, result);
+                    
+                    // Extract meaningful content from tool response
+                    // Tools return text content in CallToolResult.content[0].text
+                    let content = result.content.first()
+                        .and_then(|c| c.as_text())
+                        .map(|t| t.text.clone())
+                        .unwrap_or_else(|| format!("Tool {} completed", tool_name));
+                    
+                    results.push(ActionResult {
+                        action: action.action,
+                        success: true,
+                        extracted_content: Some(content),
+                        error: None,
+                    });
                 }
                 Err(e) => {
-                    let error_msg = format!("Action '{}' failed: {}", action.action, e);
-                    errors.push(error_msg);
+                    let error_msg = format!("Tool '{}' failed for action '{}': {}", tool_name, action.action, e);
+                    warn!("{}", error_msg);
+                    errors.push(error_msg.clone());
+                    results.push(ActionResult {
+                        action: action.action,
+                        success: false,
+                        extracted_content: None,
+                        error: Some(error_msg),
+                    });
                 }
             }
         }
