@@ -120,7 +120,7 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
     let browser_config = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
         .window_size(1920, 1080)
-        .user_data_dir(&user_data_dir)
+        .user_data_dir(user_data_dir.clone())
         .chrome_executable(chrome_path)
         .headless_mode(chromiumoxide::browser::HeadlessMode::default())
         // Stealth mode arguments

@@ -323,7 +323,7 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
             value: '{}'
         }});
     ", CHROME_USER_AGENT);
-    page.evaluate(&user_agent_js).await?;
+    page.evaluate(user_agent_js.as_str()).await?;
 
     // 3. Languages
     let languages_js = r"
