@@ -6,7 +6,7 @@
 use std::marker::PhantomData;
 use crate::domain::embedding_result::Embedding;
 use crate::domain::collections::ZeroOneOrMany;
-use crate::domain::concurrency::{AsyncTask, spawn_task as spawn_async};
+use cylo::{AsyncTask, async_task::AsyncTaskBuilder};
 use crate::capability::registry::{self, TextEmbeddingModel};
 use crate::capability::traits::TextEmbeddingCapable;
 
@@ -66,7 +66,7 @@ impl EmbeddingBuilder for EmbeddingBuilderImpl {
     
     /// Generate embedding - EXACT syntax: .embed()
     fn embed(self) -> AsyncTask<Result<Embedding, Box<dyn std::error::Error + Send + Sync>>> {
-        spawn_async(async move {
+        AsyncTaskBuilder::new(async move {
             // Get model from registry (defaults to Stella if not specified)
             let model_key = self.model_key
                 .unwrap_or_else(|| "dunzhang/stella_en_400M_v5".to_string());
@@ -89,7 +89,7 @@ impl EmbeddingBuilder for EmbeddingBuilderImpl {
             let vec = model.embed(&self.document, self.task).await?;
             
             Ok(Embedding::new(self.document, vec))
-        })
+        }).spawn()
     }
 }
 

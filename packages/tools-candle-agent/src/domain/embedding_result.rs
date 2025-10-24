@@ -12,7 +12,7 @@ pub struct Embedding {
     
     /// The computed embedding vector(s)
     /// Can be None, single vector, or multiple vectors
-    pub vec: ZeroOneOrMany<f32>,
+    pub vec: ZeroOneOrMany<Vec<f32>>,
 }
 
 impl Embedding {

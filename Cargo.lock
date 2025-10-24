@@ -7219,34 +7219,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "h3"
-version = "0.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10872b55cfb02a821b69dc7cf8dc6a71d6af25eb9a79662bec4a9d016056b3be"
-dependencies = [
- "bytes",
- "fastrand",
- "futures-util",
- "http",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
-name = "h3-quinn"
-version = "0.0.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b2e732c8d91a74731663ac8479ab505042fbf547b9a207213ab7fbcbfc4f8b4"
-dependencies = [
- "bytes",
- "futures",
- "h3",
- "quinn",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "hakari"
 version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8572,22 +8544,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonwebtoken"
-version = "10.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d119c6924272d16f0ab9ce41f7aa0bfef9340c00b0bb7ca3dd3b263d4a9150b"
-dependencies = [
- "base64 0.22.1",
- "getrandom 0.2.16",
- "js-sys",
- "pem",
- "serde",
- "serde_json",
- "signature",
- "simple_asn1",
-]
-
-[[package]]
 name = "jwalk"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8706,7 +8662,7 @@ dependencies = [
  "rand 0.9.2",
  "regex",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "rustls",
  "schemars",
  "serde",
@@ -8875,7 +8831,7 @@ dependencies = [
  "dirs 6.0.0",
  "fs2",
  "hex",
- "jsonwebtoken 9.3.1",
+ "jsonwebtoken",
  "kodegen_tools_github",
  "octocrab",
  "rand 0.9.2",
@@ -8959,11 +8915,12 @@ dependencies = [
  "jemalloc-sys",
  "js-sys",
  "jsonschema",
- "jsonwebtoken 9.3.1",
+ "jsonwebtoken",
  "jwalk",
  "kodegen_mcp_client",
  "kodegen_mcp_tool",
  "kodegen_simd",
+ "kodegen_tools_git",
  "lazy_static",
  "log",
  "lz4",
@@ -8997,7 +8954,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rkyv 0.8.12",
- "rmcp 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rmcp",
  "ropey",
  "rustls",
  "schemars",
@@ -9112,7 +9069,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "kodegen_tools_database",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "serde",
  "serde_json",
  "sysinfo 0.37.2",
@@ -9133,7 +9090,7 @@ dependencies = [
  "cyrup_termcolor",
  "dirs 6.0.0",
  "parking_lot",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9238,7 +9195,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "sanitize-filename",
  "schemars",
  "scraper",
@@ -9275,7 +9232,7 @@ dependencies = [
  "log",
  "parking_lot",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9310,7 +9267,7 @@ dependencies = [
  "parking_lot",
  "regex",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9333,7 +9290,7 @@ dependencies = [
  "log",
  "rand 0.9.2",
  "regex",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "secrecy",
  "serde",
@@ -9370,7 +9327,7 @@ dependencies = [
  "mime_guess",
  "regex",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9391,7 +9348,7 @@ dependencies = [
  "kodegen_mcp_tool",
  "kodegen_utils",
  "log",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9412,7 +9369,7 @@ dependencies = [
  "chrono",
  "futures",
  "gix",
- "jsonwebtoken 10.1.0",
+ "jsonwebtoken",
  "kodegen_mcp_tool",
  "kodegen_utils",
  "lazy_static",
@@ -9421,7 +9378,7 @@ dependencies = [
  "octocrab",
  "regex",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "semver",
  "serde",
@@ -9444,7 +9401,7 @@ dependencies = [
  "anyhow",
  "kodegen_mcp_tool",
  "kodegen_utils",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9458,7 +9415,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "kodegen_mcp_tool",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9477,7 +9434,7 @@ dependencies = [
  "kodegen_mcp_tool",
  "log",
  "minijinja",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9496,7 +9453,7 @@ dependencies = [
  "log",
  "lru 0.16.2",
  "regex",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9517,7 +9474,7 @@ dependencies = [
  "kodegen_mcp_tool",
  "log",
  "parking_lot",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -9540,7 +9497,7 @@ dependencies = [
  "parking_lot",
  "portable-pty",
  "regex",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",
@@ -11595,7 +11552,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-timeout",
  "hyper-util",
- "jsonwebtoken 9.3.1",
+ "jsonwebtoken",
  "once_cell",
  "percent-encoding",
  "pin-project",
@@ -13063,7 +13020,6 @@ checksum = "b9e20a958963c291dc322d98411f541009df2ced7b5a4f2bd52337638cfccf20"
 dependencies = [
  "bytes",
  "cfg_aliases 0.2.1",
- "futures-io",
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
@@ -13734,8 +13690,6 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "h3",
- "h3-quinn",
  "http",
  "http-body",
  "http-body-util",
@@ -13926,27 +13880,6 @@ dependencies = [
 [[package]]
 name = "rmcp"
 version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fdad1258f7259fdc0f2dfc266939c82c3b5d1fd72bcde274d600cdc27e60243"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "futures",
- "paste",
- "pin-project-lite",
- "rmcp-macros 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-name = "rmcp"
-version = "0.8.3"
 source = "git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main#9012709079b6b0431863f7d8c4ed9c8c49926c09"
 dependencies = [
  "axum 0.8.6",
@@ -13962,7 +13895,7 @@ dependencies = [
  "process-wrap",
  "rand 0.9.2",
  "reqwest",
- "rmcp-macros 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp-macros",
  "schemars",
  "serde",
  "serde_json",
@@ -13974,19 +13907,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "rmcp-macros"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ede0589a208cc7ce81d1be68aa7e74b917fcd03c81528408bab0457e187dcd9b"
-dependencies = [
- "darling 0.21.3",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 2.0.108",
 ]
 
 [[package]]
@@ -16006,7 +15926,7 @@ dependencies = [
  "hex",
  "http",
  "ipnet",
- "jsonwebtoken 9.3.1",
+ "jsonwebtoken",
  "lexicmp",
  "linfa-linalg",
  "md-5",
@@ -20046,7 +19966,7 @@ dependencies = [
  "regex-automata",
  "regex-syntax",
  "reqwest",
- "rmcp 0.8.3 (git+https://github.com/modelcontextprotocol/rust-sdk.git?branch=main)",
+ "rmcp",
  "rustc-hash 2.1.1",
  "rustls",
  "rustls-pemfile",

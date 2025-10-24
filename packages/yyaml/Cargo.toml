@@ -24,7 +24,7 @@ version = "0.11"
 pretty_assertions = "1.4.1"
 indoc = "2.0"
 serde_derive = "1.0"
-reqwest = { version = "0.12.24", features = ["json", "stream", "http3", "rustls-tls", "rustls-tls-native-roots", "rustls-tls-manual-roots", "gzip", "deflate", "brotli"] }
+reqwest = { version = "0.12.24", features = ["json", "stream", "rustls-tls", "rustls-tls-native-roots", "rustls-tls-manual-roots", "gzip", "deflate", "brotli"] }
 tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread"] }
 cargo-nextest = "0.9.108"
 

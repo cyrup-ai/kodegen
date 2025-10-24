@@ -31,9 +31,9 @@ bytemuck = { version = "1", default-features = false, features = ["aarch64_simd"
 byteorder = { version = "1" }
 bytes = { version = "1", features = ["serde"] }
 camino = { version = "1", default-features = false, features = ["serde1"] }
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cuda", "metal", "mkl"] }
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["metal"] }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["metal"] }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["metal"] }
 castaway = { version = "0.2" }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -136,7 +136,7 @@ rcgen = { version = "0.14", features = ["x509-parser"] }
 regex = { version = "1" }
 regex-automata = { version = "0.4" }
 regex-syntax = { version = "0.8" }
-reqwest = { version = "0.12", features = ["blocking", "brotli", "deflate", "gzip", "http3", "json", "macos-system-configuration", "native-tls", "rustls-tls", "rustls-tls-native-roots", "stream"] }
+reqwest = { version = "0.12", features = ["blocking", "brotli", "deflate", "gzip", "json", "macos-system-configuration", "native-tls", "rustls-tls", "rustls-tls-manual-roots", "rustls-tls-native-roots", "stream"] }
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "transport-child-process", "transport-io", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client-reqwest"] }
 rustc-hash = { version = "2" }
 rustls = { version = "0.23", features = ["ring"] }

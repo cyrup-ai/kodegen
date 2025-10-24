@@ -21,7 +21,8 @@ ctrlc = { version = "3.5", features = ["termination"] }
 # Workspace MCP infrastructure
 kodegen_mcp_tool = { path = "../mcp-tool" }
 kodegen_mcp_client = { path = "../mcp-client" }
-rmcp = "0.8.3"
+kodegen_tools_git = { path = "../tools-git" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
 
 # Keep simd-json for potential other performance needs (not for MCP types)
 simd-json = { version = "0.17.0", default-features = false, features = ["known-key", "runtime-detection", "swar-number-parsing", "value-no-dup-keys"] }

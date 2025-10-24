@@ -4,6 +4,7 @@ use super::*;
 use crate::domain::agent::core::AGENT_STATS;
 use crate::domain::completion::types::ToolInfo;
 use crate::domain::tool::CandleToolRouter;
+use kodegen_mcp_client::create_sse_client;
 
 pub struct CandleAgentRoleAgent {
     state: Arc<AgentBuilderState>,
@@ -51,8 +52,24 @@ impl CandleAgentRoleAgent {
                 let on_chunk_handler = state.on_chunk_handler.clone();
                 let on_tool_result_handler = state.on_tool_result_handler.clone();
 
-                // Initialize tool router (using workspace MCP infrastructure)
-                let tool_router = Some(CandleToolRouter::new(None));
+                // Connect to kodegen MCP daemon for real tool execution
+                let tool_router = match create_sse_client("https://mcp.kodegen.ai:30437/sse").await {
+                    Ok((client, _connection)) => {
+                        // Connection established - client is cheaply clone-able
+                        // _connection dropped here but that's OK - we only need tools for this inference cycle
+                        let tool_count = client.list_tools().await
+                            .map(|tools| tools.len())
+                            .unwrap_or(0);
+                        
+                        log::info!("✅ Connected to MCP daemon - {} tools available", tool_count);
+                        Some(CandleToolRouter::new(Some(client)))
+                    }
+                    Err(e) => {
+                        // Daemon unavailable - agent will work without tools
+                        log::warn!("⚠️  MCP daemon unavailable: {} - Agent will work without tools", e);
+                        None
+                    }
+                };
 
                 // Build prompt - system_prompt always exists (no memory in recursive calls)
                 let full_prompt = format!("{}\n\nUser: {}", &state.system_prompt, user_message);

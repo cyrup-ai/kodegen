@@ -3,8 +3,8 @@
 //! This module contains `CandleContext<T>` and all type-specific implementations
 //! for File, Files, Directory, and GitHub context operations.
 
-use gitgix::{
-    CloneOpts, FetchOpts, GitError as GitGixError, MergeOpts, clone_repo as gitgix_clone, fetch,
+use kodegen_tools_git::{
+    CloneOpts, FetchOpts, GitError as GitGixError, MergeOpts, clone_repo, fetch,
     merge, open_repo,
 };
 use std::collections::HashMap;
@@ -461,15 +461,13 @@ impl CandleContext<CandleGithub> {
         let fetch_opts = FetchOpts::from_remote("origin");
         fetch(repo_handle.clone(), fetch_opts)
             .await
-            .map_err(|e| GitGixError::Gix(Box::new(e)))?
             .map_err(|e| GitGixError::Gix(Box::new(e)))?;
 
-        // Merge remote branch (gitgix automatically does fast-forward if possible)
+        // Merge remote branch (gitoxide automatically does fast-forward if possible)
         let remote_branch = format!("origin/{branch}");
         let merge_opts = MergeOpts::new(remote_branch);
         merge(repo_handle, merge_opts)
             .await
-            .map_err(|e| GitGixError::Gix(Box::new(e)))?
             .map_err(|e| GitGixError::Gix(Box::new(e)))?;
 
         Ok(repo_path.to_path_buf())
@@ -492,7 +490,7 @@ impl CandleContext<CandleGithub> {
         let opts = CloneOpts::new(auth_url, repo_path).branch(branch);
 
         // Execute clone
-        let _repo_handle = gitgix_clone(opts)
+        let _repo_handle = clone_repo(opts)
             .await
             .map_err(|e| GitGixError::Gix(Box::new(e)))?
             .map_err(|e| GitGixError::Gix(Box::new(e)))?;

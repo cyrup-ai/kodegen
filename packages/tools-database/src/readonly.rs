@@ -228,6 +228,16 @@ fn validate_set_expr_readonly(
                 "UPDATE in set expression not allowed in read-only mode".to_string(),
             ));
         }
+        SetExpr::Delete(_) => {
+            return Err(DatabaseError::ReadOnlyViolation(
+                "DELETE in set expression not allowed in read-only mode".to_string(),
+            ));
+        }
+        SetExpr::Merge(_) => {
+            return Err(DatabaseError::ReadOnlyViolation(
+                "MERGE in set expression not allowed in read-only mode".to_string(),
+            ));
+        }
     }
     Ok(())
 }
@@ -275,7 +285,7 @@ fn validate_select_readonly(select: &Select, db_type: DatabaseType) -> Result<()
         validate_expr_readonly(expr, db_type)?;
     }
     for expr in &select.sort_by {
-        validate_expr_readonly(expr, db_type)?;
+        validate_expr_readonly(&expr.expr, db_type)?;
     }
 
     Ok(())

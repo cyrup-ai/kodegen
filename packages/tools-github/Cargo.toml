@@ -34,7 +34,7 @@ reqwest     = { version = "0.12", features = ["json"] }
 semver      = "1.0"
 lru         = "0.16"
 tempfile    = "3.23"
-jsonwebtoken = { version = "10.1", default-features = true }
+jsonwebtoken = "9.3"
 gix = { version = "0.74", features = ["worktree-mutation", "blocking-network-client"] }
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 

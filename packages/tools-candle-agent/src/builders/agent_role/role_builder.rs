@@ -47,53 +47,6 @@ impl std::fmt::Debug for CandleAgentRoleBuilderImpl {
 impl CandleAgentRoleBuilderImpl {
     /// Create a new agent role builder
     pub fn new(name: impl Into<String>) -> Self {
-        // Create default tools: thinking and reasoning plugins
-        let thinking_tool = ToolInfo {
-            name: "thinking".to_string(),
-            description: Some("Use this tool for all thinking and reasoning tasks. The tool accepts a list of user and previous assistant messages relevant to the conversation. Always call this tool before answering the user and include the latest user message in the list. The tool will generate a chain of thought reasoning which can be used to answer the user's question.".to_string()),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "messages": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "role": {
-                                    "type": "string",
-                                    "enum": ["user", "assistant"]
-                                },
-                                "content": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["role", "content"]
-                        }
-                    }
-                },
-                "required": ["messages"]
-            }),
-        };
-
-        let reasoner_tool = ToolInfo {
-            name: "mcp-reasoner".to_string(),
-            description: Some("Advanced reasoning tool with Beam Search and MCTS strategies for complex problem solving".to_string()),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "thought": {"type": "string", "description": "Current reasoning step"},
-                    "thoughtNumber": {"type": "integer", "description": "Current step number", "minimum": 1},
-                    "totalThoughts": {"type": "integer", "description": "Total expected steps", "minimum": 1},
-                    "nextThoughtNeeded": {"type": "boolean", "description": "Whether another step is needed"},
-                    "parentId": {"type": ["string", "null"], "description": "Optional parent thought ID for branching"},
-                    "strategyType": {"type": ["string", "null"], "enum": ["beam_search", "mcts", "mcts_002_alpha", "mcts_002alt_alpha", null], "description": "Reasoning strategy to use"},
-                    "beamWidth": {"type": ["integer", "null"], "description": "Number of top paths to maintain", "minimum": 1, "maximum": 10},
-                    "numSimulations": {"type": ["integer", "null"], "description": "Number of MCTS simulations", "minimum": 1, "maximum": 150}
-                },
-                "required": ["thought", "thoughtNumber", "totalThoughts", "nextThoughtNeeded"]
-            }),
-        };
-
         Self {
             name: name.into(),
             text_to_text_model: None,
@@ -111,7 +64,7 @@ If you don't know the answer, you ALWAYS RESEARCH on the web and talk it through
 You produce clean, maintainable, *production quality* code all the time.
 You are a master at debugging and fixing bugs.
 You are a master at refactoring code, remembering to check for code that ALREADY EXISTS before writing new code that might duplicate existing functionality."#.to_string(),
-            tools: ZeroOneOrMany::from(vec![thinking_tool, reasoner_tool]),
+            tools: ZeroOneOrMany::None,
             context_file: None,
             context_files: None,
             context_directory: None,
