@@ -1,5 +1,6 @@
 use kodegen_candle_agent::prelude::*;
 use tokio_stream::StreamExt;
+use cyrup_sugars::prelude::MessageChunk;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if chunk.is_final {
             if let Some(stats) = &chunk.stats {
                 println!("\n\nCompleted in {:.2}s", stats.elapsed_secs);
-                println!("Tokens generated: {}", stats.token_count);
+                println!("Tokens generated: {}", stats.tokens_generated);
                 println!("Tokens/sec: {:.2}", stats.tokens_per_sec);
             } else {
                 println!("\n\nCompleted");

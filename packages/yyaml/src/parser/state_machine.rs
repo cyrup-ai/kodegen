@@ -844,11 +844,7 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
     fn add_mapping_pair(&mut self, mut value: Yaml) {
         // Apply pending tag if present
         if let Some((handle, suffix)) = self.pending_tag.take() {
-            let tag_uri = match handle.as_str() {
-                "!!" => format!("tag:yaml.org,2002:{}", suffix),
-                "!" => suffix,
-                _ => format!("{}{}", handle, suffix),
-            };
+            let tag_uri = self.resolve_tag(&handle, &suffix);
             value = Yaml::Tagged(tag_uri, Box::new(value));
         }
 
@@ -863,11 +859,7 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
     fn push_yaml(&mut self, mut yaml: Yaml) {
         // Apply pending tag if present
         if let Some((handle, suffix)) = self.pending_tag.take() {
-            let tag_uri = match handle.as_str() {
-                "!!" => format!("tag:yaml.org,2002:{}", suffix),
-                "!" => suffix,
-                _ => format!("{}{}", handle, suffix),
-            };
+            let tag_uri = self.resolve_tag(&handle, &suffix);
             yaml = Yaml::Tagged(tag_uri, Box::new(yaml));
         }
 
@@ -999,6 +991,18 @@ fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Y
         self.tag_handles.insert(handle, prefix);
         Ok(())
     }
+
+fn resolve_tag(&self, handle: &str, suffix: &str) -> String {
+    if handle == "!!" {
+        format!("tag:yaml.org,2002:{}", suffix)
+    } else if handle == "!" {
+        format!("!{}", suffix)
+    } else if let Some(prefix) = self.tag_handles.get(handle) {
+        format!("{}{}", prefix, suffix)
+    } else {
+        format!("{}{}", handle, suffix)
+    }
+}
 
     fn handle_parametric_block_sequence(&mut self) -> Result<(), ScanError> {
         let n = self.context.current_indent();

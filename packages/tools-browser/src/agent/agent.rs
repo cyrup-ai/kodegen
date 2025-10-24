@@ -207,49 +207,31 @@ impl Agent {
         // Prepare context for LLM with system prompt, task description, and browser state
         let messages = self.build_step_messages(&browser_state).await?;
 
-        // Generate agent actions using LLM
+        // Generate agent actions using LLM constrained generation
         let actions = self.generate_actions(messages).await?;
 
-        // NOTE: The protocol requires the LLM to return both current_state and action.
-        // Here, we must get the full AgentLLMResponse from the LLM, not just actions.
-        use crate::agent::AgentLLMResponse;
+        // Execute actions via MCP hot path
+        let (action_results, errors) = self.execute_actions(actions.clone()).await?;
 
-        let mut chat = self.llm.chat();
-
-        let mut has_system_prompt = false;
-        for message in &messages {
-            if let Some(content) = message.get_system_content() {
-                chat = chat.with_system_prompt(content);
-                has_system_prompt = true;
-                break;
-            }
-        }
-        if !has_system_prompt {
-            chat = chat.with_system_prompt("You are a helpful browser automation assistant.");
-        }
-        for message in &messages {
-            if let Some(content) = message.get_user_content() {
-                chat = chat.with_user_prompt(content);
-            }
+        // Log errors if any
+        if !errors.is_empty() {
+            warn!("Action execution errors: {:?}", errors);
         }
 
-        let agent_response: AgentLLMResponse = chat
-            .constrained()
-            .await
-            .map_err(|e| AgentError::LlmError(e.to_string()))?;
+        // Build summary of execution
+        let success_count = action_results.iter().filter(|r| r.success).count();
+        let current_state = format!(
+            "Executed {} actions: {} succeeded, {} failed",
+            action_results.len(),
+            success_count,
+            action_results.len() - success_count
+        );
 
-        // Limit the number of actions
-        let mut limited_actions = agent_response.action;
-        if limited_actions.len() > self.max_actions_per_step {
-            limited_actions = limited_actions[0..self.max_actions_per_step].to_vec();
-        }
-
-        let output = AgentOutput {
-            current_state: agent_response.current_state,
-            action: limited_actions,
-        };
-
-        Ok(output)
+        // Return output with executed actions
+        Ok(AgentOutput {
+            current_state,
+            action: actions,
+        })
     }
     
     /// Get current browser state for LLM context (HOT PATH!)

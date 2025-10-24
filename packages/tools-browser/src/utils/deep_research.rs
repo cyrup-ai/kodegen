@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use kalosm_common::traits::Llm;
-use kalosm_common::message::ChatMessage;
+// Workspace LLM infrastructure
+use kodegen_candle_agent::prelude::*;
+use kodegen_mcp_client::KodegenClient;
+
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
-use crate::browser::{BrowserContext, BrowserError, BrowserResult};
 use crate::utils::errors::UtilsError;
 
 /// Research result containing extracted information
@@ -46,19 +47,46 @@ impl Default for ResearchOptions {
     }
 }
 
-/// Deep research service for web research
+/// Deep research service using 100% hot path integration
+///
+/// All browser operations delegated to existing MCP tools:
+/// - web_search (citescrape) - DuckDuckGo search
+/// - browser_navigate - URL loading
+/// - browser_extract_text - Content extraction
+///
+/// LLM operations use CandleFluentAi streaming (no trait objects).
 pub struct DeepResearch {
-    browser_context: Arc<BrowserContext>,
-    llm: Arc<dyn Llm>,
+    /// MCP client for calling all browser and search tools (HOT PATH)
+    mcp_client: Arc<KodegenClient>,
+    
+    /// LLM temperature for summarization (0.0 = deterministic, 2.0 = creative)
+    temperature: f64,
+    
+    /// Maximum tokens for LLM generation
+    max_tokens: u64,
+    
+    /// Track visited URLs to avoid duplicates
     visited_urls: Arc<Mutex<Vec<String>>>,
 }
 
 impl DeepResearch {
-    /// Create a new deep research service
-    pub fn new(browser_context: Arc<BrowserContext>, llm: impl Llm + 'static) -> Self {
+    /// Create new DeepResearch instance with MCP client
+    ///
+    /// All browser operations delegated to MCP tools - no direct browser access.
+    ///
+    /// # Arguments
+    /// * `mcp_client` - Client for calling web_search, browser_navigate, browser_extract_text
+    /// * `temperature` - LLM sampling temperature (0.0-2.0)
+    /// * `max_tokens` - Maximum tokens for LLM generation
+    pub fn new(
+        mcp_client: Arc<KodegenClient>,
+        temperature: f64,
+        max_tokens: u64,
+    ) -> Self {
         Self {
-            browser_context,
-            llm: Arc::new(llm),
+            mcp_client,
+            temperature,
+            max_tokens,
             visited_urls: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -102,80 +130,72 @@ impl DeepResearch {
         Ok(results)
     }
     
-    /// Search for a query and return URLs
+    /// Search for query using web_search tool
+    ///
+    /// Calls citescrape's web_search tool which provides DuckDuckGo search
+    /// with kromekover stealth, retries, and structured result parsing.
+    ///
+    /// # Arguments
+    /// * `query` - Search query string
+    /// * `options` - Research options (currently unused, web_search has sensible defaults)
+    ///
+    /// # Returns
+    /// Vector of URLs from search results (up to 10)
+    ///
+    /// # Hot Path Integration
+    /// This method calls the existing web_search tool instead of duplicating
+    /// DuckDuckGo search logic. Benefits:
+    /// - Reuses battle-tested implementation
+    /// - Automatic improvements when web_search is enhanced
+    /// - Consistent error handling and retry logic
+    /// - No direct browser access needed
+    ///
+    /// # Reference
+    /// Tool implementation: packages/tools-citescrape/src/mcp/web_search.rs
     async fn search_query(
         &self,
         query: &str,
-        options: &ResearchOptions,
+        _options: &ResearchOptions,
     ) -> Result<Vec<String>, UtilsError> {
-        let search_engine = &options.search_engine;
-        let encoded_query = urlencoding::encode(query);
+        debug!("Searching DuckDuckGo via web_search tool: {}", query);
         
-        let search_url = match search_engine.to_lowercase().as_str() {
-            "google" => format!("https://www.google.com/search?q={}", encoded_query),
-            "bing" => format!("https://www.bing.com/search?q={}", encoded_query),
-            "duckduckgo" => format!("https://duckduckgo.com/?q={}", encoded_query),
-            _ => format!("https://www.google.com/search?q={}", encoded_query),
-        };
+        // Call web_search tool via MCP client
+        let result = self.mcp_client.call_tool(
+            "web_search",
+            serde_json::json!({
+                "query": query
+            })
+        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
         
-        // Navigate to search engine
-        let page = self.browser_context.get_current_page().await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        page.navigate(&search_url).await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        // Wait for results to load
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        
-        // Extract search result URLs with JavaScript
-        let extract_script = match search_engine.to_lowercase().as_str() {
-            "google" => r#"
-                Array.from(document.querySelectorAll('a[href]'))
-                    .map(a => a.href)
-                    .filter(url => url.startsWith('http') && 
-                                  !url.includes('google.com') && 
-                                  !url.includes('accounts.') &&
-                                  !url.includes('webcache.') &&
-                                  !url.includes('/search?'))
-            "#,
-            "bing" => r#"
-                Array.from(document.querySelectorAll('a[href]'))
-                    .map(a => a.href)
-                    .filter(url => url.startsWith('http') && 
-                                  !url.includes('bing.com') && 
-                                  !url.includes('microsoft.com') &&
-                                  !url.includes('msn.com'))
-            "#,
-            "duckduckgo" => r#"
-                Array.from(document.querySelectorAll('a.result__url'))
-                    .map(a => a.href)
-                    .filter(url => url.startsWith('http') && 
-                                  !url.includes('duckduckgo.com'))
-            "#,
-            _ => r#"
-                Array.from(document.querySelectorAll('a[href]'))
-                    .map(a => a.href)
-                    .filter(url => url.startsWith('http'))
-            "#,
-        };
-        
-        let result = page.evaluate(extract_script).await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        // Parse JSON result to get URLs
-        let urls: Vec<String> = serde_json::from_str(&result)
-            .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-            
-        // Deduplicate URLs
-        let mut unique_urls = Vec::new();
-        for url in urls {
-            if !unique_urls.contains(&url) {
-                unique_urls.push(url);
+        // Parse MCP response
+        let response = if let Some(content) = result.content.first() {
+            if let Some(text) = content.as_text() {
+                serde_json::from_str::<serde_json::Value>(&text.text)
+                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?
+            } else {
+                return Err(UtilsError::JsonParseError("Expected text content".into()));
             }
+        } else {
+            return Err(UtilsError::JsonParseError("No content in web_search result".into()));
+        };
+        
+        // Extract URLs from results array
+        let urls: Vec<String> = response["results"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|r| r["url"].as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        
+        if urls.is_empty() {
+            warn!("web_search returned no results for query: {}", query);
+        } else {
+            info!("web_search found {} URLs for query: {}", urls.len(), query);
         }
         
-        Ok(unique_urls)
+        Ok(urls)
     }
     
     /// Process a URL and extract content
@@ -191,152 +211,97 @@ impl DeepResearch {
         }
         drop(visited);
         
-        // Navigate to URL
-        let page = self.browser_context.get_current_page().await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        page.navigate(url).await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        // Wait for page to load
+        // 1. NAVIGATE VIA MCP CLIENT (HOT PATH)
+        debug!("Navigating to {} via MCP browser_navigate tool", url);
+        let nav_result = self.mcp_client.call_tool(
+            "browser_navigate",
+            serde_json::json!({
+                "url": url,
+                "timeout_ms": options.timeout_seconds * 1000
+            })
+        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
+        
+        // Parse navigation result to get actual URL (may have redirected)
+        let final_url = if let Some(content) = nav_result.content.first() {
+            if let Some(text) = content.as_text() {
+                let response: serde_json::Value = serde_json::from_str(&text.text)
+                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
+                response.get("url")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(url)
+                    .to_string()
+            } else {
+                url.to_string()
+            }
+        } else {
+            url.to_string()
+        };
+        
+        // 2. WAIT FOR PAGE TO SETTLE
         tokio::time::sleep(Duration::from_secs(2)).await;
         
-        // Get page title
-        let title = page.title().await
-            .unwrap_or_else(|_| "Untitled".into());
-            
-        // Extract content
-        let content = self.extract_content(&page, options).await?;
+        // 3. GET PAGE TITLE
+        // TODO: Add browser_get_page_info tool to get title/metadata
+        let title = final_url
+            .split('/')
+            .last()
+            .unwrap_or("Untitled")
+            .to_string();
         
-        // Generate summary
+        // 4. EXTRACT CONTENT VIA MCP CLIENT (HOT PATH)
+        debug!("Extracting content via MCP browser_extract_text tool");
+        let extract_result = self.mcp_client.call_tool(
+            "browser_extract_text",
+            serde_json::json!({})  // No selector = full page
+        ).await.map_err(|e| UtilsError::BrowserError(e.to_string()))?;
+        
+        // Parse extraction result
+        let content = if let Some(content_item) = extract_result.content.first() {
+            if let Some(text) = content_item.as_text() {
+                let response: serde_json::Value = serde_json::from_str(&text.text)
+                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
+                response.get("text")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
+            } else {
+                return Err(UtilsError::JsonParseError("Expected text content".into()));
+            }
+        } else {
+            return Err(UtilsError::JsonParseError("No content in extract result".into()));
+        };
+        
+        // 5. GENERATE SUMMARY WITH CANDLEFLUENTAI
         let summary = self.summarize_content(&title, &content).await?;
         
-        let result = ResearchResult {
-            url: url.to_string(),
+        // 6. ADD TO VISITED URLS
+        let mut visited = self.visited_urls.lock().await;
+        visited.push(final_url.clone());
+        drop(visited);
+        
+        Ok(ResearchResult {
+            url: final_url,
             title,
             content,
             summary,
             timestamp: chrono::Utc::now(),
-        };
-        
-        Ok(result)
+        })
     }
     
-    /// Extract content from a page
-    async fn extract_content(
-        &self,
-        page: &BrowserResult<crate::browser::BrowserPage>,
-        options: &ResearchOptions,
-    ) -> Result<String, UtilsError> {
-        let page = match page {
-            Ok(p) => p,
-            Err(e) => return Err(UtilsError::BrowserError(e.to_string())),
-        };
-        
-        // Extract content based on options
-        let extract_script = format!(
-            r#"
-            function extractContent() {{
-                // Remove script tags, style tags, and non-visible elements
-                const clone = document.cloneNode(true);
-                const scripts = clone.getElementsByTagName('script');
-                const styles = clone.getElementsByTagName('style');
-                
-                while (scripts.length > 0) {{
-                    scripts[0].parentNode.removeChild(scripts[0]);
-                }}
-                
-                while (styles.length > 0) {{
-                    styles[0].parentNode.removeChild(styles[0]);
-                }}
-                
-                // Try to find main content
-                const mainContent = 
-                    document.querySelector('main') || 
-                    document.querySelector('article') || 
-                    document.querySelector('.content') || 
-                    document.querySelector('#content') || 
-                    document.body;
-                
-                let text = mainContent.innerText;
-                let html = mainContent.innerHTML;
-                
-                // Extract tables if requested
-                const tables = {extract_tables} ? Array.from(document.querySelectorAll('table')).map(table => {{
-                    return Array.from(table.rows).map(row => {{
-                        return Array.from(row.cells).map(cell => cell.innerText).join(' | ');
-                    }}).join('\n');
-                }}).join('\n\n') : '';
-                
-                // Extract image alt text if requested
-                const images = {extract_images} ? Array.from(document.querySelectorAll('img')).map(img => {{
-                    return img.alt || img.title || '';
-                }}).filter(alt => alt.length > 0).join('\n') : '';
-                
-                // Extract links if requested
-                const links = {include_links} ? Array.from(document.querySelectorAll('a[href]')).map(a => {{
-                    return `${a.innerText} - ${a.href}`;
-                }}).join('\n') : '';
-                
-                return {{ text, html, tables, images, links }};
-            }}
-            extractContent();
-            "#,
-            extract_tables = options.extract_tables.to_string(),
-            extract_images = options.extract_images.to_string(),
-            include_links = options.include_links.to_string(),
-        );
-        
-        let result = page.evaluate(&extract_script).await
-            .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
-            
-        let content_obj: serde_json::Value = serde_json::from_str(&result)
-            .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-            
-        // Combine all extracted content
-        let mut content = String::new();
-        
-        if let Some(text) = content_obj["text"].as_str() {
-            content.push_str(text);
-        }
-        
-        if options.extract_tables {
-            if let Some(tables) = content_obj["tables"].as_str() {
-                if !tables.is_empty() {
-                    content.push_str("\n\nTABLES:\n");
-                    content.push_str(tables);
-                }
-            }
-        }
-        
-        if options.extract_images {
-            if let Some(images) = content_obj["images"].as_str() {
-                if !images.is_empty() {
-                    content.push_str("\n\nIMAGE DESCRIPTIONS:\n");
-                    content.push_str(images);
-                }
-            }
-        }
-        
-        if options.include_links {
-            if let Some(links) = content_obj["links"].as_str() {
-                if !links.is_empty() {
-                    content.push_str("\n\nLINKS:\n");
-                    content.push_str(links);
-                }
-            }
-        }
-        
-        Ok(content)
-    }
-    
-    /// Summarize content using LLM
+
+    /// Summarize content using CandleFluentAi streaming
+    ///
+    /// Creates an LLM agent on-demand with configured temperature and max_tokens.
+    /// Streams response in real-time for better perceived performance.
+    ///
+    /// # Pattern Reference
+    /// Based on: packages/tools-candle-agent/examples/fluent_builder.rs:58-90
     async fn summarize_content(
         &self,
         title: &str,
         content: &str,
     ) -> Result<String, UtilsError> {
-        // Truncate content if too long
+        // Truncate content if too long (avoid context overflow)
         let max_content_length = 8000;
         let truncated_content = if content.len() > max_content_length {
             format!("{}... [content truncated]", &content[0..max_content_length])
@@ -344,26 +309,55 @@ impl DeepResearch {
             content.to_string()
         };
         
-        // Create summarization prompt
-        let mut messages = Vec::new();
-        messages.push(ChatMessage::system(
-            "You are an AI research assistant that summarizes web content accurately and concisely. \
-            Extract key information, findings, data points, and conclusions from the content. \
-            Your summary should be comprehensive but focused on the most important aspects. \
-            Organize information logically and provide accurate section headers where appropriate."
-        ));
+        // Build prompt
+        let prompt = format!(
+            "Please summarize the following webpage content.\n\nTitle: '{}'\n\nContent:\n{}",
+            title, truncated_content
+        );
         
-        messages.push(ChatMessage::user(
-            &format!(
-                "Please summarize the following webpage content. Title: '{}'\n\nContent:\n{}",
-                title, truncated_content
+        // Create streaming agent with CandleFluentAi builder
+        let mut stream = CandleFluentAi::agent_role("research-summarizer")
+            .temperature(self.temperature)
+            .max_tokens(self.max_tokens)
+            .system_prompt(
+                "You are an AI research assistant that summarizes web content accurately \
+                and concisely. Extract key information, findings, data points, and conclusions. \
+                Organize information logically and provide accurate section headers where appropriate. \
+                Focus on factual content, avoid speculation."
             )
-        ));
-        
-        // Generate summary
-        let summary = self.llm.chat(messages).await
+            .on_chunk(|chunk| async move {
+                // Pass through chunks (could add logging here)
+                chunk
+            })
+            .into_agent()
+            .chat(move |_conversation| {
+                let prompt_clone = prompt.clone();
+                async move { CandleChatLoop::UserPrompt(prompt_clone) }
+            })
             .map_err(|e| UtilsError::LlmError(e.to_string()))?;
-            
+        
+        // Collect streamed response into String
+        use tokio_stream::StreamExt;
+        let mut summary = String::new();
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                CandleMessageChunk::Text(text) => {
+                    summary.push_str(&text);
+                }
+                CandleMessageChunk::Complete { .. } => {
+                    // Generation complete, summary is ready
+                    break;
+                }
+                _ => {
+                    // Ignore other chunk types (Thinking, etc.)
+                }
+            }
+        }
+        
+        if summary.is_empty() {
+            return Err(UtilsError::LlmError("Empty summary generated".into()));
+        }
+        
         Ok(summary)
     }
 }

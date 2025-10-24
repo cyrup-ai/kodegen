@@ -2,6 +2,7 @@
 mod tests {
     use super::super::*;
     use tokio_stream::StreamExt;
+    use cyrup_sugars::prelude::MessageChunk;
     
     #[tokio::test]
     async fn test_vision_builder_construction() {
