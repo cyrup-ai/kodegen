@@ -468,23 +468,23 @@ impl<T: Iterator<Item = char>> Scanner<T> {
         let mut pos = 0;
         loop {
             match self.state.peek_char_at(pos) {
-                Ok('\n') | Ok('\r') => {
+                Some('\n') | Some('\r') => {
                     pos += 1;
                     break;
                 }
-                Ok(_) => pos += 1,
-                Err(_) => return Ok(0), // No next line
+                Some(_) => pos += 1,
+                None => return Ok(0), // No next line
             }
         }
         let mut indent = 0;
         loop {
             match self.state.peek_char_at(pos) {
-                Ok(' ') => {
+                Some(' ') => {
                     indent += 1;
                     pos += 1;
                 }
-                Ok(_) => break,
-                Err(_) => break,
+                Some(_) => break,
+                None => break,
             }
         }
         Ok(indent)

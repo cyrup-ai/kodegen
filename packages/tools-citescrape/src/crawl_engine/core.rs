@@ -400,10 +400,10 @@ pub async fn crawl_pages<P: ProgressReporter>(
     // Abort browser handler task to prevent resource leak
     info!("Aborting browser handler task");
     handler_task.abort();
-    if let Err(e) = handler_task.await {
-        if !e.is_cancelled() {
-            warn!("Handler task failed during abort: {e}");
-        }
+    if let Err(e) = handler_task.await
+        && !e.is_cancelled()
+    {
+        warn!("Handler task failed during abort: {e}");
     }
 
     // Try to unwrap browser from Arc - if there are still references, skip cleanup

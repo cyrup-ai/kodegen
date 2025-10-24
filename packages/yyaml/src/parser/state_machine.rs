@@ -20,6 +20,7 @@ pub enum State {
     BlockMappingFirstKey,
     BlockMappingKey,
     BlockMappingValue,
+    BlockSequenceEntry,
     FlowSequenceFirstEntry,
     FlowSequenceEntry,
     FlowMappingFirstKey,
@@ -883,8 +884,8 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     fn handle_parametric_block_sequence(&mut self) -> Result<(), ScanError> {
         let n = self.context.current_indent();
-        let entry_indent = n + 1;
-        self.context.push_context(YamlContext::BlockIn, entry_indent);
+        let entry_indent = (n + 1) as usize;
+        self.context.push_context(YamlContext::BlockIn, entry_indent as i32);
         loop {
             let peeked_indent = self.scanner.peek_line_indent()?;
             if peeked_indent < entry_indent {
@@ -893,8 +894,11 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             if peeked_indent != entry_indent {
                 return Err(ScanError::new(self.scanner.mark(), "Invalid indentation for sequence entry"));
             }
-            self.scanner.consume_spaces(entry_indent);
-            let token = self.scanner.next_token()?;
+            for _ in 0..entry_indent {
+                self.scanner.consume_char()?;
+            }
+            let token = self.scanner.peek_token()?;
+            self.scanner.fetch_token(); // consume
             if !matches!(token.1, TokenType::BlockEntry) {
                 return Err(ScanError::new(token.0, "Expected - for sequence entry"));
             }
@@ -909,7 +913,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                     // Not compact
                     let value_indent = self.scanner.peek_line_indent()?;
                     if value_indent > entry_indent {
-                        self.context.push_context(YamlContext::BlockIn, value_indent);
+                        self.context.push_context(YamlContext::BlockIn, value_indent as i32);
                         self.handle_block_node()?;
                         self.context.pop_context();
                     } else {
