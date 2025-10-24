@@ -27,7 +27,7 @@ pub use emitter::{EmitError, EmitResult, YamlEmitter};
 pub use error::{Marker, ScanError};
 pub use events::{Event, EventReceiver, MarkedEventReceiver, TEncoding, TScalarStyle, TokenType};
 pub use linked_hash_map::LinkedHashMap;
-pub use parser::YamlLoader;
+pub use parser::{YamlLoader, Encoding};
 pub use ser::*;
 pub use value::{Deserializer, Mapping, Number, Sequence, Value, from_value};
 pub use yaml::Yaml;

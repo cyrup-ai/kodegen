@@ -5,15 +5,16 @@ use crate::linked_hash_map::LinkedHashMap;
 use crate::yaml::Yaml;
 use log::{debug, trace, warn};
 use std::collections::HashMap;
+use std::char::decode_utf16;
 
 /// Our main "public" API: load from a string → produce Vec<Yaml>.
 pub struct YamlLoader;
 
 impl YamlLoader {
     pub fn load_from_str(s: &str) -> Result<Vec<Yaml>, ScanError> {
-        println!("=== YamlLoader::load_from_str ENTRY with: '{}' ===", s);
+        debug!("=== YamlLoader::load_from_str ENTRY with: '{}' ===", s);
         // Fast path for simple cases - zero allocation, blazing fast
-        println!("YamlLoader: trying fast parse");
+        debug!("YamlLoader: trying fast parse");
         match Self::try_fast_parse(s) {
             Ok(Some(result)) => {
                 debug!("Fast parser succeeded with: {result:?}");
@@ -21,7 +22,7 @@ impl YamlLoader {
             }
             Ok(None) => {
                 debug!("Fast parser detected complex syntax, falling back to full parser");
-                println!("YamlLoader: fast parser returned None, falling back to StateMachine");
+                debug!("YamlLoader: fast parser returned None, falling back to StateMachine");
             } // Fall through to full parser
             Err(error) => {
                 debug!("Fast parser failed: {error:?}");
@@ -31,13 +32,13 @@ impl YamlLoader {
 
         // Handle multi-document streams
         let mut documents = Vec::new();
-        println!("YamlLoader: creating StateMachine");
+        debug!("YamlLoader: creating StateMachine");
         let mut state_machine = crate::parser::state_machine::StateMachine::new(s.chars());
-        println!("YamlLoader: StateMachine created, starting document parsing loop");
+        debug!("YamlLoader: StateMachine created, starting document parsing loop");
 
         // Process all documents in stream
         while !state_machine.at_stream_end() {
-            println!("YamlLoader: parsing next document...");
+            debug!("YamlLoader: parsing next document...");
             match state_machine.parse_next_document() {
                 Ok(Some(doc)) => {
                     debug!("Parsed document: {doc:?}");
@@ -60,12 +61,67 @@ impl YamlLoader {
         Ok(documents)
     }
 
+    #[derive(Debug, Clone, Copy)]
+    pub enum Encoding { Utf8, Utf16Le, Utf16Be }
+
+    #[derive(Debug, Clone, Copy)]
+    enum Endian { Little, Big }
+
+    pub fn load_from_bytes(input: Vec<u8>) -> Result<Vec<Yaml>, ScanError> {
+        if input.is_empty() {
+            return Ok(vec![Yaml::Null]);
+        }
+
+        let mut bytes = input.as_slice();
+        let encoding = detect_bom(&mut bytes)?;
+
+        let decoded = match encoding {
+            Encoding::Utf8 => {
+                // Already checked BOM, decode remaining
+                std::str::from_utf8(bytes)
+                    .map_err(|e| ScanError::EncodingError(format!("Invalid UTF-8: {}", e)))?
+                    .to_string()
+            }
+            Encoding::Utf16Le => decode_utf16_bytes(bytes, Endian::Little)?,
+            Encoding::Utf16Be => decode_utf16_bytes(bytes, Endian::Big)?,
+        };
+
+        // Now use existing parser
+        Self::load_from_str(&decoded)
+    }
+
+    fn detect_bom(bytes: &mut &[u8]) -> Result<Encoding, ScanError> {
+        if bytes.len() < 2 {
+            return Ok(Encoding::Utf8);
+        }
+
+        match bytes.get(0..3) {
+            Some(&[239, 187, 191]) => { *bytes = &bytes[3..]; Ok(Encoding::Utf8) }
+            _ if bytes[0] == 255 && bytes[1] == 254 => { *bytes = &bytes[2..]; Ok(Encoding::Utf16Le) }
+            _ if bytes[0] == 254 && bytes[1] == 255 => { *bytes = &bytes[2..]; Ok(Encoding::Utf16Be) }
+            _ => Ok(Encoding::Utf8), // Fallback
+        }
+    }
+
+    fn decode_utf16_bytes(bytes: &[u8], endian: Endian) -> Result<String, ScanError> {
+        if bytes.len() % 2 != 0 {
+            return Err(ScanError::EncodingError("Invalid UTF-16: odd byte length".to_string()));
+        }
+        let u16_iter = bytes.chunks_exact(2).map(|chunk| match endian {
+            Endian::Little => u16::from_le_bytes([chunk[0], chunk[1]]),
+            Endian::Big => u16::from_be_bytes([chunk[0], chunk[1]]),
+        });
+        decode_utf16(u16_iter)
+            .collect::<Result<String, _>>()
+            .map_err(|e| ScanError::EncodingError(format!("Invalid UTF-16: {}", e)))
+    }
+
     /// Blazing-fast zero-allocation parser for common simple cases with production-grade error handling
     /// Handles: "key: value", "- item", "[1, 2, 3]", "{key: value}", multi-line mappings, and simple scalars
     fn try_fast_parse(s: &str) -> Result<Option<Yaml>, ScanError> {
-        println!("try_fast_parse called with: '{}'", s);
+        debug!("try_fast_parse called with: '{}'", s);
         let mut trimmed = s.trim();
-        println!("try_fast_parse: trimmed = '{}'", trimmed);
+        debug!("try_fast_parse: trimmed = '{}'", trimmed);
 
         // Strip BOM if present for accurate parsing decisions per YAML 1.2
         if trimmed.starts_with('\u{feff}') {
@@ -271,7 +327,7 @@ impl YamlLoader {
         // Simple mapping case: "{key: value}" - only handle single key-value pairs
         if trimmed.starts_with('{') && trimmed.ends_with('}') && trimmed.lines().count() == 1 {
             let inner = &trimmed[1..trimmed.len() - 1].trim();
-            println!("Fast parser: processing flow mapping '{}'", inner);
+            debug!("Fast parser: processing flow mapping '{}'", inner);
             if inner.is_empty() {
                 return Ok(Some(Yaml::Hash(
                     crate::linked_hash_map::LinkedHashMap::new(),
@@ -280,7 +336,7 @@ impl YamlLoader {
 
             // Check for multiple key-value pairs (contains comma) - fall back to full parser
             if inner.contains(',') {
-                println!("Fast parser: detected comma in '{}', falling back to StateMachine", inner);
+                debug!("Fast parser: detected comma in '{}', falling back to StateMachine", inner);
                 return Ok(None);
             }
 

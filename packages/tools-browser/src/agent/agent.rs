@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 // NEW - Workspace LLM and Vision infrastructure
 use kodegen_candle_agent::prelude::*;
-use kodegen_candle_agent::capability::vision::llava::LLaVAModel;
+use cyrup_sugars::prelude::MessageChunk;  // For .error() method on CandleStringChunk
 use tokio_stream::StreamExt;  // For stream.next().await
 
 use serde::{Deserialize, Serialize};
@@ -204,11 +204,8 @@ impl Agent {
         // Get current browser state (with screenshot)
         let browser_state = self.get_browser_state().await?;
 
-        // Prepare context for LLM with system prompt, task description, and browser state
-        let messages = self.build_step_messages(&browser_state).await?;
-
-        // Generate agent actions using LLM constrained generation
-        let actions = self.generate_actions(messages).await?;
+        // Generate agent actions using CandleFluentAi LLM (with vision analysis if screenshot available)
+        let actions = self.generate_actions_with_llm(&browser_state).await?;
 
         // Execute actions via MCP hot path
         let (action_results, errors) = self.execute_actions(actions.clone()).await?;
@@ -268,21 +265,49 @@ impl Agent {
             }
         };
         
-        // Get screenshot via MCP (HOT PATH!)
-        // Note: Task says use_vision flag, but current struct doesn't have it
-        // For now, skip screenshot since we don't have the vision flag
-        let screenshot_base64 = match self.mcp_client.call_tool("browser_screenshot", serde_json::json!({})).await {
+        // Get screenshot via MCP and save to temp file (HOT PATH!)
+        let screenshot_path = match self.mcp_client.call_tool("browser_screenshot", serde_json::json!({})).await {
             Ok(result) => {
                 // Parse base64 image from tool response
                 // ⚠️ CRITICAL: browser_screenshot returns {"image": base64}, NOT {"base64": base64}!
                 // See packages/tools-browser/src/tools/screenshot.rs:148-156
-                result.content.first()
+                let screenshot_base64 = result.content.first()
                     .and_then(|c| c.as_text())
                     .and_then(|t| {
                         serde_json::from_str::<serde_json::Value>(&t.text)
                             .ok()
                             .and_then(|v| v.get("image").and_then(|i| i.as_str()).map(String::from))
-                    })
+                    });
+                
+                // Save base64 to temp file for vision API
+                if let Some(base64_data) = screenshot_base64 {
+                    match base64::engine::general_purpose::STANDARD.decode(&base64_data) {
+                        Ok(decoded_bytes) => {
+                            // Create temp file path
+                            let temp_dir = std::env::temp_dir();
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+                            let temp_path = temp_dir.join(format!("browser_screenshot_{}.png", timestamp));
+                            
+                            // Write decoded bytes to file
+                            match std::fs::write(&temp_path, decoded_bytes) {
+                                Ok(_) => Some(temp_path.to_string_lossy().to_string()),
+                                Err(e) => {
+                                    warn!("Failed to write screenshot to file: {}", e);
+                                    None
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            warn!("Failed to decode base64 screenshot: {}", e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                }
             },
             Err(e) => {
                 warn!("browser_screenshot failed: {}, continuing without screenshot", e);
@@ -305,37 +330,79 @@ impl Agent {
         
         Ok(BrowserStateWithScreenshot {
             state,
-            screenshot_base64,
-            bounding_boxes: None,  // TODO: Implement via vision API in future
+            screenshot_path,
+            visual_description: None,  // Will be populated by format_browser_state_with_vision()
         })
     }
     
-    /// Build messages for the LLM for this step
-    async fn build_step_messages(&self, browser_state: &BrowserStateWithScreenshot) -> AgentResult<Vec<ChatMessage>> {
-        let mut messages = Vec::new();
-
-        // Add system prompt
-        let system_prompt = self.system_prompt.build_prompt();
-        messages.push(ChatMessage::system(&system_prompt));
-
-        // Add task description
-        let task_description = format!(
-            "Task: {}\nAdditional Information: {}",
-            self.task,
-            self.add_infos
+    /// Format browser state with vision-based screenshot analysis
+    ///
+    /// Uses CandleFluentAi::vision() to analyze screenshots and generate
+    /// detailed visual descriptions of UI elements and layout.
+    async fn format_browser_state_with_vision(
+        &self,
+        browser_state: &BrowserStateWithScreenshot,
+    ) -> AgentResult<String> {
+        use cyrup_sugars::prelude::MessageChunk;
+        
+        let mut state_description = format!(
+            "Current browser state:\n{}",
+            browser_state.state
         );
-        messages.push(ChatMessage::user(&task_description));
-
-        // Add browser state
-        let mut browser_state_msg = format!("Current browser state:\n{}", browser_state.state);
-        if let Some(ref screenshot_b64) = browser_state.screenshot_base64 {
-            // Vision models can parse base64 images in prompts
-            browser_state_msg.push_str(&format!("\n[SCREENSHOT: Base64 PNG]\n{}", screenshot_b64));
+        
+        // Add vision-based screenshot analysis if available
+        if let Some(screenshot_path) = &browser_state.screenshot_path {
+            state_description.push_str("\n\nVisual Analysis:\n");
+            
+            let vision_query = "Describe the visible UI elements, their layout, and any interactive components (buttons, links, forms, input fields, etc.) in detail.";
+            
+            let mut visual_description = String::new();
+            let mut stream = CandleFluentAi::vision()
+                .describe_image(screenshot_path, vision_query);
+            
+            while let Some(chunk) = stream.next().await {
+                // Check for errors
+                if let Some(error) = chunk.error() {
+                    warn!("Vision analysis error: {}", error);
+                    state_description.push_str(&format!("[Vision analysis failed: {}]\n", error));
+                    break;
+                }
+                
+                // Accumulate text
+                if !chunk.text.is_empty() {
+                    visual_description.push_str(&chunk.text);
+                }
+                
+                // Check for completion
+                if chunk.is_final {
+                    state_description.push_str(&visual_description);
+                    state_description.push('\n');
+                    
+                    if let Some(stats) = &chunk.stats {
+                        debug!("Vision analysis: {} tokens generated", stats.tokens_generated);
+                    }
+                    break;
+                }
+            }
         }
-        messages.push(ChatMessage::user(&browser_state_msg));
-
-        // Add available actions (hardcoded, no Controller needed)
-        // This list defines the agent protocol action vocabulary
+        
+        Ok(state_description)
+    }
+    
+    /// Generate actions using CandleFluentAi LLM
+    ///
+    /// Combines system prompt, task description, and browser state into a query,
+    /// then streams the LLM response and parses actions from it.
+    async fn generate_actions_with_llm(
+        &self,
+        browser_state: &BrowserStateWithScreenshot,
+    ) -> AgentResult<Vec<ActionModel>> {
+        use crate::agent::AgentLLMResponse;
+        
+        // Build browser state message with vision analysis
+        let browser_state_msg = self.format_browser_state_with_vision(browser_state).await?;
+        
+        // Build system prompt with available actions
         let actions_description = r#"Available Actions:
 - go_to_url: Navigate to a URL (parameters: url)
 - click_element: Click an element (parameters: selector OR index)
@@ -348,49 +415,59 @@ Parameter Notes:
 - selector: CSS selector string (e.g., "#submit", ".button", "input[name='email']")
 - index: Numeric index for data-mcp-index attributes (converted to selector automatically)
 - Use selector for precision, index for LLM-generated element references
-"#;
-        messages.push(ChatMessage::system(actions_description));
 
-        Ok(messages)
-    }
-    
-    /// Generate actions using the LLM (now using constrained generation)
-    async fn generate_actions(&self, messages: Vec<ChatMessage>) -> AgentResult<Vec<ActionModel>> {
-        use crate::agent::AgentLLMResponse;
-
-        // Create a chat session from the Llama model
-        let mut chat = self.llm.chat();
-
-        // Extract system message and user messages
-        let mut has_system_prompt = false;
-
-        // First process system messages
-        for message in &messages {
-            if let Some(content) = message.get_system_content() {
-                chat = chat.with_system_prompt(content);
-                has_system_prompt = true;
-                break; // Use the first system message as the system prompt
-            }
-        }
-
-        // If no system message was found, use a default
-        if !has_system_prompt {
-            chat = chat.with_system_prompt("You are a helpful browser automation assistant.");
-        }
-
-        // Then add all user messages
-        for message in &messages {
-            if let Some(content) = message.get_user_content() {
-                chat = chat.with_user_prompt(content);
-            }
-        }
-
-        // Use constrained generation for protocol-compliant output
-        let agent_response: AgentLLMResponse = chat
-            .constrained()
-            .await
+You must respond with valid JSON matching the AgentLLMResponse schema with an 'action' array."#;
+        
+        let system_prompt = format!(
+            "{}\n\n{}\n\nYou are a browser automation agent. Analyze the browser state and generate appropriate actions.",
+            self.system_prompt.build_prompt(),
+            actions_description
+        );
+        
+        // Build user query combining task and state
+        let user_query = format!(
+            "Task: {}\nAdditional Information: {}\n\n{}",
+            self.task,
+            self.add_infos,
+            browser_state_msg
+        );
+        
+        // Stream LLM response
+        let mut full_response = String::new();
+        let mut stream = CandleFluentAi::agent_role("browser-agent")
+            .temperature(self.temperature)
+            .max_tokens(self.max_tokens)
+            .system_prompt(&system_prompt)
+            .into_agent()
+            .chat(move |_conversation| {
+                let query = user_query.clone();
+                async move { CandleChatLoop::UserPrompt(query) }
+            })
             .map_err(|e| AgentError::LlmError(e.to_string()))?;
-
+        
+        // Collect streaming response
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                CandleMessageChunk::Text(text) => {
+                    full_response.push_str(&text);
+                }
+                CandleMessageChunk::Complete { token_count, elapsed_secs, .. } => {
+                    if let (Some(tokens), Some(elapsed)) = (token_count, elapsed_secs) {
+                        debug!("LLM generated {} tokens in {:.2}s", tokens, elapsed);
+                    }
+                    break;
+                }
+                CandleMessageChunk::Error(err) => {
+                    return Err(AgentError::LlmError(err.to_string()));
+                }
+                _ => {}
+            }
+        }
+        
+        // Parse actions from JSON response
+        let agent_response: AgentLLMResponse = serde_json::from_str(&full_response)
+            .map_err(|e| AgentError::LlmError(format!("Failed to parse LLM response as JSON: {}. Response: {}", e, full_response)))?;
+        
         // Limit the number of actions
         let actions = agent_response.action;
         let limited_actions = if actions.len() > self.max_actions_per_step {
@@ -403,7 +480,7 @@ Parameter Notes:
         } else {
             actions
         };
-
+        
         Ok(limited_actions)
     }
     
@@ -420,7 +497,6 @@ Parameter Notes:
     /// - extract_page_content → browser_extract_text
     /// - done → (special case, no MCP call)
     ///
-    /// Reference: Controller action mapping at packages/tools-browser/src/controller/controller.rs:44-263
     async fn execute_actions(
         &self, 
         actions: Vec<ActionModel>
@@ -441,7 +517,7 @@ Parameter Notes:
                 },
                 "click_element" => {
                     // Support both direct selector and index-based selector
-                    // Controller pattern: converts index to [data-mcp-index="N"] selector
+                    // Converts index to [data-mcp-index="N"] selector
                     let selector = if let Some(selector) = action.parameters.get("selector") {
                         selector.clone()
                     } else if let Some(index) = action.parameters.get("index") {
@@ -477,7 +553,7 @@ Parameter Notes:
                         .unwrap_or("down");
                     
                     // Calculate scroll amount based on direction
-                    // Default: 500px, matches Controller implementation (scroll.rs:158)
+                    // Default: 500px
                     let amount = action.parameters.get("amount")
                         .and_then(|a| a.parse::<i32>().ok())
                         .unwrap_or(500);
@@ -562,19 +638,10 @@ Parameter Notes:
         Ok((results, errors))
     }
 }
-#[derive(Debug, Clone)]
-struct VisualElementBox {
-    label: String,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-}
-
-/// Struct to hold browser state, screenshot (base64), and visual element bounding boxes
+/// Struct to hold browser state, screenshot path, and visual description
 #[derive(Debug, Clone)]
 struct BrowserStateWithScreenshot {
     state: String,
-    screenshot_base64: Option<String>,
-    bounding_boxes: Option<Vec<VisualElementBox>>,
+    screenshot_path: Option<String>,
+    visual_description: Option<String>,
 }

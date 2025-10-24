@@ -1,13 +1,11 @@
 mod agent;
 mod prompts;
-mod message_manager;
 mod views;
 
 use serde::{Deserialize, Serialize};
 
 pub use crate::controller::{ActionModel, ActionResult};
 pub use prompts::{SystemPrompt, AgentMessagePrompt};
-pub use message_manager::MessageManager;
 pub use views::{HistoryView, StepView, ActionView, BrowserStateView};
 
 use std::fmt;
@@ -38,9 +36,6 @@ pub enum AgentError {
     
     #[error("Browser error: {0}")]
     BrowserError(String),
-    
-    #[error("Controller error: {0}")]
-    ControllerError(String),
     
     #[error("JSON parse error: {0}")]
     JsonParseError(String),

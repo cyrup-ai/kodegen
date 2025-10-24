@@ -3,7 +3,6 @@ use thiserror::Error;
 
 use crate::browser::BrowserError;
 use crate::agent::AgentError;
-use crate::controller::ControllerError;
 
 /// Errors that can occur in utility functions
 #[derive(Error, Debug)]
@@ -28,9 +27,6 @@ pub enum UtilsError {
     
     #[error("Agent error: {0}")]
     AgentError(String),
-    
-    #[error("Controller error: {0}")]
-    ControllerError(String),
     
     #[error("JSON parse error: {0}")]
     JsonParseError(String),
@@ -57,13 +53,6 @@ impl From<BrowserError> for UtilsError {
 impl From<AgentError> for UtilsError {
     fn from(err: AgentError) -> Self {
         UtilsError::AgentError(err.to_string())
-    }
-}
-
-/// Implement From<ControllerError> for UtilsError
-impl From<ControllerError> for UtilsError {
-    fn from(err: ControllerError) -> Self {
-        UtilsError::ControllerError(err.to_string())
     }
 }
 

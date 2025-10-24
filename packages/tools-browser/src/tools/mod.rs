@@ -1,5 +1,6 @@
 //! Browser automation tool implementations
 
+mod browser_agent;
 mod click;
 mod extract_text;
 mod navigate;
@@ -9,6 +10,7 @@ mod type_text;
 mod wait;
 mod wait_for;
 
+pub use browser_agent::{BrowserAgentTool, BrowserAgentArgs, BrowserAgentPromptArgs};
 pub use click::BrowserClickTool;
 pub use extract_text::BrowserExtractTextTool;
 pub use navigate::BrowserNavigateTool;

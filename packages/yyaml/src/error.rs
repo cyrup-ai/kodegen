@@ -21,30 +21,30 @@ impl Default for Marker {
 
 /// The parse error used by the scanner/parser if something goes wrong.
 #[derive(Clone, Debug)]
-pub struct ScanError {
-    pub mark: Marker,
-    pub info: String,
+pub enum ScanError {
+    Parsing(Marker, String),
+    EncodingError(String),
 }
 
 impl ScanError {
     #[must_use]
     pub fn new(mark: Marker, info: &str) -> Self {
-        Self {
-            mark,
-            info: info.to_owned(),
-        }
+        Self::Parsing(mark, info.to_owned())
     }
 }
 
 impl fmt::Display for ScanError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} at line {} col {}",
-            self.info,
-            self.mark.line,
-            self.mark.col + 1
-        )
+        match self {
+            Self::Parsing(mark, info) => write!(
+                f,
+                "{} at line {} col {}",
+                info,
+                mark.line,
+                mark.col + 1
+            ),
+            Self::EncodingError(msg) => write!(f, "Encoding error: {}", msg),
+        }
     }
 }
 

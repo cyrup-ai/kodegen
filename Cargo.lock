@@ -9057,13 +9057,13 @@ name = "kodegen_tools_browser"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "arboard",
  "async-trait",
  "base64 0.22.1",
  "chromiumoxide",
  "chromiumoxide_cdp",
  "chromiumoxide_types",
  "chrono",
+ "cyrup_sugars",
  "dirs 6.0.0",
  "extism-pdk",
  "futures",
