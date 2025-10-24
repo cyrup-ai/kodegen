@@ -13,5 +13,5 @@ pub use browser::{
 pub use manager::BrowserManager;
 pub use tools::{
     BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool, BrowserScreenshotTool,
-    BrowserScrollTool, BrowserTypeTextTool, BrowserWaitTool,
+    BrowserScrollTool, BrowserTypeTextTool, BrowserWaitTool, BrowserWaitForTool,
 };

@@ -162,3 +162,155 @@ impl Tool for BrowserWaitForTool {
                     // Continue polling
                 }
             }
+
+            // Check timeout
+            if start.elapsed() >= timeout {
+                return Err(McpError::Other(anyhow::anyhow!(
+                    "Condition '{:?}' not met for selector '{}' after {}ms timeout",
+                    args.condition, args.selector, timeout.as_millis()
+                )));
+            }
+
+            // Wait with exponential backoff
+            tokio::time::sleep(poll_interval).await;
+            poll_interval = (poll_interval * 2).min(max_interval);
+        }
+    }
+
+    fn prompt_arguments() -> Vec<PromptArgument> {
+        vec![]
+    }
+
+    async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
+        Ok(vec![
+            PromptMessage {
+                role: PromptMessageRole::User,
+                content: PromptMessageContent::text("How do I wait for dynamic content to load?"),
+            },
+            PromptMessage {
+                role: PromptMessageRole::Assistant,
+                content: PromptMessageContent::text(
+                    "Use browser_wait_for to wait for elements to meet specific conditions:\\n\\n\
+                     Wait for element to appear:\\n\
+                     browser_wait_for({\\\"selector\\\": \\\"#results\\\", \\\"condition\\\": \\\"present\\\"})\\n\\n\
+                     Wait for element to be visible:\\n\
+                     browser_wait_for({\\\"selector\\\": \\\".content\\\", \\\"condition\\\": \\\"visible\\\"})\\n\\n\
+                     Wait for button to be clickable:\\n\
+                     browser_wait_for({\\\"selector\\\": \\\"#submit\\\", \\\"condition\\\": \\\"clickable\\\"})\\n\\n\
+                     Wait for text to appear:\\n\
+                     browser_wait_for({\\\"selector\\\": \\\"#status\\\", \\\"condition\\\": \\\"text_contains\\\", \\\"text\\\": \\\"Complete\\\"})\\n\\n\
+                     Wait for attribute value:\\n\
+                     browser_wait_for({\\\"selector\\\": \\\"input\\\", \\\"condition\\\": \\\"attribute_is\\\", \\\"attribute_name\\\": \\\"aria-invalid\\\", \\\"attribute_value\\\": \\\"false\\\"})",
+                ),
+            },
+        ])
+    }
+}
+
+/// Check if element meets the specified condition
+async fn check_condition(
+    element: &chromiumoxide::element::Element,
+    args: &BrowserWaitForArgs,
+) -> Result<bool, McpError> {
+    match args.condition {
+        WaitCondition::Present => {
+            // If we got here, element exists
+            Ok(true)
+        }
+
+        WaitCondition::Visible => {
+            // Use JavaScript to check computed style and bounding box
+            let js_fn = r#"
+                function() {
+                    const style = window.getComputedStyle(this);
+                    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                        return false;
+                    }
+                    const rect = this.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                }
+            "#;
+            
+            let result = element.call_js_fn(js_fn, false).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check visibility: {}", e)))?;
+            
+            Ok(result.result.value
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false))
+        }
+
+        WaitCondition::Clickable => {
+            // Check visibility + disabled state + pointer-events
+            let js_fn = r#"
+                function() {
+                    const style = window.getComputedStyle(this);
+                    if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') {
+                        return false;
+                    }
+                    if (this.disabled || this.getAttribute('aria-disabled') === 'true') {
+                        return false;
+                    }
+                    const rect = this.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                }
+            "#;
+            
+            let result = element.call_js_fn(js_fn, false).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check clickability: {}", e)))?;
+            
+            Ok(result.result.value
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false))
+        }
+
+        WaitCondition::TextContains => {
+            // Check if element text contains expected string
+            let text = args.text.as_ref()
+                .ok_or_else(|| McpError::invalid_arguments(
+                    "text parameter required for TextContains condition"
+                ))?;
+            
+            let js_fn = format!(
+                r#"function() {{
+                    const text = (this.innerText || this.textContent || '').trim();
+                    return text.includes('{}');
+                }}"#,
+                text.replace('\\', "\\\\").replace('\'', "\\'")
+            );
+            
+            let result = element.call_js_fn(&js_fn, false).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check text: {}", e)))?;
+            
+            Ok(result.result.value
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false))
+        }
+
+        WaitCondition::AttributeIs => {
+            // Check if attribute has specific value
+            let attr_name = args.attribute_name.as_ref()
+                .ok_or_else(|| McpError::invalid_arguments(
+                    "attribute_name parameter required for AttributeIs condition"
+                ))?;
+            let attr_value = args.attribute_value.as_ref()
+                .ok_or_else(|| McpError::invalid_arguments(
+                    "attribute_value parameter required for AttributeIs condition"
+                ))?;
+            
+            let js_fn = format!(
+                r#"function() {{
+                    return this.getAttribute('{}') === '{}';
+                }}"#,
+                attr_name.replace('\\', "\\\\").replace('\'', "\\'"),
+                attr_value.replace('\\', "\\\\").replace('\'', "\\'")
+            );
+            
+            let result = element.call_js_fn(&js_fn, false).await
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check attribute: {}", e)))?;
+            
+            Ok(result.result.value
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false))
+        }
+    }
+}

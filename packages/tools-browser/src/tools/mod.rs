@@ -7,6 +7,7 @@ mod screenshot;
 mod scroll;
 mod type_text;
 mod wait;
+mod wait_for;
 
 pub use click::BrowserClickTool;
 pub use extract_text::BrowserExtractTextTool;
@@ -15,3 +16,4 @@ pub use screenshot::BrowserScreenshotTool;
 pub use scroll::BrowserScrollTool;
 pub use type_text::BrowserTypeTextTool;
 pub use wait::BrowserWaitTool;
+pub use wait_for::BrowserWaitForTool;
