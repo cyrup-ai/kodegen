@@ -4,6 +4,7 @@
 //! for semantic analysis operations with zero-allocation design.
 
 use crate::lexer::Position;
+use crate::semantic::tags::types::SchemaType;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -17,6 +18,8 @@ pub struct AnalysisContext<'input> {
     strict_mode: bool,
     cycle_detection_enabled: bool,
     current_position: Position,
+    schema_type: SchemaType,
+    schema_tracking: HashMap<String, SchemaType>,
 }
 
 /// Semantic processing phases for coordinated analysis
@@ -41,6 +44,8 @@ impl<'input> AnalysisContext<'input> {
             strict_mode: false,
             cycle_detection_enabled: true,
             current_position: Position::default(),
+            schema_type: SchemaType::Core,
+            schema_tracking: HashMap::new(),
         }
     }
 
@@ -55,6 +60,8 @@ impl<'input> AnalysisContext<'input> {
             strict_mode: config.strict_mode,
             cycle_detection_enabled: config.cycle_detection_enabled,
             current_position: Position::default(),
+            schema_type: config.schema_type,
+            schema_tracking: config.schema_tracking.clone(),
         }
     }
 
@@ -165,6 +172,30 @@ impl<'input> AnalysisContext<'input> {
         // For owned document processing, we collect metadata but don't store references
         // This is a placeholder method that can be expanded later if needed
     }
+
+    /// Set active schema type for validation
+    #[inline]
+    pub fn set_schema_type(&mut self, schema_type: SchemaType) {
+        self.schema_type = schema_type;
+    }
+
+    /// Get the currently active schema type
+    #[inline]
+    #[must_use]
+    pub const fn schema_type(&self) -> SchemaType {
+        self.schema_type
+    }
+
+    /// Track schema type for a specific node
+    pub fn track_schema(&mut self, node_id: String, schema_type: SchemaType) {
+        self.schema_tracking.insert(node_id, schema_type);
+    }
+
+    /// Get tracked schema type for a specific node
+    #[must_use]
+    pub fn get_tracked_schema(&self, node_id: &str) -> Option<&SchemaType> {
+        self.schema_tracking.get(node_id)
+    }
 }
 
 impl<'input> Default for AnalysisContext<'input> {
@@ -181,6 +212,8 @@ pub struct SemanticConfig<'input> {
     pub cycle_detection_enabled: bool,
     pub yaml_version: Option<(u32, u32)>,
     pub custom_tag_prefixes: HashMap<Cow<'input, str>, Cow<'input, str>>,
+    pub schema_type: SchemaType,
+    pub schema_tracking: HashMap<String, SchemaType>,
 }
 
 impl<'input> Default for SemanticConfig<'input> {
@@ -190,6 +223,8 @@ impl<'input> Default for SemanticConfig<'input> {
             cycle_detection_enabled: true,
             yaml_version: None,
             custom_tag_prefixes: HashMap::new(),
+            schema_type: SchemaType::Core,
+            schema_tracking: HashMap::new(),
         }
     }
 }
@@ -211,6 +246,13 @@ impl<'input> SemanticConfig<'input> {
             cycle_detection_enabled: false,
             ..Self::default()
         }
+    }
+
+    /// Set schema type for semantic analysis
+    #[must_use]
+    pub const fn with_schema_type(mut self, schema_type: SchemaType) -> Self {
+        self.schema_type = schema_type;
+        self
     }
 
     /// Set YAML version for validation

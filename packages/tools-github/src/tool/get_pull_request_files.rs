@@ -1,23 +1,11 @@
 use anyhow;
 use futures::StreamExt;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::GetPullRequestFilesArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::GitHubClient;
-
-/// Arguments for getting pull request files
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPullRequestFilesArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Pull request number
-    pub pr_number: u64,
-}
 
 /// Tool for getting all files changed in a pull request
 pub struct GetPullRequestFilesTool;

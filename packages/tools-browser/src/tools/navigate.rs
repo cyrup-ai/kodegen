@@ -1,32 +1,14 @@
 //! Browser navigation tool - loads URLs and waits for page ready
 
+use kodegen_mcp_schema::browser::{BrowserNavigateArgs, BrowserNavigatePromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
 use crate::utils::validate_navigation_timeout;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserNavigateArgs {
-    /// URL to navigate to (must start with http:// or https://)
-    pub url: String,
-
-    /// Optional: wait for specific CSS selector before returning
-    #[serde(default)]
-    pub wait_for_selector: Option<String>,
-
-    /// Optional: timeout in milliseconds (default: 30000)
-    #[serde(default)]
-    pub timeout_ms: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserNavigatePromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserNavigateTool {

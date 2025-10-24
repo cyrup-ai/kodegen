@@ -1,79 +1,8 @@
 use crate::utils::{DeepResearch, ResearchOptions};
+use kodegen_mcp_schema::browser::{BrowserResearchArgs, BrowserResearchPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserResearchArgs {
-    /// Research query or topic to investigate
-    pub query: String,
-
-    /// Maximum number of pages to visit (default: 5)
-    #[serde(default = "default_max_pages")]
-    pub max_pages: usize,
-
-    /// Maximum link-following depth (default: 2)
-    #[serde(default = "default_max_depth")]
-    pub max_depth: usize,
-
-    /// Search engine to use: "google", "bing", "duckduckgo" (default: "google")
-    #[serde(default = "default_search_engine")]
-    pub search_engine: String,
-
-    /// Include hyperlinks in content extraction (default: true)
-    #[serde(default = "default_true")]
-    pub include_links: bool,
-
-    /// Extract and parse HTML tables (default: true)
-    #[serde(default = "default_true")]
-    pub extract_tables: bool,
-
-    /// Extract image URLs and alt text (default: false)
-    #[serde(default = "default_false")]
-    pub extract_images: bool,
-
-    /// Timeout per page navigation in seconds (default: 60)
-    #[serde(default = "default_timeout")]
-    pub timeout_seconds: u64,
-
-    /// LLM temperature for summarization (0.0=deterministic, 2.0=creative, default: 0.5)
-    #[serde(default = "default_temperature")]
-    pub temperature: f64,
-
-    /// Maximum tokens for LLM summary generation (default: 2048)
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u64,
-}
-
-fn default_max_pages() -> usize {
-    5
-}
-fn default_max_depth() -> usize {
-    2
-}
-fn default_search_engine() -> String {
-    "google".into()
-}
-fn default_true() -> bool {
-    true
-}
-fn default_false() -> bool {
-    false
-}
-fn default_timeout() -> u64 {
-    60
-}
-fn default_temperature() -> f64 {
-    0.5
-}
-fn default_max_tokens() -> u64 {
-    2048
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserResearchPromptArgs {}
 
 /// Browser research tool that performs deep multi-page web research with AI summarization
 ///

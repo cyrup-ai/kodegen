@@ -1,27 +1,10 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::CreateRepositoryArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for creating a repository
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreateRepositoryArgs {
-    /// Repository name
-    pub name: String,
-    /// Repository description (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    /// Make repository private (optional, default: false)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub private: Option<bool>,
-    /// Initialize with README (optional, default: false)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auto_init: Option<bool>,
-}
 
 /// Tool for creating a new repository
 pub struct CreateRepositoryTool;

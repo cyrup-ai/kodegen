@@ -3,17 +3,15 @@
 //! Initiates background web crawls with automatic search indexing.
 
 use chrono::Utc;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use kodegen_mcp_schema::citescrape::{StartCrawlArgs, StartCrawlPromptArgs};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
-
-use kodegen_mcp_tool::Tool;
-use kodegen_mcp_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 
 use crate::ChromiumoxideCrawler;
 use crate::CrawlRequest;
@@ -23,75 +21,6 @@ use crate::mcp::manager::{
     CrawlSessionManager, ManifestManager, SearchEngineCache, url_to_output_dir,
 };
 use crate::mcp::types::{ActiveCrawlSession, CrawlManifest, CrawlStatus};
-
-// =============================================================================
-// DEFAULT VALUES AND CONSTANTS
-// =============================================================================
-
-use crate::utils::{DEFAULT_CRAWL_RATE_RPS, DEFAULT_MAX_DEPTH};
-
-// =============================================================================
-// Arguments Structs
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct StartCrawlArgs {
-    /// Target URL to crawl (required)
-    pub url: String,
-
-    /// Output directory for crawled content
-    /// Default: auto-generated from URL domain (e.g., "docs/ratatui.rs")
-    #[serde(default)]
-    pub output_dir: Option<String>,
-
-    /// Maximum crawl depth (default: 3)
-    #[serde(default = "default_max_depth")]
-    pub max_depth: u8,
-
-    /// Maximum number of pages to crawl (default: unbounded)
-    #[serde(default)]
-    pub limit: Option<usize>,
-
-    /// Save markdown format (default: true)
-    #[serde(default = "default_true")]
-    pub save_markdown: bool,
-
-    /// Save screenshots (default: false for speed)
-    #[serde(default)]
-    pub save_screenshots: bool,
-
-    /// Enable search indexing (default: true)
-    #[serde(default = "default_true")]
-    pub enable_search: bool,
-
-    /// Crawl rate in requests per second (default: 2.0)
-    #[serde(default = "default_crawl_rate")]
-    pub crawl_rate_rps: f64,
-
-    /// Allow subdomain crawling (default: false)
-    #[serde(default)]
-    pub allow_subdomains: bool,
-
-    /// Content types to generate (default: None, uses `save_markdown/save_screenshots`)
-    /// Valid values: "markdown", "html", "json", "png"
-    /// Controls which file types are generated during crawling
-    /// "png" enables screenshot capture
-    #[serde(default)]
-    pub content_types: Option<Vec<String>>,
-}
-
-fn default_max_depth() -> u8 {
-    DEFAULT_MAX_DEPTH
-}
-fn default_true() -> bool {
-    true
-}
-fn default_crawl_rate() -> f64 {
-    DEFAULT_CRAWL_RATE_RPS
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct StartCrawlPromptArgs {}
 
 // =============================================================================
 // Tool Struct

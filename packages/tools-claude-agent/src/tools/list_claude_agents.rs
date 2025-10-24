@@ -1,35 +1,13 @@
 use crate::manager::AgentManager;
+use kodegen_mcp_schema::claude_agent::{ListClaudeAgentsArgs, ListClaudeAgentsPromptArgs};
 use kodegen_mcp_tool::Tool;
 use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
 // ============================================================================
-// ARGS STRUCTS
+// ARGS STRUCTS - Imported from kodegen_mcp_schema::claude_agent
 // ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListClaudeAgentsArgs {
-    /// Include completed sessions (default: true)
-    #[serde(default = "default_true")]
-    pub include_completed: bool,
-
-    /// Lines of last output per agent (default: 3)
-    #[serde(default = "default_last_output_lines")]
-    pub last_output_lines: usize,
-}
-
-fn default_true() -> bool {
-    true
-}
-fn default_last_output_lines() -> usize {
-    3
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListClaudeAgentsPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

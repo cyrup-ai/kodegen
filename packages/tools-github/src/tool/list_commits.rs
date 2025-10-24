@@ -1,41 +1,10 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::ListCommitsArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for listing commits
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListCommitsArgs {
-    /// Repository owner
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// SHA or branch to start listing from (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sha: Option<String>,
-    /// Filter by file path (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
-    /// Filter by author (GitHub login or email) (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    /// Only commits after this date (ISO 8601) (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub since: Option<String>,
-    /// Only commits before this date (ISO 8601) (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub until: Option<String>,
-    /// Page number (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-    /// Results per page (optional, max 100)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u8>,
-}
 
 /// Tool for listing repository commits
 pub struct ListCommitsTool;

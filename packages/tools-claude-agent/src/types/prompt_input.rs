@@ -48,3 +48,25 @@ impl PromptInput {
         }
     }
 }
+
+// ============================================================================
+// Helper functions for schema's PromptInput type
+// ============================================================================
+
+/// Resolve a schema PromptInput to a plain string
+pub async fn resolve_schema_prompt(
+    prompt: &kodegen_mcp_schema::claude_agent::PromptInput,
+    prompt_manager: &kodegen_tools_prompt::PromptManager,
+) -> Result<String, crate::error::ClaudeError> {
+    use kodegen_mcp_schema::claude_agent::PromptInput as SchemaPromptInput;
+    match prompt {
+        SchemaPromptInput::String(s) => Ok(s.clone()),
+        SchemaPromptInput::Template(template) => prompt_manager
+            .render_prompt(&template.name, Some(template.parameters.clone()))
+            .await
+            .map_err(|e| crate::error::ClaudeError::PromptTemplateError {
+                template: template.name.clone(),
+                message: e.to_string(),
+            }),
+    }
+}

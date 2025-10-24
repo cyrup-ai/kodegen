@@ -1,37 +1,10 @@
 use anyhow;
+use kodegen_mcp_schema::github::UpdatePullRequestArgs;
 use kodegen_mcp_tool::{McpError, Tool};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for updating a pull request
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct UpdatePullRequestArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Pull request number
-    pub pr_number: u64,
-    /// New title (optional)
-    #[serde(default)]
-    pub title: Option<String>,
-    /// New body/description (optional)
-    #[serde(default)]
-    pub body: Option<String>,
-    /// New state: "open" or "closed" (optional)
-    #[serde(default)]
-    pub state: Option<String>,
-    /// New base branch (optional)
-    #[serde(default)]
-    pub base: Option<String>,
-    /// Whether maintainers can modify the pull request (optional)
-    #[serde(default)]
-    pub maintainer_can_modify: Option<bool>,
-}
 
 /// Tool for updating an existing pull request
 pub struct UpdatePullRequestTool;

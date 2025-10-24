@@ -9,33 +9,14 @@ use crate::{
 };
 use base64::Engine as _; // For base64 encoding of binary data
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::database::{ExecuteSQLArgs, ExecuteSQLPromptArgs};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::AnyPool;
 use sqlx::{Column, Row, TypeInfo};
 use std::sync::Arc;
 use std::time::Duration;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ExecuteSQLArgs {
-    /// SQL query or multiple SQL statements (separated by semicolons)
-    /// Multi-statement queries are executed within a transaction for consistency.
-    pub sql: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ExecuteSQLPromptArgs {
-    /// Optional: database type to focus examples on (postgres, mysql, sqlite, etc.)
-    #[serde(default)]
-    pub database_type: Option<String>,
-}
 
 // ============================================================================
 // TOOL STRUCT

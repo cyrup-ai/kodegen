@@ -1,28 +1,10 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::GetCommitArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for getting a commit
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetCommitArgs {
-    /// Repository owner
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Commit SHA
-    pub commit_sha: String,
-    /// Page number for files (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-    /// Results per page (optional, max 100)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u8>,
-}
 
 /// Tool for getting detailed commit information
 pub struct GetCommitTool;

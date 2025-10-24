@@ -1,23 +1,9 @@
 use super::manager::PromptManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::prompt::{AddPromptArgs, AddPromptPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddPromptArgs {
-    /// Filename for the prompt (without .j2.md extension)
-    /// Must contain only alphanumeric characters, hyphens, and underscores
-    pub name: String,
-
-    /// Full prompt content including YAML frontmatter
-    pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddPromptPromptArgs {}
 
 #[derive(Clone)]
 pub struct AddPromptTool {

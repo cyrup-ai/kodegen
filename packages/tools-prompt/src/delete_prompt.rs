@@ -1,23 +1,9 @@
 use super::manager::PromptManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::prompt::{DeletePromptArgs, DeletePromptPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DeletePromptArgs {
-    /// Name of the prompt to delete
-    pub name: String,
-
-    /// Confirmation flag (must be true)
-    #[serde(default)]
-    pub confirm: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DeletePromptPromptArgs {}
 
 #[derive(Clone)]
 pub struct DeletePromptTool {

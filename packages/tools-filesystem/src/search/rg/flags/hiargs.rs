@@ -12,7 +12,7 @@ use {bstr::BString, grep::printer::ColorSpecs, grep_pcre2};
 use crate::search::rg::{
     flags::lowargs::{
         BinaryMode, BoundaryMode, BufferMode, CaseMode, ColorChoice, ContextMode, ContextSeparator,
-        EncodingMode, EngineChoice, FieldContextSeparator, FieldMatchSeparator, LowArgs, MmapMode,
+        EncodingMode, Engine, FieldContextSeparator, FieldMatchSeparator, LowArgs, MmapMode,
         Mode, PatternSource, SearchMode, TypeChange,
     },
     haystack::{Haystack, HaystackBuilder},
@@ -47,7 +47,7 @@ pub(crate) struct HiArgs {
     crlf: bool,
     dfa_size_limit: Option<usize>,
     encoding: EncodingMode,
-    engine: EngineChoice,
+    engine: Engine,
     field_context_separator: FieldContextSeparator,
     field_match_separator: FieldMatchSeparator,
     file_separator: Option<Vec<u8>>,
@@ -334,14 +334,14 @@ impl HiArgs {
     /// then this returns an error.
     pub(crate) fn matcher(&self) -> anyhow::Result<PatternMatcher> {
         match self.engine {
-            EngineChoice::Default => match self.matcher_rust() {
+            Engine::Default => match self.matcher_rust() {
                 Ok(m) => Ok(m),
                 Err(err) => {
                     anyhow::bail!(suggest_other_engine(err.to_string()));
                 }
             },
-            EngineChoice::PCRE2 => Ok(self.matcher_pcre2()?),
-            EngineChoice::Auto => {
+            Engine::PCRE2 => Ok(self.matcher_pcre2()?),
+            Engine::Auto => {
                 let rust_err = match self.matcher_rust() {
                     Ok(m) => return Ok(m),
                     Err(err) => err,

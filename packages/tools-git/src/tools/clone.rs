@@ -1,36 +1,13 @@
 //! Git repository cloning tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitCloneArgs, GitClonePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Tool for cloning remote Git repositories
 #[derive(Clone)]
 pub struct GitCloneTool;
-
-/// Arguments for `git_clone` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitCloneArgs {
-    /// Git URL to clone from (https:// or git://)
-    pub url: String,
-
-    /// Local path to clone into
-    pub path: String,
-
-    /// Specific branch to checkout (defaults to repository default)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub branch: Option<String>,
-
-    /// Shallow clone depth (minimum: 1)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub depth: Option<u32>,
-}
-
-/// Prompt arguments for `git_clone` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitClonePromptArgs {}
 
 impl Tool for GitCloneTool {
     type Args = GitCloneArgs;

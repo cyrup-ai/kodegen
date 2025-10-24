@@ -16,23 +16,23 @@ pub use search::PatternMatcher;
 /// Returns `PatternMatcher` enum supporting both Rust regex and PCRE2
 pub fn build_pattern_matcher(
     pattern: &str,
-    engine: super::types::EngineChoice,
+    engine: super::types::Engine,
     case_mode: super::types::CaseMode,
     literal_search: bool,
     word_boundary: bool,
 ) -> Result<PatternMatcher> {
-    use super::types::EngineChoice;
+    use super::types::Engine;
 
     match engine {
-        EngineChoice::Rust => {
+        Engine::Rust => {
             let matcher = build_rust_matcher(pattern, case_mode, literal_search, word_boundary)?;
             Ok(PatternMatcher::RustRegex(matcher))
         }
-        EngineChoice::PCRE2 => {
+        Engine::PCRE2 => {
             let matcher = build_pcre2_matcher(pattern, case_mode, literal_search, word_boundary)?;
             Ok(PatternMatcher::PCRE2(matcher))
         }
-        EngineChoice::Auto => {
+        Engine::Auto => {
             // Try Rust first, fall back to PCRE2 on error
             match build_rust_matcher(pattern, case_mode, literal_search, word_boundary) {
                 Ok(m) => Ok(PatternMatcher::RustRegex(m)),

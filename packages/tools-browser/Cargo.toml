@@ -13,6 +13,7 @@ crate-type = ["lib"]
 
 [dependencies]
 # MCP tool dependencies
+kodegen_mcp_schema = { path = "../mcp-schema" }
 kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server"] }
 schemars = "1.0"

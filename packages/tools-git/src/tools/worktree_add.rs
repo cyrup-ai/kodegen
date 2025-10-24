@@ -1,38 +1,14 @@
 //! Git worktree add tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreeAddArgs, GitWorktreeAddPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for adding worktrees
 #[derive(Clone)]
 pub struct GitWorktreeAddTool;
-
-/// Arguments for `git_worktree_add` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreeAddArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Path where the new worktree will be created
-    pub worktree_path: String,
-
-    /// Branch or commit to checkout in the worktree (optional, defaults to HEAD).
-    /// Can be a branch name, tag, or commit SHA.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub branch: Option<String>,
-
-    /// Force creation even if worktree path already exists (default: false)
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_worktree_add` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreeAddPromptArgs {}
 
 impl Tool for GitWorktreeAddTool {
     type Args = GitWorktreeAddArgs;

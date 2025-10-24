@@ -1,24 +1,10 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::CreateBranchArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for creating a branch
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreateBranchArgs {
-    /// Repository owner
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// New branch name
-    pub branch_name: String,
-    /// SHA to create branch from
-    pub sha: String,
-}
 
 /// Tool for creating a new branch
 pub struct CreateBranchTool;

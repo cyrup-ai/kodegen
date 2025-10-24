@@ -1,36 +1,14 @@
 //! Git branch renaming tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitBranchRenameArgs, GitBranchRenamePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for renaming Git branches
 #[derive(Clone)]
 pub struct GitBranchRenameTool;
-
-/// Arguments for `git_branch_rename` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitBranchRenameArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Current branch name
-    pub old_name: String,
-
-    /// New branch name
-    pub new_name: String,
-
-    /// Force rename (overwrite if new name exists)
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_branch_rename` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitBranchRenamePromptArgs {}
 
 impl Tool for GitBranchRenameTool {
     type Args = GitBranchRenameArgs;

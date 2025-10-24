@@ -16,12 +16,12 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 use tokio::sync::{RwLock, watch};
 
-/// Convert MCP API `EngineChoice` to ripgrep's internal `EngineChoice`
+/// Convert MCP API `Engine` to ripgrep's internal `Engine`
 fn convert_engine_choice(
-    engine: crate::search::types::EngineChoice,
-) -> crate::search::rg::flags::lowargs::EngineChoice {
-    use crate::search::rg::flags::lowargs::EngineChoice as RG;
-    use crate::search::types::EngineChoice as MCP;
+    engine: crate::search::types::Engine,
+) -> crate::search::rg::flags::lowargs::Engine {
+    use crate::search::rg::flags::lowargs::Engine as RG;
+    use crate::search::types::Engine as MCP;
 
     match engine {
         MCP::Auto => RG::Auto,

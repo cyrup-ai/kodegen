@@ -1,45 +1,14 @@
 //! GitHub code scanning alerts tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_schema::github::{CodeScanningAlertsArgs, CodeScanningAlertsPromptArgs};
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use serde_json::Value;
 
 /// Tool for listing code scanning security alerts in a GitHub repository
 #[derive(Clone)]
 pub struct CodeScanningAlertsTool;
-
-/// Arguments for code_scanning_alerts tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CodeScanningAlertsArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    
-    /// Repository name
-    pub repo: String,
-    
-    /// Filter by state: "open", "closed", or "dismissed" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-    
-    /// Filter by branch/ref (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ref_name: Option<String>,
-    
-    /// Filter by tool name (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
-    
-    /// Filter by severity: "critical", "high", "medium", "low", "warning", "note", "error" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub severity: Option<String>,
-}
-
-/// Prompt arguments for code_scanning_alerts tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CodeScanningAlertsPromptArgs {}
 
 impl Tool for CodeScanningAlertsTool {
     type Args = CodeScanningAlertsArgs;

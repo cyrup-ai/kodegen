@@ -14,9 +14,9 @@ mod wait;
 mod wait_for;
 
 #[cfg(feature = "agent")]
-pub use browser_agent::{BrowserAgentArgs, BrowserAgentPromptArgs, BrowserAgentTool};
+pub use browser_agent::BrowserAgentTool;
 #[cfg(feature = "research")]
-pub use browser_research::{BrowserResearchArgs, BrowserResearchPromptArgs, BrowserResearchTool};
+pub use browser_research::BrowserResearchTool;
 pub use click::BrowserClickTool;
 pub use extract_text::BrowserExtractTextTool;
 pub use navigate::BrowserNavigateTool;

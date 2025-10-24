@@ -1,29 +1,14 @@
 //! Git worktree unlock tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreeUnlockArgs, GitWorktreeUnlockPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 /// Tool for unlocking worktrees
 #[derive(Clone)]
 pub struct GitWorktreeUnlockTool;
-
-/// Arguments for `git_worktree_unlock` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreeUnlockArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Path to worktree to unlock
-    pub worktree_path: String,
-}
-
-/// Prompt arguments for `git_worktree_unlock` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreeUnlockPromptArgs {}
 
 impl Tool for GitWorktreeUnlockTool {
     type Args = GitWorktreeUnlockArgs;

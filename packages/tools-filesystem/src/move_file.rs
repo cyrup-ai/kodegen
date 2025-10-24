@@ -1,23 +1,10 @@
 use crate::validate_path;
+use kodegen_mcp_schema::filesystem::{MoveFileArgs, MoveFilePromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::fs;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MoveFileArgs {
-    /// Source path (file or directory to move)
-    pub source: String,
-
-    /// Destination path (where to move it)
-    pub destination: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MoveFilePromptArgs {}
 
 #[derive(Clone)]
 pub struct MoveFileTool {

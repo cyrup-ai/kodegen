@@ -1,34 +1,10 @@
 use anyhow;
+use kodegen_mcp_schema::github::MergePullRequestArgs;
 use kodegen_mcp_tool::{McpError, Tool};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for merging a pull request
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MergePullRequestArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Pull request number
-    pub pr_number: u64,
-    /// Title for the merge commit (optional)
-    #[serde(default)]
-    pub commit_title: Option<String>,
-    /// Extra detail for the merge commit message (optional)
-    #[serde(default)]
-    pub commit_message: Option<String>,
-    /// Merge method: "merge", "squash", or "rebase" (optional, defaults to repository setting)
-    #[serde(default)]
-    pub merge_method: Option<String>,
-    /// SHA that pull request head must match to allow merge (optional, for safety)
-    #[serde(default)]
-    pub sha: Option<String>,
-}
 
 /// Tool for merging a pull request
 pub struct MergePullRequestTool;

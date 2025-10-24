@@ -1,26 +1,14 @@
 //! Git repository opening tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitOpenArgs, GitOpenPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for opening existing Git repositories
 #[derive(Clone)]
 pub struct GitOpenTool;
-
-/// Arguments for `git_open` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitOpenArgs {
-    /// Path to the existing repository
-    pub path: String,
-}
-
-/// Prompt arguments for `git_open` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitOpenPromptArgs {}
 
 impl Tool for GitOpenTool {
     type Args = GitOpenArgs;

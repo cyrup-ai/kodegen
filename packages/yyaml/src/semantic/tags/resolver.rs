@@ -74,6 +74,7 @@ impl<'input> TagResolver<'input> {
                 .tag_registry
                 .add_tag_prefix(handle.clone(), prefix.clone());
         }
+        resolver.set_schema_type(config.schema_type);
         resolver
     }
 

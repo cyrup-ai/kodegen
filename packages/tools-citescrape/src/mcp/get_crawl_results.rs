@@ -3,54 +3,17 @@
 //! Retrieves crawl status and results for active or completed crawls.
 
 use chrono::Utc;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use kodegen_mcp_schema::citescrape::{GetCrawlResultsArgs, GetCrawlResultsPromptArgs};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 
-use kodegen_mcp_tool::Tool;
-use kodegen_mcp_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-
 use crate::mcp::manager::{CrawlSessionManager, ManifestManager};
 use crate::mcp::types::{ActiveCrawlSession, CrawlManifest, CrawlStatus};
-
-// =============================================================================
-// Arguments Structs
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetCrawlResultsArgs {
-    /// Crawl ID from `start_crawl` (for active crawls)
-    #[serde(default)]
-    pub crawl_id: Option<String>,
-
-    /// Output directory (alternative to `crawl_id` for completed crawls)
-    #[serde(default)]
-    pub output_dir: Option<String>,
-
-    /// Include progress details (default: true)
-    #[serde(default = "default_true")]
-    pub include_progress: bool,
-
-    /// List all crawled files: markdown, HTML, and JSON (default: true)
-    #[serde(default = "default_true")]
-    pub list_files: bool,
-
-    /// Filter file listing by type (default: None, returns all types)
-    /// Valid values: "md", "html", "json", "png"
-    #[serde(default)]
-    pub file_types: Option<Vec<String>>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetCrawlResultsPromptArgs {}
 
 // =============================================================================
 // Tool Struct

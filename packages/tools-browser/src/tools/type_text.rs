@@ -1,38 +1,13 @@
 //! Browser type text tool - inputs text into form fields
 
+use kodegen_mcp_schema::browser::{BrowserTypeTextArgs, BrowserTypeTextPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::manager::BrowserManager;
 use crate::utils::validate_interaction_timeout;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserTypeTextArgs {
-    /// CSS selector for input element
-    pub selector: String,
-
-    /// Text to type into the element
-    pub text: String,
-
-    /// Optional: clear existing text first (default: true)
-    #[serde(default = "default_clear")]
-    pub clear: bool,
-
-    /// Optional: timeout in milliseconds (default: 5000)
-    #[serde(default)]
-    pub timeout_ms: Option<u64>,
-}
-
-fn default_clear() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserTypeTextPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserTypeTextTool {

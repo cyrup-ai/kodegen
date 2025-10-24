@@ -6,33 +6,13 @@ use crate::tools::helpers::resolve_schema_default;
 use crate::tools::timeout::execute_with_timeout;
 use crate::types::{DatabaseType, TableColumn};
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::database::{GetTableSchemaArgs, GetTableSchemaPromptArgs};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 use std::time::Duration;
-
-/// Arguments for get_table_schema tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetTableSchemaArgs {
-    /// Table name to inspect
-    pub table: String,
-
-    /// Schema name (optional, uses default if not provided)
-    /// PostgreSQL: defaults to "public"
-    /// MySQL/MariaDB: defaults to current DATABASE()
-    /// SQLite: defaults to "main"
-    /// SQL Server: defaults to "dbo"
-    #[serde(default)]
-    pub schema: Option<String>,
-}
-
-/// Prompt arguments for get_table_schema tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetTableSchemaPromptArgs {}
 
 /// Tool for retrieving table column information
 #[derive(Clone)]

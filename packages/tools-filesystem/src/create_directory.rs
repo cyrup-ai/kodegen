@@ -1,24 +1,10 @@
 use crate::validate_path;
+use kodegen_mcp_schema::filesystem::{CreateDirectoryArgs, CreateDirectoryPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::fs;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreateDirectoryArgs {
-    /// Path to the directory to create
-    pub path: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreateDirectoryPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

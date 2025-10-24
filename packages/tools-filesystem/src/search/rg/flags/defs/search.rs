@@ -7,7 +7,7 @@ use crate::search::rg::flags::{
     Category, Flag, FlagValue,
     lowargs::{
         BinaryMode, BoundaryMode, BufferMode, CaseMode, ColorChoice,
-        ContextMode, EncodingMode, EngineChoice,
+        ContextMode, EncodingMode, Engine,
         LowArgs, MmapMode, Mode, PatternSource, SearchMode, TypeChange,
     },
 };
@@ -69,9 +69,9 @@ backreferences without explicitly needing to enable them.
 
     fn update(&self, v: FlagValue, args: &mut LowArgs) -> anyhow::Result<()> {
         let mode = if v.unwrap_switch() {
-            EngineChoice::Auto
+            Engine::Auto
         } else {
-            EngineChoice::Default
+            Engine::Default
         };
         args.engine = mode;
         Ok(())
@@ -82,38 +82,38 @@ backreferences without explicitly needing to enable them.
 #[test]
 fn test_auto_hybrid_regex() {
     let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args = parse_low_raw(["--auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--no-auto-hybrid-regex"])
             .expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args =
         parse_low_raw(["--no-auto-hybrid-regex", "--auto-hybrid-regex"])
             .expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args = parse_low_raw(["--auto-hybrid-regex", "-P"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args = parse_low_raw(["-P", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--engine=auto", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--engine=default", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 }
 
 /// -B/--before-context
@@ -493,9 +493,9 @@ flags.
         let v = v.unwrap_value();
         let string = convert::str(&v)?;
         args.engine = match string {
-            "default" => EngineChoice::Default,
-            "pcre2" => EngineChoice::PCRE2,
-            "auto" => EngineChoice::Auto,
+            "default" => Engine::Default,
+            "pcre2" => Engine::PCRE2,
+            "auto" => Engine::Auto,
             _ => anyhow::bail!("unrecognized regex engine '{string}'"),
         };
         Ok(())
@@ -506,33 +506,33 @@ flags.
 #[test]
 fn test_engine() {
     let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args = parse_low_raw(["--engine", "pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args = parse_low_raw(["--engine=pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--engine=pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args =
         parse_low_raw(["--engine=pcre2", "--auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--engine=auto"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 
     let args =
         parse_low_raw(["--auto-hybrid-regex", "--engine=default"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args =
         parse_low_raw(["--engine=pcre2", "--no-auto-hybrid-regex"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 }
 
 /// --field-context-separator
@@ -1316,9 +1316,9 @@ engine).
 
     fn update(&self, v: FlagValue, args: &mut LowArgs) -> anyhow::Result<()> {
         args.engine = if v.unwrap_switch() {
-            EngineChoice::PCRE2
+            Engine::PCRE2
         } else {
-            EngineChoice::Default
+            Engine::Default
         };
         Ok(())
     }
@@ -1328,22 +1328,22 @@ engine).
 #[test]
 fn test_pcre2() {
     let args = parse_low_raw(None::<&str>).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args = parse_low_raw(["--pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args = parse_low_raw(["-P"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::PCRE2, args.engine);
+    assert_eq!(Engine::PCRE2, args.engine);
 
     let args = parse_low_raw(["-P", "--no-pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args = parse_low_raw(["--engine=auto", "-P", "--no-pcre2"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Default, args.engine);
+    assert_eq!(Engine::Default, args.engine);
 
     let args = parse_low_raw(["-P", "--engine=auto"]).expect("Test parsing should succeed");
-    assert_eq!(EngineChoice::Auto, args.engine);
+    assert_eq!(Engine::Auto, args.engine);
 }
 
 /// --pcre2-version

@@ -1,41 +1,14 @@
 //! Git commit tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitCommitArgs, GitCommitPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for creating Git commits
 #[derive(Clone)]
 pub struct GitCommitTool;
-
-/// Arguments for `git_commit` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitCommitArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Commit message
-    pub message: String,
-
-    /// Author name (optional, uses git config if not provided)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author_name: Option<String>,
-
-    /// Author email (optional, uses git config if not provided)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author_email: Option<String>,
-
-    /// Stage all modified tracked files before committing
-    #[serde(default)]
-    pub all: bool,
-}
-
-/// Prompt arguments for `git_commit` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitCommitPromptArgs {}
 
 impl Tool for GitCommitTool {
     type Args = GitCommitArgs;

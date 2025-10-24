@@ -1,26 +1,14 @@
 //! Git repository discovery tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitDiscoverArgs, GitDiscoverPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for discovering Git repositories by searching upward
 #[derive(Clone)]
 pub struct GitDiscoverTool;
-
-/// Arguments for `git_discover` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitDiscoverArgs {
-    /// Path to search from (can be subdirectory within a repo)
-    pub path: String,
-}
-
-/// Prompt arguments for `git_discover` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitDiscoverPromptArgs {}
 
 impl Tool for GitDiscoverTool {
     type Args = GitDiscoverArgs;

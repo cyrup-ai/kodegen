@@ -6,31 +6,13 @@ use crate::tools::helpers::resolve_schema_default;
 use crate::tools::timeout::execute_with_timeout;
 use crate::types::{DatabaseType, StoredProcedure};
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::database::{GetStoredProceduresArgs, GetStoredProceduresPromptArgs};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
 use std::time::Duration;
-
-/// Arguments for get_stored_procedures tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetStoredProceduresArgs {
-    /// Schema name (optional, uses default if not provided)
-    #[serde(default)]
-    pub schema: Option<String>,
-
-    /// Include detailed information (parameters, return type, definition)
-    /// Warning: definition can be large for complex procedures
-    #[serde(default)]
-    pub include_details: bool,
-}
-
-/// Prompt arguments for get_stored_procedures tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetStoredProceduresPromptArgs {}
 
 /// Tool for listing stored procedures and functions
 #[derive(Clone)]

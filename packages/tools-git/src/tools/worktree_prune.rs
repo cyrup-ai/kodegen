@@ -1,26 +1,14 @@
 //! Git worktree prune tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreePruneArgs, GitWorktreePrunePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for pruning stale worktrees
 #[derive(Clone)]
 pub struct GitWorktreePruneTool;
-
-/// Arguments for `git_worktree_prune` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreePruneArgs {
-    /// Path to repository
-    pub path: String,
-}
-
-/// Prompt arguments for `git_worktree_prune` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreePrunePromptArgs {}
 
 impl Tool for GitWorktreePruneTool {
     type Args = GitWorktreePruneArgs;

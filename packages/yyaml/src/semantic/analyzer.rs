@@ -23,6 +23,7 @@ pub struct SemanticAnalyzer<'input> {
     validator: DocumentValidator<'input>,
     reference_tracker: ReferenceTracker<'input>,
     analysis_context: AnalysisContext<'input>,
+    schema_type: SchemaType,
 }
 
 impl<'input> SemanticAnalyzer<'input> {
@@ -38,12 +39,23 @@ impl<'input> SemanticAnalyzer<'input> {
     pub fn with_config(config: SemanticConfig<'input>) -> Self {
         let context = AnalysisContext::from_config(&config);
 
+        let schema_type = config.schema_type;
+
+        let mut anchor_resolver = AnchorResolver::with_config(&config);
+        let mut tag_resolver = TagResolver::with_config(&config);
+        let mut validator = DocumentValidator::with_config(&config);
+        let mut reference_tracker = ReferenceTracker::with_config(&config);
+
+        anchor_resolver.set_schema_type(schema_type);
+        reference_tracker.set_schema_type(schema_type);
+
         Self {
-            anchor_resolver: AnchorResolver::with_config(&config),
-            tag_resolver: TagResolver::with_config(&config),
-            validator: DocumentValidator::with_config(&config),
-            reference_tracker: ReferenceTracker::with_config(&config),
+            anchor_resolver,
+            tag_resolver,
+            validator,
+            reference_tracker,
             analysis_context: context,
+            schema_type,
         }
     }
 

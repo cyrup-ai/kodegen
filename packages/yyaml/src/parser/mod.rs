@@ -13,6 +13,7 @@ pub mod structural_productions;
 
 pub use ast::*;
 pub use character_productions::CharacterProductions;
+pub use structural_productions::StructuralProductions;
 pub use flow::FlowProductions;
 pub use grammar::{ChompingMode, ParametricContext, YamlContext};
 pub use loader::{Encoding, YamlLoader};

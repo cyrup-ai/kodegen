@@ -1,24 +1,9 @@
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::introspection::{GetUsageStatsArgs, GetUsageStatsPromptArgs};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct GetUsageStatsArgs {
-    // No arguments needed
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct GetUsageStatsPromptArgs {
-    // No arguments needed
-}
 
 // ============================================================================
 // TOOL STRUCT

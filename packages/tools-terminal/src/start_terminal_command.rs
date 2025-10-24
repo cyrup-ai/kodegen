@@ -1,37 +1,10 @@
 use crate::manager::{CommandManager, TerminalManager};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::terminal::{StartTerminalCommandArgs, StartTerminalCommandPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct StartTerminalCommandArgs {
-    /// The shell command to execute
-    pub command: String,
-
-    /// Initial delay in milliseconds before returning first response (default: 100ms)
-    /// Allows quick commands (pwd, echo) to complete before returning
-    #[serde(default = "default_initial_delay")]
-    pub initial_delay_ms: u64,
-
-    /// Shell to use (optional, defaults to system shell)
-    #[serde(default)]
-    pub shell: Option<String>,
-}
-
-fn default_initial_delay() -> u64 {
-    100
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct StartTerminalCommandPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

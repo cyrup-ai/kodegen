@@ -1,23 +1,10 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::ForkRepositoryArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for forking a repository
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ForkRepositoryArgs {
-    /// Repository owner to fork from
-    pub owner: String,
-    /// Repository name to fork
-    pub repo: String,
-    /// Organization to fork to (optional, defaults to user)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organization: Option<String>,
-}
 
 /// Tool for forking a repository
 pub struct ForkRepositoryTool;

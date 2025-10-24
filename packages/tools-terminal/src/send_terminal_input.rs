@@ -1,36 +1,10 @@
 use crate::manager::TerminalManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::terminal::{SendTerminalInputArgs, SendTerminalInputPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SendTerminalInputArgs {
-    /// Process ID to send input to
-    pub pid: u32,
-
-    /// Input text to send
-    pub input: String,
-
-    /// Append newline to execute command (default: true)
-    /// Set to false for raw input like Ctrl+C or partial commands
-    #[serde(default = "default_append_newline")]
-    pub append_newline: bool,
-}
-
-fn default_append_newline() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SendTerminalInputPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

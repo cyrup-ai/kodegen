@@ -1,22 +1,10 @@
 use anyhow;
+use kodegen_mcp_schema::github::GetPullRequestStatusArgs;
 use kodegen_mcp_tool::{McpError, Tool};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for getting pull request status
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPullRequestStatusArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Pull request number
-    pub pr_number: u64,
-}
 
 /// Tool for getting detailed status information about a pull request
 pub struct GetPullRequestStatusTool;

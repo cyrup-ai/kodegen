@@ -1,34 +1,14 @@
 //! Git repository initialization tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitInitArgs, GitInitPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for initializing Git repositories
 #[derive(Clone)]
 pub struct GitInitTool;
-
-/// Arguments for `git_init` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitInitArgs {
-    /// Path where to initialize the repository
-    pub path: String,
-
-    /// Create a bare repository (no working directory)
-    #[serde(default)]
-    pub bare: bool,
-
-    /// Name of the initial branch (informational only, gix uses default)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_branch: Option<String>,
-}
-
-/// Prompt arguments for `git_init` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitInitPromptArgs {}
 
 impl Tool for GitInitTool {
     type Args = GitInitArgs;

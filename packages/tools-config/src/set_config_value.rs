@@ -1,26 +1,9 @@
-use crate::{ConfigManager, ConfigValue};
+use crate::ConfigManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::config::{SetConfigValueArgs, SetConfigValuePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct SetConfigValueArgs {
-    /// Configuration key to update
-    pub key: String,
-
-    /// New value (string, number, boolean, or array)
-    pub value: ConfigValue,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct SetConfigValuePromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

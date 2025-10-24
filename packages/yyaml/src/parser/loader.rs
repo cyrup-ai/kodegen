@@ -730,23 +730,48 @@ impl YamlLoader {
 
         match processor.infer_scalar_type(trimmed) {
             YamlType::Null => Yaml::Null,
-            YamlType::Bool => match trimmed.to_ascii_lowercase().as_str() {
-                "true" | "yes" | "on" => Yaml::Boolean(true),
-                "false" | "no" | "off" => Yaml::Boolean(false),
-                _ => Yaml::String(trimmed.to_string()),
+            YamlType::Bool => match processor.current_schema() {
+                SchemaType::Json => match trimmed {
+                    "true" => Yaml::Boolean(true),
+                    "false" => Yaml::Boolean(false),
+                    _ => Yaml::String(trimmed.to_string()),
+                },
+                _ => match trimmed.to_ascii_lowercase().as_str() {
+                    "true" | "yes" | "on" => Yaml::Boolean(true),
+                    "false" | "no" | "off" => Yaml::Boolean(false),
+                    _ => Yaml::String(trimmed.to_string()),
+                },
             },
-            YamlType::Int => trimmed
-                .parse::<i64>()
-                .map(Yaml::Integer)
-                .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
-            YamlType::Float => match trimmed.to_ascii_lowercase().as_str() {
-                ".inf" | "+.inf" => Yaml::Real("+.inf".to_string()),
-                "-.inf" => Yaml::Real("-.inf".to_string()),
-                ".nan" => Yaml::Real(".nan".to_string()),
-                _ => trimmed
-                    .parse::<f64>()
-                    .map(|f| Yaml::Real(f.to_string()))
-                    .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+            YamlType::Int => {
+                if processor.is_integer_pattern(trimmed) {
+                    trimmed
+                        .parse::<i64>()
+                        .map(Yaml::Integer)
+                        .unwrap_or_else(|_| Yaml::String(trimmed.to_string()))
+                } else {
+                    Yaml::String(trimmed.to_string())
+                }
+            }
+            YamlType::Float => match processor.current_schema() {
+                SchemaType::Json => {
+                    if processor.is_float_pattern(trimmed) {
+                        trimmed
+                            .parse::<f64>()
+                            .map(|f| Yaml::Real(f.to_string()))
+                            .unwrap_or_else(|_| Yaml::String(trimmed.to_string()))
+                    } else {
+                        Yaml::String(trimmed.to_string())
+                    }
+                }
+                _ => match trimmed.to_ascii_lowercase().as_str() {
+                    ".inf" | "+.inf" => Yaml::Real("+.inf".to_string()),
+                    "-.inf" => Yaml::Real("-.inf".to_string()),
+                    ".nan" => Yaml::Real(".nan".to_string()),
+                    _ => trimmed
+                        .parse::<f64>()
+                        .map(|f| Yaml::Real(f.to_string()))
+                        .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+                },
             },
             YamlType::Str
             | YamlType::Unknown

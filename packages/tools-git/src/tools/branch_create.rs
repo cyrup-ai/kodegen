@@ -1,41 +1,14 @@
 //! Git branch creation tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitBranchCreateArgs, GitBranchCreatePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for creating Git branches
 #[derive(Clone)]
 pub struct GitBranchCreateTool;
-
-/// Arguments for `git_branch_create` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitBranchCreateArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Name for new branch
-    pub branch: String,
-
-    /// Starting point (defaults to HEAD)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from_branch: Option<String>,
-
-    /// Force creation (overwrite if exists)
-    #[serde(default)]
-    pub force: bool,
-
-    /// Checkout the branch after creation
-    #[serde(default)]
-    pub checkout: bool,
-}
-
-/// Prompt arguments for `git_branch_create` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitBranchCreatePromptArgs {}
 
 impl Tool for GitBranchCreateTool {
     type Args = GitBranchCreateArgs;

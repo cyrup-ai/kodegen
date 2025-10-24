@@ -1,33 +1,14 @@
 //! Git worktree remove tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreeRemoveArgs, GitWorktreeRemovePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for removing worktrees
 #[derive(Clone)]
 pub struct GitWorktreeRemoveTool;
-
-/// Arguments for `git_worktree_remove` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreeRemoveArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Path to the worktree to remove (both working directory and admin files)
-    pub worktree_path: String,
-
-    /// Force removal even if worktree is locked (default: false)
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_worktree_remove` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreeRemovePromptArgs {}
 
 impl Tool for GitWorktreeRemoveTool {
     type Args = GitWorktreeRemoveArgs;

@@ -7,7 +7,7 @@ use crate::search::rg::flags::{
     Category, Flag, FlagValue,
     lowargs::{
         BinaryMode, BoundaryMode, BufferMode, CaseMode, ColorChoice,
-        ContextMode, EncodingMode, EngineChoice,
+        ContextMode, EncodingMode, Engine,
         LowArgs, MmapMode, Mode, PatternSource, SearchMode, TypeChange,
     },
 };

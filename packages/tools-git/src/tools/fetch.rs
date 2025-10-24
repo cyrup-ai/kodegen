@@ -1,43 +1,14 @@
 //! Git fetch tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitFetchArgs, GitFetchPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for fetching from remote repositories
 #[derive(Clone)]
 pub struct GitFetchTool;
-
-fn default_remote() -> String {
-    "origin".to_string()
-}
-
-/// Arguments for `git_fetch` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitFetchArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Remote name (defaults to "origin")
-    #[serde(default = "default_remote")]
-    pub remote: String,
-
-    /// Refspecs to fetch (e.g., ["refs/heads/main:refs/remotes/origin/main"]).
-    /// If empty, uses repository's configured refspecs for the remote.
-    #[serde(default)]
-    pub refspecs: Vec<String>,
-
-    /// Prune remote-tracking branches that no longer exist on remote (default: false)
-    #[serde(default)]
-    pub prune: bool,
-}
-
-/// Prompt arguments for `git_fetch` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitFetchPromptArgs {}
 
 impl Tool for GitFetchTool {
     type Args = GitFetchArgs;

@@ -1,26 +1,14 @@
 //! Git branch listing tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitBranchListArgs, GitBranchListPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for listing Git branches
 #[derive(Clone)]
 pub struct GitBranchListTool;
-
-/// Arguments for `git_branch_list` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitBranchListArgs {
-    /// Path to repository
-    pub path: String,
-}
-
-/// Prompt arguments for `git_branch_list` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitBranchListPromptArgs {}
 
 impl Tool for GitBranchListTool {
     type Args = GitBranchListArgs;

@@ -20,6 +20,7 @@ keywords = [
 [dependencies]
 # Core kodegen
 kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
+kodegen_mcp_schema = { path = "../mcp-schema", version = "0.0.1" }
 kodegen_tools_config = { path = "../tools-config", version = "0.0.1" }
 
 # Security - secret value wrapper for passwords/credentials

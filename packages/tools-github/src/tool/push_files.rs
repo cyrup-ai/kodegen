@@ -1,39 +1,14 @@
 //! GitHub multiple files push tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
-use std::collections::HashMap;
 use anyhow;
+use kodegen_mcp_schema::github::{PushFilesArgs, PushFilesPromptArgs};
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use serde_json::Value;
 
 /// Tool for pushing multiple files to a GitHub repository in a single commit
 #[derive(Clone)]
 pub struct PushFilesTool;
-
-/// Arguments for push_files tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PushFilesArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    
-    /// Repository name
-    pub repo: String,
-    
-    /// Branch name
-    pub branch: String,
-    
-    /// Map of file paths to base64-encoded content
-    pub files: HashMap<String, String>,
-    
-    /// Commit message
-    pub message: String,
-}
-
-/// Prompt arguments for push_files tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PushFilesPromptArgs {}
 
 impl Tool for PushFilesTool {
     type Args = PushFilesArgs;

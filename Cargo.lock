@@ -8990,6 +8990,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "kodegen_mcp_schema"
+version = "0.0.1"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kodegen_mcp_server_core"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "axum-server",
+ "chrono",
+ "clap",
+ "env_logger",
+ "kodegen_mcp_tool",
+ "kodegen_tools_config",
+ "kodegen_utils",
+ "log",
+ "rmcp",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "kodegen_mcp_tool"
 version = "0.0.1"
 dependencies = [
@@ -9070,6 +9100,7 @@ dependencies = [
  "futures-util",
  "kodegen_candle_agent",
  "kodegen_mcp_client",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "log",
  "once_cell",
@@ -9125,6 +9156,7 @@ dependencies = [
  "imstr",
  "imurl",
  "jwalk",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kuchiki",
  "lazy_static",
@@ -9173,6 +9205,7 @@ dependencies = [
  "cyrup_termcolor",
  "env_logger",
  "futures",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kodegen_tools_prompt",
  "log",
@@ -9197,13 +9230,17 @@ name = "kodegen_tools_config"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
  "base64 0.22.1",
  "chrono",
+ "clap",
  "dirs 6.0.0",
+ "env_logger",
  "futures",
  "gray_matter",
  "grep",
  "ignore",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kodegen_utils",
  "log",
@@ -9214,12 +9251,14 @@ dependencies = [
  "regex",
  "reqwest",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
  "sysinfo 0.37.2",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-util",
  "workspace-hack",
 ]
 
@@ -9230,6 +9269,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "lazy-regex",
@@ -9255,9 +9295,11 @@ name = "kodegen_tools_filesystem"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
  "base64 0.22.1",
  "bstr",
  "chrono",
+ "clap",
  "cyrup_termcolor",
  "dirs 6.0.0",
  "env_logger",
@@ -9266,6 +9308,7 @@ dependencies = [
  "grep",
  "grep-pcre2",
  "ignore",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
@@ -9274,11 +9317,13 @@ dependencies = [
  "regex",
  "reqwest",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "tokio-util",
  "uuid",
  "workspace-hack",
 ]
@@ -9288,13 +9333,19 @@ name = "kodegen_tools_git"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
  "chrono",
+ "clap",
+ "env_logger",
  "futures",
  "gix",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
+ "kodegen_tools_config",
  "kodegen_utils",
  "log",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
@@ -9302,6 +9353,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "walkdir",
  "workspace-hack",
 ]
@@ -9311,12 +9363,17 @@ name = "kodegen_tools_github"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
  "bytes",
  "chrono",
+ "clap",
+ "env_logger",
  "futures",
  "gix",
  "jsonwebtoken",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
+ "kodegen_tools_config",
  "kodegen_utils",
  "lazy_static",
  "log",
@@ -9325,6 +9382,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rmcp",
+ "rustls",
  "schemars",
  "semver",
  "serde",
@@ -9335,6 +9393,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "toml 0.9.8",
  "walkdir",
  "workspace-hack",
@@ -9345,13 +9404,20 @@ name = "kodegen_tools_introspection"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
+ "clap",
+ "env_logger",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
+ "kodegen_tools_config",
  "kodegen_utils",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
  "workspace-hack",
 ]
 
@@ -9360,13 +9426,21 @@ name = "kodegen_tools_process"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
+ "clap",
+ "env_logger",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
+ "kodegen_tools_config",
+ "kodegen_utils",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
  "sysinfo 0.37.2",
  "tokio",
+ "tokio-util",
  "workspace-hack",
 ]
 
@@ -9377,6 +9451,7 @@ dependencies = [
  "anyhow",
  "dirs 6.0.0",
  "gray_matter",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "log",
  "minijinja",
@@ -9395,6 +9470,7 @@ dependencies = [
  "anyhow",
  "futures",
  "kodegen_candle_agent",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "lazy_static",
  "log",
@@ -9418,6 +9494,7 @@ dependencies = [
  "anyhow",
  "cyrup_termcolor",
  "dirs 6.0.0",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "log",
  "parking_lot",
@@ -9435,9 +9512,15 @@ name = "kodegen_tools_terminal"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum-server",
  "bytes",
  "chrono",
+ "clap",
+ "env_logger",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
+ "kodegen_tools_config",
+ "kodegen_utils",
  "libc 0.2.177",
  "log",
  "once_cell",
@@ -9445,11 +9528,13 @@ dependencies = [
  "portable-pty",
  "regex",
  "rmcp",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "uuid",
  "vt100",
  "workspace-hack",

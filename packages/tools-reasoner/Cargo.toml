@@ -18,6 +18,7 @@ crate-type = ["lib"]  # Native library, not WASM
 [dependencies]
 # Core MCP tool infrastructure
 kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
+kodegen_mcp_schema = { path = "../mcp-schema", version = "0.0.1" }
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = [
     "client", "schemars", "server",
     "transport-child-process", "transport-io", "transport-sse-client",

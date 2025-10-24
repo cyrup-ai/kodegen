@@ -33,28 +33,28 @@ pub mod worktree_prune;
 pub mod worktree_remove;
 pub mod worktree_unlock;
 
-// Re-export tools and their argument types
-pub use clone::{GitCloneArgs, GitCloneTool};
-pub use discover::{GitDiscoverArgs, GitDiscoverTool};
-pub use init::{GitInitArgs, GitInitTool};
-pub use open::{GitOpenArgs, GitOpenTool};
+// Re-export tools
+pub use clone::GitCloneTool;
+pub use discover::GitDiscoverTool;
+pub use init::GitInitTool;
+pub use open::GitOpenTool;
 
-pub use branch_create::{GitBranchCreateArgs, GitBranchCreateTool};
-pub use branch_delete::{GitBranchDeleteArgs, GitBranchDeleteTool};
-pub use branch_list::{GitBranchListArgs, GitBranchListTool};
-pub use branch_rename::{GitBranchRenameArgs, GitBranchRenameTool};
+pub use branch_create::GitBranchCreateTool;
+pub use branch_delete::GitBranchDeleteTool;
+pub use branch_list::GitBranchListTool;
+pub use branch_rename::GitBranchRenameTool;
 
-pub use add::{GitAddArgs, GitAddTool};
-pub use checkout::{GitCheckoutArgs, GitCheckoutTool};
-pub use commit::{GitCommitArgs, GitCommitTool};
-pub use log::{GitLogArgs, GitLogTool};
+pub use add::GitAddTool;
+pub use checkout::GitCheckoutTool;
+pub use commit::GitCommitTool;
+pub use log::GitLogTool;
 
-pub use fetch::{GitFetchArgs, GitFetchTool};
-pub use merge::{GitMergeArgs, GitMergeTool};
+pub use fetch::GitFetchTool;
+pub use merge::GitMergeTool;
 
-pub use worktree_add::{GitWorktreeAddArgs, GitWorktreeAddTool};
-pub use worktree_list::{GitWorktreeListArgs, GitWorktreeListTool};
-pub use worktree_lock::{GitWorktreeLockArgs, GitWorktreeLockTool};
-pub use worktree_prune::{GitWorktreePruneArgs, GitWorktreePruneTool};
-pub use worktree_remove::{GitWorktreeRemoveArgs, GitWorktreeRemoveTool};
-pub use worktree_unlock::{GitWorktreeUnlockArgs, GitWorktreeUnlockTool};
+pub use worktree_add::GitWorktreeAddTool;
+pub use worktree_list::GitWorktreeListTool;
+pub use worktree_lock::GitWorktreeLockTool;
+pub use worktree_prune::GitWorktreePruneTool;
+pub use worktree_remove::GitWorktreeRemoveTool;
+pub use worktree_unlock::GitWorktreeUnlockTool;

@@ -1,23 +1,13 @@
 use crate::manager::AgentManager;
+use kodegen_mcp_schema::claude_agent::{TerminateClaudeAgentSessionArgs, TerminateClaudeAgentSessionPromptArgs};
 use kodegen_mcp_tool::Tool;
 use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
 // ============================================================================
-// ARGS STRUCTS
+// ARGS STRUCTS - Imported from kodegen_mcp_schema::claude_agent
 // ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TerminateClaudeAgentSessionArgs {
-    /// Session ID to terminate
-    pub session_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TerminateClaudeAgentSessionPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

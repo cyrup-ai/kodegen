@@ -1,33 +1,14 @@
 //! Browser scroll tool - scrolls page or to specific element
 
 use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallArgument, CallFunctionOnParams};
+use kodegen_mcp_schema::browser::{BrowserScrollArgs, BrowserScrollPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tracing::warn;
 
 use crate::manager::BrowserManager;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserScrollArgs {
-    /// Optional: CSS selector to scroll to element (takes priority over x/y)
-    #[serde(default)]
-    pub selector: Option<String>,
-
-    /// Optional: horizontal scroll amount in pixels (default: 0)
-    #[serde(default)]
-    pub x: Option<i32>,
-
-    /// Optional: vertical scroll amount in pixels (default: 0)
-    #[serde(default)]
-    pub y: Option<i32>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserScrollPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserScrollTool {

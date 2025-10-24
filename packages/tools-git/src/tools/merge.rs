@@ -1,43 +1,14 @@
 //! Git merge tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitMergeArgs, GitMergePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for merging branches
 #[derive(Clone)]
 pub struct GitMergeTool;
-
-fn default_true() -> bool {
-    true
-}
-
-/// Arguments for `git_merge` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitMergeArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Branch or commit to merge into current branch
-    pub branch: String,
-
-    /// Allow fast-forward merges when possible (default: true).
-    /// When false, always creates a merge commit even if fast-forward is possible.
-    #[serde(default = "default_true")]
-    pub fast_forward: bool,
-
-    /// Automatically create merge commit (default: true).
-    /// When false, performs merge but leaves changes staged for manual commit.
-    #[serde(default = "default_true")]
-    pub auto_commit: bool,
-}
-
-/// Prompt arguments for `git_merge` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitMergePromptArgs {}
 
 impl Tool for GitMergeTool {
     type Args = GitMergeArgs;

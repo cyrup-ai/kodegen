@@ -1,38 +1,14 @@
 //! Git add (staging) tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitAddArgs, GitAddPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for staging files in Git
 #[derive(Clone)]
 pub struct GitAddTool;
-
-/// Arguments for `git_add` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitAddArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Specific file paths to stage
-    #[serde(default)]
-    pub paths: Vec<String>,
-
-    /// Stage all modified files
-    #[serde(default)]
-    pub all: bool,
-
-    /// Force add files even if in .gitignore
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_add` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitAddPromptArgs {}
 
 impl Tool for GitAddTool {
     type Args = GitAddArgs;

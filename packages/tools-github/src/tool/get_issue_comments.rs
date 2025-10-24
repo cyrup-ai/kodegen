@@ -2,32 +2,14 @@
 
 use anyhow;
 use futures::StreamExt;
+use kodegen_mcp_schema::github::{GetIssueCommentsArgs, GetIssueCommentsPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Tool for fetching all comments on a GitHub issue
 #[derive(Clone)]
 pub struct GetIssueCommentsTool;
-
-/// Arguments for `get_issue_comments` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetIssueCommentsArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Issue number to fetch comments for
-    pub issue_number: u64,
-}
-
-/// Prompt arguments for `get_issue_comments` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetIssueCommentsPromptArgs {}
 
 impl Tool for GetIssueCommentsTool {
     type Args = GetIssueCommentsArgs;

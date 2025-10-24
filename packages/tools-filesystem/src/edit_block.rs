@@ -1,5 +1,6 @@
 use crate::validate_path;
 use chrono::Utc;
+use kodegen_mcp_schema::filesystem::{EditBlockArgs, EditBlockPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use kodegen_utils::char_analysis::CharCodeData;
@@ -11,37 +12,10 @@ use kodegen_utils::line_endings::{detect_line_ending, normalize_line_endings};
 use kodegen_utils::suggestions::{EditFailureReason, Suggestion, SuggestionContext};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::time::Instant;
 use tokio::fs;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditBlockArgs {
-    /// Path to the file to edit
-    pub file_path: String,
-
-    /// The exact string to search for and replace
-    pub old_string: String,
-
-    /// The replacement string
-    pub new_string: String,
-
-    /// Expected number of replacements (defaults to 1)
-    #[serde(default = "default_expected_replacements")]
-    pub expected_replacements: usize,
-}
-
-fn default_expected_replacements() -> usize {
-    1
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditBlockPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

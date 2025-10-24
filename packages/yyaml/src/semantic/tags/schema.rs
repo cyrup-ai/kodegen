@@ -44,22 +44,23 @@ impl<'input> SchemaProcessor<'input> {
     /// Infer scalar type from content with pattern matching
     #[must_use]
     pub fn infer_scalar_type(&self, scalar_value: &str) -> YamlType {
-        if self.current_schema == SchemaType::Failsafe {
-            return YamlType::Str;
+        match self.current_schema {
+            SchemaType::Failsafe => YamlType::Str,
+            SchemaType::Json => self.infer_json_scalar_type(scalar_value),
+            SchemaType::Core | SchemaType::Custom => self.infer_core_scalar_type(scalar_value),
         }
-        // Fast path for common values
+    }
+
+    fn infer_core_scalar_type(&self, scalar_value: &str) -> YamlType {
         match scalar_value {
             "" | "~" | "null" | "Null" | "NULL" => return YamlType::Null,
             "true" | "True" | "TRUE" | "false" | "False" | "FALSE" => return YamlType::Bool,
-            _ => {
-                // Continue to pattern matching for complex types
-            }
+            _ => {}
         }
 
-        // Pattern matching for complex types
-        if self.is_integer_pattern(scalar_value) {
+        if self.is_integer_pattern_core(scalar_value) {
             YamlType::Int
-        } else if self.is_float_pattern(scalar_value) {
+        } else if self.is_float_pattern_core(scalar_value) {
             YamlType::Float
         } else if self.is_timestamp_pattern(scalar_value) {
             YamlType::Timestamp
@@ -70,41 +71,65 @@ impl<'input> SchemaProcessor<'input> {
         }
     }
 
+    fn infer_json_scalar_type(&self, scalar_value: &str) -> YamlType {
+        if Self::is_json_null(scalar_value) {
+            YamlType::Null
+        } else if Self::is_json_bool(scalar_value) {
+            YamlType::Bool
+        } else if Self::is_json_integer(scalar_value) {
+            YamlType::Int
+        } else if Self::is_json_float(scalar_value) {
+            YamlType::Float
+        } else {
+            YamlType::Str
+        }
+    }
+
     /// Check if string matches integer pattern
     #[must_use]
     pub fn is_integer_pattern(&self, value: &str) -> bool {
-        if value.is_empty() {
-            return false;
+        match self.current_schema {
+            SchemaType::Failsafe => false,
+            SchemaType::Json => Self::is_json_integer(value),
+            SchemaType::Core | SchemaType::Custom => self.is_integer_pattern_core(value),
         }
-
-        // Handle sign
-        let value = value.strip_prefix(['+', '-']).unwrap_or(value);
-
-        // Octal (0o)
-        if let Some(rest) = value.strip_prefix("0o") {
-            return rest.chars().all(|c| c.is_ascii_digit() && c < '8');
-        }
-
-        // Hexadecimal (0x)
-        if let Some(rest) = value.strip_prefix("0x") {
-            return rest.chars().all(|c| c.is_ascii_hexdigit());
-        }
-
-        // Decimal
-        value.chars().all(|c| c.is_ascii_digit())
     }
 
     /// Check if string matches float pattern
     #[must_use]
     pub fn is_float_pattern(&self, value: &str) -> bool {
-        // Special float values
+        match self.current_schema {
+            SchemaType::Failsafe => false,
+            SchemaType::Json => Self::is_json_float(value),
+            SchemaType::Core | SchemaType::Custom => self.is_float_pattern_core(value),
+        }
+    }
+
+    fn is_integer_pattern_core(&self, value: &str) -> bool {
+        if value.is_empty() {
+            return false;
+        }
+
+        let value = value.strip_prefix(['+', '-']).unwrap_or(value);
+
+        if let Some(rest) = value.strip_prefix("0o") {
+            return rest.chars().all(|c| c.is_ascii_digit() && c < '8');
+        }
+
+        if let Some(rest) = value.strip_prefix("0x") {
+            return rest.chars().all(|c| c.is_ascii_hexdigit());
+        }
+
+        value.chars().all(|c| c.is_ascii_digit())
+    }
+
+    fn is_float_pattern_core(&self, value: &str) -> bool {
         match value {
             ".inf" | ".Inf" | ".INF" | "+.inf" | "+.Inf" | "+.INF" | "-.inf" | "-.Inf"
             | "-.INF" | ".nan" | ".NaN" | ".NAN" => return true,
             _ => {}
         }
 
-        // Regular float pattern
         let mut has_dot = false;
         let mut has_e = false;
         let chars: Vec<char> = value.chars().collect();
@@ -114,7 +139,6 @@ impl<'input> SchemaProcessor<'input> {
         }
 
         let mut i = 0;
-        // Handle sign
         if matches!(chars.get(i), Some('+') | Some('-')) {
             i += 1;
         }
@@ -138,6 +162,140 @@ impl<'input> SchemaProcessor<'input> {
         }
 
         has_dot || has_e
+    }
+
+    fn is_json_null(value: &str) -> bool {
+        matches!(value, "null")
+    }
+
+    fn is_json_bool(value: &str) -> bool {
+        matches!(value, "true" | "false")
+    }
+
+    fn is_json_integer(value: &str) -> bool {
+        if value.is_empty() {
+            return false;
+        }
+
+        let mut chars = value.chars();
+        let first = chars.next().unwrap();
+
+        match first {
+            '+' => false,
+            '-' => Self::is_json_unsigned_integer(chars.as_str()),
+            '0' => chars.next().is_none(),
+            '1'..='9' => chars.all(|c| c.is_ascii_digit()),
+            _ => false,
+        }
+    }
+
+    fn is_json_unsigned_integer(rest: &str) -> bool {
+        if rest.is_empty() {
+            return false;
+        }
+
+        if rest == "0" {
+            return true;
+        }
+
+        let mut chars = rest.chars();
+        let first = chars.next().unwrap();
+
+        if first == '0' {
+            return false;
+        }
+
+        if !first.is_ascii_digit() {
+            return false;
+        }
+
+        chars.all(|c| c.is_ascii_digit())
+    }
+
+    fn is_json_float(value: &str) -> bool {
+        if value.is_empty() {
+            return false;
+        }
+
+        let mut chars = value.chars();
+        let first = chars.next().unwrap();
+
+        let number_body = match first {
+            '+' => return false,
+            '-' => chars.as_str(),
+            _ => value,
+        };
+
+        Self::is_json_float_body(number_body)
+    }
+
+    fn is_json_float_body(mut value: &str) -> bool {
+        if value.is_empty() {
+            return false;
+        }
+
+        let mut integer_part = value;
+        let mut fraction_part = "";
+        let mut exponent_part = "";
+
+        if let Some(dot_index) = value.find('.') {
+            if dot_index == value.len() - 1 {
+                return false;
+            }
+            integer_part = &value[..dot_index];
+            fraction_part = &value[dot_index + 1..];
+            if fraction_part.is_empty() {
+                return false;
+            }
+            if let Some(exp_index) = fraction_part.find(|c| c == 'e' || c == 'E') {
+                exponent_part = &fraction_part[exp_index..];
+                fraction_part = &fraction_part[..exp_index];
+            }
+        } else if let Some(exp_index) = value.find(|c| c == 'e' || c == 'E') {
+            integer_part = &value[..exp_index];
+            exponent_part = &value[exp_index..];
+        } else {
+            return false;
+        }
+
+        if !Self::is_json_integer(integer_part) {
+            return false;
+        }
+
+        if !fraction_part.is_empty() && !fraction_part.chars().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+
+        if !exponent_part.is_empty() && !Self::is_json_exponent(exponent_part) {
+            return false;
+        }
+
+        true
+    }
+
+    fn is_json_exponent(value: &str) -> bool {
+        if value.len() < 2 {
+            return false;
+        }
+
+        let mut chars = value.chars();
+        let marker = chars.next().unwrap();
+        if marker != 'e' && marker != 'E' {
+            return false;
+        }
+
+        match chars.next() {
+            Some('+') => {
+                let rest = chars.as_str();
+                !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())
+            }
+            Some('-') => {
+                let rest = chars.as_str();
+                !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())
+            }
+            Some(d) if d.is_ascii_digit() => chars.as_str().chars().all(|c| c.is_ascii_digit()),
+            _ => false,
+        }
     }
 
     /// Check if string matches timestamp pattern

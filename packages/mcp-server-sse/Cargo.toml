@@ -1,0 +1,21 @@
+[package]
+name = "kodegen_mcp_server_core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+kodegen_tools_config = { path = "../tools-config" }
+kodegen_utils = { path = "../utils" }
+kodegen_mcp_tool = { path = "../mcp-tool" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["server", "transport-sse-server"] }
+tokio = { version = "1.48", features = ["full"] }
+tokio-util = "0.7"
+clap = { version = "4.5", features = ["derive"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+anyhow = "1.0"
+env_logger = "0.11"
+chrono = "0.4"
+log = "0.4"
+rustls = "0.23"
+serde = "1.0"
+serde_json = "1.0"

@@ -1,27 +1,16 @@
 use crate::manager::AgentManager;
-use crate::types::prompt_input::PromptInput;
+use kodegen_mcp_schema::claude_agent::{SendClaudeAgentPromptArgs, SendClaudeAgentPromptPromptArgs};
 use kodegen_mcp_tool::Tool;
 use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+// Import resolve method extension for schema's PromptInput type
+use crate::types::prompt_input;
+
 // ============================================================================
-// ARGS STRUCTS
+// ARGS STRUCTS - Imported from kodegen_mcp_schema::claude_agent
 // ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SendClaudeAgentPromptArgs {
-    /// Session ID to send prompt to
-    pub session_id: String,
-
-    /// Prompt to send (continues conversation) - can be plain string or template
-    pub prompt: PromptInput,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SendClaudeAgentPromptPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT
@@ -84,9 +73,7 @@ impl Tool for SendClaudeAgentPromptTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
         // Resolve prompt (render template if needed)
-        let resolved_prompt = args
-            .prompt
-            .resolve(&self.prompt_manager)
+        let resolved_prompt = prompt_input::resolve_schema_prompt(&args.prompt, &self.prompt_manager)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
 

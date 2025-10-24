@@ -1,35 +1,14 @@
 //! GitHub issue comment addition tool
 
 use anyhow;
+use kodegen_mcp_schema::github::{AddIssueCommentArgs, AddIssueCommentPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Tool for adding comments to GitHub issues
 #[derive(Clone)]
 pub struct AddIssueCommentTool;
-
-/// Arguments for `add_issue_comment` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddIssueCommentArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Issue number to comment on
-    pub issue_number: u64,
-
-    /// Comment text (Markdown supported)
-    pub body: String,
-}
-
-/// Prompt arguments for `add_issue_comment` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddIssueCommentPromptArgs {}
 
 impl Tool for AddIssueCommentTool {
     type Args = AddIssueCommentArgs;

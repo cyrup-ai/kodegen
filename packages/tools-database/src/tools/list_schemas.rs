@@ -2,10 +2,9 @@
 
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::database::{ListSchemasArgs, ListSchemasPromptArgs};
 use kodegen_tools_config::ConfigManager;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::{AnyPool, Row};
 use std::sync::Arc;
@@ -13,18 +12,6 @@ use std::time::Duration;
 
 use crate::tools::timeout::execute_with_timeout;
 use crate::types::DatabaseType;
-
-// =============================================================================
-// Args Structs
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListSchemasArgs {
-    // Empty - no parameters needed
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListSchemasPromptArgs {}
 
 // =============================================================================
 // Tool Struct

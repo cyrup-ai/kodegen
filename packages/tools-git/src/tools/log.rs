@@ -1,9 +1,8 @@
 //! Git log tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitLogArgs, GitLogPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 use tokio_stream::StreamExt;
@@ -11,29 +10,6 @@ use tokio_stream::StreamExt;
 /// Tool for listing Git commit history
 #[derive(Clone)]
 pub struct GitLogTool;
-
-/// Arguments for `git_log` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitLogArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Maximum number of commits to return
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_count: Option<usize>,
-
-    /// Number of commits to skip
-    #[serde(default)]
-    pub skip: usize,
-
-    /// Filter commits by file path
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path_filter: Option<String>,
-}
-
-/// Prompt arguments for `git_log` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitLogPromptArgs {}
 
 impl Tool for GitLogTool {
     type Args = GitLogArgs;

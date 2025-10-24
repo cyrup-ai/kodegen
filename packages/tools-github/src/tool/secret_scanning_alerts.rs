@@ -1,41 +1,14 @@
 //! GitHub secret scanning alerts tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_schema::github::{SecretScanningAlertsArgs, SecretScanningAlertsPromptArgs};
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use serde_json::Value;
 
 /// Tool for listing secret scanning alerts in a GitHub repository
 #[derive(Clone)]
 pub struct SecretScanningAlertsTool;
-
-/// Arguments for secret_scanning_alerts tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SecretScanningAlertsArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    
-    /// Repository name
-    pub repo: String,
-    
-    /// Filter by state: "open" or "resolved" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-    
-    /// Filter by secret type (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub secret_type: Option<String>,
-    
-    /// Filter by resolution: "false_positive", "wont_fix", "revoked", "used_in_tests" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolution: Option<String>,
-}
-
-/// Prompt arguments for secret_scanning_alerts tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SecretScanningAlertsPromptArgs {}
 
 impl Tool for SecretScanningAlertsTool {
     type Args = SecretScanningAlertsArgs;

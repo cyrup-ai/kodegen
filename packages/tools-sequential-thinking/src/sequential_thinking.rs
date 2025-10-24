@@ -1,7 +1,7 @@
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::reasoning::{SequentialThinkingArgs, SequentialThinkingPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -12,60 +12,6 @@ use std::time::{Duration, Instant};
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-/// Arguments for sequential thinking tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct SequentialThinkingArgs {
-    /// Optional session ID for maintaining state across calls
-    /// If not provided, a new session will be created automatically
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-
-    /// Your current thinking step
-    pub thought: String,
-
-    /// Current thought number (1-based, minimum: 1)
-    #[schemars(range(min = 1))]
-    pub thought_number: u32,
-
-    /// Estimated total thoughts needed (minimum: 1)
-    #[schemars(range(min = 1))]
-    pub total_thoughts: u32,
-
-    /// Whether another thought step is needed
-    pub next_thought_needed: bool,
-
-    /// Whether this revises previous thinking
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub is_revision: Option<bool>,
-
-    /// Which thought is being reconsidered (minimum: 1)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(range(min = 1))]
-    pub revises_thought: Option<u32>,
-
-    /// Branching point thought number (minimum: 1)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(range(min = 1))]
-    pub branch_from_thought: Option<u32>,
-
-    /// Branch identifier
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub branch_id: Option<String>,
-
-    /// If more thoughts are needed
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub needs_more_thoughts: Option<bool>,
-}
-
-/// Prompt arguments (empty - this tool doesn't need context)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SequentialThinkingPromptArgs {}
 
 // ============================================================================
 // INTERNAL STATE

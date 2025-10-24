@@ -2,16 +2,14 @@
 //!
 //! Full-text search across crawled documentation using Tantivy.
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use kodegen_mcp_schema::citescrape::{SearchCrawlResultsArgs, SearchCrawlResultsPromptArgs};
+use kodegen_mcp_tool::Tool;
+use kodegen_mcp_tool::error::McpError;
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-
-use kodegen_mcp_tool::Tool;
-use kodegen_mcp_tool::error::McpError;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 
 use crate::config::CrawlConfig;
 use crate::mcp::manager::{CrawlSessionManager, SearchEngineCache};
@@ -21,58 +19,12 @@ use crate::search::query::SearchQueryBuilder;
 // DEFAULT VALUES AND CONSTANTS
 // =============================================================================
 
-/// Default search results limit: 10
-///
-/// Conservative default that works well for interactive use.
-/// Users can increase up to `MAX_SEARCH_RESULTS_PER_PAGE` if needed.
-const DEFAULT_SEARCH_LIMIT: usize = 10;
-
 /// Maximum search results per page: 1000
 ///
 /// Prevents users from requesting excessively large result sets that could
 /// cause memory issues or slow responses. Users should paginate through
 /// results using offset/limit parameters.
 const MAX_SEARCH_RESULTS_PER_PAGE: usize = 1000;
-
-// =============================================================================
-// Arguments Structs
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchCrawlResultsArgs {
-    /// Search query (supports text, phrase, boolean, field, fuzzy)
-    pub query: String,
-
-    /// Crawl ID (optional, alternative to `output_dir`)
-    #[serde(default)]
-    pub crawl_id: Option<String>,
-
-    /// Output directory to search (optional, alternative to `crawl_id`)
-    #[serde(default)]
-    pub output_dir: Option<String>,
-
-    /// Maximum results to return (default: 10)
-    #[serde(default = "default_limit")]
-    pub limit: usize,
-
-    /// Offset for pagination (default: 0)
-    #[serde(default)]
-    pub offset: usize,
-
-    /// Enable result highlighting (default: true)
-    #[serde(default = "default_true")]
-    pub highlight: bool,
-}
-
-fn default_limit() -> usize {
-    DEFAULT_SEARCH_LIMIT
-}
-fn default_true() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchCrawlResultsPromptArgs {}
 
 // =============================================================================
 // Tool Struct

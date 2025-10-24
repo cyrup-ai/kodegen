@@ -61,19 +61,14 @@ pub use github::{
 #[cfg(feature = "mcp")]
 pub mod tool;
 
+// Re-export MCP tools only (Args are imported from kodegen_mcp_schema::github)
 #[cfg(feature = "mcp")]
 pub use tool::{
-    AddIssueCommentArgs, AddIssueCommentTool, AddPullRequestReviewCommentArgs,
-    AddPullRequestReviewCommentTool, CreateBranchArgs, CreateBranchTool, CreateIssueArgs,
-    CreateIssueTool, CreatePullRequestArgs, CreatePullRequestReviewArgs,
-    CreatePullRequestReviewTool, CreatePullRequestTool, CreateRepositoryArgs, CreateRepositoryTool,
-    ForkRepositoryArgs, ForkRepositoryTool, GetCommitArgs, GetCommitTool, GetIssueArgs,
-    GetIssueCommentsArgs, GetIssueCommentsTool, GetIssueTool, GetPullRequestFilesArgs,
-    GetPullRequestFilesTool, GetPullRequestReviewsArgs, GetPullRequestReviewsTool,
-    GetPullRequestStatusArgs, GetPullRequestStatusTool, ListBranchesArgs, ListBranchesTool,
-    ListCommitsArgs, ListCommitsTool, ListIssuesArgs, ListIssuesTool, MergePullRequestArgs,
-    MergePullRequestTool, RequestCopilotReviewArgs, RequestCopilotReviewTool, SearchCodeArgs,
-    SearchCodeTool, SearchIssuesArgs, SearchIssuesTool, SearchRepositoriesArgs,
-    SearchRepositoriesTool, SearchUsersArgs, SearchUsersTool, UpdateIssueArgs, UpdateIssueTool,
-    UpdatePullRequestArgs, UpdatePullRequestTool,
+    AddIssueCommentTool, AddPullRequestReviewCommentTool, CreateBranchTool, CreateIssueTool,
+    CreatePullRequestReviewTool, CreatePullRequestTool, CreateRepositoryTool, ForkRepositoryTool,
+    GetCommitTool, GetIssueCommentsTool, GetIssueTool, GetPullRequestFilesTool,
+    GetPullRequestReviewsTool, GetPullRequestStatusTool, ListBranchesTool, ListCommitsTool,
+    ListIssuesTool, MergePullRequestTool, RequestCopilotReviewTool, SearchCodeTool,
+    SearchIssuesTool, SearchRepositoriesTool, SearchUsersTool, UpdateIssueTool,
+    UpdatePullRequestTool,
 };

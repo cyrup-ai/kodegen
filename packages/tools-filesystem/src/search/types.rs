@@ -1,3 +1,5 @@
+// Re-export enums for internal use
+pub use kodegen_mcp_schema::filesystem::{SearchType, CaseMode, BoundaryMode, EngineChoice as Engine, BinaryMode, SortBy, SortDirection, SearchOutputMode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -13,104 +15,6 @@ pub struct FileCountData {
     pub modified: Option<SystemTime>,
     pub accessed: Option<SystemTime>,
     pub created: Option<SystemTime>,
-}
-
-/// Search type enum
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SearchType {
-    Files,
-    Content,
-}
-
-/// Case matching mode for searches
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum CaseMode {
-    /// Case-sensitive matching (default)
-    #[default]
-    Sensitive,
-    /// Case-insensitive matching
-    Insensitive,
-    /// Smart case: insensitive if pattern is all lowercase, sensitive otherwise
-    Smart,
-}
-
-/// Boundary mode for pattern matching
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum BoundaryMode {
-    /// Match only when pattern appears as complete line (^pattern$)
-    /// Example: "error" matches "error" but not "this error happened"
-    Line,
-    /// Match only when pattern is surrounded by word boundaries (\bpattern\b)
-    /// Example: "test" matches "`test()`" but not "testing"
-    Word,
-}
-
-/// Regex engine choice for content search
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum EngineChoice {
-    /// Automatically choose best engine (tries Rust, falls back to PCRE2)
-    #[default]
-    Auto,
-    /// Use Rust regex engine only
-    Rust,
-    /// Use PCRE2 regex engine (supports backreferences, look-around)
-    PCRE2,
-}
-
-/// Binary file handling mode (matches ripgrep's --binary and -a/--text flags)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum BinaryMode {
-    /// Automatically skip binary files (default, no flag in rg)
-    #[default]
-    Auto,
-    /// Search binary files but suppress binary content (rg --binary)
-    Binary,
-    /// Treat all files as text (rg -a/--text)
-    Text,
-}
-
-/// Sort criterion for search results
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum SortBy {
-    /// Sort alphabetically by file path (A-Z or Z-A)
-    Path,
-    /// Sort by last modified time (recent first or oldest first)
-    Modified,
-    /// Sort by last accessed time (if available on platform)
-    Accessed,
-    /// Sort by creation time (if available on platform)
-    Created,
-}
-
-/// Sort direction for search results
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum SortDirection {
-    /// Ascending order: oldest first (time) or A-Z (path)
-    Ascending,
-    /// Descending order: newest first (time) or Z-A (path)
-    Descending,
-}
-
-/// Search output mode - determines how results are formatted
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum SearchOutputMode {
-    /// Full match details including file path, line number, and match content (default)
-    #[default]
-    Full,
-    /// Only return unique file paths that contain matches (like rg -l)
-    /// line field will be None, match field will be None
-    FilesOnly,
-    /// Return file paths with match counts (like rg -c)
-    /// line field contains the count, match field will be None
-    CountPerFile,
 }
 
 /// Search session options
@@ -146,7 +50,7 @@ pub struct SearchSessionOptions {
     /// Invert match - show lines/files that DON'T match the pattern
     pub invert_match: bool,
     /// Regex engine choice (default: Auto)
-    pub engine: EngineChoice,
+    pub engine: Engine,
     /// Preprocessor command to run on files before searching
     pub preprocessor: Option<String>,
     /// Glob patterns for files to run through preprocessor

@@ -1,20 +1,9 @@
 use crate::{ConfigManager, get_system_info};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::config::{GetConfigArgs, GetConfigPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct GetConfigArgs {}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct GetConfigPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

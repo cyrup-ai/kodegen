@@ -1,42 +1,13 @@
 use anyhow;
+use kodegen_mcp_schema::github::{CreatePullRequestReviewArgs, CreatePullRequestReviewPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use octocrab::models::pulls::ReviewAction;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Tool for creating a review on a pull request
 #[derive(Clone)]
 pub struct CreatePullRequestReviewTool;
-
-/// Arguments for `create_pull_request_review` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreatePullRequestReviewArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Pull request number
-    pub pull_number: u64,
-
-    /// Review action: "APPROVE", "`REQUEST_CHANGES`", or "COMMENT"
-    pub event: String,
-
-    /// Review comment/body text (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<String>,
-
-    /// Specific commit SHA to review (optional, defaults to latest)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub commit_id: Option<String>,
-}
-
-/// Prompt arguments for `create_pull_request_review` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreatePullRequestReviewPromptArgs {}
 
 impl Tool for CreatePullRequestReviewTool {
     type Args = CreatePullRequestReviewArgs;

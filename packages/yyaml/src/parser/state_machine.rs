@@ -115,26 +115,56 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     fn resolve_tagged_scalar(&mut self, handle: &str, suffix: &str, value: &str) -> Yaml {
         if handle == "!!" {
+            let trimmed = value.trim();
+            let schema = self.schema_processor.current_schema();
             match suffix {
-                "bool" => match value.parse::<bool>() {
-                    Ok(b) => Yaml::Boolean(b),
-                    Err(_) => Yaml::BadValue,
+                "bool" => match schema {
+                    SchemaType::Json => match trimmed {
+                        "true" => Yaml::Boolean(true),
+                        "false" => Yaml::Boolean(false),
+                        _ => Yaml::BadValue,
+                    },
+                    _ => match trimmed.parse::<bool>() {
+                        Ok(b) => Yaml::Boolean(b),
+                        Err(_) => Yaml::BadValue,
+                    },
                 },
-                "int" => match value.parse::<i64>() {
-                    Ok(i) => Yaml::Integer(i),
-                    Err(_) => Yaml::BadValue,
-                },
-                "float" => match value.parse::<f64>() {
-                    Ok(_) => Yaml::Real(value.to_string()),
-                    Err(_) => Yaml::BadValue,
-                },
-                "null" => {
-                    if value == "~" || value.eq_ignore_ascii_case("null") {
-                        Yaml::Null
-                    } else {
+                "int" => {
+                    if schema == SchemaType::Json && !self.schema_processor.is_integer_pattern(trimmed) {
                         Yaml::BadValue
+                    } else {
+                        trimmed
+                            .parse::<i64>()
+                            .map(Yaml::Integer)
+                            .unwrap_or(Yaml::BadValue)
                     }
                 }
+                "float" => {
+                    if schema == SchemaType::Json && !self.schema_processor.is_float_pattern(trimmed) {
+                        Yaml::BadValue
+                    } else {
+                        trimmed
+                            .parse::<f64>()
+                            .map(|_| Yaml::Real(trimmed.to_string()))
+                            .unwrap_or(Yaml::BadValue)
+                    }
+                }
+                "null" => match schema {
+                    SchemaType::Json => {
+                        if trimmed == "null" {
+                            Yaml::Null
+                        } else {
+                            Yaml::BadValue
+                        }
+                    }
+                    _ => {
+                        if trimmed == "~" || trimmed.eq_ignore_ascii_case("null") {
+                            Yaml::Null
+                        } else {
+                            Yaml::BadValue
+                        }
+                    }
+                },
                 _ => Yaml::String(value.to_string()),
             }
         } else {
@@ -160,23 +190,48 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
         match processor.infer_scalar_type(trimmed) {
             YamlType::Null => Yaml::Null,
-            YamlType::Bool => match trimmed.to_ascii_lowercase().as_str() {
-                "true" | "yes" | "on" => Yaml::Boolean(true),
-                "false" | "no" | "off" => Yaml::Boolean(false),
-                _ => Yaml::String(trimmed.to_string()),
+            YamlType::Bool => match processor.current_schema() {
+                SchemaType::Json => match trimmed {
+                    "true" => Yaml::Boolean(true),
+                    "false" => Yaml::Boolean(false),
+                    _ => Yaml::String(trimmed.to_string()),
+                },
+                _ => match trimmed.to_ascii_lowercase().as_str() {
+                    "true" | "yes" | "on" => Yaml::Boolean(true),
+                    "false" | "no" | "off" => Yaml::Boolean(false),
+                    _ => Yaml::String(trimmed.to_string()),
+                },
             },
-            YamlType::Int => trimmed
-                .parse::<i64>()
-                .map(Yaml::Integer)
-                .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
-            YamlType::Float => match trimmed.to_ascii_lowercase().as_str() {
-                ".inf" | "+.inf" => Yaml::Real("+.inf".to_string()),
-                "-.inf" => Yaml::Real("-.inf".to_string()),
-                ".nan" => Yaml::Real(".nan".to_string()),
-                _ => trimmed
-                    .parse::<f64>()
-                    .map(|f| Yaml::Real(f.to_string()))
-                    .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+            YamlType::Int => {
+                if processor.is_integer_pattern(trimmed) {
+                    trimmed
+                        .parse::<i64>()
+                        .map(Yaml::Integer)
+                        .unwrap_or_else(|_| Yaml::String(trimmed.to_string()))
+                } else {
+                    Yaml::String(trimmed.to_string())
+                }
+            }
+            YamlType::Float => match processor.current_schema() {
+                SchemaType::Json => {
+                    if processor.is_float_pattern(trimmed) {
+                        trimmed
+                            .parse::<f64>()
+                            .map(|f| Yaml::Real(f.to_string()))
+                            .unwrap_or_else(|_| Yaml::String(trimmed.to_string()))
+                    } else {
+                        Yaml::String(trimmed.to_string())
+                    }
+                }
+                _ => match trimmed.to_ascii_lowercase().as_str() {
+                    ".inf" | "+.inf" => Yaml::Real("+.inf".to_string()),
+                    "-.inf" => Yaml::Real("-.inf".to_string()),
+                    ".nan" => Yaml::Real(".nan".to_string()),
+                    _ => trimmed
+                        .parse::<f64>()
+                        .map(|f| Yaml::Real(f.to_string()))
+                        .unwrap_or_else(|_| Yaml::String(trimmed.to_string())),
+                },
             },
             YamlType::Seq | YamlType::Map => Yaml::String(trimmed.to_string()),
             YamlType::Str

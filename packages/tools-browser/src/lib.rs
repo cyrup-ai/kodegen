@@ -76,7 +76,7 @@ pub use tools::{
 };
 
 #[cfg(feature = "agent")]
-pub use tools::{BrowserAgentArgs, BrowserAgentPromptArgs, BrowserAgentTool};
+pub use tools::BrowserAgentTool;
 
 #[cfg(feature = "research")]
-pub use tools::{BrowserResearchArgs, BrowserResearchPromptArgs, BrowserResearchTool};
+pub use tools::BrowserResearchTool;

@@ -1,32 +1,14 @@
 //! GitHub issue retrieval tool
 
 use anyhow;
+use kodegen_mcp_schema::github::{GetIssueArgs, GetIssuePromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Tool for fetching a GitHub issue by number
 #[derive(Clone)]
 pub struct GetIssueTool;
-
-/// Arguments for `get_issue` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetIssueArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Issue number
-    pub issue_number: u64,
-}
-
-/// Prompt arguments for `get_issue` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetIssuePromptArgs {}
 
 impl Tool for GetIssueTool {
     type Args = GetIssueArgs;

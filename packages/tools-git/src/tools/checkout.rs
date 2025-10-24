@@ -1,41 +1,14 @@
 //! Git checkout tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitCheckoutArgs, GitCheckoutPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for checking out Git references
 #[derive(Clone)]
 pub struct GitCheckoutTool;
-
-/// Arguments for `git_checkout` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitCheckoutArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Target reference (branch, tag, or commit)
-    pub target: String,
-
-    /// Specific file paths to restore from the target reference
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub paths: Option<Vec<String>>,
-
-    /// Create new branch before checking out
-    #[serde(default)]
-    pub create: bool,
-
-    /// Force checkout (discard local changes)
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_checkout` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitCheckoutPromptArgs {}
 
 impl Tool for GitCheckoutTool {
     type Args = GitCheckoutArgs;

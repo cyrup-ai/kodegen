@@ -1,30 +1,14 @@
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::process::{KillProcessArgs, KillProcessPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
-
-use crate::ProcessId;
 
 // Compile-time platform validation for PID conversion safety
 // This ensures u32 → usize conversion cannot truncate
 #[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
 compile_error!("KillProcessTool only supports 32-bit and 64-bit platforms");
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct KillProcessArgs {
-    /// Process ID to terminate
-    pub pid: ProcessId,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct KillProcessPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

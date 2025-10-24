@@ -34,14 +34,14 @@ pub use operations::{
 
 // Re-export MCP tools
 pub use tools::{
-    GitAddArgs, GitAddTool, GitBranchCreateArgs, GitBranchCreateTool, GitBranchDeleteArgs,
-    GitBranchDeleteTool, GitBranchListArgs, GitBranchListTool, GitBranchRenameArgs,
-    GitBranchRenameTool, GitCheckoutArgs, GitCheckoutTool, GitCloneArgs, GitCloneTool,
-    GitCommitArgs, GitCommitTool, GitDiscoverArgs, GitDiscoverTool, GitFetchArgs, GitFetchTool,
-    GitInitArgs, GitInitTool, GitLogArgs, GitLogTool, GitMergeArgs, GitMergeTool, GitOpenArgs,
-    GitOpenTool, GitWorktreeAddArgs, GitWorktreeAddTool, GitWorktreeListArgs, GitWorktreeListTool,
-    GitWorktreeLockArgs, GitWorktreeLockTool, GitWorktreePruneArgs, GitWorktreePruneTool,
-    GitWorktreeRemoveArgs, GitWorktreeRemoveTool, GitWorktreeUnlockArgs, GitWorktreeUnlockTool,
+    GitAddTool, GitBranchCreateTool,
+    GitBranchDeleteTool, GitBranchListTool,
+    GitBranchRenameTool, GitCheckoutTool, GitCloneTool,
+    GitCommitTool, GitDiscoverTool, GitFetchTool,
+    GitInitTool, GitLogTool, GitMergeTool,
+    GitOpenTool, GitWorktreeAddTool, GitWorktreeListTool,
+    GitWorktreeLockTool, GitWorktreePruneTool,
+    GitWorktreeRemoveTool, GitWorktreeUnlockTool,
 };
 
 /// Error types for `GitGix` operations

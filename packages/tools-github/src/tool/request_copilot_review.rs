@@ -1,30 +1,12 @@
 use anyhow;
+use kodegen_mcp_schema::github::{RequestCopilotReviewArgs, RequestCopilotReviewPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Tool for requesting GitHub Copilot to review a pull request
 #[derive(Clone)]
 pub struct RequestCopilotReviewTool;
-
-/// Arguments for `request_copilot_review` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RequestCopilotReviewArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Pull request number
-    pub pull_number: u64,
-}
-
-/// Prompt arguments for `request_copilot_review` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RequestCopilotReviewPromptArgs {}
 
 impl Tool for RequestCopilotReviewTool {
     type Args = RequestCopilotReviewArgs;

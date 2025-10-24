@@ -1,9 +1,10 @@
 //! Constraint checking for YAML semantic constraints
 
 use super::context::ValidationContext;
-use super::warnings::ValidationWarning;
-use crate::parser::ast::Node;
-use crate::semantic::tags::YamlType;
+use super::warnings::{ValidationWarning, WarningSeverity, WarningType};
+use crate::parser::ast::{Node, ScalarStyle};
+use crate::semantic::tags::schema::SchemaProcessor;
+use crate::semantic::tags::{types::SchemaType, YamlType};
 use crate::semantic::{AnalysisContext, SemanticError};
 use std::collections::HashMap;
 
@@ -58,6 +59,91 @@ pub struct ConstraintChecker<'input> {
 impl<'input> Default for ConstraintChecker<'input> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Constraint that enforces canonical JSON scalars when JSON schema is active
+#[derive(Debug)]
+pub struct JsonScalarConstraint {
+    json_processor: SchemaProcessor<'static>,
+    core_processor: SchemaProcessor<'static>,
+}
+
+impl JsonScalarConstraint {
+    #[must_use]
+    pub fn new() -> Self {
+        let mut json_processor = SchemaProcessor::<'static>::new();
+        json_processor.set_schema(SchemaType::Json);
+        let mut core_processor = SchemaProcessor::<'static>::new();
+        core_processor.set_schema(SchemaType::Core);
+        Self {
+            json_processor,
+            core_processor,
+        }
+    }
+}
+
+impl<'input> ConstraintRule<'input> for JsonScalarConstraint {
+    fn name(&self) -> &str {
+        "json_scalar_canonical_forms"
+    }
+
+    fn check(
+        &self,
+        node: &Node<'input>,
+        _context: &mut ValidationContext,
+        analysis_context: &AnalysisContext<'input>,
+    ) -> Result<bool, SemanticError> {
+        if analysis_context.schema_type() != SchemaType::Json {
+            return Ok(true);
+        }
+
+        let Node::Scalar(scalar) = node else {
+            return Ok(true);
+        };
+
+        if scalar.tag.is_some() || scalar.style != ScalarStyle::Plain {
+            return Ok(true);
+        }
+
+        let value = scalar.value.as_ref().trim();
+        if value.is_empty() {
+            return Ok(true);
+        }
+
+        let json_type = self.json_processor.infer_scalar_type(value);
+        if !matches!(json_type, YamlType::Str) {
+            return Ok(true);
+        }
+
+        let core_type = self.core_processor.infer_scalar_type(value);
+        let violates = matches!(core_type, YamlType::Null | YamlType::Bool | YamlType::Int | YamlType::Float);
+        Ok(!violates)
+    }
+
+    fn generate_warning(&self, node: &Node<'input>) -> ValidationWarning<'input> {
+        let value = match node {
+            Node::Scalar(scalar) => scalar.value.as_ref().to_string(),
+            _ => String::new(),
+        };
+
+        ValidationWarning {
+            warning_type: WarningType::CompatibilityIssue,
+            message: format!(
+                "Scalar '{value}' is not a canonical JSON value under the JSON schema"
+            ),
+            position: node.position(),
+            severity: WarningSeverity::High,
+            rule_name: self.name().to_string(),
+            suggestion: Some("Use canonical JSON scalars (null, true/false, or decimal numbers) or quote the value".to_string()),
+            context: super::warnings::ValidationWarningContext {
+                node_path: Vec::new(),
+                node_type: None,
+                related_nodes: Vec::new(),
+                constraint_violated: Some(self.name().to_string()),
+                suggested_fix: None,
+            },
+        }
     }
 }
 

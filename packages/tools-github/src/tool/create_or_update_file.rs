@@ -1,33 +1,11 @@
 use kodegen_mcp_tool::{McpError, Tool};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use kodegen_mcp_schema::github::CreateOrUpdateFileArgs;
 use serde_json::Value;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
 
 use crate::GitHubClient;
 use crate::github::CreateOrUpdateFileRequest;
-
-/// Arguments for creating or updating a file
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreateOrUpdateFileArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// File path
-    pub path: String,
-    /// Commit message
-    pub message: String,
-    /// File content (plain text, will be base64 encoded automatically)
-    pub content: String,
-    /// Branch name (optional, defaults to default branch)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub branch: Option<String>,
-    /// File SHA for updates (optional, omit for creation)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sha: Option<String>,
-}
 
 /// Tool for creating a new file or updating an existing file
 pub struct CreateOrUpdateFileTool;

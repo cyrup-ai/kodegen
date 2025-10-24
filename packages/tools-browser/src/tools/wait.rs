@@ -1,21 +1,11 @@
 //! Browser wait tool - pauses execution for specified duration
 
+use kodegen_mcp_schema::browser::{BrowserWaitArgs, BrowserWaitPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::utils::validate_wait_timeout;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserWaitArgs {
-    /// Duration to wait in milliseconds
-    pub duration_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserWaitPromptArgs {}
 
 #[derive(Clone, Default)]
 pub struct BrowserWaitTool;

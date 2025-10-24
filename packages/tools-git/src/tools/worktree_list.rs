@@ -1,26 +1,14 @@
 //! Git worktree list tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreeListArgs, GitWorktreeListPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for listing worktrees
 #[derive(Clone)]
 pub struct GitWorktreeListTool;
-
-/// Arguments for `git_worktree_list` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreeListArgs {
-    /// Path to repository
-    pub path: String,
-}
-
-/// Prompt arguments for `git_worktree_list` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreeListPromptArgs {}
 
 impl Tool for GitWorktreeListTool {
     type Args = GitWorktreeListArgs;

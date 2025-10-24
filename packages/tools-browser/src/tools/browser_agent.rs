@@ -2,75 +2,12 @@ use crate::agent::Agent;
 use crate::agent::prompts::{AgentMessagePrompt, SystemPrompt};
 use crate::manager::BrowserManager;
 use crate::utils::AgentState;
+use kodegen_mcp_schema::browser::{BrowserAgentArgs, BrowserAgentPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserAgentArgs {
-    /// Task description for the agent to accomplish
-    pub task: String,
-
-    /// Optional additional context or hints
-    #[serde(default)]
-    pub additional_info: Option<String>,
-
-    /// Optional initial URL to navigate to before starting
-    #[serde(default)]
-    pub start_url: Option<String>,
-
-    /// Maximum steps agent can take (default: 10)
-    #[serde(default = "default_max_steps")]
-    pub max_steps: u32,
-
-    /// Maximum actions per step (default: 3)
-    #[serde(default = "default_max_actions")]
-    pub max_actions_per_step: u32,
-
-    /// LLM temperature for action generation (default: 0.7)
-    #[serde(default = "default_temperature")]
-    pub temperature: f64,
-
-    /// Max tokens per LLM call (default: 2048)
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u64,
-
-    /// Vision model timeout in seconds (default: 60s)
-    /// Vision analysis is typically fast, but allow time for model loading
-    #[serde(default = "default_vision_timeout_secs")]
-    pub vision_timeout_secs: u64,
-
-    /// LLM generation timeout in seconds (default: 120s)
-    /// Allow time for complex reasoning and high token generation
-    #[serde(default = "default_llm_timeout_secs")]
-    pub llm_timeout_secs: u64,
-}
-
-fn default_max_steps() -> u32 {
-    10
-}
-fn default_max_actions() -> u32 {
-    3
-}
-fn default_temperature() -> f64 {
-    0.7
-}
-fn default_max_tokens() -> u64 {
-    2048
-}
-fn default_vision_timeout_secs() -> u64 {
-    60
-}
-fn default_llm_timeout_secs() -> u64 {
-    120
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserAgentPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserAgentTool {

@@ -1,62 +1,14 @@
 //! Browser wait_for tool - waits for elements to meet specific conditions
 
+use kodegen_mcp_schema::browser::{BrowserWaitForArgs, BrowserWaitForPromptArgs, WaitCondition};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::manager::BrowserManager;
 use chromiumoxide_cdp::cdp::js_protocol::runtime::{CallArgument, CallFunctionOnParams};
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum WaitCondition {
-    /// Element exists in DOM (uses page.find_element)
-    Present,
-
-    /// Element is visible (not display:none, visibility:hidden, etc)
-    Visible,
-
-    /// Element is visible AND not disabled (ready for interaction)
-    Clickable,
-
-    /// Element text contains specific string
-    TextContains,
-
-    /// Element attribute has specific value
-    AttributeIs,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserWaitForArgs {
-    /// CSS selector for element to wait for
-    pub selector: String,
-
-    /// Condition to wait for
-    pub condition: WaitCondition,
-
-    /// Optional: timeout in milliseconds (default: 10000)
-    #[serde(default)]
-    pub timeout_ms: Option<u64>,
-
-    /// Optional: expected text (required for TextContains condition)
-    #[serde(default)]
-    pub text: Option<String>,
-
-    /// Optional: attribute name (required for AttributeIs condition)
-    #[serde(default)]
-    pub attribute_name: Option<String>,
-
-    /// Optional: attribute value (required for AttributeIs condition)
-    #[serde(default)]
-    pub attribute_value: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserWaitForPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserWaitForTool {

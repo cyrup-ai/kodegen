@@ -1,7 +1,7 @@
 use crate::system_info::{ClientInfo, ClientRecord, SystemInfo, get_system_info};
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::config::ConfigValue;
 use parking_lot::RwLock;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -151,66 +151,7 @@ fn load_denied_dirs_from_env() -> Vec<String> {
         .unwrap_or_default()
 }
 
-// ============================================================================
-// CONFIG VALUE ENUM
-// ============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub enum ConfigValue {
-    String(String),
-    Number(i64),
-    Boolean(bool),
-    Array(Vec<String>),
-}
-
-impl ConfigValue {
-    /// Convert to string value
-    ///
-    /// # Errors
-    /// Returns error if the value is not a string
-    pub fn into_string(self) -> Result<String, McpError> {
-        match self {
-            ConfigValue::String(s) => Ok(s),
-            _ => Err(McpError::InvalidArguments("Expected string".to_string())),
-        }
-    }
-
-    /// Convert to number value
-    ///
-    /// # Errors
-    /// Returns error if the value is not a number
-    pub fn into_number(self) -> Result<i64, McpError> {
-        match self {
-            ConfigValue::Number(n) => Ok(n),
-            _ => Err(McpError::InvalidArguments("Expected number".to_string())),
-        }
-    }
-
-    /// Convert to boolean value
-    ///
-    /// # Errors
-    /// Returns error if the value is not a boolean
-    pub fn into_boolean(self) -> Result<bool, McpError> {
-        match self {
-            ConfigValue::Boolean(b) => Ok(b),
-            _ => Err(McpError::InvalidArguments("Expected boolean".to_string())),
-        }
-    }
-
-    /// Convert to array value
-    ///
-    /// # Errors
-    /// Returns error if the value is not an array or valid JSON array string
-    pub fn into_array(self) -> Result<Vec<String>, McpError> {
-        match self {
-            ConfigValue::Array(arr) => Ok(arr),
-            ConfigValue::String(s) if s.starts_with('[') => serde_json::from_str(&s)
-                .map_err(|_| McpError::InvalidArguments("Invalid array format".to_string())),
-            _ => Err(McpError::InvalidArguments("Expected array".to_string())),
-        }
-    }
-}
 
 // ============================================================================
 // CONFIG MANAGER
@@ -352,19 +293,19 @@ impl ConfigManager {
             let mut config = self.config.write();
             match key {
                 "blocked_commands" => {
-                    config.blocked_commands = value.into_array()?;
+                    config.blocked_commands = value.into_array().map_err(McpError::InvalidArguments)?;
                 }
                 "default_shell" => {
-                    config.default_shell = value.into_string()?;
+                    config.default_shell = value.into_string().map_err(McpError::InvalidArguments)?;
                 }
                 "allowed_directories" => {
-                    config.allowed_directories = value.into_array()?;
+                    config.allowed_directories = value.into_array().map_err(McpError::InvalidArguments)?;
                 }
                 "denied_directories" => {
-                    config.denied_directories = value.into_array()?;
+                    config.denied_directories = value.into_array().map_err(McpError::InvalidArguments)?;
                 }
                 "file_read_line_limit" => {
-                    let num = value.into_number()?;
+                    let num = value.into_number().map_err(McpError::InvalidArguments)?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
                             "file_read_line_limit must be positive".to_string(),
@@ -377,7 +318,7 @@ impl ConfigManager {
                     })?;
                 }
                 "file_write_line_limit" => {
-                    let num = value.into_number()?;
+                    let num = value.into_number().map_err(McpError::InvalidArguments)?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
                             "file_write_line_limit must be positive".to_string(),
@@ -390,7 +331,7 @@ impl ConfigManager {
                     })?;
                 }
                 "fuzzy_search_threshold" => {
-                    let num = value.into_number()?;
+                    let num = value.into_number().map_err(McpError::InvalidArguments)?;
                     if !(0..=100).contains(&num) {
                         return Err(McpError::InvalidArguments(
                             "fuzzy_search_threshold must be between 0 and 100".to_string(),
@@ -399,7 +340,7 @@ impl ConfigManager {
                     config.fuzzy_search_threshold = (num as f64) / 100.0;
                 }
                 "sse_connection_timeout_secs" => {
-                    let num = value.into_number()?;
+                    let num = value.into_number().map_err(McpError::InvalidArguments)?;
                     if num <= 0 {
                         return Err(McpError::InvalidArguments(
                             "sse_connection_timeout_secs must be positive".to_string(),

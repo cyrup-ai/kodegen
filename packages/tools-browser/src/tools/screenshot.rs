@@ -3,28 +3,13 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use chromiumoxide::page::ScreenshotParams;
 use chromiumoxide_cdp::cdp::browser_protocol::page::CaptureScreenshotFormat;
+use kodegen_mcp_schema::browser::{BrowserScreenshotArgs, BrowserScreenshotPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::manager::BrowserManager;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserScreenshotArgs {
-    /// Optional: CSS selector to screenshot specific element (default: full page)
-    #[serde(default)]
-    pub selector: Option<String>,
-
-    /// Optional: format (png or jpeg, default: png)
-    #[serde(default)]
-    pub format: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserScreenshotPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserScreenshotTool {

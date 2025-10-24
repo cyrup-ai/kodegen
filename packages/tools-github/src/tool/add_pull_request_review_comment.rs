@@ -1,65 +1,12 @@
 use anyhow;
+use kodegen_mcp_schema::github::{AddPullRequestReviewCommentArgs, AddPullRequestReviewCommentPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Tool for adding inline review comments to a pull request
 #[derive(Clone)]
 pub struct AddPullRequestReviewCommentTool;
-
-/// Arguments for `add_pull_request_review_comment` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddPullRequestReviewCommentArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Pull request number
-    pub pull_number: u64,
-
-    /// Comment body text
-    pub body: String,
-
-    /// Commit SHA to comment on (required for new comments)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub commit_id: Option<String>,
-
-    /// File path to comment on (required for new comments)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
-
-    /// Line number in the diff to comment on
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub line: Option<u32>,
-
-    /// Side of diff: "LEFT" or "RIGHT" (default: RIGHT)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub side: Option<String>,
-
-    /// Start line for multi-line comment
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_line: Option<u32>,
-
-    /// Side of start line: "LEFT" or "RIGHT"
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_side: Option<String>,
-
-    /// Subject type (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject_type: Option<String>,
-
-    /// Comment ID to reply to (for threaded replies)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub in_reply_to: Option<u64>,
-}
-
-/// Prompt arguments for `add_pull_request_review_comment` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AddPullRequestReviewCommentPromptArgs {}
 
 impl Tool for AddPullRequestReviewCommentTool {
     type Args = AddPullRequestReviewCommentArgs;

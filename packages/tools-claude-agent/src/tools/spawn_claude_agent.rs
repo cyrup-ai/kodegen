@@ -1,75 +1,17 @@
 use crate::manager::AgentManager;
-use crate::types::prompt_input::PromptInput;
+use kodegen_mcp_schema::claude_agent::{SpawnClaudeAgentArgs, SpawnClaudeAgentPromptArgs};
 use kodegen_mcp_tool::Tool;
 use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::time::Duration;
 
+// Import resolve method extension for schema's PromptInput type
+use crate::types::prompt_input;
+
 // ============================================================================
-// ARGS STRUCTS
+// ARGS STRUCTS - Imported from kodegen_mcp_schema::claude_agent
 // ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SpawnClaudeAgentArgs {
-    /// Instructions and context for the spawned Claude agent. Describes the task to be performed autonomously. Can be a plain string or template with parameters.
-    pub prompt: PromptInput,
-
-    /// Number of identical agents to spawn (default: 1)
-    #[serde(default = "default_worker_count")]
-    pub worker_count: u32,
-
-    /// System prompt to define agent behavior
-    #[serde(default)]
-    pub system_prompt: Option<String>,
-
-    /// Tools the agent CAN use (allowlist)
-    #[serde(default)]
-    pub allowed_tools: Vec<String>,
-
-    /// Tools the agent CANNOT use (blocklist)
-    #[serde(default)]
-    pub disallowed_tools: Vec<String>,
-
-    /// Max conversation turns (default: 10)
-    #[serde(default = "default_max_turns")]
-    pub max_turns: u32,
-
-    /// AI model to use
-    #[serde(default)]
-    pub model: Option<String>,
-
-    /// Working directory for agent operations
-    #[serde(default)]
-    pub cwd: Option<String>,
-
-    /// Additional context directories
-    #[serde(default)]
-    pub add_dirs: Vec<String>,
-
-    /// Initial delay before returning (ms, default: 500)
-    #[serde(default = "default_initial_delay")]
-    pub initial_delay_ms: u64,
-
-    /// Session label prefix (appends -1, -2, etc.)
-    #[serde(default)]
-    pub label: Option<String>,
-}
-
-fn default_worker_count() -> u32 {
-    1
-}
-fn default_max_turns() -> u32 {
-    10
-}
-fn default_initial_delay() -> u64 {
-    500
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SpawnClaudeAgentPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT
@@ -133,9 +75,7 @@ impl Tool for SpawnClaudeAgentTool {
 
     async fn execute(&self, args: Self::Args) -> Result<Value, kodegen_mcp_tool::error::McpError> {
         // Resolve prompt (render template if needed)
-        let resolved_prompt = args
-            .prompt
-            .resolve(&self.prompt_manager)
+        let resolved_prompt = prompt_input::resolve_schema_prompt(&args.prompt, &self.prompt_manager)
             .await
             .map_err(|e| kodegen_mcp_tool::error::McpError::Other(e.into()))?;
 

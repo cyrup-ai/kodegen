@@ -1,21 +1,10 @@
 use super::SearchManager;
+use kodegen_mcp_schema::filesystem::{ListSearchesArgs, ListSearchesPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct ListSearchesArgs {}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct ListSearchesPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

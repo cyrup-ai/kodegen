@@ -1,45 +1,10 @@
 use super::manager::PromptManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::prompt::{GetPromptArgs, GetPromptPromptArgs, GetPromptAction};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPromptArgs {
-    /// Action to perform
-    pub action: GetPromptAction,
-
-    /// Prompt name (for get/render actions)
-    #[serde(default)]
-    pub name: Option<String>,
-
-    /// Category filter (for `list_prompts` action)
-    #[serde(default)]
-    pub category: Option<String>,
-
-    /// Parameters for rendering (for render action)
-    #[serde(default)]
-    pub parameters: Option<HashMap<String, serde_json::Value>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum GetPromptAction {
-    /// List all categories with counts
-    ListCategories,
-    /// List all prompts (optionally filtered by category)
-    ListPrompts,
-    /// Get prompt metadata and raw template
-    Get,
-    /// Render prompt with parameters
-    Render,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPromptPromptArgs {}
 
 #[derive(Clone)]
 pub struct GetPromptTool {

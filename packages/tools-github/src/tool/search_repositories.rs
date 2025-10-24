@@ -1,29 +1,9 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::SearchRepositoriesArgs;
 use octocrab::Octocrab;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-/// Arguments for searching repositories
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchRepositoriesArgs {
-    /// Search query using GitHub repository search syntax
-    pub query: String,
-    /// Sort by: "stars", "forks", or "updated" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<String>,
-    /// Order: "asc" or "desc" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub order: Option<String>,
-    /// Page number (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-    /// Results per page (optional, max 100)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u8>,
-}
 
 /// Tool for searching GitHub repositories
 pub struct SearchRepositoriesTool;

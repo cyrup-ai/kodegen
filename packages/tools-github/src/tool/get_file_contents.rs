@@ -1,25 +1,10 @@
 use kodegen_mcp_tool::{McpError, Tool};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use kodegen_mcp_schema::github::GetFileContentsArgs;
 use serde_json::Value;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
 
 use crate::GitHubClient;
-
-/// Arguments for getting file or directory contents
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetFileContentsArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// File or directory path
-    pub path: String,
-    /// Branch, tag, or commit (optional, defaults to default branch)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ref_name: Option<String>,
-}
 
 /// Tool for getting file or directory contents from a GitHub repository
 pub struct GetFileContentsTool;

@@ -1,40 +1,12 @@
 use crate::validate_path;
+use kodegen_mcp_schema::filesystem::{WriteFileArgs, WriteFilePromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::fs;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WriteFileArgs {
-    /// Path to the file to write
-    pub path: String,
-
-    /// Content to write to the file
-    pub content: String,
-
-    /// Write mode: "rewrite" (default) or "append"
-    #[serde(default = "default_mode")]
-    pub mode: String,
-}
-
-fn default_mode() -> String {
-    "rewrite".to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WriteFilePromptArgs {
-    #[serde(default)]
-    pub example_type: Option<String>,
-}
 
 // ============================================================================
 // TOOL STRUCT

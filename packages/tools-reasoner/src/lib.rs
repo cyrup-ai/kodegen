@@ -12,56 +12,10 @@ pub use reasoner::Reasoner;
 pub use types::*;
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::reasoning::{ReasonerArgs, ReasonerPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-/// Arguments for the reasoner tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ReasonerArgs {
-    /// Current reasoning step
-    pub thought: String,
-
-    /// Current step number (1-based)
-    #[schemars(range(min = 1))]
-    pub thought_number: usize,
-
-    /// Total expected steps
-    #[schemars(range(min = 1))]
-    pub total_thoughts: usize,
-
-    /// Whether another step is needed
-    pub next_thought_needed: bool,
-
-    /// Optional parent thought ID for branching
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_id: Option<String>,
-
-    /// Strategy: beam_search, mcts, mcts_002_alpha, mcts_002alt_alpha
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub strategy_type: Option<String>,
-
-    /// Number of top paths to maintain (beam search)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(range(min = 1, max = 10))]
-    pub beam_width: Option<usize>,
-
-    /// Number of MCTS simulations to run
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(range(min = 1, max = 150))]
-    pub num_simulations: Option<usize>,
-}
-
-/// Prompt arguments (no customization needed)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReasonerPromptArgs {}
 
 // ============================================================================
 // TOOL IMPLEMENTATION

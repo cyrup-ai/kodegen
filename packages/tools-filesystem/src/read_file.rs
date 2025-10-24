@@ -1,11 +1,10 @@
 use crate::validate_path;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use kodegen_mcp_schema::filesystem::{ReadFileArgs, ReadFilePromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use mime_guess::from_path;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use tokio::fs;
@@ -98,38 +97,6 @@ async fn read_lines_tail_with_total(
     }
 
     Ok((ring_buffer.into_iter().collect(), Some(total_lines)))
-}
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadFileArgs {
-    /// Path to the file to read (or URL if `is_url` is true)
-    pub path: String,
-
-    /// Line offset to start reading from (0-based)
-    /// Positive: Start from line N (0-based indexing)
-    /// Negative: Read last N lines from end (tail behavior)
-    #[serde(default)]
-    pub offset: i64,
-
-    /// Maximum number of lines to read (None = use tool's default)
-    /// Ignored when offset is negative
-    #[serde(default)]
-    pub length: Option<usize>,
-
-    /// Whether the path is a URL (auto-detected if not specified)
-    #[serde(default)]
-    pub is_url: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadFilePromptArgs {
-    /// Optional: specific file type to focus examples on
-    #[serde(default)]
-    pub file_type: Option<String>,
 }
 
 // ============================================================================

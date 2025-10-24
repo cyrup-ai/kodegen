@@ -1,34 +1,14 @@
 //! Git worktree lock tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitWorktreeLockArgs, GitWorktreeLockPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for locking worktrees
 #[derive(Clone)]
 pub struct GitWorktreeLockTool;
-
-/// Arguments for `git_worktree_lock` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitWorktreeLockArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Path to the worktree to lock (prevents deletion)
-    pub worktree_path: String,
-
-    /// Optional reason for locking (e.g., "On removable drive").
-    /// Stored in the lock file for documentation purposes.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-}
-
-/// Prompt arguments for `git_worktree_lock` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitWorktreeLockPromptArgs {}
 
 impl Tool for GitWorktreeLockTool {
     type Args = GitWorktreeLockArgs;

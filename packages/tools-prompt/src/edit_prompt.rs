@@ -1,22 +1,9 @@
 use super::manager::PromptManager;
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::prompt::{EditPromptArgs, EditPromptPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditPromptArgs {
-    /// Name of the prompt to edit
-    pub name: String,
-
-    /// New content (including frontmatter)
-    pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditPromptPromptArgs {}
 
 #[derive(Clone)]
 pub struct EditPromptTool {

@@ -2,27 +2,12 @@
 //!
 //! Performs web searches and returns structured results with titles, URLs, and snippets.
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use std::sync::Arc;
-
+use kodegen_mcp_schema::citescrape::{WebSearchArgs, WebSearchPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-
-// =============================================================================
-// Arguments Structs
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WebSearchArgs {
-    /// Search query string (required)
-    pub query: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WebSearchPromptArgs {}
+use serde_json::{Value, json};
+use std::sync::Arc;
 
 // =============================================================================
 // Tool Struct

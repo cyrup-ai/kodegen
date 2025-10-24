@@ -53,7 +53,7 @@ pub(crate) struct LowArgs {
     pub(crate) crlf: bool,
     pub(crate) dfa_size_limit: Option<usize>,
     pub(crate) encoding: EncodingMode,
-    pub(crate) engine: EngineChoice,
+    pub(crate) engine: Engine,
     pub(crate) field_context_separator: FieldContextSeparator,
     pub(crate) field_match_separator: FieldMatchSeparator,
     pub(crate) fixed_strings: bool,
@@ -359,7 +359,7 @@ impl Default for EncodingMode {
 ///
 /// The default is `Default`.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) enum EngineChoice {
+pub(crate) enum Engine {
     /// Uses the default regex engine: Rust's `regex` crate.
     ///
     /// (Well, technically it uses `regex-automata`, but `regex-automata` is
@@ -375,9 +375,9 @@ pub(crate) enum EngineChoice {
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for EngineChoice {
-    fn default() -> EngineChoice {
-        EngineChoice::Default
+impl Default for Engine {
+    fn default() -> Engine {
+        Engine::Default
     }
 }
 

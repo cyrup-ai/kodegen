@@ -1,25 +1,14 @@
 //! GitHub authenticated user retrieval tool
 
-use kodegen_mcp_tool::{Tool, error::McpError};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use serde_json::Value;
-use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
 use anyhow;
+use kodegen_mcp_schema::github::{GetMeArgs, GetMePromptArgs};
+use kodegen_mcp_tool::{Tool, error::McpError};
+use rmcp::model::{PromptArgument, PromptMessage, PromptMessageRole, PromptMessageContent};
+use serde_json::Value;
 
 /// Tool for getting information about the authenticated GitHub user
 #[derive(Clone)]
 pub struct GetMeTool;
-
-/// Arguments for get_me tool (no arguments needed)
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetMeArgs {
-    // No fields - uses GITHUB_TOKEN for authentication
-}
-
-/// Prompt arguments for get_me tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetMePromptArgs {}
 
 impl Tool for GetMeTool {
     type Args = GetMeArgs;

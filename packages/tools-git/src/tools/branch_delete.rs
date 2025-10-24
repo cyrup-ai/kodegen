@@ -1,33 +1,14 @@
 //! Git branch deletion tool
 
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::git::{GitBranchDeleteArgs, GitBranchDeletePromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// Tool for deleting Git branches
 #[derive(Clone)]
 pub struct GitBranchDeleteTool;
-
-/// Arguments for `git_branch_delete` tool
-#[derive(Deserialize, Serialize, JsonSchema)]
-pub struct GitBranchDeleteArgs {
-    /// Path to repository
-    pub path: String,
-
-    /// Name of branch to delete
-    pub branch: String,
-
-    /// Force deletion
-    #[serde(default)]
-    pub force: bool,
-}
-
-/// Prompt arguments for `git_branch_delete` tool
-#[derive(Deserialize, JsonSchema)]
-pub struct GitBranchDeletePromptArgs {}
 
 impl Tool for GitBranchDeleteTool {
     type Args = GitBranchDeleteArgs;

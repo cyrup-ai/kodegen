@@ -1,36 +1,11 @@
 use anyhow;
 use kodegen_mcp_tool::{McpError, Tool};
+use kodegen_mcp_schema::github::CreatePullRequestArgs;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
 use crate::github::CreatePullRequestRequest;
-
-/// Arguments for creating a pull request
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CreatePullRequestArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-    /// Repository name
-    pub repo: String,
-    /// Title of the pull request
-    pub title: String,
-    /// Body/description of the pull request (optional)
-    #[serde(default)]
-    pub body: Option<String>,
-    /// The name of the branch where your changes are implemented (head branch)
-    pub head: String,
-    /// The name of the branch you want the changes pulled into (base branch)
-    pub base: String,
-    /// Whether to create the pull request as a draft (optional, defaults to false)
-    #[serde(default)]
-    pub draft: Option<bool>,
-    /// Whether maintainers can modify the pull request (optional, defaults to true)
-    #[serde(default)]
-    pub maintainer_can_modify: Option<bool>,
-}
 
 /// Tool for creating a new pull request in a GitHub repository
 pub struct CreatePullRequestTool;

@@ -1,35 +1,13 @@
 use crate::manager::AgentManager;
+use kodegen_mcp_schema::claude_agent::{ReadClaudeAgentOutputArgs, ReadClaudeAgentOutputPromptArgs};
 use kodegen_mcp_tool::Tool;
 use rmcp::model::{PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
 // ============================================================================
-// ARGS STRUCTS
+// ARGS STRUCTS - Imported from kodegen_mcp_schema::claude_agent
 // ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadClaudeAgentOutputArgs {
-    /// Session ID to read from
-    pub session_id: String,
-
-    /// Offset for pagination (0=start, negative=tail from end)
-    #[serde(default)]
-    pub offset: i64,
-
-    /// Max messages to return (default: 50)
-    #[serde(default = "default_length")]
-    pub length: usize,
-}
-
-fn default_length() -> usize {
-    50
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadClaudeAgentOutputPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

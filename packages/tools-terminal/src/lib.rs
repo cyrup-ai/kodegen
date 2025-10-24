@@ -12,7 +12,7 @@ pub use manager::{
     ActiveTerminalSession, CommandManager, CompletedTerminalSession, TerminalCommandResult,
     TerminalManager, TerminalOutputResponse,
 };
-pub use read_terminal_output::{ReadTerminalOutputArgs, ReadTerminalOutputTool};
+pub use read_terminal_output::ReadTerminalOutputTool;
 pub use send_terminal_input::SendTerminalInputTool;
 pub use start_terminal_command::StartTerminalCommandTool;
 pub use stop_terminal_command::StopTerminalCommandTool;

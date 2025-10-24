@@ -1,30 +1,10 @@
 use anyhow;
+use kodegen_mcp_schema::github::SearchUsersArgs;
 use kodegen_mcp_tool::{McpError, Tool};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::GitHubClient;
-
-/// Arguments for searching users
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchUsersArgs {
-    /// Search query using GitHub user search syntax
-    pub query: String,
-    /// Sort by: "followers", "repositories", or "joined" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<String>,
-    /// Order: "asc" or "desc" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub order: Option<String>,
-    /// Page number (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-    /// Results per page (optional, max 100)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u8>,
-}
 
 /// Tool for searching GitHub users
 pub struct SearchUsersTool;

@@ -1,10 +1,9 @@
 //! GitHub issue update tool
 
 use anyhow;
+use kodegen_mcp_schema::github::{UpdateIssueArgs, UpdateIssuePromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::github::UpdateIssueRequest;
@@ -12,43 +11,6 @@ use crate::github::UpdateIssueRequest;
 /// Tool for updating GitHub issues
 #[derive(Clone)]
 pub struct UpdateIssueTool;
-
-/// Arguments for `update_issue` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct UpdateIssueArgs {
-    /// Repository owner (user or organization)
-    pub owner: String,
-
-    /// Repository name
-    pub repo: String,
-
-    /// Issue number to update
-    pub issue_number: u64,
-
-    /// New title (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-
-    /// New body/description (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<String>,
-
-    /// New state: "open" or "closed" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-
-    /// Replace labels (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<Vec<String>>,
-
-    /// Replace assignees (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignees: Option<Vec<String>>,
-}
-
-/// Prompt arguments for `update_issue` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct UpdateIssuePromptArgs {}
 
 impl Tool for UpdateIssueTool {
     type Args = UpdateIssueArgs;

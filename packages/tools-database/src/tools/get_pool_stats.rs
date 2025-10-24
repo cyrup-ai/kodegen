@@ -2,18 +2,11 @@
 
 use crate::DatabaseType;
 use kodegen_mcp_tool::{Tool, error::McpError};
+use kodegen_mcp_schema::database::{GetPoolStatsArgs, GetPoolStatsPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::AnyPool;
 use std::sync::Arc;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPoolStatsArgs {}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetPoolStatsPromptArgs {}
 
 #[derive(Clone)]
 pub struct GetPoolStatsTool {

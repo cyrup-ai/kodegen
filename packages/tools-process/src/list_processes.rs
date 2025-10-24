@@ -1,8 +1,9 @@
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
+use kodegen_mcp_schema::process::{ListProcessesArgs, ListProcessesPromptArgs};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 use sysinfo::System;
 
@@ -26,24 +27,6 @@ pub struct ProcessInfo {
     /// Memory usage in MB
     pub memory_mb: f64,
 }
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListProcessesArgs {
-    /// Optional: filter by name (case-insensitive substring match)
-    #[serde(default)]
-    pub filter: Option<String>,
-
-    /// Maximum number of processes to return (0 = unlimited)
-    #[serde(default)]
-    pub limit: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListProcessesPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

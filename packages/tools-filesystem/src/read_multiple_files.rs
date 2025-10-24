@@ -1,10 +1,11 @@
 use crate::ReadFileTool;
 use futures::future;
+use kodegen_mcp_schema::filesystem::{ReadMultipleFilesArgs, ReadMultipleFilesPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 
 // ============================================================================
@@ -34,30 +35,6 @@ pub struct MultiFileResult {
 }
 
 // ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadMultipleFilesArgs {
-    /// List of file paths to read
-    pub paths: Vec<String>,
-
-    /// Line offset for all files (optional)
-    /// Positive: Start from line N (0-based indexing)
-    /// Negative: Read last N lines from end (tail behavior)
-    #[serde(default)]
-    pub offset: i64,
-
-    /// Max lines to read per file (optional)
-    /// Ignored when offset is negative
-    #[serde(default)]
-    pub length: Option<usize>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReadMultipleFilesPromptArgs {}
-
-// ============================================================================
 // TOOL STRUCT
 // ============================================================================
 
@@ -84,7 +61,7 @@ impl ReadMultipleFilesTool {
         offset: i64,
         length: Option<usize>,
     ) -> MultiFileResult {
-        use crate::ReadFileArgs;
+        use kodegen_mcp_schema::filesystem::ReadFileArgs;
 
         let args = ReadFileArgs {
             path: path.clone(),

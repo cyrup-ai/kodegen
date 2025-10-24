@@ -2,42 +2,14 @@
 
 use anyhow;
 use futures::StreamExt;
+use kodegen_mcp_schema::github::{SearchIssuesArgs, SearchIssuesPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Tool for searching GitHub issues using GitHub's search syntax
 #[derive(Clone)]
 pub struct SearchIssuesTool;
-
-/// Arguments for `search_issues` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchIssuesArgs {
-    /// GitHub search query (supports complex syntax)
-    pub query: String,
-
-    /// Sort results by: "comments", "reactions", "created", "updated" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<String>,
-
-    /// Sort order: "asc" or "desc" (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub order: Option<String>,
-
-    /// Page number for pagination (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
-
-    /// Results per page, max 100 (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u32>,
-}
-
-/// Prompt arguments for `search_issues` tool
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SearchIssuesPromptArgs {}
 
 impl Tool for SearchIssuesTool {
     type Args = SearchIssuesArgs;

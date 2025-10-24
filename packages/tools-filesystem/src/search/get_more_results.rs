@@ -1,39 +1,10 @@
 use super::manager::SearchManager;
+use kodegen_mcp_schema::filesystem::{GetMoreSearchResultsArgs, GetMoreSearchResultsPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-
-// ============================================================================
-// TOOL ARGUMENTS
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GetMoreSearchResultsArgs {
-    /// Search session ID from `start_search`
-    pub session_id: String,
-
-    /// Start result index (default: 0)
-    /// Positive: Start from result N (0-based)
-    /// Negative: Read last N results (tail behavior)
-    #[serde(default)]
-    pub offset: i64,
-
-    /// Max results to read (default: 100)
-    /// Ignored when offset is negative
-    #[serde(default = "default_length")]
-    pub length: usize,
-}
-
-fn default_length() -> usize {
-    100
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct GetMoreSearchResultsPromptArgs {}
 
 // ============================================================================
 // TOOL STRUCT

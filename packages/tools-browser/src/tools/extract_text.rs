@@ -1,23 +1,12 @@
 //! Browser extract text tool - gets page or element text content
 
+use kodegen_mcp_schema::browser::{BrowserExtractTextArgs, BrowserExtractTextPromptArgs};
 use kodegen_mcp_tool::{Tool, error::McpError};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::manager::BrowserManager;
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserExtractTextArgs {
-    /// Optional: CSS selector for specific element (default: entire page)
-    #[serde(default)]
-    pub selector: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrowserExtractTextPromptArgs {}
 
 #[derive(Clone)]
 pub struct BrowserExtractTextTool {

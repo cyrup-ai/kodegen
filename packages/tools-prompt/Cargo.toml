@@ -19,6 +19,7 @@ license = "Apache-2.0 OR MIT"
 
 [dependencies]
 kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
+kodegen_mcp_schema = { path = "../mcp-schema", version = "0.0.1" }
 
 # MCP SDK - for Tool implementation
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
