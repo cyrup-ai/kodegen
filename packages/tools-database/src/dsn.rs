@@ -94,27 +94,47 @@ impl DSNInfo {
     /// The password is protected from exposure in logs, error messages, and debug output.
     ///
     /// To use the DSN for database connections:
-    /// ```rust
+    /// ```
+    /// # use kodegen_tools_database::dsn::parse_dsn;
+    /// # use secrecy::ExposeSecret;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dsn_info = parse_dsn("postgres://user:pass@localhost:5432/mydb")?;
     /// let secret_dsn = dsn_info.to_connection_string();
-    /// let pool = AnyPool::connect(secret_dsn.expose_secret()).await?;
+    /// // Use secret_dsn.expose_secret() when connecting to database
+    /// assert!(secret_dsn.expose_secret().contains("pass"));
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// For logging, use the safe display method:
-    /// ```rust
-    /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
+    /// ```
+    /// # use kodegen_tools_database::dsn::parse_dsn;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dsn_info = parse_dsn("postgres://user:pass@localhost:5432/mydb")?;
+    /// let safe = dsn_info.to_safe_dsn();
+    /// assert!(safe.contains("user:***"));
+    /// assert!(!safe.contains("pass"));
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Example
     /// ```rust
+    /// # use kodegen_tools_database::dsn::parse_dsn;
+    /// # use secrecy::ExposeSecret;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dsn_info = parse_dsn("postgres://user:pass@localhost:5432/mydb")?;
     /// // CORRECT: Protected connection string
     /// let secret_dsn = dsn_info.to_connection_string();
-    /// let pool = AnyPool::connect(secret_dsn.expose_secret()).await?;
+    /// assert!(secret_dsn.expose_secret().contains("user:pass"));
     ///
     /// // CORRECT: Safe logging
-    /// log::info!("Connected to {}", dsn_info.to_safe_dsn());
+    /// let safe = dsn_info.to_safe_dsn();
+    /// assert!(safe.contains("user:***"));
     ///
-    /// // WRONG: This won't compile!
-    /// // log::info!("DSN: {}", secret_dsn);  // ❌ Error: SecretString doesn't implement Display
+    /// // SecretString doesn't implement Display (compile-time safety)
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn to_connection_string(&self) -> SecretString {
         let mut dsn = format!("{}://", self.protocol);
@@ -175,6 +195,8 @@ impl DSNInfo {
     ///
     /// # Example
     /// ```
+    /// # use kodegen_tools_database::dsn::DSNInfo;
+    /// # use std::collections::HashMap;
     /// let info = DSNInfo {
     ///     protocol: "postgres".to_string(),
     ///     username: Some("myuser".to_string()),
@@ -355,20 +377,30 @@ pub fn validate_dsn(dsn: &str) -> Result<String> {
 ///
 /// For logging tunnel setup, use:
 /// ```rust
+/// # use kodegen_tools_database::dsn::parse_dsn;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let dsn = "postgres://user:pass@remote.db.com:5432/mydb";
 /// let info = parse_dsn(dsn)?;
-/// log::info!("Tunneling to {}", info.to_safe_dsn());
+/// let safe = info.to_safe_dsn();
+/// assert!(safe.contains("remote.db.com"));
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # Example
 /// ```rust
+/// # use kodegen_tools_database::dsn::rewrite_dsn_for_tunnel;
+/// # use secrecy::ExposeSecret;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let original = "postgres://user:pass@remote.db.com:5432/mydb?sslmode=require";
 /// let rewritten = rewrite_dsn_for_tunnel(original, 54321)?;
 /// 
-/// // Use for connection (explicit exposure required)
-/// let pool = AnyPool::connect(rewritten.expose_secret()).await?;
-/// 
-/// // WRONG: This won't compile!
-/// // log::info!("DSN: {}", rewritten);  // ❌ SecretString doesn't implement Display
+/// // Verify tunneling to localhost
+/// let dsn_str = rewritten.expose_secret();
+/// assert!(dsn_str.contains("127.0.0.1:54321"));
+/// assert!(dsn_str.contains("sslmode=require"));
+/// # Ok(())
+/// # }
 /// ```
 pub fn rewrite_dsn_for_tunnel(dsn: &str, tunnel_port: u16) -> Result<SecretString> {
     let mut info = parse_dsn(dsn).context("Failed to parse DSN for tunnel rewriting")?;

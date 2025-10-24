@@ -173,7 +173,7 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     info!("\n[3/8] Testing get_table_schema on 'employees' table...");
     client.call_tool(
         tools::GET_TABLE_SCHEMA,
-        json!({ "table_name": "employees" })
+        json!({ "table": "employees" })
     )
     .await
     .context("get_table_schema failed")?;
@@ -183,7 +183,7 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     info!("\n[4/8] Testing get_table_indexes on 'employees' table...");
     client.call_tool(
         tools::GET_TABLE_INDEXES,
-        json!({ "table_name": "employees" })
+        json!({ "table": "employees" })
     )
     .await
     .context("get_table_indexes failed")?;
@@ -194,7 +194,7 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     client.call_tool(
         tools::EXECUTE_SQL,
         json!({ 
-            "sql": "SELECT * FROM departments LIMIT 3"
+            "sql": "SELECT id, name, CAST(budget AS TEXT) as budget, CAST(created_at AS TEXT) as created_at FROM departments LIMIT 3"
         })
     )
     .await
@@ -206,7 +206,7 @@ async fn test_database_tools(client: &common::LoggingClient) -> Result<()> {
     client.call_tool(
         tools::EXECUTE_SQL,
         json!({ 
-            "sql": "SELECT e.name, e.email, d.name as department \
+            "sql": "SELECT e.name, e.email, d.name as department, CAST(e.hire_date AS TEXT) as hire_date \
                     FROM employees e \
                     JOIN departments d ON e.department_id = d.id \
                     LIMIT 5"

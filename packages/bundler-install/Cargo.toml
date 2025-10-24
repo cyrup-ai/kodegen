@@ -40,10 +40,10 @@ sha2 = "0.10"
 hex = "0.4"
 
 # GUI dependencies (optional, feature-gated)
-eframe = { version = "0.31", optional = true }
-egui = { version = "0.31", optional = true }
+eframe = { version = "0.33", optional = true }
+egui = { version = "0.33", optional = true }
 image = { version = "0.25", optional = true }
-opener = { version = "0.7", optional = true }
+opener = { version = "0.8", optional = true }
 
 # Archive extraction (for binary downloads)
 zip = { version = "6.0", default-features = false, features = ["deflate"] }

@@ -48,14 +48,14 @@ log = "0.4"
 
 # Error handling
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"
 
 # Utilities
 url = "2"
 regex = "1"
 lazy-regex = "3.4"
 base64 = "0.22"
-sqlparser = "0.55"
+sqlparser = "0.59"
 rand = "0.9"
 
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }

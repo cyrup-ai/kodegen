@@ -25,10 +25,15 @@ fn get_dialect(db_type: DatabaseType) -> Box<dyn Dialect> {
 ///
 /// # Examples
 /// ```
+/// # use kodegen_tools_database::sql_parser::split_sql_statements;
+/// # use kodegen_tools_database::types::DatabaseType;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let sql = "SELECT 1; INSERT INTO t VALUES ('a;b'); SELECT 2;";
 /// let stmts = split_sql_statements(sql, DatabaseType::Postgres)?;
 /// assert_eq!(stmts.len(), 3);
 /// assert_eq!(stmts[1], "INSERT INTO t VALUES ('a;b')");
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # Errors
@@ -63,6 +68,8 @@ pub fn split_sql_statements(sql: &str, db_type: DatabaseType) -> Result<Vec<Stri
 ///
 /// # Examples
 /// ```
+/// # use kodegen_tools_database::sql_parser::strip_comments;
+/// # use kodegen_tools_database::types::DatabaseType;
 /// // Standard comments
 /// let sql = "SELECT * FROM users -- get all\n/* WHERE active */";
 /// let cleaned = strip_comments(sql, DatabaseType::Postgres);
@@ -105,11 +112,16 @@ pub fn strip_comments(sql: &str, db_type: DatabaseType) -> String {
 ///
 /// # Examples
 /// ```
+/// # use kodegen_tools_database::sql_parser::extract_first_keyword;
+/// # use kodegen_tools_database::types::DatabaseType;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let sql = "  SELECT * FROM users";
 /// assert_eq!(extract_first_keyword(sql, DatabaseType::Postgres)?, "select");
 ///
 /// let sql = "-- comment\nINSERT INTO logs";
 /// assert_eq!(extract_first_keyword(sql, DatabaseType::Postgres)?, "insert");
+/// # Ok(())
+/// # }
 /// ```
 pub fn extract_first_keyword(sql: &str, db_type: DatabaseType) -> Result<String, DatabaseError> {
     let cleaned = strip_comments(sql, db_type);

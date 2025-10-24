@@ -24,6 +24,9 @@ static SELECT_WORD: Lazy<Regex> = lazy_regex!(r"(?i)\bSELECT\b");
 ///
 /// # Examples
 /// ```
+/// # use kodegen_tools_database::sql_limiter::apply_row_limit;
+/// # use kodegen_tools_database::types::DatabaseType;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let sql = "SELECT * FROM users";
 /// let limited = apply_row_limit(sql, 100, DatabaseType::Postgres)?;
 /// assert_eq!(limited, "SELECT * FROM users LIMIT 100");
@@ -31,6 +34,8 @@ static SELECT_WORD: Lazy<Regex> = lazy_regex!(r"(?i)\bSELECT\b");
 /// let sql = "SELECT * FROM users LIMIT 200";
 /// let limited = apply_row_limit(sql, 100, DatabaseType::Postgres)?;
 /// assert_eq!(limited, "SELECT * FROM users LIMIT 100");
+/// # Ok(())
+/// # }
 /// ```
 pub fn apply_row_limit(
     sql: &str,

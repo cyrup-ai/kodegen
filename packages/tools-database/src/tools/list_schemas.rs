@@ -89,25 +89,8 @@ impl Tool for ListSchemasTool {
             }));
         }
 
-        // Get SQL query (inline queries since DBTOOL_5 not yet ready)
-        let sql = match db_type {
-            DatabaseType::Postgres => {
-                "SELECT schema_name FROM information_schema.schemata \
-                 WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast') \
-                 ORDER BY schema_name"
-            }
-            DatabaseType::MySQL | DatabaseType::MariaDB => {
-                "SELECT schema_name FROM information_schema.schemata \
-                 WHERE schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') \
-                 ORDER BY schema_name"
-            }
-            DatabaseType::SQLite => unreachable!(), // Handled above
-            DatabaseType::SqlServer => {
-                "SELECT name as schema_name FROM sys.schemas \
-                 WHERE name NOT IN ('sys', 'INFORMATION_SCHEMA') \
-                 ORDER BY name"
-            }
-        };
+        // Get SQL query from centralized schema_queries module
+        let sql = crate::schema_queries::get_schemas_query(db_type);
 
         // Execute query with timeout (metadata queries should be fast)
         let pool = self.pool.clone();

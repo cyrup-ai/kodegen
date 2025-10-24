@@ -1,13 +1,12 @@
 use crate::state::StateManager;
 use crate::types::{ReasoningRequest, ReasoningResponse, StrategyMetrics, ThoughtNode};
 use futures::Stream;
+use kodegen_candle_agent::prelude::{Embedding, EmbeddingBuilder};
 use regex::Regex;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use serde_json::json;
 use std::collections::HashSet;
-use std::env;
 use std::fmt;
 use std::future::Future;
 #[allow(unused_imports)]
@@ -130,39 +129,6 @@ pub type MetricStream = TaskStream<StrategyMetrics>;
 pub type Reasoning = TaskStream<ReasoningResponse>;
 pub type Metric = StrategyMetrics;
 
-// --- Structs for VoyageAI API ---
-#[derive(Serialize)]
-struct VoyageAIRequest {
-    input: Vec<String>,
-    model: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct VoyageAIEmbedding {
-    embedding: Vec<f32>,
-    // object: String, // Optional fields if needed
-    // index: usize, // Optional fields if needed
-}
-
-#[derive(Deserialize, Debug)]
-struct VoyageAIUsage {
-    #[allow(dead_code)]
-    total_tokens: u32,
-    // prompt_tokens: u32, // Optional fields if needed
-}
-
-#[derive(Deserialize, Debug)]
-struct VoyageAIResponse {
-    data: Vec<VoyageAIEmbedding>,
-    #[allow(dead_code)]
-    model: String,
-    #[allow(dead_code)]
-    usage: VoyageAIUsage,
-    // object: String, // Optional fields if needed
-}
-// --- End Structs for VoyageAI API ---
-
-
 /// Strategy trait without async_trait
 pub trait Strategy: Send + Sync {
     /// Process a thought with the selected strategy
@@ -284,8 +250,8 @@ impl BaseStrategy {
         (1.0 - (node.depth as f64 / crate::types::CONFIG.max_depth as f64) * 0.2).max(0.0)
     }
 
-    /// Calculates semantic coherence using VoyageAI embeddings. Returns an AsyncTask.
-    /// Note: This is now async and returns a future. Strategies must await this.
+    /// Calculates semantic coherence using local Stella embeddings.
+    /// Returns an AsyncTask with cosine similarity score [0.0, 1.0].
     pub fn calculate_semantic_coherence(
         &self,
         parent_thought: &str,
@@ -296,81 +262,61 @@ impl BaseStrategy {
         let (tx, rx) = oneshot::channel();
 
         tokio::spawn(async move {
-            // --- VoyageAI API Call ---
-            // Use environment variable for API key
-            let api_key = match env::var("VOYAGE_API_KEY") {
-                Ok(key) => key,
-                Err(_) => {
+            // Generate embedding for parent thought using Stella
+            let parent_result = Embedding::from_document(&parent_thought)
+                .model("dunzhang/stella_en_400M_v5")
+                .embed()
+                .await;
+
+            let parent_embedding = match parent_result {
+                Ok(emb) => match emb.as_vec() {
+                    Some(vec) => vec.clone(),
+                    None => {
+                        let _ = tx.send(Err(ReasoningError::Other(
+                            "Parent embedding vector is empty".into()
+                        )));
+                        return;
+                    }
+                },
+                Err(e) => {
                     let _ = tx.send(Err(ReasoningError::Other(
-                        "VOYAGE_API_KEY environment variable not set".into(),
+                        format!("Failed to generate parent embedding: {}", e)
                     )));
                     return;
                 }
             };
-            // Note: Model and API URL are currently hardcoded. Consider making configurable.
-            let model = "voyage-2";
-            let api_url = "https://api.voyageai.com/v1/embeddings"; // Hardcoded URL
 
-            let client = Client::new();
-            let request_body = VoyageAIRequest {
-                input: vec![parent_thought, child_thought],
-                model: model.to_string(),
-            };
+            // Generate embedding for child thought using Stella
+            let child_result = Embedding::from_document(&child_thought)
+                .model("dunzhang/stella_en_400M_v5")
+                .embed()
+                .await;
 
-            let response = match client
-                .post(api_url)
-                .bearer_auth(api_key)
-                .json(&request_body)
-                .send()
-                .await
-            {
-                Ok(res) => res,
+            let child_embedding = match child_result {
+                Ok(emb) => match emb.as_vec() {
+                    Some(vec) => vec.clone(),
+                    None => {
+                        let _ = tx.send(Err(ReasoningError::Other(
+                            "Child embedding vector is empty".into()
+                        )));
+                        return;
+                    }
+                },
                 Err(e) => {
-                    let _ = tx.send(Err(ReasoningError::Other(format!(
-                        "Failed to send request to VoyageAI: {}",
-                        e
-                    ))));
+                    let _ = tx.send(Err(ReasoningError::Other(
+                        format!("Failed to generate child embedding: {}", e)
+                    )));
                     return;
                 }
             };
 
-            if !response.status().is_success() {
-                let status = response.status();
-                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".into());
-                 let _ = tx.send(Err(ReasoningError::Other(format!(
-                    "VoyageAI API error ({}): {}",
-                    status, error_text
-                ))));
-                return;
-            }
+            // Calculate cosine similarity
+            let similarity = Self::cosine_similarity(&parent_embedding, &child_embedding);
 
-            let voyage_response = match response.json::<VoyageAIResponse>().await {
-                Ok(data) => data,
-                Err(e) => {
-                     let _ = tx.send(Err(ReasoningError::Other(format!(
-                        "Failed to parse VoyageAI response: {}",
-                        e
-                    ))));
-                    return;
-                }
-            };
-
-            if voyage_response.data.len() < 2 {
-                 let _ = tx.send(Err(ReasoningError::Other(
-                    "VoyageAI response did not contain enough embeddings".into(),
-                )));
-                return;
-            }
-
-            let parent_embedding = &voyage_response.data[0].embedding;
-            let child_embedding = &voyage_response.data[1].embedding;
-
-            let similarity = Self::cosine_similarity(parent_embedding, child_embedding);
             // Scale similarity from [-1, 1] to [0, 1] for scoring consistency
             let scaled_similarity = (similarity + 1.0) / 2.0;
 
             let _ = tx.send(Ok(scaled_similarity));
-            // --- End VoyageAI API Call ---
         });
 
         AsyncTask::new(rx)

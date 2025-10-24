@@ -21,39 +21,39 @@ path = "src/lib.rs"
 # Core hakari integration
 # # kodegen-workspace-hack = { path = "../../workspace-hack" }
 cargo-hakari = "0.9.36"
-cargo_metadata = "0.22.0"
+cargo_metadata = "0.23.0"
 
 # Async runtime
-tokio = { version = "1.47.1", features = ["rt", "sync", "macros", "rt-multi-thread", "fs"], default-features = false }
+tokio = { version = "1.48.0", features = ["rt", "sync", "macros", "rt-multi-thread", "fs"], default-features = false }
 
 # CLI and user interface
-clap = { version = "4.5.48", features = ["derive", "color", "suggestions"] }
+clap = { version = "4.5.50", features = ["derive", "color", "suggestions"] }
 console = "0.16.1"
-indicatif = "0.18.0"
+indicatif = "0.18.1"
 
 # Error handling and logging
 anyhow = "1.0.100"
-thiserror = "2.0.16"
+thiserror = "2.0.17"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 # Serialization and configuration
-serde = { version = "1.0.226", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-toml_edit = "0.23.6"
-toml = "0.9.7"
+toml_edit = "0.23.7"
+toml = "0.9.8"
 
 # File system operations
 walkdir = "2.5.0"
 tempfile = "3.23.0"
-memmap2 = "0.9.8"
+memmap2 = "0.9.9"
 
 # Safety and cleanup
 scopeguard = "1.2.0"
 
 # Performance optimizations
 smallvec = { version = "2.0.0-alpha.11", features = ["serde"] }
-regex = "1.11.2"
+regex = "1.12.2"
 workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]

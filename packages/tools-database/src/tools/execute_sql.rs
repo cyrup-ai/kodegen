@@ -340,15 +340,24 @@ fn row_to_json(row: &sqlx::any::AnyRow) -> Result<Value, DatabaseError> {
                     ))),
                 }
             }
-            // DECIMAL/NUMERIC - extract as string to preserve precision
+            // DECIMAL/NUMERIC - sqlx::any doesn't support these types
+            // Try as f64 first (may lose precision for very large numbers)
             "NUMERIC" | "DECIMAL" | "NUMBER" => {
-                match row.try_get::<Option<String>, _>(ordinal) {
-                    Ok(Some(s)) => Value::String(s),
+                match row.try_get::<Option<f64>, _>(ordinal) {
+                    Ok(Some(v)) => json!(v),
                     Ok(None) => Value::Null,
-                    Err(e) => return Err(DatabaseError::QueryError(format!(
-                        "Failed to extract column '{}' as DECIMAL: {}",
-                        name, e
-                    ))),
+                    Err(_) => {
+                        // If f64 fails, try as string
+                        match row.try_get::<Option<String>, _>(ordinal) {
+                            Ok(Some(s)) => Value::String(s),
+                            Ok(None) => Value::Null,
+                            Err(e) => return Err(DatabaseError::QueryError(format!(
+                                "Failed to extract column '{}' as DECIMAL (tried f64 and string): {}. \
+                                 Consider using CAST({} AS TEXT) in your query.",
+                                name, e, name
+                            ))),
+                        }
+                    }
                 }
             }
             // JSON types - parse as serde_json::Value

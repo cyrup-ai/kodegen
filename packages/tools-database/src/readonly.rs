@@ -27,14 +27,21 @@ fn get_dialect(db_type: DatabaseType) -> Box<dyn Dialect> {
 ///
 /// # Examples
 /// ```
+/// # use kodegen_tools_database::readonly::validate_readonly_sql;
+/// # use kodegen_tools_database::types::DatabaseType;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Allowed
 /// validate_readonly_sql("SELECT * FROM users", DatabaseType::Postgres)?;
 ///
 /// // Rejected - top-level write
-/// validate_readonly_sql("DROP TABLE users", DatabaseType::Postgres)?; // Error!
+/// # let result = validate_readonly_sql("DROP TABLE users", DatabaseType::Postgres);
+/// # assert!(result.is_err());
 ///
-/// // Rejected - nested write in CTE
-/// validate_readonly_sql("WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d", DatabaseType::Postgres)?; // Error!
+/// // Rejected - nested write in CTE  
+/// # let result = validate_readonly_sql("WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d", DatabaseType::Postgres);
+/// # assert!(result.is_err());
+/// # Ok(())
+/// # }
 /// ```
 pub fn validate_readonly_sql(sql: &str, db_type: DatabaseType) -> Result<(), DatabaseError> {
     let dialect = get_dialect(db_type);

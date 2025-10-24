@@ -1,0 +1,204 @@
+[env]
+RUSTFLAGS = { value = "-D warnings --cfg tokio_unstable", condition = { env_not_set = [
+    "RUSTFLAGS",
+] } }
+
+# Setup
+[tasks.cargo-upgrade]
+private = true
+command = "cargo"
+args = ["upgrade", "--pinned"]
+
+[tasks.cargo-update]
+private = true
+command = "cargo"
+args = ["update"]
+
+[tasks.setup]
+category = "LOCAL USAGE"
+dependencies = ["cargo-upgrade", "cargo-update"]
+
+# Docs
+[tasks.docs]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "doc",
+    "--open",
+    "--no-deps",
+    "--package",
+    "surrealdb",
+    "--features",
+    "rustls,native-tls,protocol-ws,protocol-http,kv-mem,kv-rocksdb,kv-tikv,http,scripting,jwks",
+]
+
+# Test
+[tasks.test]
+category = "LOCAL USAGE"
+command = "cargo"
+args = ["test", "--profile", "make", "--workspace", "--no-fail-fast"]
+
+# Format
+[tasks.cargo-fmt]
+category = "LOCAL USAGE"
+toolchain = "${SURREAL_NIGHTLY_RUST_TOOLCHAIN}"
+command = "cargo"
+args = ["fmt", "--all", "--check"]
+
+[tasks.fmt]
+category = "LOCAL USAGE"
+toolchain = "${SURREAL_NIGHTLY_RUST_TOOLCHAIN}"
+command = "cargo"
+args = ["fmt", "--all"]
+
+# Check
+[tasks.cargo-check]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "check",
+    "--profile",
+    "make",
+    "--workspace",
+    "--all-targets",
+    "--features",
+    "${ALL_FEATURES}",
+]
+
+# Clippy
+[tasks.cargo-clippy]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "clippy",
+    "--profile",
+    "make",
+    "--workspace",
+    "--all-targets",
+    "--features",
+    "${ALL_FEATURES}",
+    "--",
+    "-D",
+    "warnings",
+]
+
+[tasks.check]
+category = "LOCAL USAGE"
+dependencies = ["cargo-fmt", "cargo-check", "cargo-clippy"]
+
+[tasks.check-wasm]
+category = "LOCAL USAGE"
+dependencies = ["ci-check-wasm"]
+
+# Clean
+[tasks.clean]
+category = "LOCAL USAGE"
+command = "cargo"
+args = ["clean"]
+
+# Bench
+[tasks.bench]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "bench",
+    "--package",
+    "surrealdb",
+    "--no-default-features",
+    "--features",
+    "kv-mem,http,scripting,jwks",
+    "--",
+    "${@}",
+]
+
+# Run
+[tasks.run]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "run",
+    "--profile",
+    "make",
+    "--no-default-features",
+    "--features",
+    "${DEV_FEATURES}",
+    "--",
+    "${@}",
+]
+
+# Serve
+[tasks.serve]
+category = "LOCAL USAGE"
+command = "cargo"
+args = [
+    "run",
+    "--profile",
+    "make",
+    "--no-default-features",
+    "--features",
+    "${DEV_FEATURES}",
+    "--",
+    "start",
+    "--allow-all",
+    "${@}",
+]
+
+# SQL
+[tasks.sql]
+category = "LOCAL USAGE"
+command = "cargo"
+env = { SURREAL_LOG = "error" }
+args = [
+    "run",
+    "--profile",
+    "make",
+    "--no-default-features",
+    "--features",
+    "${DEV_FEATURES}",
+    "--",
+    "sql",
+    "--pretty",
+    "${@}",
+]
+
+# REPL
+[tasks.repl]
+category = "LOCAL USAGE"
+command = "cargo"
+env = { SURREAL_LOG = "error" }
+args = [
+    "run",
+    "--profile",
+    "make",
+    "--no-default-features",
+    "--features",
+    "${DEV_FEATURES}",
+    "--",
+    "sql",
+    "--pretty",
+    "--conn",
+    "memory",
+    "--ns",
+    "test",
+    "--db",
+    "test",
+    "${@}",
+]
+
+# Build
+[tasks.build]
+category = "LOCAL USAGE"
+command = "cargo"
+args = ["build", "--profile", "make", "${@}"]
+
+# Release
+[tasks.release]
+category = "LOCAL USAGE"
+command = "cargo"
+args = ["build", "--release", "${@}"]
+
+# Default
+[tasks.default]
+category = "LOCAL USAGE"
+clear = true
+dependencies = ["check", "test", "quick"]

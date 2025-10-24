@@ -1,0 +1,71 @@
+[package]
+name = "cylo"
+version = "0.1.0"
+edition = "2024"
+description = "Secure multi-language code execution service"
+authors = ["CYRUP AI"]
+repository = "https://github.com/cyrup-ai/fluent-ai"
+license = "MIT"
+keywords = ["sandbox", "security", "execution", "isolation", "vm"]
+categories = ["os", "development-tools", "virtualization"]
+
+[dependencies]
+# Core dependencies with latest versions
+
+anyhow = "1.0.100"
+serde = { version = "1.0.228", features = ["derive"] }
+log = "0.4.28"
+env_logger = "0.11.8"
+cyrup_termcolor = "2.0"
+thiserror = "2.0.17"
+clap = { version = "4.5.50", features = ["derive", "cargo"] }
+tempfile = "3.23.0"
+chrono = { version = "0.4.42", features = ["serde"] }
+uuid = { version = "1.18.1", features = ["v4", "serde"] }
+tokio = { version = "1.48.0", features = ["full"] }
+# fluent_ai_domain = { path = "../domain" } # Removed to avoid circular dependency
+cyrup_sugars = { git = "https://github.com/cyrup-ai/cyrup-sugars", branch = "main", package = "cyrup_sugars", features = ["all"] }
+
+# Regular dependencies
+nix = { version = "0.30.1", features = ["user", "sched"] }
+libc = "1.0.0-alpha.1"
+num_cpus = "1.17.0"
+
+# Additional dependencies
+statig = "0.4.1"
+watchexec = "8.0.1"
+watchexec-events = "6.0.0"
+watchexec-signals = "5.0.0"
+xattr = "1.6.1"
+serde_json = "1.0.145"
+
+# HTTP client for Unix domain sockets
+hyper = { version = "1.7", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
+hyper-client-sockets = { version = "0.6", features = ["unix", "tokio-backend"] }
+http = "1.3"
+http-body-util = "0.1"
+bytes = "1.10.1"
+
+ssh2 = "0.9"
+extism = "1.12"
+
+[dev-dependencies]
+assert_fs = "1.1.3"
+assert_cmd = "2.0.17"
+predicates = "3.1.3"
+env_logger = "0.11.8"
+
+# Binary removed - this is a library package
+
+[lib]
+name = "cylo"
+path = "src/lib.rs"
+
+# Linux-specific dependencies
+[target.'cfg(target_os = "linux")'.dependencies]
+landlock = { version = "0.4.3", optional = true }
+
+[features]
+default = ["landlock"]
+landlock = ["dep:landlock"]

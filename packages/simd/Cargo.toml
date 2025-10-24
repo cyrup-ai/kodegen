@@ -1,0 +1,155 @@
+[package]
+name = "kodegen_simd"
+version = "0.1.0"
+edition = "2024"
+description = "Shared high-performance SIMD operations for cyrup ecosystem"
+authors = ["Fluent AI Contributors"]
+license = "MIT"
+repository = "https://github.com/cyrusnimda/cyrup"
+readme = "README.md"
+keywords = ["simd", "ml", "ai", "performance", "optimization"]
+categories = ["mathematics", "science", "algorithms", "concurrency"]
+
+[dependencies]
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
+
+# Core SIMD support and zero-allocation data structures
+wide = "0.8"
+arrayvec = "0.7"
+smallvec = "2.0.0-alpha.11"
+
+# Hash map for token tracking and statistics
+dashmap = "6.1"
+ahash = "0.8"
+
+# Atomic operations and synchronization
+parking_lot = "0.12"
+crossbeam-utils = "0.8"
+
+# Random number generation for sampling
+rand = "0.9"
+
+# Fast exponential functions for softmax
+libm = "0.2"
+
+# Error handling
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+
+# Lazy static initialization for runtime dispatch
+once_cell = "1.21.3"
+lazy_static = "1.5"
+
+# Parallel processing
+rayon = { version = "1.11.0", optional = true }
+
+tokenizers = "0.22.1"
+
+# JSON schema generation from serde types for constrained generation
+serde = { version = "1.0", features = ["derive"] }
+schemars = { version = "1.0.4", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.12.2"
+regex-automata = "0.4.13"
+rustc-hash = "2.1.1"
+log = "0.4.28"
+cyrup_termcolor = "2.0"
+
+# — DSP / NN (base dependencies - no acceleration features) —
+candle-core = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false }
+# — Optional acceleration dependencies —
+half = { version = "2.7.1", optional = true }
+
+# Platform-specific acceleration dependencies
+cudarc = { version = "0.17.3", optional = true, default-features = false, features = [
+    "cublas",
+    "cublaslt",
+    "cudnn",
+    "curand",
+    "dynamic-linking",
+    "f16",
+    "std",
+] }
+metal = { version = "0.32.0", optional = true }
+bindgen_cuda = { version = "0.1.5", optional = true }
+candle-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle", branch = "main", optional = true }
+
+
+[features]
+# ───────────── default: metal acceleration enabled ─────────────
+default = ["metal", "reqwest_unstable"]
+
+# --- Developer conveniences (opt-in) -----------------------
+dev = ["debug"] # ← enable with `--features dev`
+debug = []                 # extra logging / assertions
+bench = []                 # benchmarking support
+
+# --- SIMD features ---
+portable_simd = []
+reqwest_unstable = []
+
+# --- Candle backend features (required for all candle crates) -----
+cuda = [
+    "dep:cudarc",
+    "dep:bindgen_cuda",
+    "dep:candle-kernels",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+]
+cudnn = ["cuda", "cudarc/cudnn"]
+metal = [
+    "dep:metal",
+    "dep:candle-metal-kernels",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+]
+accelerate = [
+    "dep:accelerate-src",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
+]
+mkl = [
+    "dep:intel-mkl-src",
+    "candle-core/mkl",
+    "candle-nn/mkl",
+    "candle-transformers/mkl",
+]
+
+# OS-specific acceleration dependencies
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8.1", optional = true }
+
+[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+intel-mkl-src = { version = "0.8.1", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accelerate-src = { version = "0.3.2", optional = true }
+
+
+
+[dev-dependencies]
+criterion = "0.7"
+approx = "0.5"
+float_eq = "1.0"
+env_logger = "0.11.8"
+
+[[bench]]
+name = "temperature"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "argmax"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "softmax"
+harness = false
+required-features = ["bench"]

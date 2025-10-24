@@ -1,10 +1,9 @@
 use crate::state::StateManager;
 use crate::strategies::base::Strategy;
 use crate::strategies::beam_search::BeamSearchStrategy;
-// Experimental MCTS variants disabled - contain WASM-specific code requiring conversion
-// use crate::strategies::mcts_002_alpha::MCTS002AlphaStrategy;
-// use crate::strategies::mcts_002alt_alpha::MCTS002AltAlphaStrategy;
 use crate::strategies::mcts::MonteCarloTreeSearchStrategy;
+use crate::strategies::mcts_002_alpha::MCTS002AlphaStrategy;
+use crate::strategies::mcts_002alt_alpha::MCTS002AltAlphaStrategy;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,12 +52,11 @@ impl StrategyFactory {
                 state_manager,
                 num_simulations,
             )),
-            // Experimental MCTS variants fallback to basic MCTS until native conversion complete
             ReasoningStrategy::MCTS002Alpha => {
-                Arc::new(MonteCarloTreeSearchStrategy::new(state_manager, num_simulations))
+                Arc::new(MCTS002AlphaStrategy::new(state_manager, num_simulations))
             }
             ReasoningStrategy::MCTS002AltAlpha => {
-                Arc::new(MonteCarloTreeSearchStrategy::new(state_manager, num_simulations))
+                Arc::new(MCTS002AltAlphaStrategy::new(state_manager, num_simulations))
             }
         }
     }

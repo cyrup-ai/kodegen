@@ -25,23 +25,26 @@ use crate::error::DatabaseError;
 ///
 /// ```rust
 /// use kodegen_tools_database::validate::validate_sqlite_identifier;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// // Valid identifiers
-/// validate_sqlite_identifier("users")?;           // OK
-/// validate_sqlite_identifier("user_accounts")?;   // OK
-/// validate_sqlite_identifier("table_123")?;       // OK
-/// validate_sqlite_identifier("_private")?;        // OK
+/// validate_sqlite_identifier("users")?;
+/// validate_sqlite_identifier("user_accounts")?;
+/// validate_sqlite_identifier("table_123")?;
+/// validate_sqlite_identifier("_private")?;
 ///
 /// // Invalid identifiers (SQL injection attempts)
-/// validate_sqlite_identifier("users; DROP TABLE users")?;  // Error
-/// validate_sqlite_identifier("users)")?;                    // Error
-/// validate_sqlite_identifier("users'")?;                    // Error
-/// validate_sqlite_identifier("users--")?;                   // Error
+/// # assert!(validate_sqlite_identifier("users; DROP TABLE users").is_err());
+/// # assert!(validate_sqlite_identifier("users)").is_err());
+/// # assert!(validate_sqlite_identifier("users'").is_err());
+/// # assert!(validate_sqlite_identifier("users--").is_err());
 ///
 /// // Invalid identifiers (rule violations)
-/// validate_sqlite_identifier("")?;                // Error: empty
-/// validate_sqlite_identifier("123table")?;        // Error: starts with digit
-/// validate_sqlite_identifier("SELECT")?;          // Error: SQL keyword
+/// # assert!(validate_sqlite_identifier("").is_err());
+/// # assert!(validate_sqlite_identifier("123table").is_err());
+/// # assert!(validate_sqlite_identifier("SELECT").is_err());
+/// # Ok(())
+/// # }
 /// ```
 pub fn validate_sqlite_identifier(name: &str) -> Result<(), DatabaseError> {
     // Rule 1: Check empty

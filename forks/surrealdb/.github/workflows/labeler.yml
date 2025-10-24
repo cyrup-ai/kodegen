@@ -1,0 +1,24 @@
+name: "Labeler"
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  triage:
+    permissions:
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/issue-labeler@6bea9ed491bb74fce38775b3d863e64a59dbd9eb # (Actions must be pinned by commit hash) v3.3
+        with:
+          configuration-path: .github/labeler.yml
+          enable-versioned-regex: 0
+          include-title: 1
+          include-body: 1
+          sync-labels: 0

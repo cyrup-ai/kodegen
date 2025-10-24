@@ -85,61 +85,18 @@ impl Tool for ListTablesTool {
         // Use stored database type
         let db_type = self.db_type;
 
-        // Resolve schema (provided or default)
-        let (sql, params, resolved_schema) = match db_type {
-            DatabaseType::Postgres => {
-                let schema = args.schema.unwrap_or_else(|| "public".to_string());
-                let sql = "SELECT table_name FROM information_schema.tables \
-                           WHERE table_schema = $1 AND table_type = 'BASE TABLE' \
-                           ORDER BY table_name";
-                (sql, vec![schema.clone()], schema)
-            }
-            DatabaseType::MySQL | DatabaseType::MariaDB => {
-                if let Some(schema) = args.schema {
-                    let sql = "SELECT table_name FROM information_schema.tables \
-                               WHERE table_schema = ? AND table_type = 'BASE TABLE' \
-                               ORDER BY table_name";
-                    (sql, vec![schema.clone()], schema)
-                } else {
-                    // Use DATABASE() to get current database
-                    // First, query for current database name with timeout
-                    let pool = self.pool.clone();
-                    let db_row = execute_with_timeout(
-                        &self.config,
-                        "db_metadata_query_timeout_secs",
-                        Duration::from_secs(10),
-                        || {
-                            let pool = pool.clone();
-                            async move { sqlx::query("SELECT DATABASE() as db").fetch_one(&*pool).await }
-                        },
-                        "Getting current database name",
-                    )
-                    .await?;
-
-                    let current_db: String = db_row.try_get("db").map_err(|e| {
-                        McpError::Other(anyhow::anyhow!("Failed to extract database name: {}", e))
-                    })?;
-
-                    let sql = "SELECT table_name FROM information_schema.tables \
-                               WHERE table_schema = ? AND table_type = 'BASE TABLE' \
-                               ORDER BY table_name";
-                    (sql, vec![current_db.clone()], current_db)
-                }
-            }
-            DatabaseType::SQLite => {
-                let sql = "SELECT name as table_name FROM sqlite_master \
-                           WHERE type='table' AND name NOT LIKE 'sqlite_%' \
-                           ORDER BY name";
-                (sql, vec![], "main".to_string())
-            }
-            DatabaseType::SqlServer => {
-                let schema = args.schema.unwrap_or_else(|| "dbo".to_string());
-                let sql = "SELECT table_name FROM information_schema.tables \
-                           WHERE table_schema = @P1 AND table_type = 'BASE TABLE' \
-                           ORDER BY table_name";
-                (sql, vec![schema.clone()], schema)
-            }
-        };
+        // Get SQL query from centralized schema_queries module
+        let (sql, params) = crate::schema_queries::get_tables_query(
+            db_type,
+            args.schema.as_deref(),
+        );
+        
+        // Determine resolved schema for response
+        let resolved_schema = args.schema.unwrap_or_else(|| {
+            crate::schema_queries::get_default_schema(db_type)
+                .unwrap_or("main")
+                .to_string()
+        });
 
         // Execute query with parameters and timeout
         let pool = self.pool.clone();

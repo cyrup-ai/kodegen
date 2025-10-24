@@ -499,7 +499,7 @@ https://github.com/cyrup-ai/kodegen/releases/download/{tag}/KodegenHelper.app-ma
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `rcgen` | 0.14 | CSR and key pair generation |
-| `jsonwebtoken` | 10.1 | JWT creation with ES256 |
+| `jsonwebtoken` | 9.3 | JWT creation with ES256 |
 | `base64` | 0.22 | Base64 encoding/decoding |
 | `reqwest` | 0.12 | HTTP client for Apple API |
 | `dirs` | 6.0 | Platform-specific paths |

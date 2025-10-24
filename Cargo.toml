@@ -5,12 +5,15 @@ members = [
     "packages/bundler-release",
     "packages/bundler-sign",
     "packages/cargo-hakari-regenerate",
+    "packages/cylo",
     "packages/mcp-client",
     "packages/mcp-daemon",
     "packages/mcp-server",
     "packages/mcp-tool",
+    "packages/simd",
     "packages/tools-citescrape",
     "packages/tools-claude-agent",
+    "packages/tools-candle-agent",
     "packages/tools-config",
     "packages/tools-database",
     "packages/tools-filesystem",
@@ -23,9 +26,10 @@ members = [
     "packages/tools-sequential-thinking",
     "packages/tools-terminal",
     "packages/utils",
+    "packages/yyaml",
     "workspace-hack"
 ]
-exclude = ["tmp/*", "docs/*", "forks/*"]
+exclude = ["tmp/*", "docs/*", "forks/*", "forks/surrealdb"]
 resolver = "3"
 
 # [patch.crates-io] section removed - using cyrup_termcolor from crates.io directly
@@ -51,5 +55,6 @@ strip = true
 [workspace.package]
 version = "0.0.1"
 license = "Apache-2.0 OR MIT"
+edition = "2024"
 
 # [workspace.dependencies] for termcolor removed - using cyrup_termcolor from crates.io

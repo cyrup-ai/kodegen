@@ -42,10 +42,10 @@ anyhow = "1.0"
 uuid = { version = "1.18", features = ["serde", "v4"] }
 
 # LRU cache for state management
-lru = "0.12"
+lru = "0.16"
 
-# HTTP client for VoyageAI embeddings (strategies/base.rs:285-373)
-reqwest = { version = "0.12", features = ["json"] }
+# Local Stella embeddings via Candle (replaces VoyageAI)
+kodegen_candle_agent = { path = "../tools-candle-agent", version = "0.1.0" }
 
 # Regex for logical scoring (strategies/base.rs)
 regex = "1.12"

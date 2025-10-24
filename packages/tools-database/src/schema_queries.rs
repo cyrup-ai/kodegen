@@ -46,8 +46,8 @@ pub fn get_schemas_query(db_type: DatabaseType) -> String {
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:134-145
-            // Cast schema_name to TEXT for sqlx::any compatibility (NAME type not supported)
-            "SELECT schema_name::TEXT FROM information_schema.schemata \
+            // Use CAST() for sqlx::any compatibility (NAME type not supported by Any driver)
+            "SELECT CAST(schema_name AS TEXT) as schema_name FROM information_schema.schemata \
              WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast') \
              ORDER BY schema_name"
                 .to_string()
@@ -93,8 +93,8 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:150-166
-            // Cast table_name to TEXT for sqlx::any compatibility
-            let sql = "SELECT table_name::TEXT FROM information_schema.tables \
+            // Use CAST() for sqlx::any compatibility
+            let sql = "SELECT CAST(table_name AS TEXT) as table_name FROM information_schema.tables \
                        WHERE table_schema = $1 AND table_type = 'BASE TABLE' \
                        ORDER BY table_name"
                 .to_string();
@@ -174,10 +174,14 @@ pub fn get_tables_query(db_type: DatabaseType, schema: Option<&str>) -> (String,
 /// ```rust
 /// use kodegen_tools_database::types::DatabaseType;
 /// use kodegen_tools_database::schema_queries::get_table_schema_query;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// let (sql, params) = get_table_schema_query(DatabaseType::Postgres, "public", "users")?;
-/// // Returns: ("SELECT column_name, data_type... WHERE table_schema = $1 AND table_name = $2",
-/// //           ["public", "users"])
+/// assert!(sql.contains("information_schema.columns"));
+/// assert_eq!(params[0], "public");
+/// assert_eq!(params[1], "users");
+/// # Ok(())
+/// # }
 /// ```
 pub fn get_table_schema_query(
     db_type: DatabaseType,
@@ -187,7 +191,12 @@ pub fn get_table_schema_query(
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:232-250
-            let sql = "SELECT column_name, data_type, is_nullable, column_default \
+            // Use CAST() for sqlx::any compatibility
+            let sql = "SELECT \
+                           CAST(column_name AS TEXT) as column_name, \
+                           CAST(data_type AS TEXT) as data_type, \
+                           CAST(is_nullable AS TEXT) as is_nullable, \
+                           CAST(column_default AS TEXT) as column_default \
                        FROM information_schema.columns \
                        WHERE table_schema = $1 AND table_name = $2 \
                        ORDER BY ordinal_position"
@@ -266,9 +275,13 @@ pub fn get_table_schema_query(
 /// ```rust
 /// use kodegen_tools_database::types::DatabaseType;
 /// use kodegen_tools_database::schema_queries::get_indexes_query;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// let (sql, params) = get_indexes_query(DatabaseType::Postgres, "public", "users")?;
-/// // Returns: ("SELECT i.relname as index_name... FROM pg_class t...", ["public", "users"])
+/// assert!(sql.contains("pg_class") || sql.contains("information_schema"));
+/// assert_eq!(params.len(), 2);
+/// # Ok(())
+/// # }
 /// ```
 pub fn get_indexes_query(
     db_type: DatabaseType,
@@ -278,9 +291,11 @@ pub fn get_indexes_query(
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:200-230
+            // Use array_to_string() instead of array_agg() for sqlx::any compatibility
+            // (Any driver doesn't support TEXT[] array type)
             let sql = "SELECT \
-                           i.relname as index_name, \
-                           array_agg(a.attname) as column_names, \
+                           CAST(i.relname AS TEXT) as index_name, \
+                           array_to_string(array_agg(CAST(a.attname AS TEXT)), ',') as column_names, \
                            ix.indisunique as is_unique, \
                            ix.indisprimary as is_primary \
                        FROM \
@@ -430,11 +445,12 @@ pub fn get_stored_procedures_query(
     match db_type {
         DatabaseType::Postgres => {
             // Reference: tmp/dbhub/src/connectors/postgres/index.ts:283-297
+            // Use CAST() for sqlx::any compatibility
             let sql = "SELECT \
-                           routine_name as procedure_name, \
-                           routine_type, \
+                           CAST(routine_name AS TEXT) as procedure_name, \
+                           CAST(routine_type AS TEXT) as routine_type, \
                            CASE WHEN routine_type = 'PROCEDURE' THEN 'procedure' ELSE 'function' END as procedure_type, \
-                           external_language as language \
+                           CAST(external_language AS TEXT) as language \
                        FROM information_schema.routines \
                        WHERE routine_schema = $1 \
                        ORDER BY routine_name".to_string();

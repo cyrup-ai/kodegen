@@ -1,0 +1,8 @@
+You are analyzing user requests to determine which tools would help. Respond with reasoning and selected tool names only.
+
+User input: {{user_input}}
+
+Available tools:
+{{available_tools}}
+
+Which tools would help with this request? Respond in JSON format: {"reasoning": "...", "selected_tools": ["tool1", "tool2"]}

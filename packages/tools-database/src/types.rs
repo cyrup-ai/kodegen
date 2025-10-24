@@ -89,8 +89,12 @@ impl DatabaseType {
     ///
     /// # Examples
     /// ```
+    /// # use kodegen_tools_database::types::DatabaseType;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let db = DatabaseType::from_url("postgres://localhost/mydb")?;
     /// assert_eq!(db, DatabaseType::Postgres);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn from_url(url: &str) -> Result<Self, crate::error::DatabaseError> {
         if url.starts_with("postgres://") || url.starts_with("postgresql://") {

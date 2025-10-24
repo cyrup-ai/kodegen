@@ -85,16 +85,22 @@ fn calculate_backoff(config: &ConfigManager, attempt: u32) -> Duration {
 ///
 /// # Example
 ///
-/// ```rust,no_run
-/// use std::time::Duration;
-/// 
+/// ```rust
+/// # use kodegen_tools_database::tools::timeout::execute_with_timeout;
+/// # use kodegen_tools_config::ConfigManager;
+/// # use std::time::Duration;
+/// # async fn example() -> Result<(), kodegen_mcp_tool::error::McpError> {
+/// # let config_manager = ConfigManager::new();
+/// # let pool = ();  // Placeholder
 /// let result = execute_with_timeout(
 ///     &config_manager,
 ///     "db_query_timeout_secs",
 ///     Duration::from_secs(60),
-///     || sqlx::query("SELECT * FROM users").fetch_all(&pool),
+///     || async { Ok::<Vec<()>, sqlx::Error>(vec![]) },
 ///     "Fetching users",
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn execute_with_timeout<T, F, Fut>(
     config: &ConfigManager,

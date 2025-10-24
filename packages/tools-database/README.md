@@ -223,10 +223,10 @@ docker-compose ps
 
 # Test connections manually
 docker exec -it kodegen-test-postgres psql -U testuser -d testdb -c "SELECT COUNT(*) FROM employees;"
-# Expected: 6
+# Expected: 15
 
 docker exec -it kodegen-test-mysql mysql -u testuser -ptestpass testdb -e "SELECT COUNT(*) FROM employees;"
-# Expected: 6
+# Expected: 15
 ```
 
 ## Architecture

@@ -735,22 +735,3 @@ where
     
     Ok((tool_router, prompt_router))
 }
-
-#[cfg(feature = "reasoner")]
-async fn register_reasoner_tools<S>(
-    tool_router: ToolRouter<S>,
-    prompt_router: PromptRouter<S>,
-) -> Result<(ToolRouter<S>, PromptRouter<S>)>
-where
-    S: Send + Sync + 'static
-{
-    log::debug!("Initializing reasoner tools");
-
-    let (tool_router, prompt_router) = register_tool(
-        tool_router,
-        prompt_router,
-        kodegen_tools_reasoner::SequentialThinkingReasonerTool::new(None)
-    );
-
-    Ok((tool_router, prompt_router))
-}

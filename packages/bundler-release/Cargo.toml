@@ -27,7 +27,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Git operations using pure Rust (no CLI)
-gix = "0.74.0"
+gix = "0.74.1"
 
 # Shared Git operations package
 kodegen_tools_git = { path = "../tools-git" , version = "0.0.1" }
