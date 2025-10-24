@@ -1,0 +1,19 @@
+# Chapter 1. Introduction to YAML
+
+YAML (a recursive acronym for "YAML Ain't Markup Language") is a data serialization language designed to be human-friendly and work well with modern programming languages for common everyday tasks. This specification is both an introduction to the YAML language and the concepts supporting it. It is also a complete specification of the information needed to develop [applications](https://yaml.org/spec/1.2.2/#processes-and-models) for processing YAML.
+
+Open, interoperable and readily understandable tools have advanced computing immensely. YAML was designed from the start to be useful and friendly to people working with data. It uses Unicode [printable](https://yaml.org/spec/1.2.2/#character-set) characters, [some](https://yaml.org/spec/1.2.2/#indicator-characters) of which provide structural information and the rest containing the data itself. YAML achieves a unique cleanness by minimizing the amount of structural characters and allowing the data to show itself in a natural and meaningful way. For example, [indentation](https://yaml.org/spec/1.2.2/#indentation-spaces) may be used for structure, [colons](https://yaml.org/spec/1.2.2/#flow-mappings) separate [key/value pairs](https://yaml.org/spec/1.2.2/#mapping) and [dashes](https://yaml.org/spec/1.2.2/#block-sequences) are used to create "bulleted" [lists](https://yaml.org/spec/1.2.2/#sequence).
+
+There are many kinds of [data structures](https://yaml.org/spec/1.2.2/#dump), but they can all be adequately [represented](https://yaml.org/spec/1.2.2/#representation-graph) with three basic primitives: [mappings](https://yaml.org/spec/1.2.2/#mapping) (hashes/dictionaries),[sequences](https://yaml.org/spec/1.2.2/#sequence) (arrays/lists) and [scalars](https://yaml.org/spec/1.2.2/#scalars) (strings/numbers). YAML leverages these primitives and adds a simple typing system and [aliasing](https://yaml.org/spec/1.2.2/#anchors-and-aliases) mechanism to form a complete language for [serializing](https://yaml.org/spec/1.2.2/#serializing-the-representation-graph) any [native data structure](https://yaml.org/spec/1.2.2/#representing-native-data-structures). While most programming languages can use YAML for data serialization, YAML excels in working with those languages that are fundamentally built around the three basic primitives. These include common dynamic languages such as JavaScript, Perl, PHP, Python and Ruby.
+
+There are hundreds of different languages for programming, but only a handful of languages for storing and transferring data. Even though its potential is virtually boundless, YAML was specifically created to work well for common use cases such as: configuration files, log files, interprocess messaging, cross-language data sharing, object persistence and debugging of complex data structures. When data is easy to view and understand, programming becomes a simpler task.
+
+## Sections
+
+- [1.1. Goals](1.1-goals.md)
+- [1.2. YAML History](1.2-yaml-history.md) 
+- [1.3. Terminology](1.3-terminology.md)
+
+## Document Navigation
+
+The rest of this document is arranged as follows. Chapter [2](../ch02-language-overview/) provides a short preview of the main YAML features. Chapter [3](../ch03-processes-models/) describes the YAML information model and the processes for converting from and to this model and the YAML text format. The bulk of the document, chapters [4](../ch04-syntax-conventions/), [5](../ch05-character-productions/), [6](../ch06-structural-productions/), [7](../ch07-flow-style/), [8](../ch08-block-style/) and [9](../ch09-document-stream/), formally define this text format. Finally, chapter [10](../ch10-schemas/) recommends basic YAML schemas.

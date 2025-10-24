@@ -1,0 +1,37 @@
+# Cargo configuration for yyaml YAML parser
+# This configuration makes nextest the default test runner for blazing-fast, zero-allocation testing
+
+[alias]
+# Note: cargo test aliases may be shadowed by built-in commands
+# Use these convenient nextest aliases instead
+t = "nextest run"
+test-fast = "nextest run --profile quick"
+
+# Convenient nextest aliases (since 'test' cannot be overridden)
+test-unit = "nextest run --profile unit"
+test-integration = "nextest run --profile integration" 
+test-ci = "nextest run --profile ci"
+test-quick = "nextest run --profile quick"
+test-perf = "nextest run --profile perf"
+
+# Legacy test command for compatibility (uses standard cargo test)
+test-legacy = "test"
+
+# Most commonly used alias - short and fast
+nt = "nextest run"
+
+# Build and test in one command for development workflow
+check-all = ["check", "nextest run --profile quick"]
+
+[build]
+# Optimize builds for faster compilation during development
+incremental = true
+
+[target.'cfg(target_os = "macos")']
+# macOS specific optimizations
+rustflags = ["-C", "link-arg=-Wl,-ld_classic", "--cfg", "reqwest_unstable"]
+
+[env]
+# Environment variables for optimal nextest performance
+NEXTEST_HIDE_PROGRESS_BAR = { value = "true", condition = "cfg(not(debug_assertions))" }
+NEXTEST_TEST_THREADS = { value = "0", condition = "cfg(not(test))" }  # Use all CPU cores

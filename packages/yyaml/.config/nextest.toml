@@ -1,0 +1,217 @@
+# Nextest Configuration for yyaml YAML Parser
+# Optimized for zero-allocation, blazing-fast, production-quality testing
+nextest-version = "0.9.101"
+experimental = ["setup-scripts"]
+
+# Default profile: Balanced performance for development
+[profile.default]
+# Optimize parallel execution for development speed
+test-threads = "num-cpus"
+retries = { count = 1, backoff = "fixed", delay = "100ms" }
+slow-timeout = { period = "30s", terminate-after = 2 }
+leak-timeout = "100ms"
+final-status-level = "slow"
+failure-output = "immediate-final"
+success-output = "never"
+status-level = "retry"
+
+# JUnit output for IDE integration
+[profile.default.junit]
+path = "nextest-junit.xml"
+store-success-output = false
+store-failure-output = true
+report-name = "yyaml-tests"
+
+# Unit tests profile: Only src/ module tests with #[cfg(test)]
+[profile.unit]
+test-threads = "num-cpus"
+retries = { count = 2, backoff = "exponential", delay = "50ms", max-delay = "1s" }
+slow-timeout = { period = "10s", terminate-after = 1 }
+leak-timeout = "50ms"
+final-status-level = "all"
+failure-output = "immediate-final"
+success-output = "never"
+status-level = "pass"
+
+[[profile.unit.overrides]]
+# Filter to only run unit tests (embedded in src/ modules)
+filter = 'kind(lib) + kind(bin)'
+slow-timeout = { period = "5s", terminate-after = 1 }
+
+[profile.unit.junit]
+path = "unit-tests-junit.xml"
+store-success-output = false
+store-failure-output = true
+report-name = "yyaml-unit-tests"
+
+# Integration tests profile: Only tests/integration/ tests
+[profile.integration]
+test-threads = "num-cpus"
+retries = { count = 1, backoff = "fixed", delay = "200ms" }
+slow-timeout = { period = "60s", terminate-after = 3 }
+leak-timeout = "200ms"
+final-status-level = "slow"
+failure-output = "immediate-final"
+success-output = "final"
+status-level = "retry"
+
+[[profile.integration.overrides]]
+# Filter to only run integration tests
+filter = 'test(integration::)'
+slow-timeout = { period = "45s", terminate-after = 2 }
+test-group = "integration-group"
+
+[[profile.integration.overrides]]
+# Special handling for alias tests (can be complex)
+filter = 'test(integration::alias)'
+slow-timeout = { period = "90s", terminate-after = 3 }
+retries = { count = 2, backoff = "exponential", delay = "500ms" }
+test-group = "alias-group"
+
+[[profile.integration.overrides]]
+# Special handling for parser tests (event-driven complexity)
+filter = 'test(integration::parser)'
+slow-timeout = { period = "75s", terminate-after = 2 }
+test-group = "parser-group"
+
+[profile.integration.junit]
+path = "integration-tests-junit.xml"
+store-success-output = true
+store-failure-output = true
+report-name = "yyaml-integration-tests"
+
+# CI profile: Comprehensive testing with detailed reporting
+[profile.ci]
+test-threads = 1
+retries = { count = 3, backoff = "exponential", delay = "1s", max-delay = "10s" }
+slow-timeout = { period = "120s", terminate-after = 5 }
+leak-timeout = "500ms"
+final-status-level = "all"
+failure-output = "immediate-final"
+success-output = "final"
+status-level = "all"
+fail-fast = false
+
+[[profile.ci.overrides]]
+# macOS CI can be resource constrained
+platform = 'cfg(target_os = "macos")'
+retries = { count = 5, backoff = "exponential", delay = "2s", max-delay = "30s" }
+slow-timeout = { period = "180s", terminate-after = 7 }
+
+[[profile.ci.overrides]]
+# Linux CI optimizations
+platform = 'cfg(target_os = "linux")'
+test-threads = 2
+retries = { count = 2, backoff = "fixed", delay = "1s" }
+
+[profile.ci.junit]
+path = "ci-junit.xml"
+store-success-output = true
+store-failure-output = true
+report-name = "yyaml-ci-tests"
+
+# Quick profile: Fast feedback for development
+[profile.quick]
+test-threads = "num-cpus"
+retries = 0
+slow-timeout = { period = "5s", terminate-after = 1 }
+leak-timeout = "25ms"
+final-status-level = "fail"
+failure-output = "immediate"
+success-output = "never"
+status-level = "fail"
+fail-fast = true
+
+[[profile.quick.overrides]]
+# Only run fast unit tests in quick mode
+filter = 'kind(lib) and not test(slow)'
+slow-timeout = { period = "2s", terminate-after = 1 }
+
+# Performance profile: Optimized for benchmark-style testing
+[profile.perf]
+test-threads = 1
+retries = 0
+slow-timeout = { period = "300s", terminate-after = 1 }
+leak-timeout = "1s"
+final-status-level = "all"
+failure-output = "final"
+success-output = "final"
+status-level = "all"
+
+[[profile.perf.overrides]]
+# Performance tests need isolation and extended time
+filter = 'test(perf) or test(benchmark)'
+slow-timeout = { period = "600s", terminate-after = 1 }
+test-group = "performance-group"
+
+[profile.perf.junit]
+path = "performance-junit.xml"
+store-success-output = true
+store-failure-output = true
+report-name = "yyaml-performance-tests"
+
+# Test groups for controlled parallel execution
+[test-groups.integration-group]
+max-threads = 4
+
+[test-groups.alias-group]
+max-threads = 2
+
+[test-groups.parser-group]
+max-threads = 3
+
+[test-groups.lexer-group]
+max-threads = 4
+
+[test-groups.serde-group]
+max-threads = 4
+
+[test-groups.structure-group]
+max-threads = 3
+
+[test-groups.tag-group]
+max-threads = 2
+
+[test-groups.performance-group]
+max-threads = 1
+
+# Setup scripts for test environment preparation
+[scripts.setup.prepare-test-env]
+command = "echo 'Preparing yyaml test environment...'"
+platform = 'cfg(unix)'
+
+# Archive builds for integration tests if needed
+[scripts.setup.build-test-fixtures]
+command = "cargo build --release --bin yyaml"
+platform = 'cfg(unix)'
+
+# Test environment configuration
+[[profile.default.scripts]]
+filter = 'test(integration::)'
+setup = "prepare-test-env"
+
+# Override configurations for specific test patterns
+[[profile.default.overrides]]
+# Tests marked as slow get extended timeout
+filter = 'test(slow) or test(large_file) or test(complex_structure)'
+slow-timeout = { period = "120s", terminate-after = 3 }
+retries = { count = 2, backoff = "fixed", delay = "1s" }
+
+[[profile.default.overrides]]
+# Memory-intensive tests get memory leak detection
+filter = 'test(memory) or test(allocation) or test(leak)'
+leak-timeout = "1s"
+test-group = "memory-group"
+
+[[profile.default.overrides]]
+# Concurrent tests need thread isolation
+filter = 'test(concurrent) or test(parallel) or test(thread)'
+test-group = "concurrent-group"
+
+# Additional test groups for specialized testing
+[test-groups.memory-group]
+max-threads = 1
+
+[test-groups.concurrent-group]
+max-threads = 2
+

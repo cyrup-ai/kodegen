@@ -1,0 +1,35 @@
+[package]
+name = "yyaml"
+version = "0.1.0"
+edition = "2024"
+authors = ["Cyrup AI <dev@cyrup.ai>"]
+description = "Serde support for YAML 1.2"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cyrup-ai/cyrun"
+keywords = ["yaml", "serde", "serialization", "deserialization", "parser"]
+categories = ["encoding", "parser-implementations"]
+
+[dependencies]
+workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
+
+thiserror = "2.0.17"
+serde = { version = "1.0.228", features = ["derive"] }
+smallvec = "1.15.1"
+log = "0.4"
+
+[dev-dependencies.env_logger]
+version = "0.11"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+indoc = "2.0"
+serde_derive = "1.0"
+reqwest = { version = "0.12.24", features = ["json", "stream", "http3", "rustls-tls", "rustls-tls-native-roots", "rustls-tls-manual-roots", "gzip", "deflate", "brotli"] }
+tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread"] }
+cargo-nextest = "0.9.108"
+
+[lib]
+path = "./src/lib.rs"
+name = "yyaml"
+
+
