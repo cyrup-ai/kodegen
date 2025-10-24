@@ -2,6 +2,8 @@
 //!
 //! Provides browser control, page navigation, and content extraction via chromiumoxide.
 
+#[cfg(feature = "agent")]
+pub mod agent;
 mod browser;
 mod manager;
 mod tools;
@@ -62,7 +64,10 @@ pub use browser::{
 };
 pub use manager::BrowserManager;
 pub use tools::{
-    BrowserAgentTool, BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool,
+    BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool,
     BrowserScreenshotTool, BrowserScrollTool, BrowserTypeTextTool, BrowserWaitTool,
     BrowserWaitForTool,
 };
+
+#[cfg(feature = "agent")]
+pub use tools::BrowserAgentTool;

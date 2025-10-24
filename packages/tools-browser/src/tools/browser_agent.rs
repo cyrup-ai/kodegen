@@ -39,12 +39,24 @@ pub struct BrowserAgentArgs {
     /// Max tokens per LLM call (default: 2048)
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u64,
+    
+    /// Vision model timeout in seconds (default: 60s)
+    /// Vision analysis is typically fast, but allow time for model loading
+    #[serde(default = "default_vision_timeout_secs")]
+    pub vision_timeout_secs: u64,
+    
+    /// LLM generation timeout in seconds (default: 120s)
+    /// Allow time for complex reasoning and high token generation
+    #[serde(default = "default_llm_timeout_secs")]
+    pub llm_timeout_secs: u64,
 }
 
 fn default_max_steps() -> u32 { 10 }
 fn default_max_actions() -> u32 { 3 }
 fn default_temperature() -> f64 { 0.7 }
 fn default_max_tokens() -> u64 { 2048 }
+fn default_vision_timeout_secs() -> u64 { 60 }
+fn default_llm_timeout_secs() -> u64 { 120 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BrowserAgentPromptArgs {}
@@ -119,6 +131,8 @@ impl Tool for BrowserAgentTool {
             agent_state,
             args.temperature,
             args.max_tokens,
+            args.vision_timeout_secs,
+            args.llm_timeout_secs,
         ).map_err(|e| McpError::Other(anyhow::anyhow!(
             "Failed to create agent: {}", e
         )))?;

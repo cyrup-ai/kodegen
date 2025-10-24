@@ -4,12 +4,27 @@ mod views;
 
 use serde::{Deserialize, Serialize};
 
-pub use crate::controller::{ActionModel, ActionResult};
 pub use prompts::{SystemPrompt, AgentMessagePrompt};
 pub use views::{HistoryView, StepView, ActionView, BrowserStateView};
 
 use std::fmt;
 use thiserror::Error;
+
+/// Action model for agent protocol - represents an action to execute
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionModel {
+    pub action: String,
+    pub parameters: std::collections::HashMap<String, String>,
+}
+
+/// Result of executing an action
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionResult {
+    pub action: String,
+    pub success: bool,
+    pub extracted_content: Option<String>,
+    pub error: Option<String>,
+}
 
 /// Agent LLM protocol-compliant response schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,8 +70,6 @@ pub enum AgentError {
 
 /// Result type for agent operations
 pub type AgentResult<T> = Result<T, AgentError>;
-
-pub use crate::controller::{ActionModel, ActionResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentOutput {

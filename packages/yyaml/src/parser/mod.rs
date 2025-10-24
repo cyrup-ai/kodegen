@@ -15,5 +15,5 @@ pub use ast::*;
 pub use character_productions::CharacterProductions;
 pub use flow::FlowProductions;
 pub use grammar::{ChompingMode, ParametricContext, YamlContext};
-pub use loader::YamlLoader;
+pub use loader::{YamlLoader, Encoding};
 pub use state_machine::{State, StateMachine};

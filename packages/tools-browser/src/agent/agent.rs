@@ -5,8 +5,10 @@ use kodegen_candle_agent::prelude::*;
 use cyrup_sugars::prelude::MessageChunk;  // For .error() method on CandleStringChunk
 use tokio_stream::StreamExt;  // For stream.next().await
 
+use base64::Engine;  // For base64 decode in async context
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
+use tokio::time::{timeout, Duration};
 use tracing::{debug, error, info, warn};
 
 // MCP client for hot path integration
@@ -18,9 +20,8 @@ use crate::agent::{
 };
 use crate::utils::AgentState;
 
-/// Agent implementation that manages browser automation
-#[derive(Clone)]
-pub struct Agent {
+/// Shared agent state and processing logic (can be Arc-cloned)
+struct AgentInner {
     task: String,
     add_infos: String,
     mcp_client: Arc<KodegenClient>,
@@ -28,12 +29,25 @@ pub struct Agent {
     agent_prompt: AgentMessagePrompt,
     max_actions_per_step: usize,
     agent_state: Arc<Mutex<AgentState>>,
-    // NEW: LLM config (no instance needed - built on-demand)
     temperature: f64,
     max_tokens: u64,
-    // Keep channels
+    vision_timeout_secs: u64,
+    llm_timeout_secs: u64,
+}
+
+/// Agent handle for controlling async actor (NOT Clone)
+pub struct Agent {
+    inner: Arc<AgentInner>,
     command_channel: mpsc::Sender<AgentCommand>,
-    response_channel: mpsc::Receiver<AgentResponse>,
+    response_channel: Mutex<mpsc::Receiver<AgentResponse>>,
+    
+    /// Background processor task handle
+    /// 
+    /// Stores the JoinHandle for the spawned agent processor task.
+    /// This ensures the task is tracked and can be awaited for graceful shutdown.
+    /// Following the pattern from kodegen_tools_citescrape::CrawlSession.
+    #[allow(dead_code)]
+    processor_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// Agent command enum for internal message passing
@@ -63,12 +77,15 @@ impl Agent {
         // NEW parameters
         temperature: f64,
         max_tokens: u64,
+        vision_timeout_secs: u64,
+        llm_timeout_secs: u64,
     ) -> AgentResult<Self> {
         // Create channels for command passing
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let (resp_tx, resp_rx) = mpsc::channel(32);
 
-        let agent = Self {
+        // Create shared inner state (Arc-wrapped)
+        let inner = Arc::new(AgentInner {
             task: task.to_string(),
             add_infos: add_infos.to_string(),
             mcp_client,
@@ -76,20 +93,26 @@ impl Agent {
             agent_prompt,
             max_actions_per_step,
             agent_state,
-            temperature,    // ✅ NEW
-            max_tokens,     // ✅ NEW
-            command_channel: cmd_tx,
-            response_channel: resp_rx,
-        };
+            temperature,
+            max_tokens,
+            vision_timeout_secs,
+            llm_timeout_secs,
+        });
 
-        // Spawn agent processing task
-        Self::spawn_agent_processor(
-            agent.clone(),
+        // Spawn processor with Arc-cloned inner and store handle
+        let processor_handle = Self::spawn_agent_processor(
+            Arc::clone(&inner),
             cmd_rx,
             resp_tx
         );
 
-        Ok(agent)
+        // Return handle with unique receiver ownership
+        Ok(Self {
+            inner,
+            command_channel: cmd_tx,
+            response_channel: Mutex::new(resp_rx),
+            processor_handle: Some(processor_handle),
+        })
     }
     
     /// Run the agent to perform a task with a maximum number of steps
@@ -137,8 +160,9 @@ impl Agent {
             .await
             .map_err(|_| AgentError::ChannelClosed("Command channel closed".into()))?;
         
-        // Wait for response
-        match self.response_channel.recv().await {
+        // Wait for response (lock mutex to access receiver)
+        let mut receiver = self.response_channel.lock().await;
+        match receiver.recv().await {
             Some(AgentResponse::StepComplete(output)) => Ok(output),
             Some(AgentResponse::Error(msg)) => Err(AgentError::StepFailed(msg)),
             Some(AgentResponse::Stopped) => Err(AgentError::Stopped),
@@ -148,22 +172,22 @@ impl Agent {
     
     /// Check if agent stop was requested
     async fn is_stop_requested(&self) -> bool {
-        let agent_state = self.agent_state.lock().await;
+        let agent_state = self.inner.agent_state.lock().await;
         agent_state.is_stop_requested()
     }
     
     /// Spawn the agent processor task
     fn spawn_agent_processor(
-        agent: Self,
+        inner: Arc<AgentInner>,
         mut cmd_rx: mpsc::Receiver<AgentCommand>,
         resp_tx: mpsc::Sender<AgentResponse>,
-    ) {
+    ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             while let Some(cmd) = cmd_rx.recv().await {
                 match cmd {
                     AgentCommand::RunStep => {
                         // Process agent step
-                        let result = agent.process_step().await;
+                        let result = inner.process_step().await;
                         
                         // Send result back through response channel
                         match result {
@@ -189,9 +213,13 @@ impl Agent {
                     }
                 }
             }
-        });
+            debug!("Agent processor shutting down cleanly");
+        })
     }
-    
+}
+
+/// Implementation of processing methods on AgentInner
+impl AgentInner {
     /// Process a single agent step internally
     async fn process_step(&self) -> AgentResult<AgentOutput> {
         // Check if stop requested
@@ -281,27 +309,29 @@ impl Agent {
                 
                 // Save base64 to temp file for vision API
                 if let Some(base64_data) = screenshot_base64 {
-                    match base64::engine::general_purpose::STANDARD.decode(&base64_data) {
-                        Ok(decoded_bytes) => {
-                            // Create temp file path
-                            let temp_dir = std::env::temp_dir();
-                            let timestamp = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs();
-                            let temp_path = temp_dir.join(format!("browser_screenshot_{}.png", timestamp));
-                            
-                            // Write decoded bytes to file
-                            match std::fs::write(&temp_path, decoded_bytes) {
-                                Ok(_) => Some(temp_path.to_string_lossy().to_string()),
-                                Err(e) => {
-                                    warn!("Failed to write screenshot to file: {}", e);
-                                    None
-                                }
-                            }
-                        },
+                    // ✅ FIX 1: Move CPU-intensive base64 decode to blocking thread pool
+                    // This prevents the decode operation from blocking tokio worker threads
+                    let decoded_bytes = tokio::task::spawn_blocking(move || {
+                        base64::engine::general_purpose::STANDARD.decode(&base64_data)
+                    })
+                    .await  // Wait for blocking task to complete (doesn't block thread!)
+                    .map_err(|e| AgentError::UnexpectedError(format!("Base64 decode task failed: {}", e)))?  // Handle JoinError
+                    .map_err(|e| AgentError::UnexpectedError(format!("Base64 decode failed: {}", e)))?;  // Handle decode error
+                    
+                    // Create temp file path (unchanged)
+                    let temp_dir = std::env::temp_dir();
+                    let timestamp = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let temp_path = temp_dir.join(format!("browser_screenshot_{}.png", timestamp));
+                    
+                    // ✅ FIX 2: Use async file write instead of blocking std::fs::write
+                    // This allows other async tasks to progress during I/O
+                    match tokio::fs::write(&temp_path, decoded_bytes).await {
+                        Ok(_) => Some(temp_path.to_string_lossy().to_string()),
                         Err(e) => {
-                            warn!("Failed to decode base64 screenshot: {}", e);
+                            warn!("Failed to write screenshot to file: {}", e);
                             None
                         }
                     }
@@ -356,33 +386,55 @@ impl Agent {
             
             let vision_query = "Describe the visible UI elements, their layout, and any interactive components (buttons, links, forms, input fields, etc.) in detail.";
             
-            let mut visual_description = String::new();
-            let mut stream = CandleFluentAi::vision()
-                .describe_image(screenshot_path, vision_query);
-            
-            while let Some(chunk) = stream.next().await {
-                // Check for errors
-                if let Some(error) = chunk.error() {
-                    warn!("Vision analysis error: {}", error);
-                    state_description.push_str(&format!("[Vision analysis failed: {}]\n", error));
-                    break;
-                }
+            // Wrap entire stream consumption in timeout
+            let vision_timeout = Duration::from_secs(self.vision_timeout_secs);
+            match timeout(vision_timeout, async {
+                let mut description = String::new();
+                let mut stream = CandleFluentAi::vision()
+                    .describe_image(screenshot_path, vision_query);
                 
-                // Accumulate text
-                if !chunk.text.is_empty() {
-                    visual_description.push_str(&chunk.text);
-                }
-                
-                // Check for completion
-                if chunk.is_final {
-                    state_description.push_str(&visual_description);
-                    state_description.push('\n');
-                    
-                    if let Some(stats) = &chunk.stats {
-                        debug!("Vision analysis: {} tokens generated", stats.tokens_generated);
+                while let Some(chunk) = stream.next().await {
+                    // Check for errors
+                    if let Some(error) = chunk.error() {
+                        return Err(format!("Vision analysis error: {}", error));
                     }
-                    break;
+                    
+                    // Accumulate text
+                    if !chunk.text.is_empty() {
+                        description.push_str(&chunk.text);
+                    }
+                    
+                    // Check for completion
+                    if chunk.is_final {
+                        if let Some(stats) = &chunk.stats {
+                            debug!("Vision analysis: {} tokens generated", stats.tokens_generated);
+                        }
+                        return Ok(description);
+                    }
                 }
+                // Stream ended without is_final
+                Err("Vision stream ended without final chunk".to_string())
+            }).await {
+                Ok(Ok(desc)) => {
+                    // Success: got description
+                    state_description.push_str(&desc);
+                    state_description.push('\n');
+                },
+                Ok(Err(e)) => {
+                    // Stream error
+                    warn!("Vision analysis failed: {}", e);
+                    state_description.push_str(&format!("[Vision analysis failed: {}]\n", e));
+                },
+                Err(_) => {
+                    // Timeout
+                    warn!("Vision analysis timed out after {}s", self.vision_timeout_secs);
+                    state_description.push_str(&format!("[Vision analysis timed out after {}s]\n", self.vision_timeout_secs));
+                }
+            }
+            
+            // Clean up temp screenshot file after vision analysis completes
+            if let Err(e) = tokio::fs::remove_file(screenshot_path).await {
+                warn!("Failed to cleanup screenshot file {}: {}", screenshot_path, e);
             }
         }
         
@@ -432,37 +484,50 @@ You must respond with valid JSON matching the AgentLLMResponse schema with an 'a
             browser_state_msg
         );
         
-        // Stream LLM response
-        let mut full_response = String::new();
-        let mut stream = CandleFluentAi::agent_role("browser-agent")
-            .temperature(self.temperature)
-            .max_tokens(self.max_tokens)
-            .system_prompt(&system_prompt)
-            .into_agent()
-            .chat(move |_conversation| {
-                let query = user_query.clone();
-                async move { CandleChatLoop::UserPrompt(query) }
-            })
-            .map_err(|e| AgentError::LlmError(e.to_string()))?;
-        
-        // Collect streaming response
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                CandleMessageChunk::Text(text) => {
-                    full_response.push_str(&text);
-                }
-                CandleMessageChunk::Complete { token_count, elapsed_secs, .. } => {
-                    if let (Some(tokens), Some(elapsed)) = (token_count, elapsed_secs) {
-                        debug!("LLM generated {} tokens in {:.2}s", tokens, elapsed);
+        // Stream LLM response with timeout protection
+        let llm_timeout = Duration::from_secs(self.llm_timeout_secs);
+        let full_response = match timeout(llm_timeout, async {
+            let mut response = String::new();
+            let mut stream = CandleFluentAi::agent_role("browser-agent")
+                .temperature(self.temperature)
+                .max_tokens(self.max_tokens)
+                .system_prompt(&system_prompt)
+                .into_agent()
+                .chat(move |_conversation| {
+                    let query = user_query.clone();
+                    async move { CandleChatLoop::UserPrompt(query) }
+                })
+                .map_err(|e| AgentError::LlmError(e.to_string()))?;
+            
+            // Collect streaming response
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    CandleMessageChunk::Text(text) => {
+                        response.push_str(&text);
                     }
-                    break;
+                    CandleMessageChunk::Complete { token_count, elapsed_secs, .. } => {
+                        if let (Some(tokens), Some(elapsed)) = (token_count, elapsed_secs) {
+                            debug!("LLM generated {} tokens in {:.2}s", tokens, elapsed);
+                        }
+                        return Ok(response);
+                    }
+                    CandleMessageChunk::Error(err) => {
+                        return Err(AgentError::LlmError(err.to_string()));
+                    }
+                    _ => {}
                 }
-                CandleMessageChunk::Error(err) => {
-                    return Err(AgentError::LlmError(err.to_string()));
-                }
-                _ => {}
             }
-        }
+            // Stream ended without Complete chunk
+            Err(AgentError::LlmError("LLM stream ended without Complete chunk".into()))
+        }).await {
+            Ok(Ok(resp)) => resp,
+            Ok(Err(e)) => return Err(e),
+            Err(_) => {
+                return Err(AgentError::LlmError(
+                    format!("LLM generation timed out after {}s", self.llm_timeout_secs)
+                ));
+            }
+        };
         
         // Parse actions from JSON response
         let agent_response: AgentLLMResponse = serde_json::from_str(&full_response)

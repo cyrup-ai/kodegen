@@ -1,6 +1,7 @@
 // NOTE: Commented out modules with broken dependencies (pre-existing issues)
 // These should be fixed separately from the timeout validation task
-// mod agent_state;
+#[cfg(feature = "agent")]
+mod agent_state;
 // mod deep_research;
 // mod errors;
 // mod utils;
@@ -8,7 +9,8 @@
 // Only active module for timeout validation
 mod timeout;
 
-// pub use agent_state::AgentState;
+#[cfg(feature = "agent")]
+pub use agent_state::AgentState;
 // pub use deep_research::{DeepResearch, ResearchResult, ResearchOptions};
 // pub use errors::UtilsError;
 pub use timeout::{

@@ -7,6 +7,14 @@ use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::char::decode_utf16;
 
+/// Encoding types for YAML byte streams
+#[derive(Debug, Clone, Copy)]
+pub enum Encoding { Utf8, Utf16Le, Utf16Be }
+
+/// Byte order for UTF-16 decoding
+#[derive(Debug, Clone, Copy)]
+enum Endian { Little, Big }
+
 /// Our main "public" API: load from a string → produce Vec<Yaml>.
 pub struct YamlLoader;
 
@@ -61,19 +69,13 @@ impl YamlLoader {
         Ok(documents)
     }
 
-    #[derive(Debug, Clone, Copy)]
-    pub enum Encoding { Utf8, Utf16Le, Utf16Be }
-
-    #[derive(Debug, Clone, Copy)]
-    enum Endian { Little, Big }
-
     pub fn load_from_bytes(input: Vec<u8>) -> Result<Vec<Yaml>, ScanError> {
         if input.is_empty() {
             return Ok(vec![Yaml::Null]);
         }
 
         let mut bytes = input.as_slice();
-        let encoding = detect_bom(&mut bytes)?;
+        let encoding = Self::detect_bom(&mut bytes)?;
 
         let decoded = match encoding {
             Encoding::Utf8 => {
@@ -82,8 +84,8 @@ impl YamlLoader {
                     .map_err(|e| ScanError::EncodingError(format!("Invalid UTF-8: {}", e)))?
                     .to_string()
             }
-            Encoding::Utf16Le => decode_utf16_bytes(bytes, Endian::Little)?,
-            Encoding::Utf16Be => decode_utf16_bytes(bytes, Endian::Big)?,
+            Encoding::Utf16Le => Self::decode_utf16_bytes(bytes, Endian::Little)?,
+            Encoding::Utf16Be => Self::decode_utf16_bytes(bytes, Endian::Big)?,
         };
 
         // Now use existing parser

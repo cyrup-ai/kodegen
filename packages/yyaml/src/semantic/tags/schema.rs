@@ -399,6 +399,15 @@ impl FailsafeSchema {
         }
     }
 
+    pub fn resolve_default(&self, node_type: NodeKind) -> YamlType {
+        match node_type {
+            NodeKind::Scalar => YamlType::Str,
+            NodeKind::Sequence => YamlType::Seq,
+            NodeKind::Mapping => YamlType::Map,
+            _ => YamlType::Str, // Fallback
+        }
+    }
+
     const fn resolve_str(_value: &str) -> Option<YamlType> {
         Some(YamlType::Str)
     }

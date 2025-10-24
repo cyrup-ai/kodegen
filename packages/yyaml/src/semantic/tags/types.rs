@@ -22,6 +22,13 @@ pub enum SchemaType {
     Custom,
 }
 
+/// Node kinds for default resolution
+pub enum NodeKind {
+    Scalar,
+    Sequence,
+    Mapping,
+}
+
 /// Core YAML types according to YAML 1.2 specification
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum YamlType {
