@@ -6,7 +6,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use std::time::Duration;
 
 use crate::manager::BrowserManager;
 use crate::utils::validate_interaction_timeout;
