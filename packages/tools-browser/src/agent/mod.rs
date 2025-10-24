@@ -1,9 +1,10 @@
 mod agent;
-mod prompts;
+pub mod prompts;
 mod views;
 
 use serde::{Deserialize, Serialize};
 
+pub use agent::Agent;
 pub use prompts::{SystemPrompt, AgentMessagePrompt};
 pub use views::{HistoryView, StepView, ActionView, BrowserStateView};
 

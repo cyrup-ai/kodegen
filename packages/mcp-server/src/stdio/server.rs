@@ -190,6 +190,7 @@ impl StdioProxyServer {
             enabled_categories,
             None, // database_dsn
             None, // ssh_config
+            None, // server_url (stdio mode proxies to daemon, doesn't run own server)
         ).await?;
         
         // Connect to SSE server (daemon)

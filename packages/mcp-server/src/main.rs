@@ -226,12 +226,17 @@ async fn main() -> Result<()> {
             #[cfg(not(feature = "database"))]
             let (database_dsn, ssh_config): (Option<&str>, Option<()>) = (None, None);
             
+            // Construct server URL for loopback client (used by BrowserAgentTool)
+            let protocol = if cli.tls_config().is_some() { "https" } else { "http" };
+            let server_url = format!("{protocol}://{addr}/sse");
+            
             let routers = common::build_routers::<sse::SseServer>(
                 &config_manager,
                 &usage_tracker,
                 &enabled_categories,
                 database_dsn,
                 ssh_config,
+                Some(&server_url),  // Pass server URL for BrowserAgentTool
             ).await?;
             
             let server = sse::SseServer::new(

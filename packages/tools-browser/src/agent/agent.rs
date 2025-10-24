@@ -245,12 +245,23 @@ impl AgentInner {
 
         // Build summary of execution
         let success_count = action_results.iter().filter(|r| r.success).count();
-        let current_state = format!(
+        let summary = format!(
             "Executed {} actions: {} succeeded, {} failed",
             action_results.len(),
             success_count,
             action_results.len() - success_count
         );
+        
+        // Build CurrentState struct
+        use crate::agent::CurrentState;
+        let current_state = CurrentState {
+            prev_action_evaluation: format!("{} of {} actions succeeded", success_count, action_results.len()),
+            important_contents: browser_state.state.clone(),
+            task_progress: if success_count == action_results.len() { "All actions completed successfully".to_string() } else { "Some actions failed".to_string() },
+            future_plans: "Continue with next step".to_string(),
+            thought: format!("Executed {} actions", actions.len()),
+            summary,
+        };
 
         // Return output with executed actions
         Ok(AgentOutput {
@@ -455,7 +466,7 @@ impl AgentInner {
         let browser_state_msg = self.format_browser_state_with_vision(browser_state).await?;
         
         // Build system prompt with available actions
-        let actions_description = r#"Available Actions:
+        let actions_description = r##"Available Actions:
 - go_to_url: Navigate to a URL (parameters: url)
 - click_element: Click an element (parameters: selector OR index)
 - input_text: Type text into an element (parameters: selector OR index, text)
@@ -468,7 +479,7 @@ Parameter Notes:
 - index: Numeric index for data-mcp-index attributes (converted to selector automatically)
 - Use selector for precision, index for LLM-generated element references
 
-You must respond with valid JSON matching the AgentLLMResponse schema with an 'action' array."#;
+You must respond with valid JSON matching the AgentLLMResponse schema with an 'action' array."##;
         
         let system_prompt = format!(
             "{}\n\n{}\n\nYou are a browser automation agent. Analyze the browser state and generate appropriate actions.",

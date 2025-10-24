@@ -69,6 +69,7 @@ pub async fn build_routers<S>(
     ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
     #[cfg(not(feature = "database"))]
     ssh_config: Option<()>,
+    server_url: Option<&str>,  // For BrowserAgentTool loopback client
 ) -> Result<RouterSet<S>>
 where
     S: Send + Sync + 'static
@@ -97,6 +98,7 @@ where
         enabled_categories,
         database_dsn,
         ssh_config,
+        server_url,  // Pass through for BrowserAgentTool
     ).await?;
     
     Ok(RouterSet {

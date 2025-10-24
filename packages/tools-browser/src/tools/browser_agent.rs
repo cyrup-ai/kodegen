@@ -64,17 +64,17 @@ pub struct BrowserAgentPromptArgs {}
 #[derive(Clone)]
 pub struct BrowserAgentTool {
     _browser_manager: Arc<BrowserManager>,
-    mcp_client: Arc<KodegenClient>,
+    server_url: String,
 }
 
 impl BrowserAgentTool {
     pub fn new(
         browser_manager: Arc<BrowserManager>,
-        mcp_client: Arc<KodegenClient>,
+        server_url: String,
     ) -> Self {
         Self {
             _browser_manager: browser_manager,
-            mcp_client,
+            server_url,
         }
     }
 }
@@ -103,9 +103,19 @@ impl Tool for BrowserAgentTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
+        // Create loopback MCP client (connects to same server)
+        // By the time this tool executes, the server is fully running
+        let (mcp_client, _connection) = kodegen_mcp_client::create_sse_client(&self.server_url)
+            .await
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to create loopback client to {}: {}. \
+                 Ensure SSE server is running and accessible.", 
+                self.server_url, e
+            )))?;
+        
         // Navigate to start URL if provided (BEFORE creating agent)
         if let Some(url) = &args.start_url {
-            self.mcp_client
+            mcp_client
                 .call_tool("browser_navigate", json!({
                     "url": url,
                     "timeout_ms": 30000
@@ -124,7 +134,7 @@ impl Tool for BrowserAgentTool {
         let agent = Agent::new(
             &args.task,
             &args.additional_info.as_deref().unwrap_or(""),
-            self.mcp_client.clone(),
+            Arc::new(mcp_client),
             system_prompt,
             agent_prompt,
             args.max_actions_per_step as usize,

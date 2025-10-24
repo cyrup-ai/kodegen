@@ -149,7 +149,7 @@ git = ["dep:kodegen_tools_git"]
 github = ["dep:kodegen_tools_github"]
 config = []  # Config tools (ConfigManager is always required by other tools)
 database = ["dep:kodegen_tools_database", "dep:sqlx"]  
-browser = ["dep:kodegen_tools_browser"]
+browser = ["dep:kodegen_tools_browser", "kodegen_tools_browser/agent"]
 
 # Convenience feature sets
 minimal = ["filesystem", "terminal"]

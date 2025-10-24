@@ -115,6 +115,7 @@ pub async fn register_all_tools<S>(
     _ssh_config: Option<(kodegen_tools_database::SSHConfig, kodegen_tools_database::TunnelConfig)>,
     #[cfg(not(feature = "database"))]
     _ssh_config: Option<()>,
+    _server_url: Option<&str>,  // For BrowserAgentTool loopback client
 ) -> Result<(ToolRouter<S>, PromptRouter<S>, crate::common::router_builder::Managers)>
 where
     S: Send + Sync + 'static
@@ -331,7 +332,7 @@ where
     #[cfg(feature = "browser")]
     if is_category_enabled("browser", enabled_categories) {
         let browser_tools_manager;
-        (tool_router, prompt_router, browser_tools_manager) = register_browser_tools(tool_router, prompt_router, None).await?;
+        (tool_router, prompt_router, browser_tools_manager) = register_browser_tools(tool_router, prompt_router, _server_url).await?;
         managers.browser_tools_manager = Some(browser_tools_manager);
     }
     
@@ -751,7 +752,7 @@ where
 async fn register_browser_tools<S>(
     tool_router: ToolRouter<S>,
     prompt_router: PromptRouter<S>,
-    mcp_client: Option<std::sync::Arc<kodegen_mcp_client::KodegenClient>>,
+    server_url: Option<&str>,
 ) -> Result<(ToolRouter<S>, PromptRouter<S>, Arc<kodegen_tools_browser::BrowserManager>)>
 where
     S: Send + Sync + 'static
@@ -761,15 +762,16 @@ where
     // Get global browser manager singleton (lazy-loads Chrome on first use)
     let browser_manager = kodegen_tools_browser::BrowserManager::global();
     
-    // Register BrowserAgentTool first if mcp_client is provided
-    let (mut tool_router, mut prompt_router) = if let Some(client) = mcp_client {
-        log::debug!("Registering BrowserAgentTool with loopback client");
+    // Register BrowserAgentTool first if server_url is provided
+    let (mut tool_router, mut prompt_router) = if let Some(url) = server_url {
+        log::debug!("Registering BrowserAgentTool with loopback URL: {}", url);
         register_tool(
             tool_router,
             prompt_router,
-            kodegen_tools_browser::BrowserAgentTool::new(browser_manager.clone(), client)
+            kodegen_tools_browser::BrowserAgentTool::new(browser_manager.clone(), url.to_string())
         )
     } else {
+        log::debug!("Skipping BrowserAgentTool registration (no server URL provided)");
         (tool_router, prompt_router)
     };
     
