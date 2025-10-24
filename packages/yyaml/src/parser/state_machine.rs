@@ -333,66 +333,9 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     
 
-    fn handle_block_sequence_entry(&mut self) -> Result<(), ScanError> {
-        let token = self.scanner.peek_token()?;
-        match &token.1 {
-            TokenType::BlockEntry => {
-                self.scanner.fetch_token();
-                self.handle_sequence_content()
-            }
-            _ => {
-                // End of sequence
-                if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.pop() {
-                    self.push_yaml(Yaml::Array(items));
-                }
-                self.pop_state();
-                Ok(())
-            }
-        }
-    }
+    
 
-    fn handle_sequence_content(&mut self) -> Result<(), ScanError> {
-        let token = self.scanner.peek_token()?;
-        match &token.1 {
-            TokenType::Scalar(style, value) => {
-                self.scanner.fetch_token();
-
-                let yaml = match style {
-                    TScalarStyle::Literal | TScalarStyle::Folded => {
-                        // Block scalars already processed by scanner - use directly
-                        Yaml::String(value.clone())
-                    }
-                    _ => {
-                        // Handle other scalar styles with existing logic
-                        Yaml::parse_str(value)
-                    }
-                };
-
-                if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
-                    items.push(yaml);
-                }
-                Ok(())
-            }
-            TokenType::BlockEntry
-            | TokenType::Key
-            | TokenType::FlowSequenceStart
-            | TokenType::FlowMappingStart => {
-                // Check recursion depth BEFORE transition
-                self.context.increment_depth()?;
-
-                self.push_state(State::BlockSequenceEntry);
-                self.state = State::BlockNode;
-                Ok(())
-            }
-            _ => {
-                // Empty sequence item - add null
-                if let Some(YamlBuilder::Sequence(items)) = self.ast_stack.last_mut() {
-                    items.push(Yaml::Null);
-                }
-                Ok(())
-            }
-        }
-    }
+    
 
     fn handle_block_mapping_first_key(&mut self) -> Result<(), ScanError> {
         // Block mapping key uses BLOCK-KEY context at n+1
