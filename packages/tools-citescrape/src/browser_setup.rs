@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chromiumoxide::browser::{Browser, BrowserConfig, BrowserConfigBuilder, HeadlessMode};
+use chromiumoxide::browser::{Browser, BrowserConfigBuilder, HeadlessMode};
 use chromiumoxide::fetcher::{BrowserFetcher, BrowserFetcherOptions};
 use futures::StreamExt;
 use rand::Rng;
@@ -210,7 +210,7 @@ pub async fn download_managed_browser() -> Result<PathBuf> {
 pub async fn launch_browser(
     headless: bool,
     chrome_data_dir: Option<PathBuf>,
-) -> Result<(Browser, BrowserConfig, JoinHandle<()>)> {
+) -> Result<(Browser, JoinHandle<()>)> {
     // First try to find the browser
     let chrome_path = match find_browser_executable().await {
         Ok(path) => path,
@@ -296,7 +296,7 @@ pub async fn launch_browser(
         .map_err(|e| anyhow::anyhow!("Failed to build browser config: {e}"))?;
 
     info!("Launching browser with config: {:?}", browser_config);
-    let (browser, mut handler) = Browser::launch(browser_config.clone())
+    let (browser, mut handler) = Browser::launch(browser_config)
         .await
         .context("Failed to launch browser")?;
 
@@ -309,7 +309,7 @@ pub async fn launch_browser(
         info!("Browser handler task completed");
     });
 
-    Ok((browser, browser_config, handler_task))
+    Ok((browser, handler_task))
 }
 
 /// Apply stealth mode settings to evade bot detection

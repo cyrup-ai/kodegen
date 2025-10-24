@@ -215,7 +215,7 @@ pub async fn crawl_pages<P: ProgressReporter>(
     let chrome_dir_param = config.chrome_data_dir().cloned();
     eprintln!("DEBUG core.rs: Passing to launch_browser: {chrome_dir_param:?}");
 
-    let (browser, _browser_config, handler_task) = launch_browser(config.headless(), chrome_dir_param)
+    let (browser, handler_task) = launch_browser(config.headless(), chrome_dir_param)
         .await
         .context("Failed to launch browser")?;
 

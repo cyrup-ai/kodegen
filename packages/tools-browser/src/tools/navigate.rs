@@ -81,7 +81,16 @@ impl Tool for BrowserNavigateTool {
             .as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
 
-        // Create new blank page (will close old page automatically)
+        // Close all existing pages to enforce single-page model
+        // Prevents non-deterministic page selection in get_current_page()
+        if let Ok(existing_pages) = wrapper.browser().pages().await {
+            for page in existing_pages {
+                // Ignore errors - pages might already be closed or unresponsive
+                let _ = page.close().await;
+            }
+        }
+
+        // Create new blank page (now guaranteed to be the ONLY page)
         let page = wrapper
             .browser()
             .new_page("about:blank")
