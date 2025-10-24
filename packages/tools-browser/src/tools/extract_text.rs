@@ -61,18 +61,29 @@ impl Tool for BrowserExtractTextTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Extract text based on selector
         let text = if let Some(selector) = &args.selector {
             // Extract from specific element
             let element = page.find_element(selector).await.map_err(|e| {
-                McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
+                McpError::Other(anyhow::anyhow!(
+                    "Element not found for selector '{}'. \
+                     Verify: (1) Selector syntax is valid CSS, \
+                     (2) Element exists on current page, \
+                     (3) Element is not in an iframe (unsupported). \
+                     Error: {}",
+                    selector, e
+                ))
             })?;
 
             // Get element's inner text
@@ -81,7 +92,11 @@ impl Tool for BrowserExtractTextTool {
                 .await
                 .map_err(|e| {
                     McpError::Other(anyhow::anyhow!(
-                        "Failed to get text from '{}': {}",
+                        "Failed to get text from selector '{}'. \
+                         Possible causes: (1) Element has no text content, \
+                         (2) Element is not rendered or detached from DOM, \
+                         (3) Browser is in an invalid state. \
+                         Error: {}",
                         selector,
                         e
                     ))
@@ -93,7 +108,14 @@ impl Tool for BrowserExtractTextTool {
                 .evaluate("document.body.innerText")
                 .await
                 .map_err(|e| {
-                    McpError::Other(anyhow::anyhow!("Failed to extract page text: {}", e))
+                    McpError::Other(anyhow::anyhow!(
+                        "Failed to extract page text. \
+                         Possible causes: (1) Page has not fully loaded, \
+                         (2) JavaScript execution was blocked, \
+                         (3) Page body is empty or inaccessible. \
+                         Error: {}",
+                        e
+                    ))
                 })?;
 
             // Parse result value

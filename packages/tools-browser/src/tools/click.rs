@@ -69,12 +69,16 @@ impl Tool for BrowserClickTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Find element with timeout
         let timeout = validate_interaction_timeout(args.timeout_ms, 5000)?;
@@ -83,14 +87,21 @@ impl Tool for BrowserClickTool {
             .await
             .map_err(|_| {
                 McpError::Other(anyhow::anyhow!(
-                    "Element not found (timeout after {}ms): {}",
+                    "Element not found (timeout after {}ms): '{}'. \
+                     Try: (1) Verify selector is correct using browser dev tools, \
+                     (2) Use browser_wait_for to wait for element to appear, \
+                     (3) Increase timeout_ms parameter.",
                     timeout.as_millis(),
                     args.selector
                 ))
             })?
             .map_err(|e| {
                 McpError::Other(anyhow::anyhow!(
-                    "Element not found '{}': {}",
+                    "Element not found for selector '{}'. \
+                     Verify: (1) Selector syntax is valid CSS, \
+                     (2) Element exists on current page, \
+                     (3) Element is not in an iframe (unsupported). \
+                     Error: {}",
                     args.selector,
                     e
                 ))
@@ -99,7 +110,11 @@ impl Tool for BrowserClickTool {
         // Click element (automatically scrolls into view)
         element.click().await.map_err(|e| {
             McpError::Other(anyhow::anyhow!(
-                "Click failed for '{}': {}",
+                "Click failed for selector '{}'. \
+                 Possible causes: (1) Element is obscured by another element, \
+                 (2) Element is disabled, \
+                 (3) Page is still loading. \
+                 Error: {}",
                 args.selector,
                 e
             ))

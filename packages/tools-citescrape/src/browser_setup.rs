@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use chromiumoxide::browser::{Browser, BrowserConfigBuilder, HeadlessMode};
 use chromiumoxide::fetcher::{BrowserFetcher, BrowserFetcherOptions};
 use futures::StreamExt;
-use rand::Rng;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
@@ -298,6 +297,13 @@ pub async fn launch_browser(
 }
 
 /// Apply stealth mode settings to evade bot detection
+///
+/// Injects JavaScript to modify navigator properties, WebGL fingerprinting,
+/// and Chrome-specific APIs. All operations are instant via CDP.
+///
+/// Note: This function is exported for external use but not called internally.
+/// The production stealth implementation is `kromekover::inject()` which offers
+/// more comprehensive evasions.
 pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
     info!("Applying stealth measures to page");
 
@@ -421,10 +427,8 @@ pub async fn apply_stealth_measures(page: &chromiumoxide::Page) -> Result<()> {
     ";
     page.evaluate(webgl_js).await?;
 
-    // 7. Add random delay to simulate human interaction
-    let random_delay = rand::rng().random_range(800..2000);
-    tokio::time::sleep(Duration::from_millis(random_delay)).await;
-
+    // Stealth measures applied instantly via JavaScript injection
+    // No delay needed - scripts execute on document load automatically
     info!("Successfully applied stealth measures");
     Ok(())
 }

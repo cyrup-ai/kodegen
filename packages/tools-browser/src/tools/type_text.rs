@@ -80,12 +80,16 @@ impl Tool for BrowserTypeTextTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Find element with timeout
         let timeout = validate_interaction_timeout(args.timeout_ms, 5000)?;
@@ -94,14 +98,21 @@ impl Tool for BrowserTypeTextTool {
             .await
             .map_err(|_| {
                 McpError::Other(anyhow::anyhow!(
-                    "Element not found (timeout after {}ms): {}",
+                    "Element not found (timeout after {}ms): '{}'. \
+                     Try: (1) Verify selector is correct using browser dev tools, \
+                     (2) Use browser_wait_for to wait for element to appear, \
+                     (3) Increase timeout_ms parameter.",
                     timeout.as_millis(),
                     args.selector
                 ))
             })?
             .map_err(|e| {
                 McpError::Other(anyhow::anyhow!(
-                    "Element not found '{}': {}",
+                    "Element not found for selector '{}'. \
+                     Verify: (1) Selector syntax is valid CSS, \
+                     (2) Element exists on current page, \
+                     (3) Element is not in an iframe (unsupported). \
+                     Error: {}",
                     args.selector,
                     e
                 ))
@@ -110,7 +121,11 @@ impl Tool for BrowserTypeTextTool {
         // Click element to focus
         element.click().await.map_err(|e| {
             McpError::Other(anyhow::anyhow!(
-                "Click to focus failed for '{}': {}",
+                "Click to focus failed for selector '{}'. \
+                 Possible causes: (1) Element is obscured by another element, \
+                 (2) Element is disabled or not focusable, \
+                 (3) Page is still loading. \
+                 Error: {}",
                 args.selector,
                 e
             ))
@@ -123,7 +138,11 @@ impl Tool for BrowserTypeTextTool {
                 .await
                 .map_err(|e| {
                     McpError::Other(anyhow::anyhow!(
-                        "Failed to clear field '{}': {}",
+                        "Failed to clear field for selector '{}'. \
+                         Possible causes: (1) Element is not an input/textarea field, \
+                         (2) Field is read-only or disabled, \
+                         (3) JavaScript execution was blocked. \
+                         Error: {}",
                         args.selector,
                         e
                     ))
@@ -133,7 +152,11 @@ impl Tool for BrowserTypeTextTool {
         // Type text
         element.type_str(&args.text).await.map_err(|e| {
             McpError::Other(anyhow::anyhow!(
-                "Type text failed for '{}': {}",
+                "Type text failed for selector '{}'. \
+                 Possible causes: (1) Element lost focus during typing, \
+                 (2) Element is not a text input field, \
+                 (3) Field has input restrictions or validation. \
+                 Error: {}",
                 args.selector,
                 e
             ))

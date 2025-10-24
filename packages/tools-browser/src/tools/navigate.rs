@@ -80,7 +80,9 @@ impl Tool for BrowserNavigateTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Close all existing pages to enforce single-page model
         // Prevents non-deterministic page selection in get_current_page()
@@ -102,13 +104,23 @@ impl Tool for BrowserNavigateTool {
             .await
             .map_err(|_| {
                 McpError::Other(anyhow::anyhow!(
-                    "Navigation timeout after {}ms for URL: {}",
+                    "Navigation timeout after {}ms for URL: {}. \
+                     Try: (1) Increase timeout_ms parameter (default: 30000), \
+                     (2) Verify URL is accessible in a browser, \
+                     (3) Check if site blocks headless browsers.",
                     timeout.as_millis(),
                     args.url
                 ))
             })?
             .map_err(|e| {
-                McpError::Other(anyhow::anyhow!("Navigation failed for {}: {}", args.url, e))
+                McpError::Other(anyhow::anyhow!(
+                    "Navigation failed for URL: {}. \
+                     Check: (1) URL is correctly formatted, \
+                     (2) Network connectivity, \
+                     (3) URL returns a valid HTTP response. \
+                     Error: {}",
+                    args.url, e
+                ))
             })?;
 
         // Wait for selector if specified (exponential backoff)
@@ -126,7 +138,11 @@ impl Tool for BrowserNavigateTool {
                 // Check timeout
                 if start.elapsed() >= timeout {
                     return Err(McpError::Other(anyhow::anyhow!(
-                        "Selector '{}' not found after {}ms timeout",
+                        "Selector '{}' not found after {}ms timeout. \
+                         This selector was specified in wait_for_selector. \
+                         Verify: (1) Selector exists on the target page, \
+                         (2) Element loads within timeout period, \
+                         (3) Consider increasing timeout_ms.",
                         selector,
                         timeout.as_millis()
                     )));

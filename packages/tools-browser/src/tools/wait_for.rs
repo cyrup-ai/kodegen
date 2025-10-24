@@ -112,12 +112,16 @@ impl Tool for BrowserWaitForTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Setup timeout and polling
         let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(10000));
@@ -130,7 +134,7 @@ impl Tool for BrowserWaitForTool {
             match page.find_element(&args.selector).await {
                 Ok(element) => {
                     // Element found, now check condition
-                    match check_condition(&element, &args).await {
+                    match check_condition(&element, &page, &args).await {
                         Ok(true) => {
                             // Condition met!
                             return Ok(json!({
@@ -154,7 +158,10 @@ impl Tool for BrowserWaitForTool {
                 Err(_) if start.elapsed() >= timeout => {
                     // Timeout reached and element not found
                     return Err(McpError::Other(anyhow::anyhow!(
-                        "Element '{}' not found after {}ms timeout",
+                        "Element not found for selector '{}' after {}ms timeout. \
+                         Verify: (1) Selector syntax is valid CSS, \
+                         (2) Element appears on the page within timeout, \
+                         (3) Element is not in an iframe (unsupported).",
                         args.selector, timeout.as_millis()
                     )));
                 }
@@ -167,7 +174,10 @@ impl Tool for BrowserWaitForTool {
             // Check timeout
             if start.elapsed() >= timeout {
                 return Err(McpError::Other(anyhow::anyhow!(
-                    "Condition '{:?}' not met for selector '{}' after {}ms timeout",
+                    "Condition '{:?}' not met for selector '{}' after {}ms timeout. \
+                     Try: (1) Increase timeout_ms parameter (default: 10000), \
+                     (2) Verify element meets the condition criteria, \
+                     (3) Check if page has fully loaded and condition is reachable.",
                     args.condition, args.selector, timeout.as_millis()
                 )));
             }
@@ -211,6 +221,7 @@ impl Tool for BrowserWaitForTool {
 /// Check if element meets the specified condition
 async fn check_condition(
     element: &chromiumoxide::element::Element,
+    page: &chromiumoxide::page::Page,
     args: &BrowserWaitForArgs,
 ) -> Result<bool, McpError> {
     match args.condition {
@@ -271,18 +282,18 @@ async fn check_condition(
                     "text parameter required for TextContains condition"
                 ))?;
             
-            let js_fn = format!(
-                r#"function() {{
-                    const text = (this.innerText || this.textContent || '').trim();
-                    return text.includes('{}');
-                }}"#,
-                text.replace('\\', "\\\\").replace('\'', "\\'")
-            );
+            // Safe: parameterized evaluation prevents injection
+            let call = CallFunctionOnParams::builder()
+                .function_declaration("(searchText) => { const text = (this.innerText || this.textContent || '').trim(); return text.includes(searchText); }")
+                .object_id(element.remote_object_id.clone())
+                .argument(CallArgument::builder().value(json!(text)).build())
+                .build()
+                .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to build text check params: {}", e)))?;
             
-            let result = element.call_js_fn(&js_fn, false).await
+            let result = page.execute(call).await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check text: {}", e)))?;
             
-            Ok(result.result.value
+            Ok(result.result.result.value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }
@@ -310,7 +321,7 @@ async fn check_condition(
             let result = page.execute(call).await
                 .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to check attribute: {}", e)))?;
             
-            Ok(result.result.value
+            Ok(result.result.result.value
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }

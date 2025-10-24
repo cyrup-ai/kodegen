@@ -1,7 +1,7 @@
 // packages/server/src/common/tool_registry.rs
 use anyhow::Result;
 use rmcp::handler::server::router::{tool::ToolRouter, prompt::PromptRouter};
-#[cfg(any(feature = "filesystem", feature = "terminal", feature = "sequential_thinking", feature = "claude_agent", feature = "citescrape", feature = "database"))]
+#[cfg(any(feature = "filesystem", feature = "terminal", feature = "sequential_thinking", feature = "claude_agent", feature = "citescrape", feature = "browser", feature = "database"))]
 use std::sync::Arc;
 use std::collections::HashSet;
 use kodegen_utils::usage_tracker::UsageTracker;
@@ -50,6 +50,7 @@ where
 }
 
 /// Warm up connection pool by pre-establishing min_connections
+#[cfg(feature = "database")]
 async fn warmup_pool(pool: &sqlx::AnyPool, min_connections: u32) -> Result<()> {
     use std::time::{Duration, Instant};
     
@@ -123,6 +124,8 @@ where
     let mut managers = crate::common::router_builder::Managers {
         #[cfg(feature = "citescrape")]
         browser_manager: None,
+        #[cfg(feature = "browser")]
+        browser_tools_manager: None,
         #[cfg(feature = "database")]
         tunnel_guard: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
     };
@@ -327,7 +330,9 @@ where
     // Browser tools
     #[cfg(feature = "browser")]
     if is_category_enabled("browser", enabled_categories) {
-        (tool_router, prompt_router) = register_browser_tools(tool_router, prompt_router).await?;
+        let browser_tools_manager;
+        (tool_router, prompt_router, browser_tools_manager) = register_browser_tools(tool_router, prompt_router).await?;
+        managers.browser_tools_manager = Some(browser_tools_manager);
     }
     
     // Reasoner tools
@@ -746,7 +751,7 @@ where
 async fn register_browser_tools<S>(
     tool_router: ToolRouter<S>,
     prompt_router: PromptRouter<S>,
-) -> Result<(ToolRouter<S>, PromptRouter<S>)>
+) -> Result<(ToolRouter<S>, PromptRouter<S>, Arc<kodegen_tools_browser::BrowserManager>)>
 where
     S: Send + Sync + 'static
 {
@@ -792,5 +797,5 @@ where
         kodegen_tools_browser::BrowserWaitTool::new()
     );
     
-    Ok((tool_router, prompt_router))
+    Ok((tool_router, prompt_router, browser_manager))
 }

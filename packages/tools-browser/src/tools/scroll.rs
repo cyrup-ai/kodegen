@@ -69,25 +69,43 @@ impl Tool for BrowserScrollTool {
         let browser_guard = browser_arc.lock().await;
         let wrapper = browser_guard
             .as_ref()
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "Browser not available. This is an internal error - please report it."
+            )))?;
 
         // Get current page (must call browser_navigate first)
         let page = crate::browser::get_current_page(wrapper)
             .await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+            .map_err(|e| McpError::Other(anyhow::anyhow!(
+                "Failed to get page. Did you call browser_navigate first? Error: {}", e
+            )))?;
 
         // Perform scroll
         if let Some(selector) = &args.selector {
             // Find element first (validates existence)
             let element = page.find_element(selector).await.map_err(|e| {
-                McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
+                McpError::Other(anyhow::anyhow!(
+                    "Element not found for selector '{}'. \
+                     Verify: (1) Selector syntax is valid CSS, \
+                     (2) Element exists on current page, \
+                     (3) Element is not in an iframe (unsupported). \
+                     Error: {}",
+                    selector, e
+                ))
             })?;
 
             // Use chromiumoxide's scroll_into_view() (has IntersectionObserver check)
             element
                 .scroll_into_view()
                 .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Scroll to element failed. \
+                     Possible causes: (1) Element is not scrollable or not in viewport, \
+                     (2) Page structure prevents scrolling, \
+                     (3) Element is detached from DOM. \
+                     Error: {}",
+                    e
+                )))?;
 
             Ok(json!({
                 "success": true,
@@ -110,7 +128,14 @@ impl Tool for BrowserScrollTool {
 
             page.evaluate_function(call)
                 .await
-                .map_err(|e| McpError::Other(anyhow::anyhow!("Scroll failed: {}", e)))?;
+                .map_err(|e| McpError::Other(anyhow::anyhow!(
+                    "Scroll by amount failed. \
+                     Possible causes: (1) Page does not support scrolling, \
+                     (2) Scroll amount exceeds page boundaries, \
+                     (3) JavaScript execution was blocked. \
+                     Error: {}",
+                    e
+                )))?;
 
             Ok(json!({
                 "success": true,

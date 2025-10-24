@@ -78,14 +78,21 @@ impl Tool for BrowserScreenshotTool {
                 "Failed to get page. Did you call browser_navigate first? Error: {}", e
             )))?;
 
-        // Determine format
-        let format = match args.format.as_deref() {
-            Some("jpeg") | Some("jpg") => CaptureScreenshotFormat::Jpeg,
+        // Normalize format string for display
+        let format_str = match args.format.as_deref() {
+            Some("jpeg") | Some("jpg") => "jpeg",
+            Some("png") | None => "png",
+            _ => "png",
+        };
+
+        // Create enum for chromiumoxide API
+        let format_enum = match format_str {
+            "jpeg" => CaptureScreenshotFormat::Jpeg,
             _ => CaptureScreenshotFormat::Png,
         };
 
         // Build screenshot params
-        let screenshot_params = ScreenshotParams::builder().format(format.clone()).build();
+        let screenshot_params = ScreenshotParams::builder().format(format_enum.clone()).build();
 
         // Take screenshot (full page or element)
         let image_data = if let Some(selector) = &args.selector {
@@ -101,7 +108,7 @@ impl Tool for BrowserScreenshotTool {
                 ))
             })?;
 
-            element.screenshot(format.clone()).await.map_err(|e| {
+            element.screenshot(format_enum.clone()).await.map_err(|e| {
                 McpError::Other(anyhow::anyhow!(
                     "Element screenshot failed for selector '{}'. \
                      Possible causes: (1) Element is not visible or has no dimensions, \
@@ -138,7 +145,7 @@ impl Tool for BrowserScreenshotTool {
             "message": format!(
                 "Screenshot captured ({} bytes, {} format{})",
                 image_data.len(),
-                if format == CaptureScreenshotFormat::Png { "PNG" } else { "JPEG" },
+                format_str.to_uppercase(),
                 if args.selector.is_some() { ", element only" } else { ", full page" }
             )
         }))

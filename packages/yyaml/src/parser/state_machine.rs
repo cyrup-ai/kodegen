@@ -262,9 +262,7 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                 }
                 TokenType::Key => {
                     self.scanner.fetch_token();
-                    self.ast_stack
-                        .push(YamlBuilder::Mapping(LinkedHashMap::new(), None));
-                    self.state = State::BlockMappingFirstKey;
+                    self.handle_parametric_block_mapping()?;
                     return Ok(());
                 }
                 TokenType::FlowSequenceStart => {
@@ -504,6 +502,112 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
                 Ok(())
             }
         }
+    }
+
+    fn handle_parametric_block_mapping(&mut self) -> Result<(), ScanError> {
+        let n = self.context.current_indent();
+        let key_indent = n + 1;
+        self.context.push_context(YamlContext::BlockKey, key_indent as i32);
+        let mut map = LinkedHashMap::new();
+        loop {
+            let peeked_indent = self.scanner.peek_line_indent()?;
+            if peeked_indent < key_indent {
+                break;
+            }
+            // Consume leading spaces up to key_indent
+            for _ in 0..key_indent {
+                self.scanner.consume_char()?;
+            }
+            self.handle_parametric_block_mapping_entry(&mut map, key_indent)?;
+            // After entry, process separation
+            self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+        }
+        self.context.pop_context();
+        self.ast_stack.push(YamlBuilder::Mapping(map, None));
+        Ok(())
+    }
+
+    fn handle_parametric_block_mapping_entry(&mut self, map: &mut LinkedHashMap<Yaml, Yaml>, key_indent: usize) -> Result<(), ScanError> {
+        let token_pos = self.scanner.mark();
+        let token = self.scanner.peek_token()?;
+        let mut key = match &token.1 {
+            TokenType::QuestionMark => {
+                // Explicit
+                self.scanner.fetch_token();
+                // Parse key in BlockKey context
+                let key_yaml = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
+                // Expect :
+                let colon_pos = self.scanner.mark();
+                let colon_token = self.scanner.peek_token()?;
+                if !matches!(&colon_token.1, TokenType::Value) {
+                    return Err(ScanError::new(colon_pos, "Expected : after ?"));
+                }
+                // Consume indent + :
+                for _ in 0..key_indent {
+                    self.scanner.consume_char()?;
+                }
+                self.scanner.fetch_token(); // consume :
+                key_yaml
+            }
+            TokenType::Scalar(..) => {
+                // Implicit key
+                let key_yaml = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
+                // Expect :
+                let colon_pos = self.scanner.mark();
+                let colon_token = self.scanner.peek_token()?;
+                if !matches!(&colon_token.1, TokenType::Value) {
+                    return Err(ScanError::new(colon_pos, "Expected : after key"));
+                }
+                // Consume indent + :
+                for _ in 0..key_indent {
+                    self.scanner.consume_char()?;
+                }
+                self.scanner.fetch_token();
+                key_yaml
+            }
+            TokenType::Value => {
+                // Empty key
+                // Consume indent + :
+                for _ in 0..key_indent {
+                    self.scanner.consume_char()?;
+                }
+                self.scanner.fetch_token();
+                Yaml::Null
+            }
+            _ => return Err(ScanError::new(token_pos, "Invalid entry start")),
+        };
+        // Parse value
+        let value_indent = self.scanner.peek_line_indent()?;
+        if value_indent <= key_indent {
+            return Err(ScanError::new(token_pos, "Value indent must be > key indent"));
+        }
+        self.context.push_context(YamlContext::BlockIn, value_indent as i32);
+        let value_yaml = self.parse_node_in_context(YamlContext::BlockIn, value_indent)?;
+        self.context.pop_context();
+        map.insert(key, value_yaml);
+        Ok(())
+    }
+
+    fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Yaml, ScanError> {
+        let saved_state = self.state;
+        let saved_ast_len = self.ast_stack.len();
+        let saved_context_len = self.context.context_stack.len();
+        self.context.push_context(ctx, indent as i32);
+        self.push_state(State::BlockNode);
+        self.state = State::BlockNode;
+        self.handle_block_node()?;
+        self.pop_state();
+        let yaml = if self.ast_stack.len() > saved_ast_len {
+            let builder = self.ast_stack.pop().unwrap();
+            self.finalize_builder(builder)
+        } else {
+            Yaml::Null
+        };
+        self.state = saved_state;
+        while self.context.context_stack.len() > saved_context_len {
+            self.context.pop_context();
+        }
+        Ok(yaml)
     }
 
     fn handle_block_content_with_structure(&mut self) -> Result<(), ScanError> {

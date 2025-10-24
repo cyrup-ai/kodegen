@@ -2,7 +2,7 @@
 use anyhow::Result;
 use rmcp::handler::server::router::{tool::ToolRouter, prompt::PromptRouter};
 use std::collections::HashSet;
-#[cfg(any(feature = "citescrape", feature = "database"))]
+#[cfg(any(feature = "citescrape", feature = "browser", feature = "database"))]
 use std::sync::Arc;
 use kodegen_utils::usage_tracker::UsageTracker;
 
@@ -10,6 +10,9 @@ use kodegen_utils::usage_tracker::UsageTracker;
 pub struct Managers {
     #[cfg(feature = "citescrape")]
     pub browser_manager: Option<Arc<kodegen_tools_citescrape::BrowserManager>>,
+    
+    #[cfg(feature = "browser")]
+    pub browser_tools_manager: Option<Arc<kodegen_tools_browser::BrowserManager>>,
     
     #[cfg(feature = "database")]
     pub tunnel_guard: std::sync::Arc<tokio::sync::Mutex<Option<kodegen_tools_database::SSHTunnel>>>,
@@ -23,6 +26,13 @@ impl Managers {
             && let Err(e) = manager.shutdown().await
         {
             log::warn!("Failed to shutdown browser manager: {e}");
+        }
+        
+        #[cfg(feature = "browser")]
+        if let Some(ref manager) = self.browser_tools_manager
+            && let Err(e) = manager.shutdown().await
+        {
+            log::warn!("Failed to shutdown browser tools manager: {e}");
         }
         
         #[cfg(feature = "database")]
