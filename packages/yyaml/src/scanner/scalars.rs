@@ -369,7 +369,7 @@ pub fn scan_block_scalar<T: Iterator<Item = char>>(
         }
 
         // Read indentation
-        let line_indent = count_indentation(state)?;
+        let line_indent = peek_line_indent_at_current(state)?;
 
         if line_indent < base_indent {
             // Less indented line ends the scalar
@@ -670,3 +670,17 @@ pub fn apply_block_scalar_folding(
 
     result
 }
+
+
+/// Peek at indentation at current position without consuming characters
+#[inline]
+fn peek_line_indent_at_current<T: Iterator<Item = char>>(
+    state: &ScannerState<T>,
+) -> Result<usize, ScanError> {
+    let mut count = 0;
+    while let Some(' ') = state.peek_char_at(count) {
+        count += 1;
+    }
+    Ok(count)
+}
+
