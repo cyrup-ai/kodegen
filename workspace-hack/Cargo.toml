@@ -31,9 +31,6 @@ bytemuck = { version = "1", default-features = false, features = ["aarch64_simd"
 byteorder = { version = "1" }
 bytes = { version = "1", features = ["serde"] }
 camino = { version = "1", default-features = false, features = ["serde1"] }
-candle-core = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
-candle-nn = { git = "https://github.com/huggingface/candle", branch = "main", features = ["accelerate", "cuda", "metal", "mkl"] }
-candle-transformers = { git = "https://github.com/huggingface/candle", branch = "main", default-features = false, features = ["accelerate", "cuda", "metal", "mkl"] }
 castaway = { version = "0.2" }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 chrono = { version = "0.4", features = ["serde"] }

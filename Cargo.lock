@@ -1818,40 +1818,8 @@ checksum = "14057890649ac8068ff0460f57398f6e3c9d8d168ebec9f43fb894446b131fe3"
 dependencies = [
  "accelerate-src",
  "byteorder",
- "candle-kernels 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-metal-kernels 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "cudarc",
- "float8 0.4.2",
- "gemm",
- "half 2.7.1",
- "intel-mkl-src",
- "libc 0.2.177",
- "memmap2",
- "num-traits",
- "num_cpus",
- "objc2-foundation 0.3.2",
- "objc2-metal 0.3.2",
- "rand 0.9.2",
- "rand_distr 0.5.1",
- "rayon",
- "safetensors",
- "thiserror 1.0.69",
- "ug",
- "ug-cuda",
- "ug-metal",
- "yoke",
- "zip 1.1.4",
-]
-
-[[package]]
-name = "candle-core"
-version = "0.9.2-alpha.1"
-source = "git+https://github.com/huggingface/candle?branch=main#d312da234440ca64fb64c38ba57588a692f58caf"
-dependencies = [
- "accelerate-src",
- "byteorder",
- "candle-kernels 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-metal-kernels 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-kernels",
+ "candle-metal-kernels",
  "cudarc",
  "float8 0.4.2",
  "gemm",
@@ -1885,32 +1853,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-kernels"
-version = "0.9.2-alpha.1"
-source = "git+https://github.com/huggingface/candle?branch=main#d312da234440ca64fb64c38ba57588a692f58caf"
-dependencies = [
- "bindgen_cuda",
-]
-
-[[package]]
 name = "candle-metal-kernels"
 version = "0.9.2-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4b88d24e8252a0ced24c405a7e2cc70d1c88687e6c023f595da102736df6160"
-dependencies = [
- "half 2.7.1",
- "objc2 0.6.3",
- "objc2-foundation 0.3.2",
- "objc2-metal 0.3.2",
- "once_cell",
- "thiserror 2.0.17",
- "tracing",
-]
-
-[[package]]
-name = "candle-metal-kernels"
-version = "0.9.2-alpha.1"
-source = "git+https://github.com/huggingface/candle?branch=main#d312da234440ca64fb64c38ba57588a692f58caf"
 dependencies = [
  "half 2.7.1",
  "objc2 0.6.3",
@@ -1928,27 +1874,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5ff267dd576a7d3e66caa8d8f4629b3aedd737400d69f7c9c599fe5aa5f51de"
 dependencies = [
  "accelerate-src",
- "candle-core 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-metal-kernels 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "half 2.7.1",
- "intel-mkl-src",
- "libc 0.2.177",
- "num-traits",
- "objc2-metal 0.3.2",
- "rayon",
- "safetensors",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "candle-nn"
-version = "0.9.2-alpha.1"
-source = "git+https://github.com/huggingface/candle?branch=main#d312da234440ca64fb64c38ba57588a692f58caf"
-dependencies = [
- "accelerate-src",
- "candle-core 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-metal-kernels 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
+ "candle-metal-kernels",
  "half 2.7.1",
  "intel-mkl-src",
  "libc 0.2.177",
@@ -1968,28 +1895,8 @@ checksum = "bbbb4ed0bbce963538fba5adbde9eff822690cc6fdf3fe5d36fd2e94c349cf79"
 dependencies = [
  "accelerate-src",
  "byteorder",
- "candle-core 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-nn 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "fancy-regex 0.13.0",
- "intel-mkl-src",
- "num-traits",
- "rand 0.9.2",
- "rayon",
- "serde",
- "serde_json",
- "serde_plain",
- "tracing",
-]
-
-[[package]]
-name = "candle-transformers"
-version = "0.9.2-alpha.1"
-source = "git+https://github.com/huggingface/candle?branch=main#d312da234440ca64fb64c38ba57588a692f58caf"
-dependencies = [
- "accelerate-src",
- "byteorder",
- "candle-core 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
+ "candle-nn",
  "fancy-regex 0.13.0",
  "intel-mkl-src",
  "num-traits",
@@ -8871,11 +8778,11 @@ dependencies = [
  "bindgen_cuda",
  "bitflags 2.10.0",
  "bytes",
- "candle-core 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-kernels 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-metal-kernels 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-nn 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "candle-transformers 0.9.2-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "candle-core",
+ "candle-kernels",
+ "candle-metal-kernels",
+ "candle-nn",
+ "candle-transformers",
  "chrono",
  "clap",
  "console_error_panic_hook",
@@ -9109,11 +9016,11 @@ dependencies = [
  "approx 0.5.1",
  "arrayvec 0.7.6",
  "bindgen_cuda",
- "candle-core 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-kernels 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-metal-kernels 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-transformers 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
+ "candle-core",
+ "candle-kernels",
+ "candle-metal-kernels",
+ "candle-nn",
+ "candle-transformers",
  "criterion",
  "crossbeam-utils",
  "cudarc",
@@ -19887,9 +19794,6 @@ dependencies = [
  "byteorder",
  "bytes",
  "camino",
- "candle-core 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-nn 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
- "candle-transformers 0.9.2-alpha.1 (git+https://github.com/huggingface/candle?branch=main)",
  "castaway",
  "cc",
  "chrono",
