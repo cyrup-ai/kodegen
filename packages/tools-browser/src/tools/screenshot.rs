@@ -90,7 +90,7 @@ impl Tool for BrowserScreenshotTool {
                 McpError::Other(anyhow::anyhow!("Element not found '{}': {}", selector, e))
             })?;
 
-            element.screenshot(format.clone()).await.map_err(|e| {
+            element.screenshot(format_enum.clone()).await.map_err(|e| {
                 McpError::Other(anyhow::anyhow!(
                     "Element screenshot failed for '{}': {}",
                     selector,
@@ -110,7 +110,7 @@ impl Tool for BrowserScreenshotTool {
         Ok(json!({
             "success": true,
             "image": base64_image,
-            "format": if format == CaptureScreenshotFormat::Png { "png" } else { "jpeg" },
+            "format": format_str,
             "size_bytes": image_data.len(),
             "selector": args.selector,
             "message": format!(
