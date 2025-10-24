@@ -174,18 +174,21 @@ impl BrowserManager {
         if let Some(mut wrapper) = browser_lock.take() {
             info!("Shutting down browser");
             
-            // CRITICAL: Must call browser.close() AND wait() to prevent warning
-            // 1. Close the browser
+            // 1. Close current page (prevents "page not closed" warning)
+            if let Err(e) = wrapper.close_current_page().await {
+                tracing::warn!("Failed to close page cleanly: {}", e);
+            }
+            
+            // 2. Close the browser
             if let Err(e) = wrapper.browser_mut().close().await {
                 tracing::warn!("Failed to close browser cleanly: {}", e);
             }
             
-            // 2. Wait for process to fully exit (prevents "not closed manually" warning)
+            // 3. Wait for process to fully exit
             if let Err(e) = wrapper.browser_mut().wait().await {
                 tracing::warn!("Failed to wait for browser exit: {}", e);
             }
             
-            // Now drop the wrapper (calls handler.abort())
             drop(wrapper);
         }
         

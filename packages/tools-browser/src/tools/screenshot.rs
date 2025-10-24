@@ -65,9 +65,11 @@ impl Tool for BrowserScreenshotTool {
         let wrapper = browser_guard.as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
         
-        // Create/get page
-        let page = crate::browser::create_blank_page(wrapper).await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
+        // Get current page (must call browser_navigate first)
+        let page = wrapper.get_current_page().await
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "No page loaded. Call browser_navigate first to load a page."
+            )))?;
         
         // Determine format
         let format = match args.format.as_deref() {

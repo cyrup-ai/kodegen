@@ -11,7 +11,7 @@ use std::sync::Arc;
 use crate::async_stream;
 use crate::core::generation::TokenOutputStream;
 use candle_core::quantized::gguf_file;
-use candle_core::{Device, Tensor};
+use candle_core::{Device, IndexOp, Tensor};
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 use candle_transformers::models::quantized_qwen3::ModelWeights as Qwen3Model;
 use tokio_stream::Stream;
@@ -233,7 +233,6 @@ impl LoadedQwen3QuantizedModel {
         type_constraint: kodegen_simd::logits::constraints::SchemaConstraint,
     ) -> anyhow::Result<String> {
         use anyhow::Context;
-        use rand::Rng;
 
         // Initialize constraint state
         let mut constraint_state = type_constraint.new_state();
@@ -253,7 +252,7 @@ impl LoadedQwen3QuantizedModel {
             let input_ids = Tensor::new(&all_tokens[..], &self.device)?;
             let logits = {
                 let mut model = self.model.lock().await;
-                model.forward(&input_ids.unsqueeze(0)?)?
+                model.forward(&input_ids.unsqueeze(0)?, 0)?
             };
             
             // Extract next token logits

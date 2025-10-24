@@ -77,14 +77,14 @@ impl Tool for BrowserNavigateTool {
         let wrapper = browser_guard.as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
         
-        // Create new page with blank state
-        let page = crate::browser::create_blank_page(wrapper).await
+        // Create new blank page (will close old page automatically)
+        let page = wrapper.browser()
+            .new_page("about:blank")
+            .await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create page: {}", e)))?;
         
-        // Configure timeout
+        // Navigate to URL
         let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(30000));
-        
-        // Navigate with timeout protection
         tokio::time::timeout(timeout, page.goto(&args.url))
             .await
             .map_err(|_| McpError::Other(anyhow::anyhow!(
@@ -119,6 +119,10 @@ impl Tool for BrowserNavigateTool {
                 tokio::time::sleep(poll_interval).await;
             }
         }
+        
+        // CRITICAL: Store page for other tools to use
+        wrapper.set_current_page(page.clone()).await
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to store page: {}", e)))?;
         
         // Get final URL (may differ from requested due to redirects)
         let final_url = page.url().await

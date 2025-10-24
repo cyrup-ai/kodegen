@@ -66,9 +66,11 @@ impl Tool for BrowserScrollTool {
         let wrapper = browser_guard.as_ref()
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
         
-        // Create new page with blank state
-        let page = crate::browser::create_blank_page(wrapper).await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to create page: {}", e)))?;
+        // Get current page (must call browser_navigate first)
+        let page = wrapper.get_current_page().await
+            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
+                "No page loaded. Call browser_navigate first to load a page."
+            )))?;
 
         // Perform scroll
         if let Some(selector) = &args.selector {

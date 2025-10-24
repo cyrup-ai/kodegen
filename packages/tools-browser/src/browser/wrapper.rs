@@ -7,7 +7,9 @@ use anyhow::{Context, Result};
 use chromiumoxide::browser::{Browser, BrowserConfigBuilder};
 use chromiumoxide::page::Page;
 use futures::StreamExt;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::{self, JoinHandle};
 use tracing::info;
 
@@ -19,11 +21,16 @@ use tracing::info;
 pub struct BrowserWrapper {
     browser: Browser,
     handler: JoinHandle<()>,
+    current_page: Arc<AsyncMutex<Option<Page>>>,
 }
 
 impl BrowserWrapper {
     pub(crate) fn new(browser: Browser, handler: JoinHandle<()>) -> Self {
-        Self { browser, handler }
+        Self { 
+            browser, 
+            handler,
+            current_page: Arc::new(AsyncMutex::new(None)),
+        }
     }
 
     /// Get reference to inner browser
@@ -35,15 +42,53 @@ impl BrowserWrapper {
     pub(crate) fn browser_mut(&mut self) -> &mut Browser {
         &mut self.browser
     }
+
+    /// Get the current active page (if any)
+    pub(crate) async fn get_current_page(&self) -> Option<Page> {
+        let guard = self.current_page.lock().await;
+        guard.clone()  // Page is Clone (Arc internally)
+    }
+
+    /// Set the current page, closing the old one first
+    pub(crate) async fn set_current_page(&self, new_page: Page) -> Result<()> {
+        let mut guard = self.current_page.lock().await;
+        
+        // Close old page if exists
+        if let Some(old_page) = guard.take() {
+            info!("Closing previous page before setting new one");
+            if let Err(e) = old_page.close().await {
+                tracing::warn!("Failed to close old page: {}", e);
+                // Continue anyway - don't fail the operation
+            }
+        }
+        
+        // Store new page
+        *guard = Some(new_page);
+        Ok(())
+    }
+
+    /// Close the current page without replacing it
+    pub(crate) async fn close_current_page(&self) -> Result<()> {
+        let mut guard = self.current_page.lock().await;
+        
+        if let Some(page) = guard.take() {
+            info!("Closing current page");
+            page.close().await
+                .context("Failed to close current page")?;
+        }
+        
+        Ok(())
+    }
 }
 
 impl Drop for BrowserWrapper {
     fn drop(&mut self) {
         info!("Dropping BrowserWrapper - aborting handler task");
         self.handler.abort();
-        // Handler will be awaited/cleaned up by tokio runtime
-        // Browser::drop() will automatically kill the Chrome process
-        // (it logs a warning but prevents zombie processes)
+        
+        // NOTE: We can't call async close_current_page() here (Drop is sync)
+        // But BrowserManager.shutdown() will handle proper cleanup
+        // The page will be cleaned up when Chrome process exits
     }
 }
 
