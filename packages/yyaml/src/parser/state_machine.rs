@@ -604,7 +604,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     fn handle_flow_mapping_key(&mut self) -> Result<(), ScanError> {
         let token = self.scanner.peek_token()?;
-        println!("StateMachine: handle_flow_mapping_key processing token {:?}", token.1);
         match &token.1 {
             TokenType::FlowMappingEnd => {
                 self.scanner.fetch_token();
@@ -666,7 +665,6 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     fn handle_flow_mapping_value(&mut self) -> Result<(), ScanError> {
         let token = self.scanner.peek_token()?;
-        println!("StateMachine: handle_flow_mapping_value processing token {:?}", token.1);
         match &token.1 {
             TokenType::Value => {
                 self.scanner.fetch_token();

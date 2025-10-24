@@ -192,6 +192,7 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
 ///
 /// # Based on
 /// - packages/citescrape/src/crawl_engine/core.rs:231-237 (about:blank pattern)
+#[allow(dead_code)]
 pub async fn create_blank_page(wrapper: &BrowserWrapper) -> Result<Page> {
     let page = wrapper
         .browser()
