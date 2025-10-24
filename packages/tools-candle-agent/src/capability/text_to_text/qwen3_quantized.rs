@@ -339,7 +339,7 @@ impl LoadedQwen3QuantizedModel {
         
         // Sample from distribution
         let mut rng = rand::rng();
-        let sample: f32 = rng.r#gen();
+        let sample: f32 = rng.random();
         let mut cumsum = 0.0;
         
         for (i, &prob) in probs.iter().enumerate() {

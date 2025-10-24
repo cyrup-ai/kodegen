@@ -125,6 +125,10 @@ impl Tool for BrowserNavigateTool {
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get URL: {}", e)))?
             .unwrap_or_else(|| args.url.clone());
         
+        // CRITICAL: Store page for other tools to use (task 002)
+        wrapper.set_current_page(page.clone()).await
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to store page: {}", e)))?;
+        
         Ok(json!({
             "success": true,
             "url": final_url,

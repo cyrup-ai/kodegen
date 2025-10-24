@@ -66,10 +66,9 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
                 continue;
             }
         } else if path_str.contains('%') && cfg!(target_os = "windows") {
-            // Expand environment variables on Windows
-            let path_str = std::env::var(path_str)
-                .unwrap_or_else(|_| path_str.to_string());
-            PathBuf::from(path_str)
+            // Expand environment variables on Windows (%VAR% tokens)
+            let expanded = expand_windows_env_vars(path_str);
+            PathBuf::from(expanded)
         } else {
             PathBuf::from(path_str)
         };
@@ -102,6 +101,58 @@ pub async fn find_browser_executable() -> Result<PathBuf> {
     // No browser found, inform user
     warn!("No Chrome/Chromium executable found. Will download and use fetcher.");
     Err(anyhow::anyhow!("Chrome/Chromium executable not found"))
+}
+
+/// Expand Windows environment variables in the form %VAR% within a path string.
+///
+/// Iterates through the string, finding %VAR% patterns and replacing them with
+/// their environment variable values. If a variable doesn't exist, the original
+/// %VAR% token is preserved.
+///
+/// # Arguments
+/// * `path` - Path string potentially containing %VAR% tokens
+///
+/// # Returns
+/// Expanded path string with all available environment variables substituted
+///
+/// # Example
+/// ```
+/// let path = "%PROGRAMFILES%\\Google\\Chrome\\Application\\chrome.exe";
+/// let expanded = expand_windows_env_vars(path);
+/// // Result: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+/// ```
+fn expand_windows_env_vars(path: &str) -> String {
+    let mut result = String::with_capacity(path.len());
+    let mut chars = path.chars().peekable();
+    
+    while let Some(ch) = chars.next() {
+        if ch == '%' {
+            // Found start of potential environment variable
+            let var_name: String = chars
+                .by_ref()
+                .take_while(|&c| c != '%')
+                .collect();
+            
+            if !var_name.is_empty() {
+                // Try to expand the variable
+                if let Ok(value) = std::env::var(&var_name) {
+                    result.push_str(&value);
+                } else {
+                    // Variable not found, preserve original %VAR% token
+                    result.push('%');
+                    result.push_str(&var_name);
+                    result.push('%');
+                }
+            } else {
+                // Empty %% sequence, keep single %
+                result.push('%');
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+    
+    result
 }
 
 /// Downloads and manages Chromium browser if not found locally.
