@@ -19,6 +19,7 @@ use tokio_stream::Stream;
 use crate::core::{Engine, EngineConfig};
 
 use crate::domain::completion::{CandleCompletionChunk, CandleCompletionParams};
+use crate::domain::completion::format_tools_for_qwen3;
 use crate::domain::context::CandleStringChunk;
 use crate::domain::model::{info::CandleModelInfo, traits::CandleModel};
 use crate::domain::prompt::CandlePrompt;
@@ -252,11 +253,36 @@ impl crate::capability::traits::TextToTextCapable for LoadedQwen3QuantizedModel 
             .map(|v| v as usize)
             .unwrap_or(64);
 
-        // Format prompt using Qwen3 chat template
-        let prompt_text = format!(
-            "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-            prompt.content
-        );
+        // Format prompt using Qwen3 chat template with optional tool support
+        let prompt_text = if let Some(ref tools) = params.tools {
+            // Convert ZeroOneOrMany to Vec using Into trait
+            let tools_vec: Vec<_> = tools.clone().into();
+            
+            if tools_vec.is_empty() {
+                // No tools available - standard user prompt
+                format!(
+                    "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                    prompt.content
+                )
+            } else {
+                // Tools available - add system message with tool definitions
+                let tool_defs = format_tools_for_qwen3(&tools_vec);
+                
+                log::debug!("Generated prompt with {} tool(s)", tools_vec.len());
+                
+                format!(
+                    "<|im_start|>system\nYou are a helpful AI assistant with access to tools. When you need to use a tool, output <tool_call>{{\"name\": \"tool_name\", \"arguments\": {{...}}}}</tool_call>\n\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                    tool_defs, 
+                    prompt.content
+                )
+            }
+        } else {
+            // No tools parameter provided - standard user prompt
+            format!(
+                "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                prompt.content
+            )
+        };
         let max_tokens = params.max_tokens.map(|n| n.get()).unwrap_or(1000);
 
         // Use Engine's coordinate_generation for automatic metrics and stream conversion

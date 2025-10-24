@@ -25,7 +25,7 @@ impl StateManager {
     pub async fn get_node(&self, id: &str) -> Option<ThoughtNode> {
         // Fast path: cache-only check (no storage lock)
         {
-            let cache = self.cache.lock().await;
+            let mut cache = self.cache.lock().await;
             if let Some(node) = cache.get(id) {
                 return Some(node.clone());
             }

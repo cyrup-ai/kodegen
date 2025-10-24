@@ -4,7 +4,6 @@ use futures::Stream;
 use kodegen_candle_agent::prelude::{Embedding, EmbeddingBuilder};
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use serde_json::json;
 use std::collections::HashSet;
@@ -277,7 +276,7 @@ impl BaseStrategy {
                 .await;
 
             let parent_embedding = match parent_result {
-                Ok(emb) => match emb.as_vec() {
+                Ok(Ok(emb)) => match emb.as_vec() {
                     Some(vec) => vec.clone(),
                     None => {
                         let _ = tx.send(Err(ReasoningError::Other(
@@ -286,9 +285,15 @@ impl BaseStrategy {
                         return;
                     }
                 },
-                Err(e) => {
+                Ok(Err(e)) => {
                     let _ = tx.send(Err(ReasoningError::Other(
                         format!("Failed to generate parent embedding: {}", e)
+                    )));
+                    return;
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(ReasoningError::Other(
+                        format!("Task join error for parent embedding: {}", e)
                     )));
                     return;
                 }
@@ -301,7 +306,7 @@ impl BaseStrategy {
                 .await;
 
             let child_embedding = match child_result {
-                Ok(emb) => match emb.as_vec() {
+                Ok(Ok(emb)) => match emb.as_vec() {
                     Some(vec) => vec.clone(),
                     None => {
                         let _ = tx.send(Err(ReasoningError::Other(
@@ -310,9 +315,15 @@ impl BaseStrategy {
                         return;
                     }
                 },
-                Err(e) => {
+                Ok(Err(e)) => {
                     let _ = tx.send(Err(ReasoningError::Other(
                         format!("Failed to generate child embedding: {}", e)
+                    )));
+                    return;
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(ReasoningError::Other(
+                        format!("Task join error for child embedding: {}", e)
                     )));
                     return;
                 }

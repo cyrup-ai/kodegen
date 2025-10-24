@@ -11,6 +11,7 @@ members = [
     "packages/mcp-server",
     "packages/mcp-tool",
     "packages/simd",
+    "packages/tools-browser",
     "packages/tools-citescrape",
     "packages/tools-claude-agent",
     "packages/tools-candle-agent",

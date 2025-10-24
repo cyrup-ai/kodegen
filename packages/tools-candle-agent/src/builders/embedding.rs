@@ -3,9 +3,7 @@
 //! All embedding construction logic and builder patterns with zero allocation.
 //! Integrates with the registry system to access text embedding models.
 
-use std::marker::PhantomData;
 use crate::domain::embedding_result::Embedding;
-use crate::domain::collections::ZeroOneOrMany;
 use cylo::{AsyncTask, async_task::AsyncTaskBuilder};
 use crate::capability::registry::{self, TextEmbeddingModel};
 use crate::capability::traits::TextEmbeddingCapable;

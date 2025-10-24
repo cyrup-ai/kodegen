@@ -80,12 +80,12 @@ trait ToolExecutor: Send + Sync {
 
 /// Wrapper for Tool trait implementations
 struct ToolWrapper<T: kodegen_mcp_tool::Tool> {
-    tool: T,
+    tool: Arc<T>,
 }
 
 impl<T: kodegen_mcp_tool::Tool> ToolWrapper<T> {
     fn new(tool: T) -> Self {
-        Self { tool }
+        Self { tool: Arc::new(tool) }
     }
 }
 
@@ -114,13 +114,13 @@ impl<T: kodegen_mcp_tool::Tool> ToolExecutor for ToolWrapper<T> {
         }
     }
     
-    fn execute(&self, args: Value) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send + '_>> {
+    fn execute(&self, args: Value) -> Pin<Box<dyn std::future::Future<Output = Result<Value, RouterError>> + Send>> {
         // Deserialize args to tool's Args type
         let typed_args: Result<T::Args, _> = serde_json::from_value(args);
         
         match typed_args {
             Ok(args) => {
-                let tool = &self.tool;
+                let tool = Arc::clone(&self.tool);
                 Box::pin(async move {
                     tool.execute(args)
                         .await
