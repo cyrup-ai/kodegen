@@ -17,6 +17,7 @@ pub mod prompt_formatter;
 pub mod request;
 pub mod response;
 mod tool_formatter;
+mod tool_parser;
 pub mod types;
 
 // Re-export commonly used Candle types for convenience
@@ -26,6 +27,7 @@ pub use candle::{
 };
 pub use prompt_formatter::PromptFormatter;
 pub use tool_formatter::format_tools_for_qwen3;
+pub use tool_parser::{ToolCall, ToolCallParser};
 
 // Type aliases for convenience
 pub type CandleCompletionResult<T> = CompletionCoreResult<T>;
