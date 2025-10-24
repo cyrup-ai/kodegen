@@ -64,6 +64,8 @@ pub mod workflow;
 // Prelude - All types needed for ARCHITECTURE.md syntax
 pub mod prelude {
     pub use crate::builders::{CandleAgentBuilder, CandleAgentRoleBuilder, CandleFluentAi};
+    // Vision builder for image description
+    pub use crate::builders::CandleVisionBuilder;
     // Embedding builder for text embeddings
     pub use crate::builders::EmbeddingBuilder;
     pub use crate::domain::Embedding;
@@ -84,6 +86,7 @@ pub mod prelude {
         context::{
             FinishReason,
             provider::{CandleContext, CandleDirectory, CandleFile, CandleFiles, CandleGithub},
+            chunks::CandleStringChunk,
         },
         image_generation::{
             ImageGenerationChunk, ImageGenerationConfig, ImageGenerationModel, tensor_to_image,

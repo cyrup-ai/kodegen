@@ -354,4 +354,9 @@ impl CandleFluentAi {
     pub fn agent_role(name: impl Into<String>) -> impl CandleAgentRoleBuilder {
         CandleAgentRoleBuilderImpl::new(name)
     }
+    
+    /// Create a new vision builder - entry point for vision operations
+    pub fn vision() -> impl crate::builders::vision::CandleVisionBuilder {
+        crate::builders::vision::VisionBuilderImpl::new()
+    }
 }
