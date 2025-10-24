@@ -3,7 +3,7 @@ use chromiumoxide::{Page, cdp};
 use futures::future::join_all;
 use std::path::Path;
 use tokio::fs;
-use tracing::info;
+use tracing::{debug, info, warn};
 
 mod config;
 use config::Config;
@@ -90,11 +90,8 @@ pub async fn inject(page: Page) -> Result<()> {
     )
     .await?;
 
-    // Step 2: Load all script files in parallel
-    info!(
-        "Loading {} evasion scripts in parallel",
-        EVASION_SCRIPTS.len()
-    );
+    // Step 2: Load all script files with best-effort error handling
+    info!("Loading {} evasion scripts", EVASION_SCRIPTS.len());
 
     let read_futures: Vec<_> = EVASION_SCRIPTS
         .iter()
@@ -102,51 +99,107 @@ pub async fn inject(page: Page) -> Result<()> {
             let script_path = kromekover_dir.join(script);
             let script_name = (*script).to_string();
             async move {
-                info!("Reading {}", script_name);
-                let source = fs::read_to_string(&script_path).await?;
-                Ok::<(String, String), anyhow::Error>((script_name, source))
+                let source = fs::read_to_string(&script_path).await;
+                (script_name, source)
             }
         })
         .collect();
 
-    // Step 3: Await all reads and propagate errors (fail-fast)
     let read_results = join_all(read_futures).await;
 
-    // CRITICAL: Proper error handling - propagate ANY file read errors
-    // This converts Vec<Result<T, E>> into Result<Vec<T>, E>
-    // If ANY script fails to load, the entire injection fails (fail-fast principle)
-    let scripts: Vec<(String, String)> = read_results.into_iter().collect::<Result<Vec<_>, _>>()?;
+    // Separate successes from failures with detailed logging
+    let mut scripts = Vec::new();
+    let mut failed_reads = Vec::new();
 
-    info!("Successfully loaded {} scripts", scripts.len());
+    for (script_name, result) in read_results {
+        match result {
+            Ok(source) => {
+                debug!("✓ Loaded: {}", script_name);
+                scripts.push((script_name, source));
+            }
+            Err(e) => {
+                warn!("✗ Failed to load {}: {}", script_name, e);
+                failed_reads.push(script_name);
+            }
+        }
+    }
 
-    // Step 4: Inject all scripts in parallel
+    info!(
+        "Loaded {}/{} scripts successfully",
+        scripts.len(),
+        EVASION_SCRIPTS.len()
+    );
+    if !failed_reads.is_empty() {
+        warn!(
+            "Failed to load {} scripts: {:?}",
+            failed_reads.len(),
+            failed_reads
+        );
+    }
+
+    // Step 4: Inject all loaded scripts with best-effort error handling
+    info!("Injecting {} scripts", scripts.len());
+
     let inject_futures: Vec<_> = scripts
         .into_iter()
         .map(|(script_name, source)| {
             let page = page.clone();
             async move {
-                info!("Injecting {}", script_name);
-                page.execute(
-                    cdp::browser_protocol::page::AddScriptToEvaluateOnNewDocumentParams {
-                        source,
-                        include_command_line_api: None,
-                        world_name: None,
-                        run_immediately: None,
-                    },
-                )
-                .await?;
-                Ok::<(), anyhow::Error>(())
+                let result = page
+                    .execute(
+                        cdp::browser_protocol::page::AddScriptToEvaluateOnNewDocumentParams {
+                            source,
+                            include_command_line_api: None,
+                            world_name: None,
+                            run_immediately: None,
+                        },
+                    )
+                    .await;
+                (script_name, result)
             }
         })
         .collect();
 
-    // Step 5: Await all injections and propagate errors
     let inject_results = join_all(inject_futures).await;
 
-    // CRITICAL: Proper error handling - propagate ANY injection errors
-    inject_results.into_iter().collect::<Result<Vec<_>, _>>()?;
+    // Track injection success/failure with detailed logging
+    let mut success_count = 0;
+    let mut failed_injections = Vec::new();
 
-    info!("Successfully injected {} scripts", EVASION_SCRIPTS.len());
+    for (script_name, result) in inject_results {
+        match result {
+            Ok(_) => {
+                debug!("✓ Injected: {}", script_name);
+                success_count += 1;
+            }
+            Err(e) => {
+                warn!("✗ Failed to inject {}: {}", script_name, e);
+                failed_injections.push(script_name);
+            }
+        }
+    }
+
+    info!(
+        "Successfully injected {}/{} scripts",
+        success_count,
+        EVASION_SCRIPTS.len()
+    );
+    if !failed_injections.is_empty() {
+        warn!(
+            "Failed to inject {} scripts: {:?}",
+            failed_injections.len(),
+            failed_injections
+        );
+    }
+
+    // Check if any scripts succeeded - fail only if ZERO scripts were injected
+    if success_count == 0 {
+        return Err(anyhow::anyhow!(
+            "Failed to inject any stealth scripts. Total failures: {} load, {} inject",
+            failed_reads.len(),
+            failed_injections.len()
+        ));
+    }
 
     // Step 6: Modify user agent last
     info!("Configuring user agent");
@@ -164,6 +217,10 @@ pub async fn inject(page: Page) -> Result<()> {
     })
     .await?;
 
-    info!("Stealth scripts injection complete");
+    info!(
+        "Stealth injection complete: {}/{} scripts active",
+        success_count,
+        EVASION_SCRIPTS.len()
+    );
     Ok(())
 }

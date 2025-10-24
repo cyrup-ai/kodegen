@@ -155,11 +155,17 @@ fn process_break_loop() -> CandleMessageChunk {
 
 /// Initialize tool router (using workspace MCP infrastructure)
 async fn initialize_tool_router(
-    _sender: &tokio::sync::mpsc::UnboundedSender<CandleMessageChunk>,
+    sender: &tokio::sync::mpsc::UnboundedSender<CandleMessageChunk>,
 ) -> Option<CandleToolRouter> {
     // Create router with no remote MCP client (local tools only)
     let mut router = CandleToolRouter::new(None);
-    router.initialize().await.ok()?;
+    if let Err(e) = router.initialize().await {
+        let error_chunk = CandleMessageChunk::Error(format!(
+            "Failed to initialize tool router: {e}"
+        ));
+        let _ = sender.send(error_chunk);
+        return None;
+    }
     Some(router)
 }
 
