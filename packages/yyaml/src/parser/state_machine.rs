@@ -506,23 +506,32 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
 
     fn handle_parametric_block_mapping(&mut self) -> Result<(), ScanError> {
         let n = self.context.current_indent();
-        let key_indent = n + 1;
-        self.context.push_context(YamlContext::BlockKey, key_indent as i32);
         let mut map = LinkedHashMap::new();
+        let mut key_indent: Option<usize> = None;
+        let mut has_entries = false;
         loop {
-            let peeked_indent = self.scanner.peek_line_indent()?;
-            if peeked_indent < key_indent {
+            let peeked = self.scanner.peek_line_indent()?;
+            if peeked < n + 1 {
                 break;
             }
-            // Consume leading spaces up to key_indent
-            for _ in 0..key_indent {
+            let this_indent = peeked;
+            if key_indent.is_none() {
+                key_indent = Some(this_indent);
+                self.context.push_context(YamlContext::BlockKey, this_indent as i32);
+                has_entries = true;
+            } else if this_indent != key_indent.unwrap() {
+                return Err(ScanError::new(self.scanner.mark(), "All block mapping entries must have the same indentation"));
+            }
+            // Consume the indentation
+            for _ in 0..this_indent {
                 self.scanner.consume_char()?;
             }
-            self.handle_parametric_block_mapping_entry(&mut map, key_indent)?;
-            // After entry, process separation
-            self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+            self.handle_parametric_block_mapping_entry(&mut map, this_indent)?;
+            self.scanner.process_structural_separation(&mut self.context, this_indent as i32)?;
         }
-        self.context.pop_context();
+        if has_entries {
+            self.context.pop_context();
+        }
         self.ast_stack.push(YamlBuilder::Mapping(map, None));
         Ok(())
     }
@@ -530,65 +539,72 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
     fn handle_parametric_block_mapping_entry(&mut self, map: &mut LinkedHashMap<Yaml, Yaml>, key_indent: usize) -> Result<(), ScanError> {
         let token_pos = self.scanner.mark();
         let token = self.scanner.peek_token()?;
-        let mut key = match &token.1 {
+        let key_yaml = match &token.1 {
             TokenType::QuestionMark => {
-                // Explicit
-                self.scanner.fetch_token();
-                // Parse key in BlockKey context
-                let key_yaml = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
-                // Expect :
-                let colon_pos = self.scanner.mark();
-                let colon_token = self.scanner.peek_token()?;
-                if !matches!(&colon_token.1, TokenType::Value) {
-                    return Err(ScanError::new(colon_pos, "Expected : after ?"));
-                }
-                // Consume indent + :
-                for _ in 0..key_indent {
-                    self.scanner.consume_char()?;
-                }
-                self.scanner.fetch_token(); // consume :
-                key_yaml
+                // Explicit key entry
+                self.scanner.fetch_token(); // consume ?
+                let ky = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
+                self.handle_colon_after_key(key_indent, "Expected : after explicit key")?;
+                ky
             }
             TokenType::Scalar(..) => {
-                // Implicit key
-                let key_yaml = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
-                // Expect :
-                let colon_pos = self.scanner.mark();
-                let colon_token = self.scanner.peek_token()?;
-                if !matches!(&colon_token.1, TokenType::Value) {
-                    return Err(ScanError::new(colon_pos, "Expected : after key"));
-                }
-                // Consume indent + :
-                for _ in 0..key_indent {
-                    self.scanner.consume_char()?;
-                }
-                self.scanner.fetch_token();
-                key_yaml
+                // Implicit key entry
+                let ky = self.parse_node_in_context(YamlContext::BlockKey, key_indent)?;
+                self.handle_colon_after_key(key_indent, "Expected : after implicit key")?;
+                ky
             }
             TokenType::Value => {
-                // Empty key
-                // Consume indent + :
-                for _ in 0..key_indent {
-                    self.scanner.consume_char()?;
-                }
-                self.scanner.fetch_token();
+                // Empty key entry
+                self.scanner.fetch_token(); // consume :
                 Yaml::Null
             }
-            _ => return Err(ScanError::new(token_pos, "Invalid entry start")),
+            _ => return Err(ScanError::new(token_pos, "Invalid start of block mapping entry")),
         };
-        // Parse value
+        // Common value parsing after key and colon
+        self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+        let value_pos = self.scanner.mark();
         let value_indent = self.scanner.peek_line_indent()?;
-        if value_indent <= key_indent {
-            return Err(ScanError::new(token_pos, "Value indent must be > key indent"));
-        }
-        self.context.push_context(YamlContext::BlockIn, value_indent as i32);
-        let value_yaml = self.parse_node_in_context(YamlContext::BlockIn, value_indent)?;
-        self.context.pop_context();
-        map.insert(key, value_yaml);
+        let value_yaml = if value_indent > key_indent {
+            self.context.push_context(YamlContext::BlockIn, value_indent as i32);
+            let vy = self.parse_node_in_context(YamlContext::BlockIn, value_indent)?;
+            self.context.pop_context();
+            vy
+        } else {
+            Yaml::Null
+        };
+        map.insert(key_yaml, value_yaml);
         Ok(())
     }
 
-    fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Yaml, ScanError> {
+        fn handle_colon_after_key(&mut self, key_indent: usize, expected_msg: &str) -> Result<(), ScanError> {
+        if let Ok(next_token) = self.scanner.peek_token() {
+            if matches!(&next_token.1, TokenType::Value) {
+                self.scanner.fetch_token();
+                return Ok(());
+            }
+        }
+        // Block colon on next line
+        self.scanner.process_structural_separation(&mut self.context, key_indent as i32)?;
+        let colon_pos = self.scanner.mark();
+        let colon_indent = self.scanner.peek_line_indent()?;
+        if colon_indent != key_indent {
+            return Err(ScanError::new(colon_pos, &format!(
+                "{} (expected indent {}, found {})", 
+                expected_msg, key_indent, colon_indent
+            )));
+        }
+        for _ in 0..key_indent {
+            self.scanner.consume_char()?;
+        }
+        let colon_token = self.scanner.peek_token()?;
+        if !matches!(&colon_token.1, TokenType::Value) {
+            return Err(ScanError::new(colon_pos, expected_msg));
+        }
+        self.scanner.fetch_token();
+        Ok(())
+    }
+
+fn parse_node_in_context(&mut self, ctx: YamlContext, indent: usize) -> Result<Yaml, ScanError> {
         let saved_state = self.state;
         let saved_ast_len = self.ast_stack.len();
         let saved_context_len = self.context.context_stack.len();
