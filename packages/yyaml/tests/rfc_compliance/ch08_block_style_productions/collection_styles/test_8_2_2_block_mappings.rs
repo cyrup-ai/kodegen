@@ -48,6 +48,6 @@ config:
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["items"].as_vec().unwrap().len(), 3);
-    assert_eq!(docs[0]["config"]["debug"].as_bool().unwrap(), true);
+    assert!(docs[0]["config"]["debug"].as_bool().unwrap());
     assert_eq!(docs[0]["config"]["port"].as_i64().unwrap(), 8080);
 }

@@ -35,10 +35,9 @@ fn test_json_boolean_resolution() {
     for value in true_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
-        assert_eq!(
-            docs[0]["key"].as_bool().unwrap(), 
-            true,
-            "JSON schema should resolve '{}' to true", 
+        assert!(
+            docs[0]["key"].as_bool().unwrap(),
+            "JSON schema should resolve '{}' to true",
             value
         );
     }
@@ -46,10 +45,9 @@ fn test_json_boolean_resolution() {
     for value in false_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
-        assert_eq!(
-            docs[0]["key"].as_bool().unwrap(), 
-            false,
-            "JSON schema should resolve '{}' to false", 
+        assert!(
+            !docs[0]["key"].as_bool().unwrap(),
+            "JSON schema should resolve '{}' to false",
             value
         );
     }
@@ -82,7 +80,7 @@ fn test_json_float_resolution() {
     // Regular floats
     let yaml = "key: 3.14159";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert!((docs[0]["key"].as_f64().unwrap() - 3.14159).abs() < f64::EPSILON);
+    assert!((docs[0]["key"].as_f64().unwrap() - std::f64::consts::PI).abs() < f64::EPSILON);
     
     // Scientific notation
     let yaml = "key: 1.23e-4";
@@ -92,7 +90,7 @@ fn test_json_float_resolution() {
     // Negative floats
     let yaml = "key: -2.718";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert!((docs[0]["key"].as_f64().unwrap() + 2.718).abs() < f64::EPSILON);
+    assert!((docs[0]["key"].as_f64().unwrap() + std::f64::consts::E).abs() < f64::EPSILON);
 }
 
 /// Test JSON schema string fallback

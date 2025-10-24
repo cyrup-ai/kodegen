@@ -42,5 +42,5 @@ base: &base
 server: { <<: *base, extra: *config }
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert_eq!(docs[0]["server"]["config"]["debug"].as_bool().unwrap(), true);
+    assert!(docs[0]["server"]["config"]["debug"].as_bool().unwrap());
 }

@@ -122,8 +122,8 @@ impl BrowserManager {
         
         // Now safe to launch - only one task can be here at a time
         info!("Launching browser for first use (will be reused)");
-        let (browser, handler) = launch_browser().await?;
-        let wrapper = BrowserWrapper::new(browser, handler);
+        let (browser, handler, user_data_dir) = launch_browser().await?;
+        let wrapper = BrowserWrapper::new(browser, handler, user_data_dir);
         
         let mut browser_lock = self.browser.lock().await;
         *browser_lock = Some(wrapper);
@@ -174,21 +174,20 @@ impl BrowserManager {
         if let Some(mut wrapper) = browser_lock.take() {
             info!("Shutting down browser");
             
-            // 1. Close current page (prevents "page not closed" warning)
-            if let Err(e) = wrapper.close_current_page().await {
-                tracing::warn!("Failed to close page cleanly: {}", e);
-            }
-            
-            // 2. Close the browser
+            // 1. Close the browser
             if let Err(e) = wrapper.browser_mut().close().await {
                 tracing::warn!("Failed to close browser cleanly: {}", e);
             }
             
-            // 3. Wait for process to fully exit
+            // 2. Wait for process to fully exit (CRITICAL - releases file handles)
             if let Err(e) = wrapper.browser_mut().wait().await {
                 tracing::warn!("Failed to wait for browser exit: {}", e);
             }
             
+            // 3. NOW safe to remove temp directory (all file handles released)
+            wrapper.cleanup_temp_dir();
+            
+            // 4. Drop wrapper (aborts handler)
             drop(wrapper);
         }
         

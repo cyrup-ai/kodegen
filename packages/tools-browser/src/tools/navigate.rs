@@ -120,10 +120,6 @@ impl Tool for BrowserNavigateTool {
             }
         }
         
-        // CRITICAL: Store page for other tools to use
-        wrapper.set_current_page(page.clone()).await
-            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to store page: {}", e)))?;
-        
         // Get final URL (may differ from requested due to redirects)
         let final_url = page.url().await
             .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get URL: {}", e)))?

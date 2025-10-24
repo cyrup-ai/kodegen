@@ -29,8 +29,8 @@ explicit_true: !!bool "yes"
 explicit_false: !!bool "no"
 "#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert_eq!(docs[0]["true_value"].as_bool().unwrap(), true);
-    assert_eq!(docs[0]["false_value"].as_bool().unwrap(), false);
+    assert!(docs[0]["true_value"].as_bool().unwrap());
+    assert!(!docs[0]["false_value"].as_bool().unwrap());
     // Note: Explicit bool tags may or may not be supported
 }
 

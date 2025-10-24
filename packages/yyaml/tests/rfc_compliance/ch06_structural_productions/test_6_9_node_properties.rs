@@ -34,7 +34,7 @@ boolean: !!bool "yes"
     let docs = YamlLoader::load_from_str(yaml).unwrap();
     assert_eq!(docs[0]["string_as_int"].as_str().unwrap(), "123");
     assert_eq!(docs[0]["int_as_string"].as_i64().unwrap(), 456);
-    assert_eq!(docs[0]["boolean"].as_bool().unwrap(), true);
+    assert!(docs[0]["boolean"].as_bool().unwrap());
 }
 
 /// Test node property ordering

@@ -7,9 +7,8 @@ use anyhow::{Context, Result};
 use chromiumoxide::browser::{Browser, BrowserConfigBuilder};
 use chromiumoxide::page::Page;
 use futures::StreamExt;
-use std::sync::Arc;
+use std::path::PathBuf;
 use std::time::Duration;
-use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::{self, JoinHandle};
 use tracing::info;
 
@@ -21,15 +20,15 @@ use tracing::info;
 pub struct BrowserWrapper {
     browser: Browser,
     handler: JoinHandle<()>,
-    current_page: Arc<AsyncMutex<Option<Page>>>,
+    user_data_dir: Option<PathBuf>,
 }
 
 impl BrowserWrapper {
-    pub(crate) fn new(browser: Browser, handler: JoinHandle<()>) -> Self {
-        Self { 
-            browser, 
+    pub(crate) fn new(browser: Browser, handler: JoinHandle<()>, user_data_dir: PathBuf) -> Self {
+        Self {
+            browser,
             handler,
-            current_page: Arc::new(AsyncMutex::new(None)),
+            user_data_dir: Some(user_data_dir),
         }
     }
 
@@ -43,41 +42,34 @@ impl BrowserWrapper {
         &mut self.browser
     }
 
-    /// Get the current active page (if any)
-    pub(crate) async fn get_current_page(&self) -> Option<Page> {
-        let guard = self.current_page.lock().await;
-        guard.clone()  // Page is Clone (Arc internally)
-    }
-
-    /// Set the current page, closing the old one first
-    pub(crate) async fn set_current_page(&self, new_page: Page) -> Result<()> {
-        let mut guard = self.current_page.lock().await;
-        
-        // Close old page if exists
-        if let Some(old_page) = guard.take() {
-            info!("Closing previous page before setting new one");
-            if let Err(e) = old_page.close().await {
-                tracing::warn!("Failed to close old page: {}", e);
-                // Continue anyway - don't fail the operation
+    /// Clean up temp directory (blocking operation)
+    ///
+    /// MUST be called AFTER `browser.wait()` completes to ensure Chrome
+    /// has released all file handles. Windows will fail to remove locked files.
+    ///
+    /// Uses blocking `std::fs::remove_dir_all()` because this may be called
+    /// from Drop context where async is not available.
+    ///
+    /// Pattern from: forks/surrealdb/crates/language-tests/src/temp_dir.rs:55-57
+    pub fn cleanup_temp_dir(&mut self) {
+        if let Some(path) = self.user_data_dir.take() {
+            info!("Cleaning up temp directory: {}", path.display());
+            if let Err(e) = std::fs::remove_dir_all(&path) {
+                tracing::warn!(
+                    "Failed to clean up temp directory {}: {}. Manual cleanup may be required.",
+                    path.display(),
+                    e
+                );
             }
         }
-        
-        // Store new page
-        *guard = Some(new_page);
-        Ok(())
     }
 
-    /// Close the current page without replacing it
-    pub(crate) async fn close_current_page(&self) -> Result<()> {
-        let mut guard = self.current_page.lock().await;
-        
-        if let Some(page) = guard.take() {
-            info!("Closing current page");
-            page.close().await
-                .context("Failed to close current page")?;
-        }
-        
-        Ok(())
+    /// Prevent automatic cleanup (for debugging)
+    ///
+    /// Useful when investigating Chrome crashes - preserves profile for inspection
+    #[allow(dead_code)]
+    pub fn keep_temp_dir(mut self) {
+        self.user_data_dir = None;
     }
 }
 
@@ -85,10 +77,14 @@ impl Drop for BrowserWrapper {
     fn drop(&mut self) {
         info!("Dropping BrowserWrapper - aborting handler task");
         self.handler.abort();
+        // Handler will be awaited/cleaned up by tokio runtime
+        // Browser::drop() will automatically kill the Chrome process
         
-        // NOTE: We can't call async close_current_page() here (Drop is sync)
-        // But BrowserManager.shutdown() will handle proper cleanup
-        // The page will be cleaned up when Chrome process exits
+        // Cleanup temp directory (fallback if shutdown() wasn't called)
+        if self.user_data_dir.is_some() {
+            tracing::warn!("BrowserWrapper dropped without explicit cleanup - removing temp dir in Drop");
+            self.cleanup_temp_dir();
+        }
     }
 }
 
@@ -96,9 +92,8 @@ impl Drop for BrowserWrapper {
 
 /// Launch a new browser instance with stealth configuration
 ///
-/// Returns a tuple of (Browser, `JoinHandle`) where the `JoinHandle` tracks the
-/// REAL browser event handler task. The handler must be aborted when
-/// closing the browser to prevent zombie processes.
+/// Returns tuple of (Browser, JoinHandle, PathBuf) where PathBuf is the
+/// temp directory that MUST be cleaned up after browser shuts down.
 ///
 /// This function calls chromiumoxide `Browser::launch()` directly and properly
 /// tracks the handler, unlike `browser_setup::launch_browser()` which spawns
@@ -107,7 +102,7 @@ impl Drop for BrowserWrapper {
 /// # Handler Lifecycle
 /// The returned `JoinHandle` MUST be aborted when done to stop the browser process.
 /// `BrowserWrapper::drop()` handles this automatically.
-pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
+pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
     info!("Launching browser for web search");
 
     // Find or download Chrome executable
@@ -127,7 +122,7 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
     let browser_config = BrowserConfigBuilder::default()
         .request_timeout(Duration::from_secs(30))
         .window_size(1920, 1080)
-        .user_data_dir(user_data_dir)
+        .user_data_dir(&user_data_dir)
         .chrome_executable(chrome_path)
         .headless_mode(chromiumoxide::browser::HeadlessMode::default())
         // Stealth mode arguments
@@ -182,7 +177,7 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>)> {
         info!("Browser event handler task completed");
     });
 
-    Ok((browser, handler_task))
+    Ok((browser, handler_task, user_data_dir))
 }
 
 /// Create a blank page for stealth injection
@@ -208,4 +203,35 @@ pub async fn create_blank_page(wrapper: &BrowserWrapper) -> Result<Page> {
 
     info!("Created blank page for stealth injection");
     Ok(page)
+}
+
+/// Get the current/active page from the browser
+///
+/// Uses chromiumoxide's built-in page tracking to retrieve the first page.
+/// This should be called after browser_navigate has created and navigated a page.
+///
+/// # Arguments
+/// * `wrapper` - `BrowserWrapper` containing the browser instance
+///
+/// # Returns
+/// The first/primary Page instance
+///
+/// # Errors
+/// Returns error if no pages exist (user must call browser_navigate first)
+///
+/// # Based on
+/// - tmp/chromiumoxide/src/browser.rs:524-531 (browser.pages() API)
+pub async fn get_current_page(wrapper: &BrowserWrapper) -> Result<Page> {
+    let pages = wrapper
+        .browser()
+        .pages()
+        .await
+        .context("Failed to get browser pages")?;
+    
+    pages
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!(
+            "No page loaded. Call browser_navigate first."
+        ))
 }

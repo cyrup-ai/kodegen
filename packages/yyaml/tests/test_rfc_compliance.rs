@@ -117,7 +117,7 @@ second_document: "This demonstrates multi-document streams"
     // Test configuration structure
     assert_eq!(doc["configuration"]["database"]["port"].as_i64().unwrap(), 5432);
     assert_eq!(doc["configuration"]["features"].as_vec().unwrap().len(), 3);
-    assert_eq!(doc["configuration"]["flags"]["debug"].as_bool().unwrap(), true);
+    assert!(doc["configuration"]["flags"]["debug"].as_bool().unwrap());
     
     // Test block scalars
     assert!(doc["configuration"]["description"].as_str().unwrap().contains("literal block scalar"));
@@ -125,7 +125,7 @@ second_document: "This demonstrates multi-document streams"
     
     // Test type resolution
     assert!(doc["configuration"]["types"]["null_value"].is_null());
-    assert_eq!(doc["configuration"]["types"]["boolean_true"].as_bool().unwrap(), true);
+    assert!(doc["configuration"]["types"]["boolean_true"].as_bool().unwrap());
     assert_eq!(doc["configuration"]["types"]["integer"].as_i64().unwrap(), 42);
     
     // Test aliases work correctly
@@ -138,17 +138,17 @@ second_document: "This demonstrates multi-document streams"
 #[test]
 fn test_error_handling_compliance() {
     // Test cases that should fail parsing
-    let invalid_cases = vec![
+    let invalid_cases = [
         // Invalid indentation (tabs)
         "key:\n\tvalue",
-        
+
         // Invalid flow syntax
         "[unclosed sequence",
         "{unclosed: mapping",
-        
+
         // Invalid escape sequences in double quotes
         "\"invalid \\x escape\"",
-        
+
         // Invalid document markers
         "content\n---\n... extra content after end",
     ];

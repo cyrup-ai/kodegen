@@ -10,6 +10,7 @@ pub use browser::{
     BrowserWrapper, 
     launch_browser, 
     create_blank_page,
+    get_current_page,
     BrowserError, 
     BrowserResult,
     find_browser_executable,

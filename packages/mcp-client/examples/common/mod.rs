@@ -476,6 +476,7 @@ impl LoggingClient {
     }
 
     /// Get server info (passthrough to inner client)
+    #[allow(dead_code)] // Used by 14 examples, not all binaries
     pub fn server_info(&self) -> Option<&ServerInfo> {
         self.inner.server_info()
     }

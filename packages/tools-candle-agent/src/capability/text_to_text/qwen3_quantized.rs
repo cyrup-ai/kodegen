@@ -240,7 +240,7 @@ impl LoadedQwen3QuantizedModel {
         // Tokenize prompt
         let tokens = self.tokenizer
             .encode(prompt, true)
-            .context("Failed to tokenize prompt")?;
+            .map_err(|e| anyhow::anyhow!("Failed to tokenize prompt: {}", e))?;
         let mut all_tokens = tokens.get_ids().to_vec();
         
         // Generation loop with constraint masking
@@ -296,7 +296,7 @@ impl LoadedQwen3QuantizedModel {
             // Decode and append token
             all_tokens.push(next_token);
             let token_text = self.tokenizer.decode(&[next_token], false)
-                .context("Failed to decode token")?;
+                .map_err(|e| anyhow::anyhow!("Failed to decode token: {}", e))?;
             generated_text.push_str(&token_text);
             
             // Stop on EOS
@@ -338,8 +338,8 @@ impl LoadedQwen3QuantizedModel {
             .collect();
         
         // Sample from distribution
-        let mut rng = rand::thread_rng();
-        let sample: f32 = rng.gen();
+        let mut rng = rand::rng();
+        let sample: f32 = rng.r#gen();
         let mut cumsum = 0.0;
         
         for (i, &prob) in probs.iter().enumerate() {

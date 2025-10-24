@@ -57,11 +57,10 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
         })
     ).await?;
     
-    if let Some(content) = result.content.first() {
-        if let Some(text) = content.as_text() {
-            let response: serde_json::Value = serde_json::from_str(&text.text)?;
-            info!("   ✓ Navigate result: {}", response.get("url").and_then(|v| v.as_str()).unwrap_or("unknown"));
-        }
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        info!("   ✓ Navigate result: {}", response.get("url").and_then(|v| v.as_str()).unwrap_or("unknown"));
     }
     info!("");
 
@@ -83,17 +82,16 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
         json!({})
     ).await?;
     
-    if let Some(content) = result.content.first() {
-        if let Some(text) = content.as_text() {
-            let response: serde_json::Value = serde_json::from_str(&text.text)?;
-            let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
-            let preview = if extracted.len() > 200 {
-                format!("{}...", &extracted[..200])
-            } else {
-                extracted.to_string()
-            };
-            info!("   ✓ Extracted {} chars: {}", extracted.len(), preview);
-        }
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        let preview = if extracted.len() > 200 {
+            format!("{}...", &extracted[..200])
+        } else {
+            extracted.to_string()
+        };
+        info!("   ✓ Extracted {} chars: {}", extracted.len(), preview);
     }
     info!("");
 
@@ -106,12 +104,11 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
         })
     ).await?;
     
-    if let Some(content) = result.content.first() {
-        if let Some(text) = content.as_text() {
-            let response: serde_json::Value = serde_json::from_str(&text.text)?;
-            let size = response.get("size_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
-            info!("   ✓ Screenshot captured: {} bytes", size);
-        }
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        let size = response.get("size_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+        info!("   ✓ Screenshot captured: {} bytes", size);
     }
     info!("");
 

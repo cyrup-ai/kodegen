@@ -45,12 +45,11 @@ async fn run_example(client: &common::LoggingClient) -> Result<()> {
         })
     ).await?;
     
-    if let Some(content) = result.content.first() {
-        if let Some(text) = content.as_text() {
-            let response: serde_json::Value = serde_json::from_str(&text.text)?;
-            info!("✓ Navigation successful!");
-            info!("  URL: {}", response.get("url").and_then(|v| v.as_str()).unwrap_or("unknown"));
-        }
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        info!("✓ Navigation successful!");
+        info!("  URL: {}", response.get("url").and_then(|v| v.as_str()).unwrap_or("unknown"));
     }
 
     info!("\n📄 Extracting page text...");
@@ -59,14 +58,13 @@ async fn run_example(client: &common::LoggingClient) -> Result<()> {
         json!({})
     ).await?;
     
-    if let Some(content) = result.content.first() {
-        if let Some(text) = content.as_text() {
-            let response: serde_json::Value = serde_json::from_str(&text.text)?;
-            let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
-            info!("✓ Extracted {} characters", extracted.len());
-            info!("\nPage content preview:");
-            info!("{}", &extracted[..extracted.len().min(300)]);
-        }
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text() {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        info!("✓ Extracted {} characters", extracted.len());
+        info!("\nPage content preview:");
+        info!("{}", &extracted[..extracted.len().min(300)]);
     }
 
     Ok(())

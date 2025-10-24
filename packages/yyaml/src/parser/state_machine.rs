@@ -108,7 +108,8 @@ impl<T: Iterator<Item = char>> StateMachine<T> {
             match (self.state, state) {
                 (State::FlowSequenceEntry, State::BlockNode)
                 | (State::FlowMappingValue, State::BlockNode)
-                | (State::BlockMappingValue, State::BlockMappingKey) => {
+                | (State::BlockMappingValue, State::BlockMappingKey)
+                | (State::BlockSequenceEntry, State::BlockNode) => {
                     self.context.pop_context();
                 }
                 _ => {}

@@ -46,10 +46,9 @@ fn test_core_boolean_resolution() {
     for value in true_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
-        assert_eq!(
-            docs[0]["key"].as_bool().unwrap(), 
-            true,
-            "Core schema should resolve '{}' to true", 
+        assert!(
+            docs[0]["key"].as_bool().unwrap(),
+            "Core schema should resolve '{}' to true",
             value
         );
     }
@@ -57,10 +56,9 @@ fn test_core_boolean_resolution() {
     for value in false_values {
         let yaml = format!("key: {}", value);
         let docs = YamlLoader::load_from_str(&yaml).unwrap();
-        assert_eq!(
-            docs[0]["key"].as_bool().unwrap(), 
-            false,
-            "Core schema should resolve '{}' to false", 
+        assert!(
+            !docs[0]["key"].as_bool().unwrap(),
+            "Core schema should resolve '{}' to false",
             value
         );
     }
@@ -96,7 +94,7 @@ fn test_core_float_resolution() {
     // Regular floats
     let yaml = "key: 3.14159";
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert!((docs[0]["key"].as_f64().unwrap() - 3.14159).abs() < f64::EPSILON);
+    assert!((docs[0]["key"].as_f64().unwrap() - std::f64::consts::PI).abs() < f64::EPSILON);
     
     // Scientific notation
     let yaml = "key: 1.23e-4";
@@ -138,5 +136,5 @@ fn test_explicit_tag_override() {
     // Force boolean interpretation
     let yaml = r#"key: !!bool "yes""#;
     let docs = YamlLoader::load_from_str(yaml).unwrap();
-    assert_eq!(docs[0]["key"].as_bool().unwrap(), true);
+    assert!(docs[0]["key"].as_bool().unwrap());
 }
