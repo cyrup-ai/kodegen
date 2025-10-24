@@ -6,7 +6,7 @@ mod setup;
 mod wrapper;
 
 pub use setup::{find_browser_executable, download_managed_browser};
-pub use wrapper::{BrowserWrapper, launch_browser};
+pub use wrapper::{BrowserWrapper, launch_browser, create_blank_page, get_current_page};
 
 use thiserror::Error;
 

@@ -17,38 +17,43 @@ pub struct Embedding {
 
 impl Embedding {
     /// Create a new embedding result
+    #[must_use]
     pub fn new(document: String, vec: Vec<f32>) -> Self {
         Self {
             document,
             vec: ZeroOneOrMany::One(vec),
         }
     }
-    
+
     /// Create embedding with no vector (placeholder)
+    #[must_use]
     pub fn placeholder(document: String) -> Self {
         Self {
             document,
             vec: ZeroOneOrMany::None,
         }
     }
-    
+
     /// Get the embedding vector as a slice, if available
+    #[must_use]
     pub fn as_vec(&self) -> Option<&Vec<f32>> {
         match &self.vec {
             ZeroOneOrMany::One(v) => Some(v),
             _ => None,
         }
     }
-    
+
     /// Get the embedding vector as a slice (convenience method)
+    #[must_use]
     pub fn as_slice(&self) -> &[f32] {
         match &self.vec {
             ZeroOneOrMany::One(v) => v.as_slice(),
             _ => &[],
         }
     }
-    
+
     /// Get the dimensionality of the embedding vector
+    #[must_use]
     pub fn dimensions(&self) -> usize {
         match &self.vec {
             ZeroOneOrMany::One(v) => v.len(),

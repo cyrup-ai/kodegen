@@ -38,9 +38,7 @@ pub fn format_tools_openai(tools: &[ToolInfo]) -> Result<String> {
     let openai_tools: Vec<serde_json::Value> = tools
         .iter()
         .map(|tool| {
-            let description = tool.description.as_ref()
-                .map(|s| s.as_ref())
-                .unwrap_or("");
+            let description = tool.description.as_deref().unwrap_or("");
             
             json!({
                 "type": "function",
@@ -183,7 +181,7 @@ pub fn get_selected_tool_schemas(
 ) -> Vec<ToolInfo> {
     available_tools
         .iter()
-        .filter(|tool| selected_names.contains(&tool.name))
+        .filter(|tool| selected_names.iter().any(|n| n.as_str() == tool.name.as_ref()))
         .cloned()
         .collect()
 }

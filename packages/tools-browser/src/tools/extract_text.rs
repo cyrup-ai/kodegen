@@ -60,10 +60,8 @@ impl Tool for BrowserExtractTextTool {
             .ok_or_else(|| McpError::Other(anyhow::anyhow!("Browser not available")))?;
         
         // Get current page (must call browser_navigate first)
-        let page = wrapper.get_current_page().await
-            .ok_or_else(|| McpError::Other(anyhow::anyhow!(
-                "No page loaded. Call browser_navigate first to load a page."
-            )))?;
+        let page = crate::browser::get_current_page(wrapper).await
+            .map_err(|e| McpError::Other(anyhow::anyhow!("Failed to get page: {}", e)))?;
         
         // Extract text based on selector
         let text = if let Some(selector) = &args.selector {

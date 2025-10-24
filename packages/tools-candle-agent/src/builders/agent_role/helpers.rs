@@ -4,6 +4,8 @@ use super::*;
 use crate::domain::agent::core::AGENT_STATS;
 use crate::domain::completion::types::ToolInfo;
 use crate::domain::tool::{CandleToolRouter, ToolSelector};
+use crate::capability::text_to_text::qwen3_quantized::LoadedQwen3QuantizedModel;
+use crate::capability::registry::TextToTextModel;
 use kodegen_mcp_client::create_sse_client;
 
 pub struct CandleAgentRoleAgent {
@@ -95,21 +97,32 @@ impl CandleAgentRoleAgent {
                         // TOOL SELECTION: Filter to 2-3 most relevant tools
                         // ═══════════════════════════════════════════════════════════
                         let final_tools = if all_tools.len() > 3 {
-                            // Use tool selection agent to filter
-                            let selector = ToolSelector::new(state.text_to_text_model.clone());
-                            let selected_names = selector
-                                .select_tools(&user_message, &all_tools)
-                                .await
-                                .unwrap_or_else(|e| {
-                                    log::warn!("Tool selection failed: {}, using all tools", e);
-                                    all_tools.iter().map(|t| t.name.clone()).collect()
-                                });
-                            
-                            // Filter to selected tools only
-                            all_tools
-                                .into_iter()
-                                .filter(|t| selected_names.contains(&t.name))
-                                .collect()
+                            // Extract model from enum
+                            let TextToTextModel::Qwen3Quantized(base_model) = &state.text_to_text_model;
+
+                            // Load model for tool selection
+                            match LoadedQwen3QuantizedModel::load(base_model).await {
+                                Ok(loaded_model) => {
+                                    let selector = ToolSelector::new(Arc::new(loaded_model));
+                                    match selector.select_tools(&user_message, &all_tools).await {
+                                        Ok(selected_names) => {
+                                            // Filter to selected tools only
+                                            all_tools
+                                                .into_iter()
+                                                .filter(|t| selected_names.iter().any(|n| n.as_str() == t.name.as_ref()))
+                                                .collect()
+                                        }
+                                        Err(e) => {
+                                            log::warn!("Tool selection failed: {}, using all tools", e);
+                                            all_tools
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    log::warn!("Failed to load model for tool selection: {}, using all tools", e);
+                                    all_tools
+                                }
+                            }
                         } else {
                             // 3 or fewer tools - no selection needed
                             all_tools

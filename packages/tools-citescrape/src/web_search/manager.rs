@@ -5,8 +5,8 @@
 //! subsequent searches to improve performance.
 
 use anyhow::Result;
-use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
+use std::sync::Arc;
+use tokio::sync::{Mutex, OnceCell};
 use tracing::info;
 
 use super::browser::{BrowserWrapper, launch_browser};
@@ -26,7 +26,7 @@ use super::browser::{BrowserWrapper, launch_browser};
 /// Uses `Arc<Mutex<Option<BrowserWrapper>>>` for async-safe access.
 #[derive(Clone)]
 pub struct BrowserManager {
-    browser: Arc<Mutex<Option<BrowserWrapper>>>,
+    browser: Arc<OnceCell<Arc<Mutex<Option<BrowserWrapper>>>>>,
 }
 
 impl BrowserManager {
@@ -36,7 +36,7 @@ impl BrowserManager {
     #[must_use] 
     pub fn new() -> Self {
         Self {
-            browser: Arc::new(Mutex::new(None)),
+            browser: Arc::new(OnceCell::new()),
         }
     }
 

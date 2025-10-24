@@ -64,23 +64,24 @@ pub struct ToolCall {
 #[derive(Debug, Default)]
 pub struct ToolCallParser {
     /// Buffer for accumulating text between tokens
-    /// 
+    ///
     /// Holds partial tags like "<tool" or "}" that haven't been classified yet.
     buffer: String,
-    
-    /// Whether currently inside <tool_call> tag
-    /// 
+
+    /// Whether currently inside `<tool_call>` tag
+    ///
     /// State machine flag: false = IDLE, true = ACCUMULATING
     in_tool_call: bool,
-    
+
     /// Accumulated JSON content inside tag
-    /// 
-    /// Contains everything between <tool_call> and </tool_call>
+    ///
+    /// Contains everything between `<tool_call>` and `</tool_call>`
     tool_call_content: String,
 }
 
 impl ToolCallParser {
     /// Create new parser
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -88,16 +89,16 @@ impl ToolCallParser {
     /// Process a new token from the LLM
     ///
     /// # Arguments
-    /// * `token` - Text token from LLM generation (from TokenOutputStream)
+    /// * `token` - Text token from LLM generation (from `TokenOutputStream`)
     ///
     /// # Returns
     /// * `Some(ToolCall)` - When a complete tool call is detected and successfully parsed
     /// * `None` - Still accumulating or no tool call in this token
     ///
     /// # State Transitions
-    /// 1. IDLE + detect "<tool_call>" → ACCUMULATING (clear content, start buffering)
-    /// 2. ACCUMULATING + no "</tool_call>" → ACCUMULATING (append to content)
-    /// 3. ACCUMULATING + detect "</tool_call>" → PARSE → IDLE (return ToolCall)
+    /// 1. IDLE + detect `<tool_call>` → ACCUMULATING (clear content, start buffering)
+    /// 2. ACCUMULATING + no `</tool_call>` → ACCUMULATING (append to content)
+    /// 3. ACCUMULATING + detect `</tool_call>` → PARSE → IDLE (return `ToolCall`)
     pub fn process_token(&mut self, token: &str) -> Option<ToolCall> {
         self.buffer.push_str(token);
 
@@ -133,7 +134,7 @@ impl ToolCallParser {
             }
 
             // Parse the complete JSON
-            let result = self.parse_tool_call_json(&self.tool_call_content);
+            let result = Self::parse_tool_call_json(&self.tool_call_content);
 
             // Reset state for next tool call
             self.in_tool_call = false;
@@ -163,14 +164,14 @@ impl ToolCallParser {
     /// - Invalid JSON: Log warning and return None (model may generate malformed JSON)
     /// - Missing fields: Return None via `?` operator
     /// - Malformed arguments: Return None (router will handle validation)
-    fn parse_tool_call_json(&self, json_str: &str) -> Option<ToolCall> {
+    fn parse_tool_call_json(json_str: &str) -> Option<ToolCall> {
         let trimmed = json_str.trim();
-        
+
         match serde_json::from_str::<serde_json::Value>(trimmed) {
             Ok(json) => {
                 // Extract "name" field
                 let name = json["name"].as_str()?.to_string();
-                
+
                 // Extract "arguments" field and serialize back to JSON string
                 // This preserves the structure for router.call_tool()
                 let arguments = json["arguments"].clone();
@@ -180,7 +181,7 @@ impl ToolCallParser {
             }
             Err(e) => {
                 // Model may generate invalid JSON - log and continue
-                log::warn!("Failed to parse tool call JSON: {}", e);
+                log::warn!("Failed to parse tool call JSON: {e}");
                 None
             }
         }
