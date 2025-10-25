@@ -5,7 +5,6 @@
 use anyhow::{Context, Result};
 use kodegen_mcp_client::{KodegenClient, KodegenConnection, create_sse_client};
 use rmcp::model::{CallToolResult, ServerInfo};
-use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex as StdMutex, OnceLock};
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -14,12 +13,12 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 
 /// Browser SSE server configuration
-const SSE_PORT: u16 = 30442;
-const BINARY_NAME: &str = "kodegen-database";
-const PACKAGE_NAME: &str = "kodegen_tools_database";
+const SSE_PORT: u16 = 30446;
+const BINARY_NAME: &str = "kodegen-introspection";
+const PACKAGE_NAME: &str = "kodegen_tools_introspection";
 
 /// SSE server URL for browser examples
-const SSE_URL: &str = "http://127.0.0.1:30442/sse";
+const SSE_URL: &str = "http://127.0.0.1:30446/sse";
 
 /// Cached workspace root
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -221,7 +220,7 @@ pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerH
 
     cleanup_port(SSE_PORT).await.ok();
 
-    eprintln!("🚀 Starting kodegen-database SSE server on port 30442...", BINARY_NAME, SSE_PORT);
+    eprintln!("🚀 Starting {} SSE server on port {}...", BINARY_NAME, SSE_PORT);
 
     let child = cmd.spawn().context("Failed to spawn SSE server process")?;
     let server_handle = ServerHandle::new(child);
@@ -296,30 +295,6 @@ impl LoggingClient {
 
         self.log_call(name, arguments, &result, duration).await;
         result
-    }
-
-    pub async fn call_tool_typed<T: DeserializeOwned>(
-        &self,
-        name: &str,
-        arguments: serde_json::Value,
-    ) -> Result<T, kodegen_mcp_client::ClientError> {
-        let result = self.call_tool(name, arguments).await?;
-
-        let text_content = result
-            .content
-            .first()
-            .and_then(|c| c.as_text())
-            .ok_or_else(|| {
-                kodegen_mcp_client::ClientError::ParseError(format!(
-                    "No text content in response from tool '{name}'"
-                ))
-            })?;
-
-        serde_json::from_str(&text_content.text).map_err(|e| {
-            kodegen_mcp_client::ClientError::ParseError(format!(
-                "Failed to parse response from tool '{name}': {e}"
-            ))
-        })
     }
 
     pub fn server_info(&self) -> Option<&ServerInfo> {

@@ -991,17 +991,13 @@ fn globs(state: &State, low: &LowArgs) -> anyhow::Result<ignore::overrides::Over
     let mut builder = ignore::overrides::OverrideBuilder::new(&state.cwd);
     // Make all globs case insensitive with --glob-case-insensitive.
     if low.glob_case_insensitive {
-        builder
-            .case_insensitive(true)
-            .expect("Test operation should succeed");
+        builder.case_insensitive(true)?;
     }
     for glob in &low.globs {
         builder.add(glob)?;
     }
     // This only enables case insensitivity for subsequent globs.
-    builder
-        .case_insensitive(true)
-        .expect("Test operation should succeed");
+    builder.case_insensitive(true)?;
     for glob in &low.iglobs {
         builder.add(glob)?;
     }

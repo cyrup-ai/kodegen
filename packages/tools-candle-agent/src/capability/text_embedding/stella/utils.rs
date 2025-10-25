@@ -9,22 +9,6 @@ use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer, Tr
 
 use super::super::safetensors_validation::validate_safetensors_file;
 
-/// Detect best device and dtype
-///
-/// Returns (Device, DType) where Device is Metal/CUDA/CPU and DType is F16 for CUDA, F32 otherwise
-pub(crate) fn detect_device_and_dtype() -> (Device, DType) {
-    let device = crate::core::device_util::detect_best_device().unwrap_or_else(|e| {
-        log::warn!("Device detection failed: {}. Using CPU.", e);
-        Device::Cpu
-    });
-    let dtype = if device.is_cuda() {
-        DType::F16
-    } else {
-        DType::F32
-    };
-    (device, dtype)
-}
-
 /// Configure tokenizer with variant-specific padding and truncation
 ///
 /// # Padding

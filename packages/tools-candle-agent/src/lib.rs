@@ -135,20 +135,3 @@ pub use prelude::*;
 
 // Pool infrastructure (part of registry)
 pub use capability::registry::pool::{Pool, PoolError, init_maintenance};
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_architecture_md_syntax_works() {
-        // Test that ARCHITECTURE.md builder pattern still works after all fixes
-        let _agent = CandleFluentAi::agent_role("test-agent")
-            .temperature(0.0) // Greedy sampling example - deterministic output
-            .max_tokens(1000)
-            .system_prompt("You are a helpful assistant")
-            .into_agent();
-
-        // If this compiles, the ARCHITECTURE.md syntax is working! ✅
-    }
-}

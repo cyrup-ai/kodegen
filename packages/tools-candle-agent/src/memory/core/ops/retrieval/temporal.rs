@@ -52,8 +52,8 @@ impl RetrievalStrategy for TemporalRetrieval {
                     let now = chrono::Utc::now();
                     let thirty_days_ago = now - chrono::Duration::days(30);
                     temporal_filter.time_range = Some(crate::memory::filter::TimeRange {
-                        start: Some(thirty_days_ago),
-                        end: Some(now),
+                        start: Some(thirty_days_ago.into()),
+                        end: Some(now.into()),
                     });
                 }
 
@@ -74,10 +74,10 @@ impl RetrievalStrategy for TemporalRetrieval {
                             Ok(memory) => {
                                 // Apply time range filter manually
                                 if let Some(ref time_range) = temporal_filter.time_range {
-                                    let created_at = memory.created_at;
+                                    let created_at = &memory.created_at;
                                     let in_range =
-                                        time_range.start.is_none_or(|start| created_at >= start)
-                                            && time_range.end.is_none_or(|end| created_at < end);
+                                        time_range.start.as_ref().is_none_or(|start| created_at >= start)
+                                            && time_range.end.as_ref().is_none_or(|end| created_at < end);
 
                                     if in_range {
                                         content_memories.push(memory);
@@ -120,11 +120,12 @@ impl RetrievalStrategy for TemporalRetrieval {
                                 Ok(memory) => {
                                     // Apply time range filter manually
                                     if let Some(ref time_range) = temporal_filter.time_range {
-                                        let created_at = memory.created_at;
+                                        let created_at = &memory.created_at;
                                         let in_range = time_range
                                             .start
+                                            .as_ref()
                                             .is_none_or(|start| created_at >= start)
-                                            && time_range.end.is_none_or(|end| created_at < end);
+                                            && time_range.end.as_ref().is_none_or(|end| created_at < end);
 
                                         if in_range {
                                             type_memories.push(memory);

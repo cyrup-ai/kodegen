@@ -379,8 +379,8 @@ impl SurrealDBMemoryManager {
         let id_str = format!("memory:{}", schema.id);
 
         let mut metadata = MemoryMetadata::with_memory_type(schema.memory_type);
-        metadata.created_at = schema.metadata.created_at;
-        metadata.last_accessed_at = Some(schema.metadata.last_accessed_at);
+        metadata.created_at = schema.metadata.created_at.clone();
+        metadata.last_accessed_at = Some(schema.metadata.last_accessed_at.clone());
         metadata.importance = schema.metadata.importance;
         metadata.embedding = schema.metadata.embedding.clone();
         metadata.custom = schema.metadata.custom.clone();

@@ -3,9 +3,10 @@
 //! Run with: cargo run --example `search_patterns`
 
 use anyhow::Result;
+use kodegen_mcp_schema::EngineChoice;
 use kodegen_tools_filesystem::search::manager::SearchManager;
 use kodegen_tools_filesystem::search::types::{
-    BinaryMode, BoundaryMode, CaseMode, EngineChoice, SearchOutputMode, SearchSessionOptions,
+    BinaryMode, BoundaryMode, CaseMode, SearchOutputMode, SearchSessionOptions,
     SearchType,
 };
 use std::fs;

@@ -5,21 +5,12 @@
 use anyhow::{Context, Result};
 use kodegen_mcp_client::{KodegenClient, KodegenConnection, create_sse_client};
 use rmcp::model::{CallToolResult, ServerInfo};
-use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex as StdMutex, OnceLock};
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use std::sync::Arc;
-
-/// Browser SSE server configuration
-const SSE_PORT: u16 = 30440;
-const BINARY_NAME: &str = "kodegen-claude-agent";
-const PACKAGE_NAME: &str = "kodegen_tools_claude_agent";
-
-/// SSE server URL for browser examples
-const SSE_URL: &str = "http://127.0.0.1:30440/sse";
 
 /// Cached workspace root
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -197,47 +188,6 @@ pub async fn connect_with_retry(
     }
 }
 
-/// Connect to local browser SSE server
-pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerHandle)> {
-    let workspace_root = find_workspace_root().context("Failed to find workspace root")?;
-
-    let mut cmd = Command::new("cargo");
-    cmd.current_dir(workspace_root);
-    cmd.args([
-        "run",
-        "--package",
-        PACKAGE_NAME,
-        "--bin",
-        BINARY_NAME,
-        "--",
-        "--sse",
-        &format!("127.0.0.1:{}", SSE_PORT),
-    ]);
-
-    // Pass through GITHUB_TOKEN if set
-    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
-        cmd.env("GITHUB_TOKEN", token);
-    }
-
-    cleanup_port(SSE_PORT).await.ok();
-
-    eprintln!("🚀 Starting kodegen-claude-agent SSE server on port 30440...", BINARY_NAME, SSE_PORT);
-
-    let child = cmd.spawn().context("Failed to spawn SSE server process")?;
-    let server_handle = ServerHandle::new(child);
-
-    eprintln!("⏳ Waiting for server to be ready (this may take up to 90s on first compile)...");
-    let (_client, connection) = connect_with_retry(
-        SSE_URL,
-        std::time::Duration::from_secs(90),
-        std::time::Duration::from_millis(500),
-    )
-    .await
-    .context("Failed to connect to SSE server")?;
-
-    Ok((connection, server_handle))
-}
-
 /// JSONL log entry
 #[derive(Debug, serde::Serialize)]
 pub struct LogEntry {
@@ -296,30 +246,6 @@ impl LoggingClient {
 
         self.log_call(name, arguments, &result, duration).await;
         result
-    }
-
-    pub async fn call_tool_typed<T: DeserializeOwned>(
-        &self,
-        name: &str,
-        arguments: serde_json::Value,
-    ) -> Result<T, kodegen_mcp_client::ClientError> {
-        let result = self.call_tool(name, arguments).await?;
-
-        let text_content = result
-            .content
-            .first()
-            .and_then(|c| c.as_text())
-            .ok_or_else(|| {
-                kodegen_mcp_client::ClientError::ParseError(format!(
-                    "No text content in response from tool '{name}'"
-                ))
-            })?;
-
-        serde_json::from_str(&text_content.text).map_err(|e| {
-            kodegen_mcp_client::ClientError::ParseError(format!(
-                "Failed to parse response from tool '{name}': {e}"
-            ))
-        })
     }
 
     pub fn server_info(&self) -> Option<&ServerInfo> {

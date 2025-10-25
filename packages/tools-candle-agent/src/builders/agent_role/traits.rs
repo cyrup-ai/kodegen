@@ -92,8 +92,10 @@ pub trait CandleAgentRoleBuilder: Sized + Send {
             + 'static;
 
     /// Convert to agent - EXACT syntax: .into_agent()
-    #[must_use]
-    fn into_agent(self) -> impl CandleAgentBuilder;
+    /// 
+    /// # Errors
+    /// Returns AgentError::Config if default model is not registered in the global registry
+    fn into_agent(self) -> Result<impl CandleAgentBuilder, AgentError>;
 
     /// Set conversation history - EXACT syntax: .conversation_history(...)
     #[must_use]

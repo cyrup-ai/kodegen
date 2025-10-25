@@ -84,6 +84,10 @@ workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tempfile = "3.23"
+kodegen_mcp_client = { path = "../mcp-client", version = "0.0.1" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 [features]
 default = []

@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     stdout.reset()?;
 
     match browser_setup::launch_browser(true, None).await {
-        Ok((browser, handler)) => {
+        Ok((mut browser, handler)) => {
             stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
             writeln!(&mut stdout, "✓ Browser launched successfully")?;
             stdout.reset()?;
@@ -73,12 +73,12 @@ async fn main() -> anyhow::Result<()> {
                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
                     // Try to get page title
-                    if let Ok(title_result) = page.evaluate("document.title").await {
-                        if let Ok(Some(title)) = title_result.into_value::<String>() {
-                            stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)))?;
-                            writeln!(&mut stdout, "  Page title: {}", title)?;
-                            stdout.reset()?;
-                        }
+                    if let Ok(title_result) = page.evaluate("document.title").await
+                        && let Ok(title) = title_result.into_value::<String>()
+                    {
+                        stdout.set_color(ColorSpec::new().set_fg(Some(Color::Cyan)))?;
+                        writeln!(&mut stdout, "  Page title: {}", title)?;
+                        stdout.reset()?;
                     }
                 }
                 Err(e) => {

@@ -99,7 +99,7 @@ You are a master at refactoring code, remembering to check for code that ALREADY
                 .ok_or_else(|| anyhow::anyhow!("Model not found in registry: {}", registry_key))?;
 
             CandleFluentAi::agent_role(&self.args.agent_role)
-                .into_agent()
+                .into_agent()?
                 .model(text_model)
                 .temperature(self.args.temperature)
                 .system_prompt(system_prompt.clone())
@@ -163,7 +163,7 @@ You are a master at refactoring code, remembering to check for code that ALREADY
                 })?
         } else {
             CandleFluentAi::agent_role(&self.args.agent_role)
-                .into_agent()
+                .into_agent()?
                 .temperature(self.args.temperature)
                 .system_prompt(system_prompt.clone())
                 .memory_read_timeout(self.args.memory_read_timeout)

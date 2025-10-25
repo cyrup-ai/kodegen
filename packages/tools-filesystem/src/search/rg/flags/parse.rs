@@ -230,7 +230,11 @@ impl Parser {
         if !ch.is_ascii() {
             return FlagLookup::UnrecognizedShort(ch);
         }
-        let byte = u8::try_from(ch).expect("Test operation should succeed");
+        // SAFETY: ch.is_ascii() guarantees the value fits in u8 (0-127)
+        // If conversion somehow fails (defensive), treat as unrecognized
+        let Ok(byte) = u8::try_from(ch) else {
+            return FlagLookup::UnrecognizedShort(ch);
+        };
         let Some(index) = self.map.find(&[byte]) else {
             return FlagLookup::UnrecognizedShort(ch);
         };

@@ -20,7 +20,7 @@ fn test_new_memory() {
     } else {
         panic!("Expected metadata to be an object");
     }
-    assert!(memory.created_at < Utc::now());
+    assert!(memory.created_at < Utc::now().into());
     assert_eq!(memory.created_at, memory.updated_at);
     assert_eq!(memory.created_at, memory.last_accessed_at);
 }
@@ -28,7 +28,7 @@ fn test_new_memory() {
 #[test]
 fn test_touch_memory() {
     let mut memory = Memory::new("Test".to_string(), MemoryTypeEnum::Semantic);
-    let initial_accessed_at = memory.last_accessed_at;
+    let initial_accessed_at = memory.last_accessed_at.clone();
     std::thread::sleep(std::time::Duration::from_millis(10)); // Ensure time changes
     memory.touch();
     assert!(memory.last_accessed_at > initial_accessed_at);

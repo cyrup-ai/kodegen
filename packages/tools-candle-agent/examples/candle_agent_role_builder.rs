@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(|_conversation| async move {
             CandleChatLoop::UserPrompt(
                 "What are the key differences between &str and String in Rust?".to_string(),
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Agent overrides the chunk handler
     let mut stream = role_builder
-        .into_agent()
+        .into_agent()?
         .on_chunk(|chunk| async move {
             // Agent-level override: fancy printing
             if let CandleMessageChunk::Text(ref text) = chunk {
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(
             |_conversation| async move { CandleChatLoop::UserPrompt("What is 7 * 8?".to_string()) },
         )?;
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(|_conversation| async move {
             CandleChatLoop::UserPrompt("Describe a sunset in three words.".to_string())
         })?;
@@ -158,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(|_conversation| async move {
             // Simple one-shot query
             CandleChatLoop::UserPrompt("Hello! What's your name?".to_string())
@@ -187,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(|_conversation| async move {
             CandleChatLoop::UserPrompt(
                 "How would you optimize a Rust Vec that frequently inserts at the beginning?"
@@ -215,7 +215,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent()
+        .into_agent()?
         .chat(|_conversation| async move {
             CandleChatLoop::UserPrompt(
                 "Solve: A train travels 120 km in 2 hours. Another train travels 90 km in 1.5 hours. \

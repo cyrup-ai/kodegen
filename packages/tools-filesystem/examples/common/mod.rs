@@ -14,12 +14,12 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 
 /// Browser SSE server configuration
-const SSE_PORT: u16 = 30447;
-const BINARY_NAME: &str = "kodegen-process";
-const PACKAGE_NAME: &str = "kodegen_tools_process";
+const SSE_PORT: u16 = 30443;
+const BINARY_NAME: &str = "kodegen-filesystem";
+const PACKAGE_NAME: &str = "kodegen_tools_filesystem";
 
 /// SSE server URL for browser examples
-const SSE_URL: &str = "http://127.0.0.1:30447/sse";
+const SSE_URL: &str = "http://127.0.0.1:30443/sse";
 
 /// Cached workspace root
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -221,7 +221,7 @@ pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerH
 
     cleanup_port(SSE_PORT).await.ok();
 
-    eprintln!("🚀 Starting kodegen-process SSE server on port 30447...", BINARY_NAME, SSE_PORT);
+    eprintln!("🚀 Starting {} SSE server on port {}...", BINARY_NAME, SSE_PORT);
 
     let child = cmd.spawn().context("Failed to spawn SSE server process")?;
     let server_handle = ServerHandle::new(child);

@@ -100,7 +100,7 @@ impl MemoryRepository {
         }
 
         self.time_index
-            .entry(memory_ref.created_at)
+            .entry(memory_ref.created_at.clone())
             .or_default()
             .insert(memory_ref.id.clone());
     }

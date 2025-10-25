@@ -249,8 +249,8 @@ impl CandleAgentRoleBuilder for CandleAgentBuilderImpl {
         })
     }
 
-    fn into_agent(self) -> impl CandleAgentBuilder {
-        self
+    fn into_agent(self) -> Result<impl CandleAgentBuilder, AgentError> {
+        Ok(self)
     }
 }
 

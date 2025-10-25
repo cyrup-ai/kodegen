@@ -14,12 +14,12 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 
 /// Browser SSE server configuration
-const SSE_PORT: u16 = 30438;
-const BINARY_NAME: &str = "kodegen-browser";
-const PACKAGE_NAME: &str = "kodegen_tools_browser";
+const SSE_PORT: u16 = 30439;
+const BINARY_NAME: &str = "kodegen-citescrape";
+const PACKAGE_NAME: &str = "kodegen_tools_citescrape";
 
 /// SSE server URL for browser examples
-const SSE_URL: &str = "http://127.0.0.1:30438/sse";
+const SSE_URL: &str = "http://127.0.0.1:30439/sse";
 
 /// Cached workspace root
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -209,8 +209,6 @@ pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerH
         PACKAGE_NAME,
         "--bin",
         BINARY_NAME,
-        "--features",
-        "server",
         "--",
         "--sse",
         &format!("127.0.0.1:{}", SSE_PORT),

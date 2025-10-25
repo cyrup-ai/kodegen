@@ -190,7 +190,7 @@ async fn run_memory_tests(coordinator: &Arc<MemoryCoordinator>) -> Result<()> {
     for memory in &results1 {
         println!("      - ID: {}", memory.id());
         println!("        Relevance: {:.3}", memory.metadata.importance);
-        println!("        Content: {}", memory.content().to_string());
+        println!("        Content: {}", memory.content());
     }
 
     println!("\n7. Recalling from 'debugging_insights' (context: 'performance optimization')");
@@ -203,7 +203,7 @@ async fn run_memory_tests(coordinator: &Arc<MemoryCoordinator>) -> Result<()> {
     for memory in &results2 {
         println!("      - ID: {}", memory.id());
         println!("        Relevance: {:.3}", memory.metadata.importance);
-        println!("        Content: {}", memory.content().to_string());
+        println!("        Content: {}", memory.content());
     }
 
     // ========================================================================

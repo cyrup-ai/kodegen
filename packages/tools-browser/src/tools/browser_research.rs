@@ -11,6 +11,12 @@ use serde_json::{Value, json};
 #[derive(Clone)]
 pub struct BrowserResearchTool;
 
+impl Default for BrowserResearchTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BrowserResearchTool {
     /// Create new browser research tool
     ///
@@ -44,17 +50,21 @@ impl Tool for BrowserResearchTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // STEP 1: Create BrowserManager for web_search
-        let browser_manager = std::sync::Arc::new(crate::web_search::BrowserManager::new());
+        // STEP 1: Create web search manager (separate browser for search)
+        let web_search_manager = std::sync::Arc::new(crate::web_search::BrowserManager::new());
 
-        // STEP 2: Create DeepResearch instance with BrowserManager
+        // STEP 2: Get global browser manager (for navigation/extraction)
+        let browser_manager = crate::manager::BrowserManager::global();
+
+        // STEP 3: Create DeepResearch instance with both managers
         let research = DeepResearch::new(
+            web_search_manager,
             browser_manager,
             args.temperature,
             args.max_tokens,
         );
 
-        // STEP 3: Build research options from args
+        // STEP 4: Build research options from args
         let options = Some(ResearchOptions {
             max_pages: args.max_pages,
             max_depth: args.max_depth,
@@ -65,7 +75,7 @@ impl Tool for BrowserResearchTool {
             timeout_seconds: args.timeout_seconds,
         });
 
-        // STEP 4: Execute research (calls web_search directly, browser tools via MCP)
+        // STEP 5: Execute research (calls web_search + browser tools directly as library functions)
         let results = research.research(&args.query, options).await.map_err(|e| {
             McpError::Other(anyhow::anyhow!(
                 "Research failed for query '{}': {}",
@@ -74,7 +84,7 @@ impl Tool for BrowserResearchTool {
             ))
         })?;
 
-        // STEP 5: Build comprehensive response
+        // STEP 6: Build comprehensive response
         let pages_visited = results.len();
 
         // Combine all individual summaries into unified report

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::Datetime;
 
@@ -95,7 +96,10 @@ impl MemoryFilter {
         start: Option<DateTime<Utc>>,
         end: Option<DateTime<Utc>>,
     ) -> Self {
-        self.time_range = Some(TimeRange { start, end });
+        self.time_range = Some(TimeRange {
+            start: start.map(|dt| dt.into()),
+            end: end.map(|dt| dt.into()),
+        });
         self
     }
 
@@ -161,13 +165,13 @@ impl MemoryFilter {
 
         // Check time range filter
         if let Some(ref time_range) = self.time_range {
-            if let Some(start) = time_range.start
-                && memory.created_at < start
+            if let Some(start) = &time_range.start
+                && memory.created_at < *start
             {
                 return false;
             }
-            if let Some(end) = time_range.end
-                && memory.created_at >= end
+            if let Some(end) = &time_range.end
+                && memory.created_at >= *end
             {
                 return false;
             }

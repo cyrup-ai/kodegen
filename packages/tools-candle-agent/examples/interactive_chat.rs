@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             chunk
         })
-        .into_agent();
+        .into_agent()?;
 
     // Start interactive chat loop
     let stream = agent.chat(|_conversation| async move {

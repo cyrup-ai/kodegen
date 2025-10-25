@@ -214,15 +214,15 @@ impl MemoryCoordinator {
 
                     // Apply time range filter
                     if let Some(time_range) = &filter.time_range {
-                        if let Some(start) = time_range.start {
-                            if memory.base_memory.created_at < start.into() {
-                                return false;
-                            }
+                        if let Some(start) = &time_range.start
+                            && memory.base_memory.created_at < *start
+                        {
+                            return false;
                         }
-                        if let Some(end) = time_range.end {
-                            if memory.base_memory.created_at >= end.into() {
-                                return false;
-                            }
+                        if let Some(end) = &time_range.end
+                            && memory.base_memory.created_at >= *end
+                        {
+                            return false;
                         }
                     }
 

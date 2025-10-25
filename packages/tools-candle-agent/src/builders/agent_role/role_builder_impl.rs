@@ -248,7 +248,7 @@ impl CandleAgentRoleBuilder for CandleAgentRoleBuilderImpl {
     }
 
     /// Convert to agent - EXACT syntax: .into_agent()
-    fn into_agent(self) -> impl CandleAgentBuilder {
+    fn into_agent(self) -> Result<impl CandleAgentBuilder, AgentError> {
         use crate::capability::registry;
         use crate::domain::model::traits::CandleModel;
 
@@ -257,8 +257,10 @@ impl CandleAgentRoleBuilder for CandleAgentRoleBuilderImpl {
             Some(model) => model,
             None => {
                 registry::get::<TextToTextModel>("qwen-3")
-                    .expect("FATAL: Default 'qwen-3' model must be registered at startup. \
-                             This is a critical initialization failure - ensure registry is properly initialized.")
+                    .ok_or_else(|| AgentError::Config(
+                        "Default 'qwen-3' model not found in registry. \
+                         Ensure registry is properly initialized at startup or specify a model explicitly using .model()".to_string()
+                    ))?
             }
         };
 
@@ -274,7 +276,7 @@ impl CandleAgentRoleBuilder for CandleAgentRoleBuilderImpl {
             .text_embedding_model
             .or_else(|| registry::get::<TextEmbeddingModel>("dunzhang/stella_en_400M_v5"));
 
-        CandleAgentBuilderImpl {
+        Ok(CandleAgentBuilderImpl {
             name: self.name,
             text_to_text_model: text_model,
             text_embedding_model: embedding_model,
@@ -294,6 +296,6 @@ impl CandleAgentRoleBuilder for CandleAgentRoleBuilderImpl {
             on_conversation_turn_handler: self.on_conversation_turn_handler,
             conversation_history: self.conversation_history,
             stop_sequences: self.stop_sequences,
-        }
+        })
     }
 }

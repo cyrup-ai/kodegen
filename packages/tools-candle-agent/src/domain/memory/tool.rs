@@ -120,9 +120,6 @@ pub type MemoryToolResult<T> = Result<T, MemoryToolError>;
 
 impl MemoryTool {
     /// Create a new memory tool instance
-    ///
-    /// # Panics
-    /// Panics if the JSON schema cannot be converted to an object (should never happen with static schema)
     #[must_use]
     pub fn new(memory: Arc<SurrealDBMemoryManager>) -> Self {
         let schema_json = serde_json::json!({
@@ -135,7 +132,10 @@ impl MemoryTool {
             },
             "required": ["operation"]
         });
-        let schema_map = schema_json.as_object().unwrap().clone();
+        let schema_map = schema_json.as_object().cloned().unwrap_or_else(|| {
+            log::error!("BUG: Hardcoded schema JSON is not an object - using empty schema as fallback");
+            serde_json::Map::new()
+        });
 
         let data = ToolInfo {
             name: "memory".into(),

@@ -143,13 +143,14 @@ impl CircuitBreaker {
 
         if failures >= self.config.failure_threshold {
             self.state.store(1, Ordering::Release); // Open circuit
-            self.last_failure.store(
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("System clock set before Unix epoch - this indicates a critical system issue")
-                    .as_secs(),
-                Ordering::Release,
-            );
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_else(|e| {
+                    log::warn!("System clock before Unix epoch ({}), using epoch time as fallback", e);
+                    std::time::Duration::from_secs(0)
+                })
+                .as_secs();
+            self.last_failure.store(timestamp, Ordering::Release);
         }
     }
 
@@ -160,7 +161,10 @@ impl CircuitBreaker {
                 // Open - check timeout
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .expect("System clock set before Unix epoch - this indicates a critical system issue")
+                    .unwrap_or_else(|e| {
+                        log::warn!("System clock before Unix epoch ({}), using epoch time as fallback", e);
+                        std::time::Duration::from_secs(0)
+                    })
                     .as_secs();
                 let last = self.last_failure.load(Ordering::Relaxed);
 
@@ -219,7 +223,10 @@ impl<Req, Resp> UnifiedWorkerHandle<Req, Resp> {
     pub fn update_activity(&self) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("System clock set before Unix epoch - this indicates a critical system issue")
+            .unwrap_or_else(|e| {
+                log::warn!("System clock before Unix epoch ({}), using epoch time as fallback", e);
+                std::time::Duration::from_secs(0)
+            })
             .as_secs();
         self.last_activity.store(now, Ordering::Release);
     }

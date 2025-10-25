@@ -15,7 +15,6 @@ async fn main() -> anyhow::Result<()> {
     // Connect to kodegen server with introspection category
     let (conn, mut server) =
         common::connect_to_local_sse_server().await?;
-            .await?;
 
     // Wrap client with logging
     let workspace_root = common::find_workspace_root()

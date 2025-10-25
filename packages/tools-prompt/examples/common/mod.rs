@@ -5,7 +5,6 @@
 use anyhow::{Context, Result};
 use kodegen_mcp_client::{KodegenClient, KodegenConnection, create_sse_client};
 use rmcp::model::{CallToolResult, ServerInfo};
-use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex as StdMutex, OnceLock};
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -296,30 +295,6 @@ impl LoggingClient {
 
         self.log_call(name, arguments, &result, duration).await;
         result
-    }
-
-    pub async fn call_tool_typed<T: DeserializeOwned>(
-        &self,
-        name: &str,
-        arguments: serde_json::Value,
-    ) -> Result<T, kodegen_mcp_client::ClientError> {
-        let result = self.call_tool(name, arguments).await?;
-
-        let text_content = result
-            .content
-            .first()
-            .and_then(|c| c.as_text())
-            .ok_or_else(|| {
-                kodegen_mcp_client::ClientError::ParseError(format!(
-                    "No text content in response from tool '{name}'"
-                ))
-            })?;
-
-        serde_json::from_str(&text_content.text).map_err(|e| {
-            kodegen_mcp_client::ClientError::ParseError(format!(
-                "Failed to parse response from tool '{name}': {e}"
-            ))
-        })
     }
 
     pub fn server_info(&self) -> Option<&ServerInfo> {

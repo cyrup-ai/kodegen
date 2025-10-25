@@ -9132,6 +9132,7 @@ dependencies = [
  "imstr",
  "imurl",
  "jwalk",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9182,6 +9183,7 @@ dependencies = [
  "cyrup_termcolor",
  "env_logger",
  "futures",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9198,6 +9200,8 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tokio-util",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "which 8.0.0",
  "workspace-hack",
@@ -9218,6 +9222,7 @@ dependencies = [
  "gray_matter",
  "grep",
  "ignore",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_tool",
  "kodegen_utils",
@@ -9237,6 +9242,8 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
+ "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 
@@ -9247,6 +9254,8 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "chrono",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9265,6 +9274,8 @@ dependencies = [
  "ssh2",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "url",
  "workspace-hack",
 ]
@@ -9285,6 +9296,7 @@ dependencies = [
  "grep",
  "grep-pcre2",
  "ignore",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9300,6 +9312,8 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]
@@ -9312,6 +9326,7 @@ dependencies = [
  "chrono",
  "futures",
  "gix",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9326,6 +9341,8 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
  "walkdir",
  "workspace-hack",
 ]
@@ -9340,6 +9357,7 @@ dependencies = [
  "futures",
  "gix",
  "jsonwebtoken",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9363,6 +9381,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "toml 0.9.8",
+ "tracing",
+ "tracing-subscriber",
  "walkdir",
  "workspace-hack",
 ]
@@ -9372,6 +9392,8 @@ name = "kodegen_tools_introspection"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "chrono",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9382,6 +9404,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 
@@ -9390,6 +9414,8 @@ name = "kodegen_tools_process"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "chrono",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9401,6 +9427,8 @@ dependencies = [
  "serde_json",
  "sysinfo 0.37.2",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 
@@ -9485,6 +9513,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "chrono",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9502,6 +9531,8 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "vt100",
  "workspace-hack",

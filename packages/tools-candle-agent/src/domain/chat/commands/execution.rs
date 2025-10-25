@@ -698,7 +698,7 @@ async fn retrieve_conversation_messages(
                 content: mem.content().to_string(),
                 id: Some(mem.id().to_string()),
                 timestamp: Some(
-                    mem.creation_time().into_inner_ref().timestamp() as u64
+                    mem.creation_time().into_inner_ref().timestamp().cast_unsigned()
                 ),
             }
         })

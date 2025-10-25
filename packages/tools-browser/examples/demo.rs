@@ -33,8 +33,6 @@ async fn main() -> Result<()> {
         .await
         .context("Failed to create logging client")?;
 
-    info!("Connected to server: {:?}", client.server_info());
-
     // Run example with cleanup
     let result = run_browser_example(&client).await;
 

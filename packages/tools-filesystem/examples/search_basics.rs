@@ -11,6 +11,7 @@
 //! Debug: `RUST_LOG=debug` cargo run --example `search_basics`
 
 use anyhow::{Context, Result};
+use kodegen_mcp_schema::EngineChoice;
 use kodegen_tools_filesystem::search::manager::SearchManager;
 use kodegen_tools_filesystem::search::types::{
     BinaryMode, CaseMode, SearchSessionOptions, SearchType,
@@ -95,7 +96,7 @@ async fn test_content_search(manager: &SearchManager, test_dir: &TempDir) -> Res
         boundary_mode: None,
         output_mode: kodegen_tools_filesystem::search::types::SearchOutputMode::Full,
         invert_match: false,
-        engine: kodegen_tools_filesystem::search::types::EngineChoice::Auto,
+        engine: EngineChoice::Auto,
         preprocessor: None,
         preprocessor_globs: Vec::new(),
         search_zip: false,
@@ -157,7 +158,7 @@ async fn test_file_search(manager: &SearchManager, test_dir: &TempDir) -> Result
         boundary_mode: None,
         output_mode: kodegen_tools_filesystem::search::types::SearchOutputMode::Full,
         invert_match: false,
-        engine: kodegen_tools_filesystem::search::types::EngineChoice::Auto,
+        engine: EngineChoice::Auto,
         preprocessor: None,
         preprocessor_globs: Vec::new(),
         search_zip: false,
@@ -218,7 +219,7 @@ async fn test_single_match(manager: &SearchManager, test_dir: &TempDir) -> Resul
         boundary_mode: None,
         output_mode: kodegen_tools_filesystem::search::types::SearchOutputMode::Full,
         invert_match: false,
-        engine: kodegen_tools_filesystem::search::types::EngineChoice::Auto,
+        engine: EngineChoice::Auto,
         preprocessor: None,
         preprocessor_globs: Vec::new(),
         search_zip: false,
@@ -282,7 +283,7 @@ async fn test_filename_search(manager: &SearchManager, test_dir: &TempDir) -> Re
         boundary_mode: None,
         output_mode: kodegen_tools_filesystem::search::types::SearchOutputMode::Full,
         invert_match: false,
-        engine: kodegen_tools_filesystem::search::types::EngineChoice::Auto,
+        engine: EngineChoice::Auto,
         preprocessor: None,
         preprocessor_globs: Vec::new(),
         search_zip: false,
@@ -345,7 +346,7 @@ async fn test_nested_files(manager: &SearchManager, test_dir: &TempDir) -> Resul
         boundary_mode: None,
         output_mode: kodegen_tools_filesystem::search::types::SearchOutputMode::Full,
         invert_match: false,
-        engine: kodegen_tools_filesystem::search::types::EngineChoice::Auto,
+        engine: EngineChoice::Auto,
         preprocessor: None,
         preprocessor_globs: Vec::new(),
         search_zip: false,

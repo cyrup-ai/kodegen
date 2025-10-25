@@ -6,9 +6,11 @@ use tracing::info;
 
 #[derive(serde::Deserialize, Debug)]
 struct MemorizeResponse {
+    #[allow(dead_code)]
     success: bool,
     memory_id: String,
     library: String,
+    #[allow(dead_code)]
     message: String,
 }
 
@@ -22,6 +24,7 @@ struct ListLibrariesResponse {
 struct Memory {
     id: String,
     content: String,
+    #[allow(dead_code)]
     created_at: String,
     relevance_score: f64,
 }

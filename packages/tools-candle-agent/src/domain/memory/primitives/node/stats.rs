@@ -1,5 +1,4 @@
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::time::SystemTime;
 
 use crate::domain::util::unix_timestamp_nanos;
 
@@ -92,10 +91,11 @@ impl MemoryNodeStats {
         if nanos == 0 {
             None
         } else {
-            // Convert nanoseconds to Datetime
-            // Datetime uses milliseconds internally, so convert from nanos
-            let millis = (nanos / 1_000_000) as i64;
-            surrealdb::Datetime::from_timestamp_millis(millis).ok()
+            // Convert nanoseconds to chrono::DateTime then to surrealdb::Datetime
+            let seconds = (nanos / 1_000_000_000).cast_signed();
+            let subsec_nanos = (nanos % 1_000_000_000) as u32;
+            chrono::DateTime::from_timestamp(seconds, subsec_nanos)
+                .map(Into::into)
         }
     }
 }

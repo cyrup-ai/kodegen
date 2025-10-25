@@ -202,7 +202,7 @@ pub(crate) async fn process_entanglement_discovery(
 
         // Calculate temporal distance between memories (milliseconds)
         let temporal_distance_ms: Option<i64> = {
-            let duration = related_memory.created_at.into_inner_ref().signed_duration_since(*memory.created_at.into_inner_ref());
+            let duration = related_memory.created_at.into_inner_ref().signed_duration_since(**memory.created_at.into_inner_ref());
 
             match duration.num_milliseconds().checked_abs() {
                 Some(abs_ms) => {

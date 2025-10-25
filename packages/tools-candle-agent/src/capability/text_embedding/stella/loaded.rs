@@ -185,7 +185,8 @@ impl TextEmbeddingCapable for LoadedStellaModel {
                 // Forward pass - lock std::sync::Mutex in blocking context
                 log::info!("embed: About to lock model");
                 let embeddings = {
-                    let mut model_guard = model.lock().unwrap();
+                    let mut model_guard = model.lock()
+                        .map_err(|e| anyhow!("Model mutex poisoned (thread panic): {}", e))?;
                     log::info!("embed: Model locked, calling forward_norm");
                     model_guard
                         .forward_norm(&input_ids, &attention_mask)
@@ -264,7 +265,8 @@ impl TextEmbeddingCapable for LoadedStellaModel {
 
                 // Forward pass - lock std::sync::Mutex in blocking context
                 let embeddings = {
-                    let mut model_guard = model.lock().unwrap();
+                    let mut model_guard = model.lock()
+                        .map_err(|e| anyhow!("Model mutex poisoned (thread panic): {}", e))?;
                     model_guard
                         .forward_norm(&input_ids, &attention_mask)
                         .context("Stella batch forward pass failed")?

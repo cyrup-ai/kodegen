@@ -41,17 +41,17 @@ fn attest() { }
 
     // Search WITHOUT word boundary (substring mode)
     let matcher_no_boundary = build_rust_matcher("test", CaseMode::Sensitive, false, false)
-        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
+        .unwrap_or_else(|e| panic!("Failed to build matcher: {e}"));
 
     let mut searcher = Searcher::new();
     let mut sink_no_boundary = CountSink::new();
     searcher
         .search_slice(&matcher_no_boundary, test_content, &mut sink_no_boundary)
-        .unwrap_or_else(|e| panic\!("Search failed: {e}"));
+        .unwrap_or_else(|e| panic!("Search failed: {e}"));
 
     // Search WITH word boundary
     let matcher_with_boundary = build_rust_matcher("test", CaseMode::Sensitive, false, true)
-        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
+        .unwrap_or_else(|e| panic!("Failed to build matcher: {e}"));
 
     let mut sink_with_boundary = CountSink::new();
     searcher
@@ -60,7 +60,7 @@ fn attest() { }
             test_content,
             &mut sink_with_boundary,
         )
-        .unwrap_or_else(|e| panic\!("Search failed: {e}"));
+        .unwrap_or_else(|e| panic!("Search failed: {e}"));
 
     // Verify that word boundary mode reduces matches
     assert!(
@@ -93,13 +93,13 @@ test-log file
 
     // Test literal search with word boundary for "test.log"
     let matcher = build_rust_matcher("test.log", CaseMode::Sensitive, true, true)
-        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
+        .unwrap_or_else(|e| panic!("Failed to build matcher: {e}"));
 
     let mut searcher = Searcher::new();
     let mut sink = CountSink::new();
     searcher
         .search_slice(&matcher, test_content, &mut sink)
-        .unwrap_or_else(|e| panic\!("Search failed: {e}"));
+        .unwrap_or_else(|e| panic!("Search failed: {e}"));
 
     // Should only match "test.log" (dot is escaped), not "testXlog"
     assert_eq!(

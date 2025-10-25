@@ -102,7 +102,7 @@ impl DecayWorker {
             match memory_result {
                 Ok(memory_node) => {
                     // Check minimum age requirement
-                    let age = Utc::now().signed_duration_since(*memory_node.created_at.into_inner_ref());
+                    let age = Utc::now().signed_duration_since(**memory_node.created_at.into_inner_ref());
                     let hours_old = age.num_seconds() as f64 / 3600.0;
 
                     if hours_old < self.config.min_age_hours as f64 {

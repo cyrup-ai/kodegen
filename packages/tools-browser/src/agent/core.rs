@@ -634,6 +634,7 @@ You must respond with valid JSON matching the AgentLLMResponse schema with an 'a
                 .max_tokens(self.max_tokens)
                 .system_prompt(&system_prompt)
                 .into_agent()
+                .map_err(|e| AgentError::UnexpectedError(e.to_string()))?
                 .chat(move |_conversation| {
                     let query = user_query.clone();
                     async move { CandleChatLoop::UserPrompt(query) }

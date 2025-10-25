@@ -36,7 +36,10 @@ pub(super) async fn execute_preview(args: &Args, config: &RuntimeConfig) -> Resu
             if *detailed {
                 config.println("\nDetailed changes:");
                 let new_version = preview.bump_preview.get_version(&version_bump)
-                    .ok_or_else(|| ReleaseError::Version("Failed to calculate new version".to_string()))?;
+                    .ok_or_else(|| ReleaseError::Version(crate::error::VersionError::InvalidVersion {
+                        version: preview.bump_preview.current.to_string(),
+                        reason: format!("Failed to calculate new version for bump type: {:?}", version_bump),
+                    }))?;
                 config.println(&format!(
                     "  Version: {} → {}",
                     preview.bump_preview.current,

@@ -77,7 +77,6 @@ async fn main() -> Result<()> {
     // Connect to kodegen server with citescrape tools
     let (conn, mut server) =
         common::connect_to_local_sse_server().await?;
-            .await?;
 
     // Delete old log file to start fresh
     let workspace_root = common::find_workspace_root()

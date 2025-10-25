@@ -26,11 +26,12 @@ impl From<&MemoryNode> for MemoryNodeCreateContent {
             content_hash: memory.content_hash,
             memory_type: memory.memory_type,
             metadata: MemoryMetadataSchema {
-                created_at: memory.metadata.created_at,
+                created_at: memory.metadata.created_at.clone(),
                 last_accessed_at: memory
                     .metadata
                     .last_accessed_at
-                    .unwrap_or(memory.metadata.created_at),
+                    .clone()
+                    .unwrap_or_else(|| memory.metadata.created_at.clone()),
                 importance: memory.metadata.importance,
                 embedding: memory.metadata.embedding.clone(),
                 custom: memory.metadata.custom.clone(),

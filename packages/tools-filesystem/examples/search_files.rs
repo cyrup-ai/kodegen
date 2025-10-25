@@ -3,9 +3,10 @@
 //! Run with: cargo run --example `search_files`
 
 use anyhow::Result;
+use kodegen_mcp_schema::EngineChoice;
 use kodegen_tools_filesystem::search::manager::SearchManager;
 use kodegen_tools_filesystem::search::types::{
-    BinaryMode, CaseMode, EngineChoice, SearchOutputMode, SearchSessionOptions, SearchType,
+    BinaryMode, CaseMode, SearchOutputMode, SearchSessionOptions, SearchType,
 };
 use std::fs;
 use tempfile::TempDir;

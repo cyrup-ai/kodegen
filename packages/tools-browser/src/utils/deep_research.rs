@@ -12,6 +12,11 @@ use tracing::{debug, info, warn};
 
 use crate::utils::errors::UtilsError;
 
+// Browser tool imports for direct library integration
+use kodegen_mcp_schema::browser::{BrowserNavigateArgs, BrowserExtractTextArgs};
+use crate::tools::{BrowserNavigateTool, BrowserExtractTextTool};
+use kodegen_mcp_tool::Tool;
+
 /// Research result containing extracted information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchResult {
@@ -51,14 +56,17 @@ impl Default for ResearchOptions {
 /// Deep research service using direct library integration
 ///
 /// All browser operations call local functions directly:
-/// - web_search (local) - DuckDuckGo search via BrowserManager
-/// - browser_navigate - URL loading via BrowserManager
-/// - browser_extract_text - Content extraction via BrowserManager
+/// - web_search (local) - DuckDuckGo search via web_search::BrowserManager
+/// - browser_navigate - URL loading via BrowserNavigateTool (library call)
+/// - browser_extract_text - Content extraction via BrowserExtractTextTool (library call)
 ///
 /// LLM operations use CandleFluentAi streaming (no trait objects).
 pub struct DeepResearch {
-    /// Browser manager for web_search and navigation
-    browser_manager: Arc<crate::web_search::BrowserManager>,
+    /// Browser manager for web_search
+    web_search_manager: Arc<crate::web_search::BrowserManager>,
+
+    /// Browser manager for navigation and extraction
+    browser_manager: Arc<crate::manager::BrowserManager>,
 
     /// LLM temperature for summarization (0.0 = deterministic, 2.0 = creative)
     temperature: f64,
@@ -71,16 +79,21 @@ pub struct DeepResearch {
 }
 
 impl DeepResearch {
-    /// Create new DeepResearch instance with BrowserManager
-    ///
-    /// All browser operations call local web_search functions directly.
+    /// Create new DeepResearch instance with both browser managers
     ///
     /// # Arguments
-    /// * `browser_manager` - Browser manager for web_search and navigation
+    /// * `web_search_manager` - Browser manager for DuckDuckGo search
+    /// * `browser_manager` - Browser manager for navigation and content extraction
     /// * `temperature` - LLM sampling temperature (0.0-2.0)
     /// * `max_tokens` - Maximum tokens for LLM generation
-    pub fn new(browser_manager: Arc<crate::web_search::BrowserManager>, temperature: f64, max_tokens: u64) -> Self {
+    pub fn new(
+        web_search_manager: Arc<crate::web_search::BrowserManager>,
+        browser_manager: Arc<crate::manager::BrowserManager>,
+        temperature: f64,
+        max_tokens: u64,
+    ) -> Self {
         Self {
+            web_search_manager,
             browser_manager,
             temperature,
             max_tokens,
@@ -153,7 +166,7 @@ impl DeepResearch {
         debug!("Searching DuckDuckGo via web_search (direct): {}", query);
 
         // Call web_search directly (same package, no MCP needed)
-        let search_results = crate::web_search::search_with_manager(&self.browser_manager, query)
+        let search_results = crate::web_search::search_with_manager(&self.web_search_manager, query)
             .await
             .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
 
@@ -184,36 +197,27 @@ impl DeepResearch {
         }
         drop(visited);
 
-        // 1. NAVIGATE VIA MCP CLIENT (HOT PATH)
-        debug!("Navigating to {} via MCP browser_navigate tool", url);
-        let nav_result = self
-            .mcp_client
-            .call_tool(
-                "browser_navigate",
-                serde_json::json!({
-                    "url": url,
-                    "timeout_ms": options.timeout_seconds * 1000
-                }),
-            )
+        // 1. NAVIGATE VIA BROWSER TOOL (DIRECT LIBRARY CALL)
+        debug!("Navigating to {} via BrowserNavigateTool (direct)", url);
+        
+        let nav_tool = BrowserNavigateTool::new(self.browser_manager.clone());
+        let nav_args = BrowserNavigateArgs {
+            url: url.to_string(),
+            wait_for_selector: None,
+            timeout_ms: Some(options.timeout_seconds * 1000),
+        };
+        
+        let nav_result = nav_tool
+            .execute(nav_args)
             .await
             .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
 
         // Parse navigation result to get actual URL (may have redirected)
-        let final_url = if let Some(content) = nav_result.content.first() {
-            if let Some(text) = content.as_text() {
-                let response: serde_json::Value = serde_json::from_str(&text.text)
-                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-                response
-                    .get("url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(url)
-                    .to_string()
-            } else {
-                url.to_string()
-            }
-        } else {
-            url.to_string()
-        };
+        let final_url = nav_result
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or(url)
+            .to_string();
 
         // 2. WAIT FOR PAGE TO SETTLE
         tokio::time::sleep(Duration::from_secs(2)).await;
@@ -226,35 +230,25 @@ impl DeepResearch {
             .unwrap_or("Untitled")
             .to_string();
 
-        // 4. EXTRACT CONTENT VIA MCP CLIENT (HOT PATH)
-        debug!("Extracting content via MCP browser_extract_text tool");
-        let extract_result = self
-            .mcp_client
-            .call_tool(
-                "browser_extract_text",
-                serde_json::json!({}), // No selector = full page
-            )
+        // 4. EXTRACT CONTENT VIA BROWSER TOOL (DIRECT LIBRARY CALL)
+        debug!("Extracting content via BrowserExtractTextTool (direct)");
+        
+        let extract_tool = BrowserExtractTextTool::new(self.browser_manager.clone());
+        let extract_args = BrowserExtractTextArgs {
+            selector: None, // No selector = full page
+        };
+        
+        let extract_result = extract_tool
+            .execute(extract_args)
             .await
             .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
 
         // Parse extraction result
-        let content = if let Some(content_item) = extract_result.content.first() {
-            if let Some(text) = content_item.as_text() {
-                let response: serde_json::Value = serde_json::from_str(&text.text)
-                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?;
-                response
-                    .get("text")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string()
-            } else {
-                return Err(UtilsError::JsonParseError("Expected text content".into()));
-            }
-        } else {
-            return Err(UtilsError::JsonParseError(
-                "No content in extract result".into(),
-            ));
-        };
+        let content = extract_result
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         // 5. GENERATE SUMMARY WITH CANDLEFLUENTAI
         let summary = self.summarize_content(&title, &content).await?;
@@ -310,6 +304,7 @@ impl DeepResearch {
                 chunk
             })
             .into_agent()
+            .map_err(|e| UtilsError::AgentError(e.to_string()))?
             .chat(move |_conversation| {
                 let prompt_clone = prompt.clone();
                 async move { CandleChatLoop::UserPrompt(prompt_clone) }
