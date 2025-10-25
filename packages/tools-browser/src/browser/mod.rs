@@ -2,10 +2,9 @@
 //!
 //! Based on production-tested code from packages/tools-citescrape
 
-mod setup;
 mod wrapper;
 
-pub use setup::{download_managed_browser, find_browser_executable};
+pub use crate::browser_setup::{download_managed_browser, find_browser_executable};
 pub use wrapper::{BrowserWrapper, create_blank_page, get_current_page, launch_browser};
 
 use chromiumoxide::page::Page;

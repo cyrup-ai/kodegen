@@ -1,8 +1,8 @@
 // src/memory/memory_metadata.rs
 //! Memory metadata implementation
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::Datetime;
 
 use crate::memory::primitives::types::MemoryTypeEnum;
 
@@ -34,10 +34,10 @@ pub struct MemoryMetadata {
     pub source: Option<String>,
 
     /// Creation timestamp
-    pub created_at: DateTime<Utc>,
+    pub created_at: Datetime,
 
     /// Last access timestamp
-    pub last_accessed_at: Option<DateTime<Utc>>,
+    pub last_accessed_at: Option<Datetime>,
 
     /// Embedding vector
     pub embedding: Option<Vec<f32>>,
@@ -58,7 +58,7 @@ impl MemoryMetadata {
             category: "Uncategorized".to_string(),
             importance: 0.5,
             source: None,
-            created_at: chrono::Utc::now(),
+            created_at: Datetime::now(),
             last_accessed_at: None,
             embedding: None,
             custom: serde_json::Value::Null,
@@ -76,7 +76,7 @@ impl MemoryMetadata {
             category: format!("{:?}", memory_type),
             importance: 0.5,
             source: None,
-            created_at: chrono::Utc::now(),
+            created_at: Datetime::now(),
             last_accessed_at: None,
             embedding: None,
             custom: serde_json::Value::Null,

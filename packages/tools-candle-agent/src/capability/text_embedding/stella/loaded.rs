@@ -3,12 +3,12 @@
 use super::config::{STELLA_1_5B_MODEL_INFO, STELLA_400M_MODEL_INFO, detect_variant, embed_dim};
 use super::instruction::{format_single_with_instruction, format_with_instruction};
 use super::utils::{
-    configure_stella_tokenizer, create_stella_config, detect_device_and_dtype, load_stella_weights,
+    configure_stella_tokenizer, create_stella_config, load_stella_weights,
 };
 use crate::capability::traits::TextEmbeddingCapable;
 use crate::domain::model::CandleModelInfo;
 use crate::domain::model::traits::CandleModel;
-use anyhow::{Context, Result as AnyResult, anyhow};
+use anyhow::{Context, anyhow};
 use candle_core::{DType, Device, Tensor};
 use candle_transformers::models::stella_en_v5::{Config, EmbeddingModel, ModelVariant};
 use tokenizers::Tokenizer;
@@ -29,14 +29,14 @@ use tokenizers::Tokenizer;
 ///
 /// ## Memory Layout
 /// - tokenizer: Arc<Tokenizer> (shared, cheap to clone)
-/// - model: Arc<tokio::sync::Mutex<EmbeddingModel>> (async mutex for Metal GPU compatibility)
+/// - model: Arc<Mutex<EmbeddingModel>> (std::sync::Mutex for spawn_blocking compatibility)
 /// - device: Device (CUDA or CPU)
 /// - config: Config (Stella model configuration)
 /// - variant: ModelVariant (Large=1.5B or Small=400M)
 #[derive(Clone)]
 pub struct LoadedStellaModel {
     tokenizer: std::sync::Arc<Tokenizer>,
-    model: std::sync::Arc<tokio::sync::Mutex<EmbeddingModel>>,
+    model: std::sync::Arc<std::sync::Mutex<EmbeddingModel>>,
     device: Device,
     config: Config,
     variant: ModelVariant,
@@ -84,8 +84,9 @@ impl LoadedStellaModel {
         let variant = detect_variant(base_model.info().registry_key);
         let embed_dim = embed_dim(dimension as u32)?;
 
-        // Auto-detect device and dtype
-        let (device, dtype) = detect_device_and_dtype();
+        // Use CPU for Stella embeddings (Metal has GPU→CPU transfer issues in async contexts)
+        let device = Device::Cpu;
+        let dtype = DType::F32;
 
         // Load files from HuggingFace
         let base_weights = base_model
@@ -117,7 +118,7 @@ impl LoadedStellaModel {
 
         Ok(Self {
             tokenizer: std::sync::Arc::new(tokenizer),
-            model: std::sync::Arc::new(tokio::sync::Mutex::new(model)),
+            model: std::sync::Arc::new(std::sync::Mutex::new(model)),
             device,
             config: stella_config,
             variant,
@@ -157,56 +158,57 @@ impl TextEmbeddingCapable for LoadedStellaModel {
         let device = self.device.clone();
 
         Box::pin(async move {
-            log::info!("embed: Started");
-            
-            // Format with instruction prefix
-            let formatted_text = format_single_with_instruction(&text, task.as_deref());
-            log::info!("embed: Formatted text");
+            // Wrap ENTIRE Metal operation in spawn_blocking (Metal requires specific thread context)
+            let embedding_vec = tokio::task::spawn_blocking(move || -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+                log::info!("embed: Started in spawn_blocking");
+                
+                // Format with instruction prefix
+                let formatted_text = format_single_with_instruction(&text, task.as_deref());
+                log::info!("embed: Formatted text");
 
-            // Tokenize
-            let tokens = tokenizer
-                .encode(formatted_text, true)
-                .map_err(|e| anyhow!("Tokenization failed: {}", e))?;
-            log::info!("embed: Tokenized, {} tokens", tokens.len());
+                // Tokenize
+                let tokens = tokenizer
+                    .encode(formatted_text, true)
+                    .map_err(|e| anyhow!("Tokenization failed: {}", e))?;
+                log::info!("embed: Tokenized, {} tokens", tokens.len());
 
-            // Create 2D tensors directly with batch dimension (matches Candle example)
-            let shape = (1, tokens.len());
-            let input_ids = Tensor::from_slice(tokens.get_ids(), shape, &device)
-                .context("Failed to create input tensor")?;
-            log::info!("embed: Created input_ids tensor");
-            
-            let attention_mask = Tensor::from_slice(tokens.get_attention_mask(), shape, &device)
-                .context("Failed to create attention mask")?;
-            log::info!("embed: Created attention_mask tensor");
+                // Create 2D tensors directly with batch dimension (matches Candle example)
+                let shape = (1, tokens.len());
+                let input_ids = Tensor::from_slice(tokens.get_ids(), shape, &device)
+                    .context("Failed to create input tensor")?;
+                log::info!("embed: Created input_ids tensor");
+                
+                let attention_mask = Tensor::from_slice(tokens.get_attention_mask(), shape, &device)
+                    .context("Failed to create attention mask")?;
+                log::info!("embed: Created attention_mask tensor");
 
-            // Forward pass - lock async mutex (matches qwen pattern)
-            log::info!("embed: About to lock model");
-            let embeddings = {
-                let mut model_guard = model.lock().await;
-                log::info!("embed: Model locked, calling forward_norm");
-                model_guard
-                    .forward_norm(&input_ids, &attention_mask)
-                    .context("Stella forward pass failed")?
-            };
-            log::info!("embed: forward_norm completed");
+                // Forward pass - lock std::sync::Mutex in blocking context
+                log::info!("embed: About to lock model");
+                let embeddings = {
+                    let mut model_guard = model.lock().unwrap();
+                    log::info!("embed: Model locked, calling forward_norm");
+                    model_guard
+                        .forward_norm(&input_ids, &attention_mask)
+                        .context("Stella forward pass failed")?
+                };
+                log::info!("embed: forward_norm completed");
 
-            // Extract first embedding - squeeze batch dimension then to_vec1
-            log::info!("embed: About to squeeze");
-            let squeezed = embeddings
-                .squeeze(0)
-                .context("Failed to squeeze batch dimension")?;
-            log::info!("embed: Squeezed, about to move to CPU");
-            
-            // Move to CPU before extraction (Metal tensors need explicit device transfer)
-            let cpu_tensor = squeezed
-                .to_device(&Device::Cpu)
-                .context("Failed to move tensor to CPU")?;
-            log::info!("embed: Moved to CPU, about to to_vec1");
-            
-            let embedding_vec = cpu_tensor
-                .to_vec1::<f32>()
-                .context("Failed to convert embedding to vec")?;
-            log::info!("embed: Converted to vec, length: {}", embedding_vec.len());
+                // Extract first embedding - squeeze batch dimension then to_vec1
+                log::info!("embed: About to squeeze");
+                let squeezed = embeddings
+                    .squeeze(0)
+                    .context("Failed to squeeze batch dimension")?;
+                log::info!("embed: Squeezed, about to to_vec1");
+                
+                let vec = squeezed
+                    .to_vec1::<f32>()
+                    .context("Failed to convert embedding to vec")?;
+                log::info!("embed: Converted to vec, length: {}", vec.len());
+
+                Ok(vec)
+            })
+            .await
+            .context("spawn_blocking join failed")??;
 
             Ok(embedding_vec)
         })
@@ -233,47 +235,50 @@ impl TextEmbeddingCapable for LoadedStellaModel {
         let device = self.device.clone();
 
         Box::pin(async move {
-            let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+            // Wrap ENTIRE Metal operation in spawn_blocking
+            let embeddings_vec = tokio::task::spawn_blocking(move || -> Result<Vec<Vec<f32>>, Box<dyn std::error::Error + Send + Sync>> {
+                let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
 
-            // Format with instruction prefix
-            let formatted_texts = format_with_instruction(&text_refs, task.as_deref());
+                // Format with instruction prefix
+                let formatted_texts = format_with_instruction(&text_refs, task.as_deref());
 
-            // Tokenize batch
-            let encodings = tokenizer
-                .encode_batch(formatted_texts, true)
-                .map_err(|e| anyhow!("Batch tokenization failed: {}", e))?;
+                // Tokenize batch
+                let encodings = tokenizer
+                    .encode_batch(formatted_texts, true)
+                    .map_err(|e| anyhow!("Batch tokenization failed: {}", e))?;
 
-            // Create batch tensors
-            let ids_vecs: Vec<Vec<u32>> =
-                encodings.iter().map(|e| e.get_ids().to_vec()).collect();
-            let mask_vecs: Vec<Vec<u32>> = encodings
-                .iter()
-                .map(|e| e.get_attention_mask().to_vec())
-                .collect();
+                // Create batch tensors
+                let ids_vecs: Vec<Vec<u32>> =
+                    encodings.iter().map(|e| e.get_ids().to_vec()).collect();
+                let mask_vecs: Vec<Vec<u32>> = encodings
+                    .iter()
+                    .map(|e| e.get_attention_mask().to_vec())
+                    .collect();
 
-            let input_ids = Tensor::new(ids_vecs, &device)
-                .context("Failed to create batch input tensor")?;
-            let attention_mask = Tensor::new(mask_vecs, &device)
-                .context("Failed to create batch attention mask")?
-                .to_dtype(DType::U8)
-                .context("Failed to convert mask dtype")?;
+                let input_ids = Tensor::new(ids_vecs, &device)
+                    .context("Failed to create batch input tensor")?;
+                let attention_mask = Tensor::new(mask_vecs, &device)
+                    .context("Failed to create batch attention mask")?
+                    .to_dtype(DType::U8)
+                    .context("Failed to convert mask dtype")?;
 
-            // Forward pass - lock async mutex (matches qwen pattern)
-            let embeddings = {
-                let mut model_guard = model.lock().await;
-                model_guard
-                    .forward_norm(&input_ids, &attention_mask)
-                    .context("Stella batch forward pass failed")?
-            };
+                // Forward pass - lock std::sync::Mutex in blocking context
+                let embeddings = {
+                    let mut model_guard = model.lock().unwrap();
+                    model_guard
+                        .forward_norm(&input_ids, &attention_mask)
+                        .context("Stella batch forward pass failed")?
+                };
 
-            // Convert to Vec<Vec<f32>> - move to CPU first for Metal tensors
-            let cpu_embeddings = embeddings
-                .to_device(&Device::Cpu)
-                .context("Failed to move batch embeddings to CPU")?;
-            
-            let embeddings_vec = cpu_embeddings
-                .to_vec2::<f32>()
-                .context("Failed to convert batch embeddings to vec")?;
+                // Convert to Vec<Vec<f32>>
+                let vec = embeddings
+                    .to_vec2::<f32>()
+                    .context("Failed to convert batch embeddings to vec")?;
+
+                Ok(vec)
+            })
+            .await
+            .context("spawn_blocking join failed")??;
 
             Ok(embeddings_vec)
         })

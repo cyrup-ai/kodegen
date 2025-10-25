@@ -2,10 +2,10 @@
 //! Memory node implementation for the memory system.
 //! This module defines the core data structures for memory nodes.
 
-use chrono::{DateTime, Utc};
 use cyrup_sugars::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use surrealdb::Datetime;
 
 use super::metadata::MemoryMetadata;
 use super::types::{MemoryContent, MemoryTypeEnum};
@@ -23,9 +23,9 @@ pub struct MemoryNode {
     /// Type of memory
     pub memory_type: MemoryTypeEnum,
     /// Creation timestamp
-    pub created_at: DateTime<Utc>,
+    pub created_at: Datetime,
     /// Last updated timestamp
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: Datetime,
     /// Embedding vector
     pub embedding: Option<Vec<f32>>,
     /// Cognitive evaluation status (pending, in progress, complete)
@@ -41,7 +41,7 @@ impl MemoryNode {
     /// Create a new memory node
     pub fn new(memory_type: MemoryTypeEnum, content: MemoryContent) -> Self {
         let id = uuid::Uuid::new_v4().to_string();
-        let now = Utc::now();
+        let now = Datetime::now();
 
         // Calculate content hash for deduplication
         let content_hash = crate::domain::memory::serialization::content_hash(&content.text);

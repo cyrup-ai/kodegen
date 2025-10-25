@@ -106,9 +106,9 @@ pub async fn launch_browser() -> Result<(Browser, JoinHandle<()>, PathBuf)> {
     info!("Launching browser for web search");
 
     // Find or download Chrome executable
-    let chrome_path = match crate::browser::find_browser_executable().await {
+    let chrome_path = match crate::browser_setup::find_browser_executable().await {
         Ok(path) => path,
-        Err(_) => crate::browser::download_managed_browser().await?,
+        Err(_) => crate::browser_setup::download_managed_browser().await?,
     };
 
     // Create unique temp directory for this browser instance
