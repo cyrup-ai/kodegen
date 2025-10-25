@@ -262,6 +262,8 @@ pub fn available_categories() -> Vec<&'static str> {
         "sequential_thinking",
         #[cfg(feature = "claude_agent")]
         "claude_agent",
+        #[cfg(feature = "candle_agent")]
+        "candle_agent",
         #[cfg(feature = "citescrape")]
         "citescrape",
         #[cfg(feature = "git")]

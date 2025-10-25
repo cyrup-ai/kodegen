@@ -209,6 +209,8 @@ pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerH
         PACKAGE_NAME,
         "--bin",
         BINARY_NAME,
+        "--features",
+        "server",
         "--",
         "--sse",
         &format!("127.0.0.1:{}", SSE_PORT),

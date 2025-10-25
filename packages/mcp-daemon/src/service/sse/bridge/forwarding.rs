@@ -518,10 +518,11 @@ impl McpBridge {
             return Err(anyhow::anyhow!("Response must be a JSON object"));
         }
 
-        // SAFETY: We just checked is_object() above, so as_object() will return Some
-        let obj = response.as_object().expect(
-            "BUG: as_object() returned None after is_object() check - this should never happen",
-        );
+        // We just checked is_object() above, so as_object() should return Some
+        // If it somehow doesn't, return an error rather than panicking
+        let obj = response.as_object().ok_or_else(|| {
+            anyhow::anyhow!("BUG: as_object() returned None after is_object() check - this indicates a programming error")
+        })?;
 
         // Check for required jsonrpc field
         match obj.get("jsonrpc") {

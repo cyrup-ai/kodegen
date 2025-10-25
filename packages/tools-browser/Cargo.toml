@@ -84,6 +84,12 @@ research = ["agent", "urlencoding"]
 pdk = ["extism-pdk"]
 full = ["agent", "research", "pdk"]
 
+[dev-dependencies]
+kodegen_mcp_client = { path = "../mcp-client", version = "0.0.1" }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 [[bin]]
 name = "kodegen-browser"
 path = "src/main.rs"

@@ -157,9 +157,12 @@ mod tests {
     #[test]
     fn test_split_respects_string_literals() {
         let sql = "SELECT 1; INSERT INTO t VALUES ('a;b;c'); SELECT 2;";
-        let stmts = split_sql_statements(sql, DatabaseType::Postgres).unwrap();
-        assert_eq!(stmts.len(), 3);
-        assert!(stmts[1].contains("'a;b;c'"));
+        let result = split_sql_statements(sql, DatabaseType::Postgres);
+        assert!(result.is_ok(), "split_sql_statements failed: {:?}", result.err());
+        if let Ok(stmts) = result {
+            assert_eq!(stmts.len(), 3);
+            assert!(stmts[1].contains("'a;b;c'"));
+        }
     }
 
     #[test]
@@ -173,8 +176,10 @@ mod tests {
     fn test_unterminated_single_quote() {
         let sql = "INSERT INTO t VALUES ('test);";
         let result = split_sql_statements(sql, DatabaseType::Postgres);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("parse error"));
+        assert!(result.is_err(), "Expected error for unterminated single quote");
+        if let Err(e) = result {
+            assert!(e.to_string().contains("parse error"));
+        }
     }
 
     #[test]
@@ -188,8 +193,10 @@ mod tests {
     fn test_terminated_strings_ok() {
         let sql = "SELECT 'test'; INSERT INTO t VALUES ('data');";
         let result = split_sql_statements(sql, DatabaseType::Postgres);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 2);
+        assert!(result.is_ok(), "split_sql_statements failed: {:?}", result.err());
+        if let Ok(stmts) = result {
+            assert_eq!(stmts.len(), 2);
+        }
     }
 
     #[test]

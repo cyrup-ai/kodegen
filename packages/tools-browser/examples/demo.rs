@@ -136,55 +136,108 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
     info!("   ✓ Scroll complete");
     info!("");
 
-    // Step 6: Navigate to another page with form
-    info!("6️⃣  Navigating to httpbin.org/forms/post...");
+    // Step 6: Navigate to DuckDuckGo
+    info!("6️⃣  Navigating to duckduckgo.com...");
     client
         .call_tool(
             "browser_navigate",
             json!({
-                "url": "https://httpbin.org/forms/post"
+                "url": "https://duckduckgo.com"
             }),
         )
         .await?;
     info!("   ✓ Navigation complete");
     info!("");
 
-    // Step 7: Type into a form field
-    info!("7️⃣  Typing into custname field...");
+    // Wait for search page to load
+    info!("   Waiting for page to load...");
+    client
+        .call_tool(
+            "browser_wait",
+            json!({
+                "duration_ms": 2000
+            }),
+        )
+        .await?;
+
+    // Step 7: Type search query
+    info!("7️⃣  Typing search query into search field...");
     client
         .call_tool(
             "browser_type_text",
             json!({
-                "selector": "input[name='custname']",
-                "text": "Test User"
+                "selector": "input[name='q']",
+                "text": "Rust programming language"
             }),
         )
         .await?;
-    info!("   ✓ Text typed");
+    info!("   ✓ Search query entered");
     info!("");
 
-    // Step 8: Click a checkbox
-    info!("8️⃣  Clicking size checkbox...");
+    // Step 8: Submit the search
+    info!("8️⃣  Clicking search button...");
     client
         .call_tool(
             "browser_click",
             json!({
-                "selector": "input[value='small']"
+                "selector": "button[type='submit']"
             }),
         )
         .await?;
-    info!("   ✓ Element clicked");
+    info!("   ✓ Search submitted");
+    info!("");
+
+    // Wait for results to load
+    info!("   Waiting for search results...");
+    client
+        .call_tool(
+            "browser_wait",
+            json!({
+                "duration_ms": 3000
+            }),
+        )
+        .await?;
+
+    // Step 9: Extract and describe search results
+    info!("9️⃣  Extracting search results...");
+    let result = client.call_tool("browser_extract_text", json!({})).await?;
+
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text()
+    {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
+
+        // Look for search result indicators
+        let has_results = extracted.contains("rust-lang.org")
+            || extracted.contains("Rust")
+            || extracted.contains("programming");
+
+        if has_results {
+            let preview = if extracted.len() > 500 {
+                format!("{}...", &extracted[..500])
+            } else {
+                extracted.to_string()
+            };
+            info!("   ✓ Search results found ({} chars):", extracted.len());
+            info!("   {}", preview);
+        } else {
+            info!("   ⚠ Unexpected results (may need selector adjustment)");
+            info!("   First 300 chars: {}", &extracted[..300.min(extracted.len())]);
+        }
+    }
     info!("");
 
     info!("✅ Browser demo complete!");
     info!("\nAll browser tools demonstrated:");
-    info!("  - browser_navigate: Load URLs");
-    info!("  - browser_wait: Pause execution");
-    info!("  - browser_extract_text: Get page content");
-    info!("  - browser_screenshot: Capture images");
-    info!("  - browser_scroll: Scroll pages");
-    info!("  - browser_type_text: Input text");
-    info!("  - browser_click: Click elements");
+    info!("  - browser_navigate: Load URLs (example.com, duckduckgo.com)");
+    info!("  - browser_wait: Pause for page loads");
+    info!("  - browser_extract_text: Get page content and search results");
+    info!("  - browser_screenshot: Capture page images");
+    info!("  - browser_scroll: Navigate within pages");
+    info!("  - browser_type_text: Enter search queries");
+    info!("  - browser_click: Submit forms and interact with elements");
+    info!("\nExample workflow: Navigate → Search DuckDuckGo → Extract results");
 
     Ok(())
 }

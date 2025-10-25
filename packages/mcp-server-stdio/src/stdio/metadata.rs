@@ -26,6 +26,7 @@ fn build_schema<T: JsonSchema>() -> Value {
 /// Port assignments for category SSE servers (matches daemon config.rs allocation).
 pub const CATEGORY_PORTS: &[(&str, u16)] = &[
     ("browser", 30438),
+    ("candle_agent", 30452),
     ("citescrape", 30439),
     ("claude_agent", 30440),
     ("config", 30441),
@@ -179,6 +180,28 @@ pub fn all_tool_metadata() -> Vec<ToolMetadata> {
             description: "Gracefully terminate an agent session. Closes the ClaudeSDKClient connection, returns final statistics (turn count, message count, runtime), and mo...",
             schema: build_schema::<claude_agent::TerminateClaudeAgentSessionArgs>(),
             read_only: false,
+        },
+        // CANDLE_AGENT (3 tools)
+        ToolMetadata {
+            name: "memorize",
+            category: "candle_agent",
+            description: "Store content in a named memory library with automatic embedding generation. The memory will be tagged with the library name and can be retrieved later using recall(). Each library is a separate namespace for organizing memories.",
+            schema: build_schema::<claude_agent::MemorizeArgs>(),
+            read_only: false,
+        },
+        ToolMetadata {
+            name: "recall",
+            category: "candle_agent",
+            description: "Retrieve relevant memories from a library using semantic search. Searches for content similar to the provided context and returns the most relevant results. Uses vector similarity (cosine) to find semantically related memories.",
+            schema: build_schema::<claude_agent::RecallArgs>(),
+            read_only: true,
+        },
+        ToolMetadata {
+            name: "list_memory_libraries",
+            category: "candle_agent",
+            description: "List all unique memory library names that have been created. Returns a list of all libraries that contain at least one memory. Use this to discover what libraries are available for recall.",
+            schema: build_schema::<claude_agent::ListMemoryLibrariesArgs>(),
+            read_only: true,
         },
         // CONFIG (2 tools)
         ToolMetadata {

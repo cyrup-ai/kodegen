@@ -334,20 +334,26 @@ mod tests {
         use std::process::{Command, Stdio};
 
         // Build the binary first
-        let build_status = Command::new("cargo")
+        let build_status = match Command::new("cargo")
             .args(["build", "--bin", "kodegen"])
             .status()
-            .expect("Failed to build kodegen");
+        {
+            Ok(status) => status,
+            Err(e) => panic!("Failed to execute cargo build: {e}"),
+        };
 
         assert!(build_status.success(), "Failed to build kodegen binary");
 
         // Spawn kodegen install and immediately close stdout (breaks pipe)
-        let mut child = Command::new("./target/debug/kodegen")
+        let mut child = match Command::new("./target/debug/kodegen")
             .arg("install")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .expect("Failed to spawn kodegen");
+        {
+            Ok(child) => child,
+            Err(e) => panic!("Failed to spawn kodegen: {e}"),
+        };
 
         // Read only 1 byte from stdout then drop it (breaks the pipe)
         if let Some(mut stdout) = child.stdout.take() {
@@ -357,7 +363,10 @@ mod tests {
         }
 
         // Wait for process to complete
-        let output = child.wait_with_output().expect("Failed to wait for child");
+        let output = match child.wait_with_output() {
+            Ok(output) => output,
+            Err(e) => panic!("Failed to wait for child process: {e}"),
+        };
 
         // CRITICAL: Should exit successfully despite broken pipe
         assert!(

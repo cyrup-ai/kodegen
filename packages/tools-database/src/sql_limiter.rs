@@ -107,36 +107,51 @@ mod tests {
     #[test]
     fn test_adds_limit() {
         let sql = "SELECT * FROM users";
-        let result = apply_row_limit(sql, 100, DatabaseType::Postgres).unwrap();
-        assert!(result.contains("LIMIT 100"));
+        let result = apply_row_limit(sql, 100, DatabaseType::Postgres);
+        assert!(result.is_ok(), "apply_row_limit failed: {:?}", result.err());
+        if let Ok(result) = result {
+            assert!(result.contains("LIMIT 100"));
+        }
     }
 
     #[test]
     fn test_replaces_larger_limit() {
         let sql = "SELECT * FROM users LIMIT 200";
-        let result = apply_row_limit(sql, 100, DatabaseType::Postgres).unwrap();
-        assert!(result.contains("LIMIT 100"));
-        assert!(!result.contains("LIMIT 200"));
+        let result = apply_row_limit(sql, 100, DatabaseType::Postgres);
+        assert!(result.is_ok(), "apply_row_limit failed: {:?}", result.err());
+        if let Ok(result) = result {
+            assert!(result.contains("LIMIT 100"));
+            assert!(!result.contains("LIMIT 200"));
+        }
     }
 
     #[test]
     fn test_keeps_smaller_limit() {
         let sql = "SELECT * FROM users LIMIT 50";
-        let result = apply_row_limit(sql, 100, DatabaseType::Postgres).unwrap();
-        assert!(result.contains("LIMIT 50"));
+        let result = apply_row_limit(sql, 100, DatabaseType::Postgres);
+        assert!(result.is_ok(), "apply_row_limit failed: {:?}", result.err());
+        if let Ok(result) = result {
+            assert!(result.contains("LIMIT 50"));
+        }
     }
 
     #[test]
     fn test_preserves_semicolon() {
         let sql = "SELECT * FROM users;";
-        let result = apply_row_limit(sql, 100, DatabaseType::Postgres).unwrap();
-        assert!(result.ends_with(';'));
+        let result = apply_row_limit(sql, 100, DatabaseType::Postgres);
+        assert!(result.is_ok(), "apply_row_limit failed: {:?}", result.err());
+        if let Ok(result) = result {
+            assert!(result.ends_with(';'));
+        }
     }
 
     #[test]
     fn test_ignores_non_select() {
         let sql = "INSERT INTO users VALUES (1)";
-        let result = apply_row_limit(sql, 100, DatabaseType::Postgres).unwrap();
-        assert!(!result.contains("LIMIT"));
+        let result = apply_row_limit(sql, 100, DatabaseType::Postgres);
+        assert!(result.is_ok(), "apply_row_limit failed: {:?}", result.err());
+        if let Ok(result) = result {
+            assert!(!result.contains("LIMIT"));
+        }
     }
 }

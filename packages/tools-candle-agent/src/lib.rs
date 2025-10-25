@@ -49,6 +49,8 @@ pub mod extensions;
 pub mod image;
 /// Memory system with cognitive features and vector storage
 pub mod memory;
+/// MCP tools for memory operations
+pub mod tools;
 /// Prompt processing utilities
 pub mod prompt;
 /// Shared Tokio runtime for avoiding multiple runtime creation

@@ -8795,6 +8795,8 @@ dependencies = [
  "jsonwebtoken",
  "jwalk",
  "kodegen_mcp_client",
+ "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_simd",
  "kodegen_tools_git",

@@ -35,8 +35,14 @@ fn main() {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let rt = tokio::runtime::Runtime::new()
-        .expect("FATAL: Failed to create Tokio runtime - daemon cannot start without async runtime");
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("FATAL: Failed to create Tokio runtime: {e}");
+            eprintln!("The daemon cannot start without an async runtime.");
+            std::process::exit(1);
+        }
+    };
     if let Err(e) = rt.block_on(real_main()) {
         error!("{e:#}");
         std::process::exit(1);
@@ -105,7 +111,7 @@ async fn run_daemon(
 
     info!("Using config from: {}", cfg_path.display());
 
-    manager::install_signal_handlers();
+    manager::install_signal_handlers()?;
     let mut mgr = ServiceManager::new(&cfg)?;
 
     // Start SSE server if enabled

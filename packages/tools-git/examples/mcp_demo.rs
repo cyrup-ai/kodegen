@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
         common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
-    let log_path = std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/git.log");
+    let log_path = std::path::PathBuf::from("/tmp/mcp-client/git.log");
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;

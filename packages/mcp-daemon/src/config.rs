@@ -265,6 +265,12 @@ impl ServiceConfig {
                 port: 30451,
                 enabled: true,
             },
+            CategoryServerConfig {
+                name: "candle-agent".to_string(),
+                binary: "kodegen-candle-agent".to_string(),
+                port: 30452,
+                enabled: true,
+            },
         ]
     }
 }

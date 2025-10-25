@@ -37,23 +37,20 @@ impl SseEncoder {
 
         // Add event type if present
         if let Some(ref event_type) = event.event_type {
-            // SAFETY: Writing to String never fails (infallible operation)
-            writeln!(output, "event: {event_type}")
-                .expect("BUG: String::write_fmt is infallible and cannot fail");
+            // Writing to String is infallible - the write! family always succeeds for String
+            let _ = writeln!(output, "event: {event_type}");
         }
 
         // Add data field(s) - handle multiline data properly
         for line in event.data.lines() {
-            // SAFETY: Writing to String never fails (infallible operation)
-            writeln!(output, "data: {line}")
-                .expect("BUG: String::write_fmt is infallible and cannot fail");
+            // Writing to String is infallible - the write! family always succeeds for String
+            let _ = writeln!(output, "data: {line}");
         }
 
         // Add event ID if present
         if let Some(ref id) = event.id {
-            // SAFETY: Writing to String never fails (infallible operation)
-            writeln!(output, "id: {id}")
-                .expect("BUG: String::write_fmt is infallible and cannot fail");
+            // Writing to String is infallible - the write! family always succeeds for String
+            let _ = writeln!(output, "id: {id}");
         }
 
         // Add empty line to terminate the event

@@ -28,9 +28,14 @@ pub fn main() {
     #[cfg(target_os = "macos")]
     {
         // Use atomic build with rollback
-        let out_dir = std::env::var("OUT_DIR")
-            .map(std::path::PathBuf::from)
-            .expect("OUT_DIR must be set");
+        let out_dir = match std::env::var("OUT_DIR").map(std::path::PathBuf::from) {
+            Ok(dir) => dir,
+            Err(e) => {
+                eprintln!("Error: OUT_DIR environment variable must be set in build scripts: {e}");
+                eprintln!("This indicates a problem with the cargo build environment.");
+                std::process::exit(1);
+            }
+        };
         let zip_path = out_dir.join("KodegenHelper.app.zip");
 
         if let Err(e) = packaging::create_functional_zip(&zip_path) {

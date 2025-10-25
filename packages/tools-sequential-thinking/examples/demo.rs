@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from(
-        "/Volumes/samsung_t9/kodegen/tmp/mcp-client/sequential_thinking.log",
+        "/tmp/mcp-client/sequential_thinking.log",
     );
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await

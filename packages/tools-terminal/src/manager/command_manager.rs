@@ -4,9 +4,17 @@ use std::collections::HashSet;
 
 // Compile regex once at startup (not on every command validation)
 static ENV_VAR_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"\w+=\S+\s*").expect(
-        "Hardcoded regex pattern r\"\\w+=\\S+\\s*\" is invalid - this is a compile-time bug",
-    )
+    match Regex::new(r"\w+=\S+\s*") {
+        Ok(regex) => regex,
+        Err(e) => {
+            // This pattern is hardcoded and tested, so this should never happen
+            // If it does, it indicates a compile-time programming error
+            panic!(
+                "FATAL: Hardcoded regex pattern r\"\\w+=\\S+\\s*\" failed to compile: {e}\n\
+                 This is a programming bug that should be fixed in the source code."
+            );
+        }
+    }
 });
 
 /// Command manager for validating and parsing commands

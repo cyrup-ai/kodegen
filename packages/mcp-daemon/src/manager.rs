@@ -364,7 +364,7 @@ impl ServiceManager {
 static RECEIVED_SIGNAL: std::sync::LazyLock<std::sync::atomic::AtomicUsize> =
     std::sync::LazyLock::new(|| std::sync::atomic::AtomicUsize::new(0));
 
-pub fn install_signal_handlers() {
+pub fn install_signal_handlers() -> anyhow::Result<()> {
     use nix::sys::signal::{self, Signal};
     extern "C" fn handler(sig: i32) {
         RECEIVED_SIGNAL.store(sig as usize, std::sync::atomic::Ordering::SeqCst);
@@ -378,9 +378,9 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .expect(
-            "Failed to register SIGINT handler - signal handling is required for daemon operation",
-        );
+        .map_err(|e| anyhow::anyhow!(
+            "Failed to register SIGINT handler: {e}. Signal handling is required for daemon operation."
+        ))?;
         signal::sigaction(
             Signal::SIGTERM,
             &signal::SigAction::new(
@@ -389,10 +389,11 @@ pub fn install_signal_handlers() {
                 signal::SigSet::empty(),
             ),
         )
-        .expect(
-            "Failed to register SIGTERM handler - signal handling is required for daemon operation",
-        );
+        .map_err(|e| anyhow::anyhow!(
+            "Failed to register SIGTERM handler: {e}. Signal handling is required for daemon operation."
+        ))?;
     }
+    Ok(())
 }
 
 /// Non‑blocking check – returns Some(signal) once.
@@ -404,10 +405,14 @@ fn check_signals() -> Option<nix::sys::signal::Signal> {
     if val == 0 {
         None
     } else {
-        // SAFETY: Signal value was stored by our own signal handler, so it must be valid
-        Some(
-            Signal::try_from(val as i32)
-                .expect("Invalid signal number from signal handler - this should never happen"),
-        )
+        // Try to convert signal number - if it fails (which should never happen since we stored it),
+        // log the error and return None to avoid crashing the daemon
+        match Signal::try_from(val as i32) {
+            Ok(sig) => Some(sig),
+            Err(e) => {
+                log::error!("BUG: Invalid signal number {val} from signal handler: {e}. This indicates a programming error.");
+                None
+            }
+        }
     }
 }

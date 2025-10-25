@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Wrap client with logging
     let log_path =
-        std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/prompt.log");
+        std::path::PathBuf::from("/tmp/mcp-client/prompt.log");
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;

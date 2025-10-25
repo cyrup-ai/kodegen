@@ -17,10 +17,14 @@ impl Terminal {
     ///
     /// # Example
     /// ```no_run
+    /// # use std::error::Error;
+    /// # async fn example() -> Result<(), Box<dyn Error>> {
     /// let mut term = Terminal::builder().build();
     /// let handle = term.exec("ls -la")?;
-    /// let screen = handle.await.unwrap();
+    /// let screen = handle.await?;
     /// println!("{}", screen.contents());
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn exec(
         &mut self,

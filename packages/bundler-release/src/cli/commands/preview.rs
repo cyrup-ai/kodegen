@@ -35,10 +35,12 @@ pub(super) async fn execute_preview(args: &Args, config: &RuntimeConfig) -> Resu
 
             if *detailed {
                 config.println("\nDetailed changes:");
+                let new_version = preview.bump_preview.get_version(&version_bump)
+                    .ok_or_else(|| ReleaseError::Version("Failed to calculate new version".to_string()))?;
                 config.println(&format!(
                     "  Version: {} → {}",
                     preview.bump_preview.current,
-                    preview.bump_preview.get_version(&version_bump).unwrap()
+                    new_version
                 ));
 
                 config.println(&format!(

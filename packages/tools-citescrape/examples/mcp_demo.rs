@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
 
     // Delete old log file to start fresh
     let log_path =
-        std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/citescrape.log");
+        std::path::PathBuf::from("/tmp/mcp-client/citescrape.log");
     if log_path.exists() {
         std::fs::remove_file(&log_path).context("Failed to delete old log file")?;
     }

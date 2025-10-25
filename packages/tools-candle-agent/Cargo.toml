@@ -19,7 +19,9 @@ cylo = { path = "../cylo" }
 ctrlc = { version = "3.5", features = ["termination"] }
 
 # Workspace MCP infrastructure
-kodegen_mcp_tool = { path = "../mcp-tool" }
+kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
+kodegen_mcp_schema = { path = "../mcp-schema" }
+kodegen_mcp_server_core = { path = "../mcp-server-sse" }
 kodegen_mcp_client = { path = "../mcp-client" }
 kodegen_tools_git = { path = "../tools-git" }
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
@@ -227,7 +229,7 @@ hdrhistogram = "7.5.4"
 
 
 [[bin]]
-name = "cyrup"
+name = "kodegen-candle-agent"
 path = "src/main.rs"
 
 [lib]
