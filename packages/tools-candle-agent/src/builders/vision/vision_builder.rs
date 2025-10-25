@@ -7,7 +7,7 @@ pub struct VisionBuilderImpl {
 
 impl VisionBuilderImpl {
     /// Create a new vision builder with default LLaVA model
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         // Get LLaVA model from registry
         // Access the registry directly to get the concrete VisionModel type
         use crate::capability::registry::storage::VISION_UNIFIED;

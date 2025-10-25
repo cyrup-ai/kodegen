@@ -1,7 +1,6 @@
 //! Deep research module - infrastructure for future use
 
 use std::sync::Arc;
-use std::time::Duration;
 
 // Workspace LLM infrastructure
 use kodegen_candle_agent::prelude::*;
@@ -219,10 +218,7 @@ impl DeepResearch {
             .unwrap_or(url)
             .to_string();
 
-        // 2. WAIT FOR PAGE TO SETTLE
-        tokio::time::sleep(Duration::from_secs(2)).await;
-
-        // 3. GET PAGE TITLE
+        // 2. GET PAGE TITLE
         // TODO: Add browser_get_page_info tool to get title/metadata
         let title = final_url
             .split('/')
@@ -230,7 +226,7 @@ impl DeepResearch {
             .unwrap_or("Untitled")
             .to_string();
 
-        // 4. EXTRACT CONTENT VIA BROWSER TOOL (DIRECT LIBRARY CALL)
+        // 3. EXTRACT CONTENT VIA BROWSER TOOL (DIRECT LIBRARY CALL)
         debug!("Extracting content via BrowserExtractTextTool (direct)");
         
         let extract_tool = BrowserExtractTextTool::new(self.browser_manager.clone());
@@ -250,10 +246,10 @@ impl DeepResearch {
             .unwrap_or("")
             .to_string();
 
-        // 5. GENERATE SUMMARY WITH CANDLEFLUENTAI
+        // 4. GENERATE SUMMARY WITH CANDLEFLUENTAI
         let summary = self.summarize_content(&title, &content).await?;
 
-        // 6. ADD TO VISITED URLS
+        // 5. ADD TO VISITED URLS
         let mut visited = self.visited_urls.lock().await;
         visited.push(final_url.clone());
         drop(visited);

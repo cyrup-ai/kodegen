@@ -77,8 +77,8 @@ impl SurrealDBMemoryManager {
                 DEFINE FIELD IF NOT EXISTS created_at ON memory TYPE datetime;
                 DEFINE FIELD IF NOT EXISTS updated_at ON memory TYPE datetime;
                 DEFINE FIELD IF NOT EXISTS metadata ON memory FLEXIBLE TYPE object;
-                DEFINE FIELD IF NOT EXISTS metadata.created_at ON memory TYPE int;
-                DEFINE FIELD IF NOT EXISTS metadata.last_accessed_at ON memory TYPE int;
+                DEFINE FIELD IF NOT EXISTS metadata.created_at ON memory TYPE datetime;
+                DEFINE FIELD IF NOT EXISTS metadata.last_accessed_at ON memory TYPE datetime;
                 DEFINE FIELD IF NOT EXISTS metadata.importance ON memory TYPE float;
                 DEFINE FIELD IF NOT EXISTS metadata.embedding ON memory FLEXIBLE TYPE option<array<float>>;
                 DEFINE FIELD IF NOT EXISTS metadata.custom ON memory FLEXIBLE TYPE option<object>;

@@ -1,4 +1,7 @@
-use super::*;
+// Tests extracted from src/builders/vision/tests.rs
+
+use kodegen_candle_agent::builders::vision::VisionBuilderImpl;
+use kodegen_candle_agent::prelude::CandleVisionBuilder;
 use cyrup_sugars::prelude::MessageChunk;
 use tokio_stream::StreamExt;
 

@@ -234,20 +234,46 @@ impl Pool<TextEmbeddingWorkerHandle> {
 
         // Create state for worker
         use std::sync::Arc;
-        // Clone channels for worker task
-        let health_tx_worker_clone = health_tx_worker.clone();
-        let per_worker_mb_clone = per_worker_mb;
+        use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize};
+        use std::time::{SystemTime, UNIX_EPOCH};
 
         // Create state before spawning thread so we can clone it
-        use std::sync::atomic::AtomicU32;
         let state = Arc::new(AtomicU32::new(0)); // Spawning state
         let state_for_task = Arc::clone(&state);
 
-        // Clone channels for registration inside task after model loads
-        let embed_tx_clone = embed_tx.clone();
-        let batch_embed_tx_clone = batch_embed_tx.clone();
-        let shutdown_tx_clone = shutdown_tx.clone();
-        let health_tx_main_clone = health_tx_main.clone();
+        // Create worker handle BEFORE spawning (so wait_for_workers can see it)
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        let pending_requests = Arc::new(AtomicUsize::new(0));
+        let last_used = Arc::new(AtomicU64::new(now));
+
+        let full_handle = TextEmbeddingWorkerHandle {
+            core: WorkerHandle {
+                pending_requests,
+                last_used,
+                worker_id,
+                shutdown_tx: shutdown_tx.clone(),
+                per_worker_mb,
+                health_tx: health_tx_main.clone(),
+                health_rx: Arc::new(tokio::sync::Mutex::new(health_rx_main)),
+                state: Arc::clone(&state),
+            },
+            embed_tx: embed_tx.clone(),
+            batch_embed_tx: batch_embed_tx.clone(),
+            shutdown_tx: shutdown_tx.clone(),
+            registry_key: registry_key_str.clone(),
+        };
+
+        // Register worker immediately (in Spawning state)
+        // This allows wait_for_workers() to see worker and poll state transitions
+        self.register_worker(registry_key_str.clone(), full_handle);
+        self.add_memory(per_worker_mb);
+
+        // Clone channels for worker task
+        let health_tx_worker_clone = health_tx_worker.clone();
 
         // Spawn worker task
         tokio::spawn(async move {
@@ -279,48 +305,13 @@ impl Pool<TextEmbeddingWorkerHandle> {
                         std::sync::atomic::Ordering::Release,
                     );
 
-                    // No cleanup needed - worker was never registered
+                    // Worker already registered - will be cleaned up when state → Failed
                     // AllocationGuard will auto-release memory on return
                     return; // Exit thread without running worker loop
                 }
             };
 
-            // Model loaded successfully - NOW create and register worker
-            use std::sync::atomic::{AtomicU64, AtomicUsize};
-            use std::time::{SystemTime, UNIX_EPOCH};
-
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-
-            let pending_requests = Arc::new(AtomicUsize::new(0));
-            let last_used = Arc::new(AtomicU64::new(now));
-
-            // Clone registry_key for handle and worker context, use original for registration
-            let registry_key_for_worker = registry_key_str.clone();
-            let registry_key_for_handle = registry_key_str.clone();
-
-            let full_handle = TextEmbeddingWorkerHandle {
-                core: WorkerHandle {
-                    pending_requests,
-                    last_used,
-                    worker_id,
-                    shutdown_tx: shutdown_tx_clone.clone(),
-                    per_worker_mb: per_worker_mb_clone,
-                    health_tx: health_tx_main_clone.clone(),
-                    health_rx: Arc::new(tokio::sync::Mutex::new(health_rx_main)),
-                    state: Arc::clone(&state_for_task),
-                },
-                embed_tx: embed_tx_clone,
-                batch_embed_tx: batch_embed_tx_clone,
-                shutdown_tx: shutdown_tx_clone,
-                registry_key: registry_key_for_handle,
-            };
-
-            text_embedding_pool().register_worker(registry_key_str, full_handle);
-            text_embedding_pool().add_memory(per_worker_mb_clone);
-
+            // Model loaded successfully - run worker loop
             text_embedding_worker(
                 model,
                 TextEmbeddingWorkerChannels {
@@ -332,7 +323,7 @@ impl Pool<TextEmbeddingWorkerHandle> {
                 },
                 TextEmbeddingWorkerContext {
                     worker_id,
-                    registry_key: registry_key_for_worker,
+                    registry_key: registry_key_str,
                     state: Arc::clone(&state_for_task),
                 },
             )

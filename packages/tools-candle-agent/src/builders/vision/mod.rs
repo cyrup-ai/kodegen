@@ -3,9 +3,6 @@
 mod traits;
 mod vision_builder;
 
-#[cfg(test)]
-mod tests;
-
 pub use traits::CandleVisionBuilder;
 pub use vision_builder::VisionBuilderImpl;
 

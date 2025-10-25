@@ -105,6 +105,11 @@ impl Tool for BrowserNavigateTool {
                     e
                 ))
             })?;
+        
+        // Wait for page to stabilize
+        // Simple fixed delay to ensure DOM is fully rendered
+        // TODO: Replace with proper lifecycle event waiting once chromiumoxide pattern is clarified
+        tokio::time::sleep(Duration::from_millis(500)).await;
 
         // Wait for selector if specified (exponential backoff)
         if let Some(selector) = &args.wait_for_selector {
