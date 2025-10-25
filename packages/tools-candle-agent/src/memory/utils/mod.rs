@@ -13,7 +13,7 @@ pub fn current_timestamp_ms() -> u64 {
 
 /// Generate a new unique ID
 pub fn generate_id() -> String {
-    uuid::Uuid::new_v4().to_string()
+    uuid::Uuid::new_v4().simple().to_string()
 }
 
 /// Convert timestamp to ISO8601 string

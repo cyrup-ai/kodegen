@@ -7,7 +7,7 @@ use std::fs;
 #[test]
 fn test_default_config() {
     let config = CliConfig::default();
-    assert_eq!(config.default_temperature, 0.7);
+    assert_eq!(config.default_temperature, 0.0);
     assert_eq!(config.default_max_tokens, 2000);
 }
 

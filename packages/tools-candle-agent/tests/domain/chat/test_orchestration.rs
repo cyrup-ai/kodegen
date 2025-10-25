@@ -3,7 +3,7 @@
 use kodegen_candle_agent::domain::chat::orchestration::{
     format_tools_for_selection, get_selected_tool_schemas,
 };
-use rmcp::ToolInfo;
+use kodegen_candle_agent::ToolInfo;
 use std::borrow::Cow;
 use std::sync::Arc;
 

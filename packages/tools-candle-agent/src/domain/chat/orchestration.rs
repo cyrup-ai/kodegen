@@ -173,7 +173,6 @@ pub fn parse_final_response(json_str: &str) -> Result<FinalResponse> {
     serde_json::from_str(json_str).context("Failed to parse final response")
 }
 
-#[cfg(test)]
 #[must_use]
 pub fn get_selected_tool_schemas(
     selected_names: &[String],

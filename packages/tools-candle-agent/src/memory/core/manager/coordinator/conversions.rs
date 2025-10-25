@@ -133,7 +133,7 @@ impl MemoryCoordinator {
         let content_hash = crate::domain::memory::serialization::content_hash(&memory_content.text);
 
         MemoryMemoryNode {
-            id: domain_node.id().to_string(),
+            id: domain_node.id().simple().to_string(),
             content: memory_content,
             content_hash,
             memory_type,

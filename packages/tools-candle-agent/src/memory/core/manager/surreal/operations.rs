@@ -92,11 +92,10 @@ impl MemoryManager for SurrealDBMemoryManager {
 
         tokio::spawn(async move {
             let result = async {
-                let query = "SELECT * FROM $id";
+                let query = format!("SELECT * FROM memory:{}", id);
 
                 let mut response = db
-                    .query(query)
-                    .bind(("id", id))
+                    .query(&query)
                     .await
                     .map_err(|e| Error::Database(format!("{:?}", e)))?;
 
@@ -170,11 +169,10 @@ impl MemoryManager for SurrealDBMemoryManager {
 
         tokio::spawn(async move {
             let result = async {
-                let query = "DELETE $id";
+                let query = format!("DELETE memory:{}", id);
 
                 let mut response = db
-                    .query(query)
-                    .bind(("id", id))
+                    .query(&query)
                     .await
                     .map_err(|e| Error::Database(format!("{:?}", e)))?;
 

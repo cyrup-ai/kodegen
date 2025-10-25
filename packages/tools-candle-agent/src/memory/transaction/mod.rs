@@ -5,9 +5,6 @@
 
 pub mod transaction_manager;
 
-#[cfg(test)]
-pub mod tests;
-
 // Re-export main types
 use std::future::Future;
 use std::pin::Pin;

@@ -40,7 +40,7 @@ pub struct MemoryNode {
 impl MemoryNode {
     /// Create a new memory node
     pub fn new(memory_type: MemoryTypeEnum, content: MemoryContent) -> Self {
-        let id = uuid::Uuid::new_v4().to_string();
+        let id = uuid::Uuid::new_v4().simple().to_string();
         let now = Datetime::now();
 
         // Calculate content hash for deduplication
@@ -148,7 +148,7 @@ impl Default for MemoryNode {
         let content_hash = crate::domain::memory::serialization::content_hash(&content.text);
 
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4().simple().to_string(),
             content,
             content_hash,
             memory_type: MemoryTypeEnum::default(),

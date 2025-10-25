@@ -78,7 +78,7 @@ impl Tool for BrowserTypeTextTool {
                 McpError::Other(anyhow::anyhow!(
                     "Element not found (timeout after {}ms): '{}'. \
                      Try: (1) Verify selector is correct using browser dev tools, \
-                     (2) Use browser_wait_for to wait for element to appear, \
+                     (2) Ensure element is visible and loaded, \
                      (3) Increase timeout_ms parameter.",
                     timeout.as_millis(),
                     args.selector

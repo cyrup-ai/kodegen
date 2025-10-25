@@ -500,7 +500,7 @@ impl VectorIndex for HNSWIndex {
 /// # Performance
 /// Optimized for cache efficiency and vectorization
 #[inline]
-fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
+pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
     a.iter()
         .zip(b.iter())
         .map(|(x, y)| {
@@ -512,7 +512,7 @@ fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
 }
 
 #[inline]
-fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
+pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     // Use shared SIMD-optimized cosine similarity from cyrup-simd crate
     // Convert similarity to distance: distance = 1.0 - similarity
     1.0 - cosine_similarity(a, b)
@@ -538,135 +538,3 @@ impl VectorIndexFactory {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_flat_index() -> std::result::Result<(), Box<dyn std::error::Error>> {
-        let config = VectorIndexConfig {
-            metric: DistanceMetric::Cosine,
-            dimensions: 3,
-            index_type: IndexType::Flat,
-            parameters: HashMap::new(),
-        };
-
-        let mut index = FlatIndex::new(config);
-
-        // Add vectors
-        let id1 = uuid::Uuid::new_v4().to_string();
-        let id2 = uuid::Uuid::new_v4().to_string();
-
-        index.add(id1.clone(), vec![1.0, 0.0, 0.0])?;
-        index.add(id2.clone(), vec![0.0, 1.0, 0.0])?;
-
-        // Search
-        let results = index.search(&[1.0, 0.0, 0.0], 2)?;
-
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].0, id1); // Should match exactly
-        Ok(())
-    }
-
-    #[test]
-    fn test_hnsw_index() -> std::result::Result<(), Box<dyn std::error::Error>> {
-        let mut config = VectorIndexConfig {
-            metric: DistanceMetric::Cosine,
-            dimensions: 4,
-            index_type: IndexType::HNSW,
-            parameters: HashMap::new(),
-        };
-
-        // Configure HNSW parameters for testing
-        config.parameters.insert(
-            "m".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(8)),
-        );
-        config.parameters.insert(
-            "ef_construction".to_string(),
-            serde_json::Value::Number(serde_json::Number::from(50)),
-        );
-
-        let mut index = HNSWIndex::new(config);
-
-        // Add test vectors
-        let id1 = "test1".to_string();
-        let id2 = "test2".to_string();
-        let id3 = "test3".to_string();
-
-        index.add(id1.clone(), vec![1.0, 0.0, 0.0, 0.0])?;
-        index.add(id2.clone(), vec![0.0, 1.0, 0.0, 0.0])?;
-        index.add(id3.clone(), vec![0.0, 0.0, 1.0, 0.0])?;
-
-        // Build index
-        index.build()?;
-
-        // Search for nearest neighbors
-        let results = index.search(&[1.0, 0.0, 0.0, 0.0], 2)?;
-
-        assert!(!results.is_empty());
-        // HNSW can have non-deterministic ordering, so just verify we get reasonable results
-        // Check that we get at least one result with a reasonable distance
-        let best_distance = results
-            .iter()
-            .map(|(_, distance)| *distance)
-            .fold(f32::INFINITY, f32::min);
-        assert!(
-            best_distance < 2.0,
-            "Expected at least one result with reasonable distance, best was: {}",
-            best_distance
-        );
-
-        // For a query [1.0, 0.0, 0.0, 0.0], we should get one exact or very close match
-        // The exact match should be test1, but HNSW might not always return it first
-        let close_matches = results
-            .iter()
-            .filter(|(_, distance)| *distance < 0.1)
-            .count();
-        assert!(
-            close_matches >= 1,
-            "Expected at least one close match in results: {:?}",
-            results
-        );
-
-        // Test removal
-        index.remove(&id2)?;
-        assert_eq!(index.len(), 2);
-        Ok(())
-    }
-
-    #[test]
-    fn test_distance_functions() {
-        let a = vec![1.0, 0.0, 0.0];
-        let b = vec![0.0, 1.0, 0.0];
-        let c = vec![1.0, 0.0, 0.0];
-
-        // Test euclidean distance
-        let dist_ab = euclidean_distance(&a, &b);
-        let dist_ac = euclidean_distance(&a, &c);
-
-        assert!(dist_ab > dist_ac); // a and c are identical, so distance should be 0
-        assert!((dist_ac - 0.0).abs() < f32::EPSILON);
-
-        // Test cosine distance
-        let cos_dist_ab = cosine_distance(&a, &b);
-        let cos_dist_ac = cosine_distance(&a, &c);
-
-        assert!(cos_dist_ab > cos_dist_ac);
-        assert!((cos_dist_ac - 0.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn test_vector_index_factory() {
-        let config = VectorIndexConfig {
-            metric: DistanceMetric::Cosine,
-            dimensions: 3,
-            index_type: IndexType::HNSW,
-            parameters: HashMap::new(),
-        };
-
-        let index = VectorIndexFactory::create(config);
-        assert_eq!(index.len(), 0);
-        assert!(index.is_empty());
-    }
-}

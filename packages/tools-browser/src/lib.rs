@@ -76,5 +76,5 @@ pub use manager::BrowserManager;
 pub use tools::{
     BrowserAgentTool, BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool,
     BrowserResearchTool, BrowserScreenshotTool, BrowserScrollTool, BrowserTypeTextTool,
-    BrowserWaitForTool, BrowserWaitTool, WebSearchTool,
+    WebSearchTool,
 };

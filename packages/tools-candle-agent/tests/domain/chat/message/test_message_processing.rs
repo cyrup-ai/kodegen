@@ -1,7 +1,8 @@
 // Tests extracted from src/domain/chat/message/message_processing.rs
 
-use kodegen_candle_agent::domain::chat::message::{
-    CandleMessage, CandleMessageRole, process_message, validate_message, sanitize_content,
+use kodegen_candle_agent::domain::chat::message::{CandleMessage, CandleMessageRole};
+use kodegen_candle_agent::domain::chat::message::message_processing::{
+    process_message, validate_message, sanitize_content,
 };
 use tokio_stream::StreamExt;
 

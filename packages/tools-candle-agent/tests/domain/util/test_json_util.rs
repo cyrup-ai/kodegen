@@ -4,9 +4,9 @@ use kodegen_candle_agent::domain::util::json_util::{
     merge, merge_inplace, ensure_object_and_merge, is_empty_value, merge_multiple,
     string_or_vec, null_or_vec,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct DummyStringified {
     #[serde(with = "kodegen_candle_agent::domain::util::json_util::stringified_json")]
     data: serde_json::Value,

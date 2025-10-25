@@ -1,7 +1,7 @@
 // Tests extracted from src/domain/model/error.rs
 
 use kodegen_candle_agent::domain::model::error::{
-    CandleModelError, CandleModelOptionExt, CandleModelResultExt,
+    CandleModelError, OptionExt, ResultExt,
 };
 use kodegen_candle_agent::model_err;
 use std::borrow::Cow;

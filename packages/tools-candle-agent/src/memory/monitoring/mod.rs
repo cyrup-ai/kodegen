@@ -13,9 +13,6 @@ pub mod performance;
 // Internal fallback logic (not exported publicly)
 pub(crate) mod fallback;
 
-#[cfg(test)]
-pub mod tests;
-
 // Re-export main types
 pub use health::*;
 pub use memory_usage::*;

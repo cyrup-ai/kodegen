@@ -9,7 +9,7 @@
 use kodegen_candle_agent::StreamExt;
 use kodegen_candle_agent::core::engine::{Engine, EngineConfig};
 use kodegen_candle_agent::domain::completion::CandleCompletionChunk;
-use kodegen_candle_agent::domain::context::chunks::CandleStringChunk;
+use kodegen_candle_agent::domain::context::chunks::{CandleStringChunk, GenerationStats};
 
 /// Test 1: Provider Type Verification
 ///
@@ -36,8 +36,8 @@ fn test_provider_type_verification() {
 ///
 /// Verifies that the Engine correctly tracks metrics during generation orchestration.
 /// This test checks that request_count and active_requests are updated properly.
-#[test]
-fn test_engine_metrics_tracking() {
+#[tokio::test]
+async fn test_engine_metrics_tracking() {
     let config = EngineConfig::new("test-model", "test-provider");
     let engine = match Engine::new(config) {
         Ok(e) => e,
@@ -96,6 +96,11 @@ async fn test_stream_conversion() {
         kodegen_candle_agent::async_stream::spawn_stream(|sender| async move {
             let _ = sender.send(CandleStringChunk::text("Hello".to_string()));
             let _ = sender.send(CandleStringChunk::text(" World".to_string()));
+            let _ = sender.send(CandleStringChunk::final_with_stats(GenerationStats {
+                tokens_generated: 2,
+                elapsed_secs: 0.01,
+                tokens_per_sec: 200.0,
+            }));
         })
     });
 

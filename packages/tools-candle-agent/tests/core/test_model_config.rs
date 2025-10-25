@@ -1,7 +1,8 @@
 // Tests extracted from src/core/model_config.rs
 
+use candle_transformers::models::llama::{Config as LlamaConfig, LlamaEosToks};
 use kodegen_candle_agent::core::model_config::{
-    ModelConfig, ModelArchitecture, LlamaConfig, LlamaEosToks, SpecialTokenIds,
+    ModelConfig, ModelArchitecture, SpecialTokenIds,
 };
 use std::fs::File;
 use tempfile::tempdir;

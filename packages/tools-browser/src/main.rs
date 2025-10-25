@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
         // Register all browser tools
         use kodegen_tools_browser::*;
 
-        // Core browser automation tools (8 tools)
+        // Core browser automation tools (6 tools)
         (tool_router, prompt_router) = register_tool(
             tool_router,
             prompt_router,
@@ -70,16 +70,6 @@ async fn main() -> Result<()> {
             tool_router,
             prompt_router,
             BrowserScrollTool::new(browser_manager.clone()),
-        );
-        (tool_router, prompt_router) = register_tool(
-            tool_router,
-            prompt_router,
-            BrowserWaitTool::new(),
-        );
-        (tool_router, prompt_router) = register_tool(
-            tool_router,
-            prompt_router,
-            BrowserWaitForTool::new(browser_manager.clone()),
         );
 
         // Advanced browser tools (2 tools)
