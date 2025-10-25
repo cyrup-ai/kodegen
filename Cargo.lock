@@ -9070,6 +9070,7 @@ dependencies = [
  "extism-pdk",
  "futures",
  "futures-util",
+ "hex",
  "kodegen_candle_agent",
  "kodegen_mcp_client",
  "kodegen_mcp_schema",
@@ -9090,6 +9091,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "url",
  "urlencoding",
  "workspace-hack",
 ]

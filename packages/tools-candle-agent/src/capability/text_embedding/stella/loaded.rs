@@ -160,42 +160,47 @@ impl TextEmbeddingCapable for LoadedStellaModel {
         Box::pin(async move {
             // Wrap CPU-intensive operations in spawn_blocking to avoid blocking async runtime
             let embedding_vec = tokio::task::spawn_blocking(move || -> AnyResult<Vec<f32>> {
+                log::info!("spawn_blocking: Started");
                 // Format with instruction prefix
                 let formatted_text = format_single_with_instruction(&text, task.as_deref());
+                log::info!("spawn_blocking: Formatted text, length: {}", formatted_text.len());
 
                 // Tokenize
+                log::info!("spawn_blocking: About to tokenize");
                 let tokens = tokenizer
                     .encode(formatted_text, true)
                     .map_err(|e| anyhow!("Tokenization failed: {}", e))?;
+                log::info!("spawn_blocking: Tokenized, token count: {}", tokens.len());
 
-                let input_ids = Tensor::new(tokens.get_ids(), &device)
+                // Create 2D tensors directly with batch dimension (matches Candle example)
+                let shape = (1, tokens.len());
+                log::info!("spawn_blocking: Creating tensors with shape: {:?}", shape);
+                let input_ids = Tensor::from_slice(tokens.get_ids(), shape, &device)
                     .context("Failed to create input tensor")?;
-                let attention_mask = Tensor::new(tokens.get_attention_mask(), &device)
-                    .context("Failed to create attention mask")?
-                    .to_dtype(DType::U8)
-                    .context("Failed to convert mask dtype")?;
+                log::info!("spawn_blocking: Created input_ids tensor");
+                let attention_mask = Tensor::from_slice(tokens.get_attention_mask(), shape, &device)
+                    .context("Failed to create attention mask")?;
+                log::info!("spawn_blocking: Created attention_mask tensor");
 
                 // Forward pass - lock synchronous mutex in blocking context
+                log::info!("spawn_blocking: About to lock model mutex");
                 let mut model_guard = model.lock().unwrap_or_else(|poisoned| {
                     log::error!("Model mutex was poisoned, attempting recovery");
-                    log::error!("Poison error: {:?}", poisoned);
                     poisoned.into_inner()
                 });
+                log::info!("spawn_blocking: Model mutex locked, calling forward_norm");
                 let embeddings = model_guard
-                    .forward_norm(
-                        &input_ids
-                            .unsqueeze(0)
-                            .context("Failed to unsqueeze input_ids")?,
-                        &attention_mask
-                            .unsqueeze(0)
-                            .context("Failed to unsqueeze attention_mask")?,
-                    )
+                    .forward_norm(&input_ids, &attention_mask)
                     .context("Stella forward pass failed")?;
+                log::info!("spawn_blocking: forward_norm completed");
 
                 // Extract first embedding
-                embeddings
+                log::info!("spawn_blocking: About to call to_vec2");
+                let vec2 = embeddings
                     .to_vec2::<f32>()
-                    .context("Failed to convert embeddings to vec")?
+                    .context("Failed to convert embeddings to vec")?;
+                log::info!("spawn_blocking: to_vec2 completed, extracting first");
+                vec2
                     .into_iter()
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("No embeddings generated"))

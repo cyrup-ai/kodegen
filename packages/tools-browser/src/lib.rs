@@ -2,12 +2,15 @@
 //!
 //! Provides browser control, page navigation, and content extraction via chromiumoxide.
 
-#[cfg(feature = "agent")]
 pub mod agent;
 mod browser;
+pub mod browser_setup;
+pub mod kromekover;
 mod manager;
+pub mod page_enhancer;
 mod tools;
 mod utils;
+pub mod web_search;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -71,12 +74,7 @@ pub use browser::{
 };
 pub use manager::BrowserManager;
 pub use tools::{
-    BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool, BrowserScreenshotTool,
-    BrowserScrollTool, BrowserTypeTextTool, BrowserWaitForTool, BrowserWaitTool,
+    BrowserAgentTool, BrowserClickTool, BrowserExtractTextTool, BrowserNavigateTool,
+    BrowserResearchTool, BrowserScreenshotTool, BrowserScrollTool, BrowserTypeTextTool,
+    BrowserWaitForTool, BrowserWaitTool, WebSearchTool,
 };
-
-#[cfg(feature = "agent")]
-pub use tools::BrowserAgentTool;
-
-#[cfg(feature = "research")]
-pub use tools::BrowserResearchTool;

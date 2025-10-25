@@ -4,7 +4,7 @@
 // Managed by kodegend daemon, typically running on port 30440.
 
 use anyhow::Result;
-use kodegen_mcp_server_core::{run_sse_server, Managers, RouterSet, ShutdownHook, register_tool};
+use kodegen_mcp_server_core::{run_sse_server, Cli, Managers, RouterSet, ShutdownHook, register_tool};
 use rmcp::handler::server::router::{prompt::PromptRouter, tool::ToolRouter};
 use std::sync::Arc;
 
@@ -27,11 +27,17 @@ async fn main() -> Result<()> {
         let mut prompt_router = PromptRouter::new();
         let mut managers = Managers::new();
 
+        // Fixed server URL for browser loopback tools (port 30438 managed by daemon)
+        let server_url = "http://127.0.0.1:30438/sse".to_string();
+
         // Initialize browser manager
         let browser_manager = kodegen_tools_browser::BrowserManager::global();
         managers.register(BrowserManagerWrapper(browser_manager.clone()));
 
-        // Register all browser tools (need BrowserManager)
+        // Initialize web search browser manager (separate from main browser manager)
+        let web_search_manager = kodegen_tools_browser::web_search::BrowserManager::new();
+
+        // Register all browser tools
         use kodegen_tools_browser::*;
 
         // Core browser automation tools (8 tools)
@@ -74,6 +80,25 @@ async fn main() -> Result<()> {
             tool_router,
             prompt_router,
             BrowserWaitForTool::new(browser_manager.clone()),
+        );
+
+        // Advanced browser tools with loopback MCP client (2 tools)
+        (tool_router, prompt_router) = register_tool(
+            tool_router,
+            prompt_router,
+            BrowserAgentTool::new(browser_manager.clone(), server_url.clone()),
+        );
+        (tool_router, prompt_router) = register_tool(
+            tool_router,
+            prompt_router,
+            BrowserResearchTool::new(server_url.clone()),
+        );
+
+        // Web search tool (1 tool)
+        (tool_router, prompt_router) = register_tool(
+            tool_router,
+            prompt_router,
+            WebSearchTool::new(web_search_manager),
         );
 
         Ok(RouterSet::new(tool_router, prompt_router, managers))

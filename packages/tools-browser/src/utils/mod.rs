@@ -1,19 +1,12 @@
-// NOTE: Commented out modules with broken dependencies (pre-existing issues)
-// These should be fixed separately from the timeout validation task
-#[cfg(feature = "agent")]
+// All browser utility modules - no feature gating
 mod agent_state;
-#[cfg(feature = "agent")]
+pub mod constants;
 mod deep_research;
-#[cfg(feature = "agent")]
 mod errors;
+mod timeout;
 // mod utils;
 
-// Only active module for timeout validation
-mod timeout;
-
-#[cfg(feature = "agent")]
 pub use agent_state::AgentState;
-#[cfg(feature = "agent")]
 pub use deep_research::{DeepResearch, ResearchOptions};
 pub use timeout::{
     validate_interaction_timeout, validate_navigation_timeout, validate_wait_timeout,

@@ -241,9 +241,12 @@ path = "src/lib.rs"
 name = "memory_demo"
 path = "examples/memory_demo.rs"
 
+[[example]]
+name = "memory_direct_test"
+path = "examples/memory_direct_test.rs"
+
 
 [features]
-# NOTE: Providers currently only implement ProgressHub backend. HF-Hub implementations needed.
 default = ["metal", "reqwest_unstable", "cognitive", "api", "download-hf-hub"]
 
 # --- Core build flavours ---

@@ -121,12 +121,15 @@ pub async fn text_embedding_worker<T: TextEmbeddingCapable>(
                 timeout.as_mut().reset(Instant::now() + idle_threshold);
             }
             Some(req) = embed_rx.recv() => {
+                log::info!("Worker {}: Received embed request, text length: {}", worker_id, req.text.len());
                 // Transition: Ready/Idle → Processing
                 state.store(WorkerState::Processing as u32, std::sync::atomic::Ordering::Release);
 
+                log::info!("Worker {}: Calling model.embed()", worker_id);
                 let result = model.embed(&req.text, req.task)
                     .await
                     .map_err(|e| PoolError::ModelError(e.to_string()));
+                log::info!("Worker {}: model.embed() returned", worker_id);
                 if let Err(e) = req.response.send(result) {
                     log::warn!(
                         "Worker {}: Failed to send response (client likely timed out): {:?}",
