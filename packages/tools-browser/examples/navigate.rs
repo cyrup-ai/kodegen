@@ -17,7 +17,9 @@ async fn main() -> Result<()> {
     let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
-    let log_path = std::path::PathBuf::from("/tmp/mcp-client/browser_navigate.log");
+    let workspace_root = common::find_workspace_root()
+        .context("Failed to find workspace root")?;
+    let log_path = workspace_root.join("tmp/mcp-client/browser.log");
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;

@@ -73,6 +73,54 @@ impl Tool for ListMemoryLibrariesTool {
     }
 
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
-        Ok(vec![])
+        use rmcp::model::{PromptMessageRole, PromptMessageContent};
+
+        Ok(vec![
+            PromptMessage {
+                role: PromptMessageRole::User,
+                content: PromptMessageContent::text(
+                    "How do I use list_memory_libraries to see what knowledge is available?",
+                ),
+            },
+            PromptMessage {
+                role: PromptMessageRole::Assistant,
+                content: PromptMessageContent::text(
+                    "The list_memory_libraries tool shows all unique library names that contain at least one memory. \
+                     Use it for discovery and awareness of available knowledge bases.\n\n\
+                     Basic usage:\n\
+                     list_memory_libraries({})\n\n\
+                     No parameters required - it returns all libraries.\n\n\
+                     Response format:\n\
+                     {\n\
+                       \"libraries\": [\n\
+                         \"api_knowledge\",\n\
+                         \"bug_patterns\",\n\
+                         \"debugging_insights\",\n\
+                         \"rust_patterns\",\n\
+                         \"user_preferences\"\n\
+                       ],\n\
+                       \"count\": 5\n\
+                     }\n\n\
+                     Libraries are returned in alphabetical order.\n\n\
+                     When to use:\n\
+                     - Discovery: \"What knowledge do I have available?\"\n\
+                     - Awareness: See what topics you've memorized\n\
+                     - Before recall: Check which libraries exist (though not mandatory)\n\
+                     - User asks: \"What do you remember about X?\"\n\
+                     - Exploration: Browse available knowledge domains\n\n\
+                     Empty response:\n\
+                     If no memories exist yet, you'll get:\n\
+                     {\n\
+                       \"libraries\": [],\n\
+                       \"count\": 0\n\
+                     }\n\n\
+                     Workflow tips:\n\
+                     - Within a session, you typically know which library you're working with\n\
+                     - Use this when you need to see the full landscape of stored knowledge\n\
+                     - Libraries are created automatically when you first memorize() with a library name\n\
+                     - Each library is a separate namespace for organizing related memories",
+                ),
+            },
+        ])
     }
 }

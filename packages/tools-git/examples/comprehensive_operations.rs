@@ -63,12 +63,17 @@ struct TestRepository {
 }
 
 impl TestRepository {
-    /// Create a new test repository in /`Volumes/samsung_t9/kodegen/tmp`
+    /// Create a new test repository in workspace `tmp/` directory
     async fn new() -> Result<Self> {
+        let workspace_root = std::env::current_dir()
+            .context("Failed to get current directory")?
+            .ancestors()
+            .find(|p| p.join("Cargo.toml").exists() && p.join("packages").exists())
+            .context("Failed to find workspace root")?
+            .to_path_buf();
+        
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-        let path = PathBuf::from(format!(
-            "/Volumes/samsung_t9/kodegen/tmp/git_ops_test_{timestamp}"
-        ));
+        let path = workspace_root.join(format!("tmp/git_ops_test_{timestamp}"));
 
         // Create directory
         std::fs::create_dir_all(&path)

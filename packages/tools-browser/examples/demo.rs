@@ -1,11 +1,11 @@
 //! Browser tools demonstration
 //!
-//! Shows how to use browser automation tools to:
-//! - Navigate to URLs
-//! - Extract page content  
-//! - Take screenshots
-//! - Interact with elements (click, type)
-//! - Control viewport (scroll, wait)
+//! Part 1: Crates.io exploration - Real-world Rust library search
+//! Part 2: Legal research - AI-powered multi-page research on antitrust cases
+//!
+//! Demonstrates:
+//! - Basic browser automation (navigate, click, type, extract, scroll, screenshot)
+//! - Advanced AI research capabilities (browser_research with deep analysis)
 
 use anyhow::{Context, Result};
 use serde_json::json;
@@ -19,13 +19,16 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
     info!("🌐 Browser Tools Demo\n");
-    info!("This example demonstrates browser automation capabilities.\n");
+    info!("Part 1: Crates.io library exploration");
+    info!("Part 2: AI-powered legal research\n");
 
     // Connect to local browser SSE server
     let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
-    let log_path = std::path::PathBuf::from("/tmp/mcp-client/browser_demo.log");
+    let workspace_root = common::find_workspace_root()
+        .context("Failed to find workspace root")?;
+    let log_path = workspace_root.join("tmp/mcp-client/browser.log");
     let client = common::LoggingClient::new(conn.client(), log_path)
         .await
         .context("Failed to create logging client")?;
@@ -44,13 +47,17 @@ async fn main() -> Result<()> {
 }
 
 async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
-    // Step 1: Navigate to example.com
-    info!("1️⃣  Navigating to example.com...");
+    info!("\n═══════════════════════════════════════");
+    info!("PART 1: Crates.io Library Exploration");
+    info!("═══════════════════════════════════════\n");
+
+    // Step 1: Navigate to crates.io
+    info!("1️⃣  Navigating to crates.io...");
     let result = client
         .call_tool(
             "browser_navigate",
             json!({
-                "url": "https://example.com"
+                "url": "https://crates.io"
             }),
         )
         .await?;
@@ -60,7 +67,7 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
     {
         let response: serde_json::Value = serde_json::from_str(&text.text)?;
         info!(
-            "   ✓ Navigate result: {}",
+            "   ✓ Loaded: {}",
             response
                 .get("url")
                 .and_then(|v| v.as_str())
@@ -69,23 +76,18 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
     }
     info!("");
 
-    // Step 2: Wait for page to settle
-    info!("2️⃣  Waiting 1 second for page to settle...");
+    // Step 2: Extract crates.io homepage content
+    info!("2️⃣  Extracting homepage content...");
     client
         .call_tool(
             "browser_wait",
             json!({
-                "duration_ms": 1000
+                "duration_ms": 1500
             }),
         )
         .await?;
-    info!("   ✓ Wait complete");
-    info!("");
-
-    // Step 3: Extract page text
-    info!("3️⃣  Extracting page text...");
+    
     let result = client.call_tool("browser_extract_text", json!({})).await?;
-
     if let Some(content) = result.content.first()
         && let Some(text) = content.as_text()
     {
@@ -96,12 +98,73 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
         } else {
             extracted.to_string()
         };
-        info!("   ✓ Extracted {} chars: {}", extracted.len(), preview);
+        info!("   ✓ Extracted homepage ({} chars): {}", extracted.len(), preview);
     }
     info!("");
 
-    // Step 4: Take screenshot
-    info!("4️⃣  Taking screenshot...");
+    // Step 3: Navigate to tokio crate page
+    info!("3️⃣  Navigating to tokio crate page...");
+    client
+        .call_tool(
+            "browser_navigate",
+            json!({
+                "url": "https://crates.io/crates/tokio"
+            }),
+        )
+        .await?;
+    info!("   ✓ Loaded tokio crate page");
+    info!("");
+
+    // Wait for crate page to load
+    client
+        .call_tool(
+            "browser_wait",
+            json!({
+                "duration_ms": 2000
+            }),
+        )
+        .await?;
+
+    // Step 4: Extract crate details
+    info!("4️⃣  Extracting tokio crate information...");
+    let result = client.call_tool("browser_extract_text", json!({})).await?;
+
+    if let Some(content) = result.content.first()
+        && let Some(text) = content.as_text()
+    {
+        let response: serde_json::Value = serde_json::from_str(&text.text)?;
+        let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        
+        // Look for tokio-specific content
+        let has_tokio_info = extracted.contains("tokio") || extracted.contains("async") || extracted.contains("runtime");
+        
+        if has_tokio_info {
+            let preview = if extracted.len() > 400 {
+                format!("{}...", &extracted[..400])
+            } else {
+                extracted.to_string()
+            };
+            info!("   ✓ Extracted crate details ({} chars)", extracted.len());
+            info!("   {}", preview);
+        }
+    }
+    info!("");
+
+    // Step 5: Scroll down to see more details
+    info!("5️⃣  Scrolling to view README...");
+    client
+        .call_tool(
+            "browser_scroll",
+            json!({
+                "y": 800
+            }),
+        )
+        .await?;
+    info!("   ✓ Scrolled to README section");
+    info!("");
+
+    // Step 6: Take screenshot of crate page
+    info!("6️⃣  Taking screenshot of tokio crate page...");
     let result = client
         .call_tool(
             "browser_screenshot",
@@ -123,121 +186,63 @@ async fn run_browser_example(client: &common::LoggingClient) -> Result<()> {
     }
     info!("");
 
-    // Step 5: Scroll down
-    info!("5️⃣  Scrolling down 500px...");
-    client
-        .call_tool(
-            "browser_scroll",
-            json!({
-                "y": 500
-            }),
-        )
-        .await?;
-    info!("   ✓ Scroll complete");
-    info!("");
+    info!("\n═══════════════════════════════════════");
+    info!("PART 2: AI-Powered Legal Research");
+    info!("═══════════════════════════════════════\n");
 
-    // Step 6: Navigate to DuckDuckGo
-    info!("6️⃣  Navigating to duckduckgo.com...");
-    client
+    // Step 7: Use browser_research for deep multi-page legal research
+    info!("7️⃣  Researching 'most important US antitrust precedent cases'...");
+    info!("   (This will search, navigate multiple sources, and generate AI summary)\n");
+    
+    let research_result = client
         .call_tool(
-            "browser_navigate",
+            "browser_research",
             json!({
-                "url": "https://duckduckgo.com"
-            }),
-        )
-        .await?;
-    info!("   ✓ Navigation complete");
-    info!("");
-
-    // Wait for search page to load
-    info!("   Waiting for page to load...");
-    client
-        .call_tool(
-            "browser_wait",
-            json!({
-                "duration_ms": 2000
+                "query": "most important US antitrust precedent setting cases",
+                "max_pages": 5,
+                "summarize": true
             }),
         )
         .await?;
 
-    // Step 7: Type search query
-    info!("7️⃣  Typing search query into search field...");
-    client
-        .call_tool(
-            "browser_type_text",
-            json!({
-                "selector": "input[name='q']",
-                "text": "Rust programming language"
-            }),
-        )
-        .await?;
-    info!("   ✓ Search query entered");
-    info!("");
-
-    // Step 8: Submit the search
-    info!("8️⃣  Clicking search button...");
-    client
-        .call_tool(
-            "browser_click",
-            json!({
-                "selector": "button[type='submit']"
-            }),
-        )
-        .await?;
-    info!("   ✓ Search submitted");
-    info!("");
-
-    // Wait for results to load
-    info!("   Waiting for search results...");
-    client
-        .call_tool(
-            "browser_wait",
-            json!({
-                "duration_ms": 3000
-            }),
-        )
-        .await?;
-
-    // Step 9: Extract and describe search results
-    info!("9️⃣  Extracting search results...");
-    let result = client.call_tool("browser_extract_text", json!({})).await?;
-
-    if let Some(content) = result.content.first()
+    if let Some(content) = research_result.content.first()
         && let Some(text) = content.as_text()
     {
         let response: serde_json::Value = serde_json::from_str(&text.text)?;
-        let extracted = response.get("text").and_then(|v| v.as_str()).unwrap_or("");
-
-        // Look for search result indicators
-        let has_results = extracted.contains("rust-lang.org")
-            || extracted.contains("Rust")
-            || extracted.contains("programming");
-
-        if has_results {
-            let preview = if extracted.len() > 500 {
-                format!("{}...", &extracted[..500])
-            } else {
-                extracted.to_string()
-            };
-            info!("   ✓ Search results found ({} chars):", extracted.len());
-            info!("   {}", preview);
-        } else {
-            info!("   ⚠ Unexpected results (may need selector adjustment)");
-            info!("   First 300 chars: {}", &extracted[..300.min(extracted.len())]);
+        
+        if let Some(summary) = response.get("summary").and_then(|v| v.as_str()) {
+            info!("   ✓ Research complete! AI-generated summary:");
+            info!("\n{}\n", summary);
+        }
+        
+        if let Some(sources) = response.get("sources").and_then(|v| v.as_array()) {
+            info!("   📚 Sources consulted ({} pages):", sources.len());
+            for (i, source) in sources.iter().enumerate().take(5) {
+                if let Some(url) = source.get("url").and_then(|v| v.as_str()) {
+                    info!("      {}. {}", i + 1, url);
+                }
+            }
         }
     }
     info!("");
 
-    info!("✅ Browser demo complete!");
-    info!("\nAll browser tools demonstrated:");
-    info!("  - browser_navigate: Load URLs (example.com, duckduckgo.com)");
-    info!("  - browser_wait: Pause for page loads");
-    info!("  - browser_extract_text: Get page content and search results");
-    info!("  - browser_screenshot: Capture page images");
-    info!("  - browser_scroll: Navigate within pages");
-    info!("  - browser_type_text: Enter search queries");
-    info!("  - browser_click: Submit forms and interact with elements");
-    info!("\nExample workflow: Navigate → Search DuckDuckGo → Extract results");
+    info!("✅ Browser demo complete!\n");
+    info!("═══════════════════════════════════════");
+    info!("Tools Demonstrated");
+    info!("═══════════════════════════════════════");
+    info!("\nBasic Automation (7 tools):");
+    info!("  ✓ browser_navigate - Navigate to crates.io and tokio page");
+    info!("  ✓ browser_wait - Wait for page loads");
+    info!("  ✓ browser_type_text - Enter search queries");
+    info!("  ✓ browser_click - Submit search forms");
+    info!("  ✓ browser_extract_text - Extract search results and crate info");
+    info!("  ✓ browser_scroll - View more content on page");
+    info!("  ✓ browser_screenshot - Capture tokio crate page");
+    info!("\nAdvanced AI Research (1 tool):");
+    info!("  ✓ browser_research - Multi-page legal research with AI summary");
+    info!("\nWorkflow Examples:");
+    info!("  1. Crates.io: Search → Navigate → Extract → Screenshot");
+    info!("  2. Legal Research: Query → Multi-page crawl → AI summarization\n");
 
     Ok(())
 }

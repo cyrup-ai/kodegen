@@ -53,6 +53,7 @@ anyhow = { version = "1.0.100" }
 
 # Tracing and observability
 tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # File watching for realtime context updates
 notify = "8.2"
@@ -235,6 +236,10 @@ path = "src/main.rs"
 [lib]
 name = "kodegen_candle_agent"
 path = "src/lib.rs"
+
+[[example]]
+name = "memory_demo"
+path = "examples/memory_demo.rs"
 
 
 [features]

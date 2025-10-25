@@ -68,6 +68,48 @@ impl Tool for MemorizeTool {
     }
 
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
-        Ok(vec![])
+        use rmcp::model::{PromptMessageRole, PromptMessageContent};
+
+        Ok(vec![
+            PromptMessage {
+                role: PromptMessageRole::User,
+                content: PromptMessageContent::text(
+                    "How do I use the memorize tool to store important knowledge for later retrieval?",
+                ),
+            },
+            PromptMessage {
+                role: PromptMessageRole::Assistant,
+                content: PromptMessageContent::text(
+                    "The memorize tool stores content in named memory libraries with automatic semantic embeddings. \
+                     Each memory is vectorized for similarity-based retrieval using recall().\n\n\
+                     Basic usage:\n\
+                     1. Store insight: memorize({\"library\": \"debugging_insights\", \"content\": \"Found that React re-renders happen when...\"})\n\
+                     2. Store solution: memorize({\"library\": \"rust_patterns\", \"content\": \"Elegant error handling pattern using Result<T, E>...\"})\n\
+                     3. Store preference: memorize({\"library\": \"user_style\", \"content\": \"User prefers async/await over raw futures\"})\n\
+                     4. Store learning: memorize({\"library\": \"api_knowledge\", \"content\": \"OpenAI API rate limits are 60 requests per minute...\"})\n\n\
+                     Library organization:\n\
+                     - Use descriptive names that indicate the knowledge domain\n\
+                     - Organize by project, topic, or category\n\
+                     - Same library name groups related memories together\n\
+                     - Examples: \"rust_patterns\", \"bug_fixes\", \"user_preferences\", \"api_docs\"\n\n\
+                     What to memorize:\n\
+                     - Important insights from debugging sessions\n\
+                     - Elegant solutions worth remembering\n\
+                     - User preferences and coding style notes\n\
+                     - Key learnings from documentation\n\
+                     - Patterns that worked well\n\
+                     - Anything you want to recall later using semantic search\n\n\
+                     Response format:\n\
+                     {\n\
+                       \"success\": true,\n\
+                       \"memory_id\": \"uuid-string\",\n\
+                       \"library\": \"rust_patterns\",\n\
+                       \"message\": \"Memorized content in library 'rust_patterns'\"\n\
+                     }\n\n\
+                     The content is automatically converted to embeddings (1024-dimensional vectors) for semantic search. \
+                     Later, use recall() to retrieve similar content based on context, not just exact keyword matches.",
+                ),
+            },
+        ])
     }
 }

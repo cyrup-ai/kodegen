@@ -76,6 +76,60 @@ impl Tool for RecallTool {
     }
 
     async fn prompt(&self, _args: Self::PromptArgs) -> Result<Vec<PromptMessage>, McpError> {
-        Ok(vec![])
+        use rmcp::model::{PromptMessageRole, PromptMessageContent};
+
+        Ok(vec![
+            PromptMessage {
+                role: PromptMessageRole::User,
+                content: PromptMessageContent::text(
+                    "How do I use the recall tool to retrieve relevant memories using semantic search?",
+                ),
+            },
+            PromptMessage {
+                role: PromptMessageRole::Assistant,
+                content: PromptMessageContent::text(
+                    "The recall tool retrieves memories from a library using semantic similarity search. \
+                     It finds content similar to your context query, not just exact keyword matches.\n\n\
+                     Basic usage:\n\
+                     1. Find similar patterns: recall({\"library\": \"rust_patterns\", \"context\": \"error handling with Result\"})\n\
+                     2. Recall insights: recall({\"library\": \"debugging_insights\", \"context\": \"React rendering performance\"})\n\
+                     3. Get preferences: recall({\"library\": \"user_style\", \"context\": \"async patterns\"})\n\
+                     4. Limit results: recall({\"library\": \"api_knowledge\", \"context\": \"rate limiting\", \"limit\": 5})\n\n\
+                     Semantic search capability:\n\
+                     - Finds conceptually similar content, not just keyword matches\n\
+                     - Uses 1024-dimensional vector embeddings (cosine similarity)\n\
+                     - Query \"authentication\" will match memories about \"login\", \"auth\", \"credentials\"\n\
+                     - Results ranked by relevance_score (higher = more similar)\n\n\
+                     Response format:\n\
+                     {\n\
+                       \"memories\": [\n\
+                         {\n\
+                           \"id\": \"uuid-string\",\n\
+                           \"content\": \"the actual memory content text...\",\n\
+                           \"created_at\": \"2025-01-15T10:30:00Z\",\n\
+                           \"relevance_score\": 0.85\n\
+                         }\n\
+                       ],\n\
+                       \"library\": \"rust_patterns\",\n\
+                       \"count\": 3\n\
+                     }\n\n\
+                     Parameters:\n\
+                     - library: The memory library to search within (required)\n\
+                     - context: Your search query or context (required)\n\
+                     - limit: Maximum results to return (optional, default: 10)\n\n\
+                     When to use recall:\n\
+                     - Need to retrieve previously stored knowledge\n\
+                     - Looking for similar solutions or patterns\n\
+                     - Want to remember what you learned about a topic\n\
+                     - Checking user preferences or coding style\n\
+                     - Finding relevant examples from past work\n\n\
+                     Pro tips:\n\
+                     - Write context as a question or description of what you're looking for\n\
+                     - Use general concepts in context, not exact phrases\n\
+                     - Check relevance_score - higher scores mean better matches\n\
+                     - Adjust limit based on how many examples you need",
+                ),
+            },
+        ])
     }
 }

@@ -48,9 +48,9 @@ async fn main() -> Result<()> {
 }
 
 async fn initialize_memory_coordinator() -> Result<Arc<MemoryCoordinator>> {
-    // Get embedding model from registry (Stella 1.5B 1024-dim variant)
+    // Get embedding model from registry (Stella 400M variant - registered by default)
     use kodegen_candle_agent::capability::registry::FromRegistry;
-    let emb_model = TextEmbeddingModel::from_registry("dunzhang/stella_en_1.5B_v5")
+    let emb_model = TextEmbeddingModel::from_registry("dunzhang/stella_en_400M_v5")
         .ok_or_else(|| anyhow!("Stella embedding model not found in registry"))?;
 
     // Database path setup

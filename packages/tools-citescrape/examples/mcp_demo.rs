@@ -80,8 +80,9 @@ async fn main() -> Result<()> {
             .await?;
 
     // Delete old log file to start fresh
-    let log_path =
-        std::path::PathBuf::from("/tmp/mcp-client/citescrape.log");
+    let workspace_root = common::find_workspace_root()
+        .context("Failed to find workspace root")?;
+    let log_path = workspace_root.join("tmp/mcp-client/citescrape.log");
     if log_path.exists() {
         std::fs::remove_file(&log_path).context("Failed to delete old log file")?;
     }
