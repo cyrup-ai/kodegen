@@ -1,9 +1,11 @@
 //! Memory coordinator lifecycle management
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use moka::sync::Cache;
+use surrealdb::engine::any::connect;
 use tokio::sync::RwLock;
 
 use crate::capability::registry::TextEmbeddingModel;
@@ -147,6 +149,82 @@ impl MemoryCoordinator {
 
         // Return Arc-wrapped coordinator to match spawn pattern
         Ok(Arc::try_unwrap(coordinator_arc).unwrap_or_else(|arc| (*arc).clone()))
+    }
+
+    /// Create a new MemoryCoordinator from library name with automatic path management
+    ///
+    /// This method encapsulates all database setup internally, requiring only a library name.
+    /// The database will be stored at: `$XDG_CONFIG_HOME/kodegen/memory/{library}.db`
+    ///
+    /// # Arguments
+    /// * `library_name` - Library identifier (e.g., "test", "production")
+    /// * `embedding_model` - Text embedding model for auto-embedding generation
+    ///
+    /// # Example
+    /// ```no_run
+    /// use kodegen_candle_agent::capability::registry::FromRegistry;
+    /// use kodegen_candle_agent::capability::registry::TextEmbeddingModel;
+    /// use kodegen_candle_agent::memory::core::manager::coordinator::MemoryCoordinator;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let emb_model = TextEmbeddingModel::from_registry("dunzhang/stella_en_400M_v5").unwrap();
+    /// let coordinator = MemoryCoordinator::from_library("test", emb_model).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn from_library(
+        library_name: &str,
+        embedding_model: TextEmbeddingModel,
+    ) -> Result<Self> {
+        // Validate library name - prevent path traversal attacks
+        if library_name.contains('/') || library_name.contains('\\') || library_name.contains("..") {
+            return Err(Error::InvalidInput(
+                "Library name cannot contain path separators or '..'".into(),
+            ));
+        }
+
+        if library_name.is_empty() {
+            return Err(Error::InvalidInput("Library name cannot be empty".into()));
+        }
+
+        // Construct path: $XDG_CONFIG_HOME/kodegen/memory/{library}.db
+        let db_path = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("kodegen")
+            .join("memory")
+            .join(format!("{}.db", library_name));
+
+        log::info!("Initializing memory library '{}' at: {}", library_name, db_path.display());
+
+        // Create directory if needed
+        if let Some(parent) = db_path.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| Error::Internal(format!("Failed to create memory directory: {}", e)))?;
+        }
+
+        // Connect to SurrealKV database
+        let db_url = format!("surrealkv://{}", db_path.display());
+        let db = connect(&db_url)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to connect to database: {:?}", e)))?;
+
+        // Set namespace and database
+        db.use_ns("kodegen")
+            .use_db(library_name)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to initialize namespace: {:?}", e)))?;
+
+        // Create SurrealDBMemoryManager with embedding model
+        let surreal_manager = SurrealDBMemoryManager::with_embedding_model(db, embedding_model.clone());
+
+        // Initialize database schema and indexes
+        surreal_manager.initialize().await?;
+
+        let surreal_arc = Arc::new(surreal_manager);
+
+        // Delegate to existing new() method for coordinator setup
+        Self::new(surreal_arc, embedding_model).await
     }
 
     /// Configure lazy evaluation strategy

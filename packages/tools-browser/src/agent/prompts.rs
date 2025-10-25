@@ -92,7 +92,7 @@ IMPORTANT RULES:
        {"click_element": {"index": 3}}
      ]
    - Navigation and extraction: [
-       {"go_to_url": {"url": "https://example.com"}},
+       {"go_to_url": {"url": "https://httpbin.org/html"}},
        {"extract_page_content": {}}
      ]
 

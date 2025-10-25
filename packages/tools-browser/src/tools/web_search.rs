@@ -112,7 +112,7 @@ impl Tool for WebSearchTool {
                          {\\n\
                            \\\"rank\\\": 1,\\n\
                            \\\"title\\\": \\\"Async Programming in Rust\\\",\\n\
-                           \\\"url\\\": \\\"https://example.com/rust-async\\\",\\n\
+                           \\\"url\\\": \\\"https://rust-lang.org/async\\\",\\n\
                            \\\"snippet\\\": \\\"Learn about async/await in Rust...\\\"\\n\
                          }\\n\
                        ]\\n\

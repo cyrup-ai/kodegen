@@ -82,8 +82,6 @@ default = []
 server = []
 
 [dev-dependencies]
-kodegen_mcp_client = { path = "../mcp-client", version = "0.0.1" }
-chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 cyrup_termcolor = "2.0"

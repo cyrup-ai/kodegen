@@ -159,8 +159,8 @@ impl Tool for BrowserAgentTool {
                        \\\"start_url\\\": \\\"https://www.rust-lang.org/\\\", \
                        \\\"max_steps\\\": 8}\\n\\n\
                      Form filling example:\\n\
-                     {\\\"task\\\": \\\"Fill contact form with name='John' email='john@example.com'\\\", \
-                       \\\"start_url\\\": \\\"https://example.com/contact\\\", \
+                     {\\\"task\\\": \\\"Fill contact form with name='John' email='john@test.local'\\\", \
+                       \\\"start_url\\\": \\\"https://httpbin.org/forms/post\\\", \
                        \\\"max_steps\\\": 5, \
                        \\\"temperature\\\": 0.5}\\n\\n\
                      The agent will navigate, click, type, scroll, and extract content autonomously.",

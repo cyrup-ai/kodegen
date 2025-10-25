@@ -10,9 +10,6 @@ pub mod primitives;
 pub mod schema;
 pub mod systems;
 
-#[cfg(test)]
-pub mod tests;
-
 // Re-export main types to maintain backward compatibility
 // Using a hybrid approach: explicit exports for conflicts, module re-exports for compatibility
 

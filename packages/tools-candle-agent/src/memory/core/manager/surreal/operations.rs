@@ -44,21 +44,20 @@ impl MemoryManager for SurrealDBMemoryManager {
 
                 let content = MemoryNodeCreateContent::from(&memory_with_embedding);
 
-                let query = "
-                    CREATE memory CONTENT {
-                        id: $id,
+                // Use type:id syntax in CREATE statement with just the UUID string
+                let query = format!("
+                    CREATE memory:{} CONTENT {{
                         content: $content,
                         content_hash: $content_hash,
                         memory_type: $memory_type,
                         created_at: $created_at,
                         updated_at: $updated_at,
                         metadata: $metadata
-                    }
-                ";
+                    }}
+                ", memory.id);
 
                 let mut response = db
-                    .query(query)
-                    .bind(("id", memory.id.clone()))
+                    .query(&query)
                     .bind(("content", content.content))
                     .bind(("content_hash", content.content_hash))
                     .bind(("memory_type", format!("{:?}", content.memory_type)))
@@ -126,18 +125,18 @@ impl MemoryManager for SurrealDBMemoryManager {
             let result = async {
                 let content = MemoryNodeCreateContent::from(&memory);
 
-                let query = "
-                    UPDATE $id SET
+                // Use type:id syntax directly in UPDATE statement
+                let query = format!("
+                    UPDATE memory:{} SET
                         content = $content,
                         content_hash = $content_hash,
                         memory_type = $memory_type,
                         updated_at = $updated_at,
                         metadata = $metadata
-                ";
+                ", memory.id);
 
                 let mut response = db
-                    .query(query)
-                    .bind(("id", memory.id.clone()))
+                    .query(&query)
                     .bind(("content", content.content))
                     .bind(("content_hash", content.content_hash))
                     .bind(("memory_type", format!("{:?}", content.memory_type)))

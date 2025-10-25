@@ -35,12 +35,12 @@ async fn main() -> Result<()> {
 }
 
 async fn run_example(client: &common::LoggingClient) -> Result<()> {
-    info!("🌐 Navigating to example.com...");
+    info!("🌐 Navigating to httpbin.org/html...");
     let result = client
         .call_tool(
             "browser_navigate",
             json!({
-                "url": "https://example.com"
+                "url": "https://httpbin.org/html"
             }),
         )
         .await?;

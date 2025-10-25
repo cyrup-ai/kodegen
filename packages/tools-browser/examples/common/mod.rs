@@ -273,7 +273,8 @@ impl LoggingClient {
 
         let file = tokio::fs::OpenOptions::new()
             .create(true)
-            .append(true)
+            .write(true)
+            .truncate(true)
             .open(log_path)
             .await
             .context("Failed to open log file")?;

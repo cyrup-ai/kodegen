@@ -31,7 +31,7 @@ impl Tool for BrowserTypeTextTool {
     fn description() -> &'static str {
         "Type text into an input element using a CSS selector.\\n\\n\
          Automatically focuses element and clears existing text by default.\\n\\n\
-         Example: browser_type_text({\\\"selector\\\": \\\"#email\\\", \\\"text\\\": \\\"user@example.com\\\"})\\n\
+         Example: browser_type_text({\\\"selector\\\": \\\"#email\\\", \\\"text\\\": \\\"user@test.local\\\"})\\n\
          Example: browser_type_text({\\\"selector\\\": \\\"#search\\\", \\\"text\\\": \\\"query\\\", \\\"clear\\\": false})"
     }
 
@@ -168,7 +168,7 @@ impl Tool for BrowserTypeTextTool {
                 role: PromptMessageRole::Assistant,
                 content: PromptMessageContent::text(
                     "Use browser_type_text with selector and text. Examples:\\n\
-                     - browser_type_text({\\\"selector\\\": \\\"#email\\\", \\\"text\\\": \\\"user@example.com\\\"})\\n\
+                     - browser_type_text({\\\"selector\\\": \\\"#email\\\", \\\"text\\\": \\\"user@test.local\\\"})\\n\
                      - browser_type_text({\\\"selector\\\": \\\"input[name='password']\\\", \\\"text\\\": \\\"secret\\\"})\\n\
                      - browser_type_text({\\\"selector\\\": \\\"#search\\\", \\\"text\\\": \\\"query\\\", \\\"clear\\\": false})\\n\\n\
                      By default, existing text is cleared. Set clear: false to append.",

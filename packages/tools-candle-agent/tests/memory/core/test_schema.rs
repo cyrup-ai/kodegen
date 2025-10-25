@@ -1,8 +1,7 @@
-// src/memory/tests/schema.rs
-//! Tests for the memory schema.
+// Tests extracted from src/memory/core/tests/schema.rs
 
-use crate::memory::core::primitives::types::MemoryTypeEnum;
-use crate::memory::schema::memory_schema::Memory;
+use kodegen_candle_agent::memory::core::primitives::types::MemoryTypeEnum;
+use kodegen_candle_agent::memory::schema::memory_schema::Memory;
 use chrono::Utc;
 
 #[test]

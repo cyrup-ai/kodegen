@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     println!("=== Test 1: Navigation ===");
     let nav_tool = BrowserNavigateTool::new(browser_manager.clone());
     let nav_args = BrowserNavigateArgs {
-        url: "https://example.com".to_string(),
+        url: "https://www.linkedin.com/in/davemaple/".to_string(),
         wait_for_selector: None,
         timeout_ms: Some(30000),
     };

@@ -32,8 +32,8 @@ impl Tool for BrowserNavigateTool {
     fn description() -> &'static str {
         "Navigate to a URL in the browser. Opens the page and waits for load completion.\\n\\n\
          Returns current URL after navigation (may differ from requested URL due to redirects).\\n\\n\
-         Example: browser_navigate({\\\"url\\\": \\\"https://example.com\\\"})\\n\
-         With selector wait: browser_navigate({\\\"url\\\": \\\"https://example.com\\\", \\\"wait_for_selector\\\": \\\".content\\\"})"
+         Example: browser_navigate({\\\"url\\\": \\\"https://www.rust-lang.org\\\"})\\n\
+         With selector wait: browser_navigate({\\\"url\\\": \\\"https://httpbin.org/html\\\", \\\"wait_for_selector\\\": \\\"body\\\"})"
     }
 
     fn read_only() -> bool {
@@ -179,8 +179,8 @@ impl Tool for BrowserNavigateTool {
             PromptMessage {
                 role: PromptMessageRole::Assistant,
                 content: PromptMessageContent::text(
-                    "Use browser_navigate with a url parameter. Example: {\\\"url\\\": \\\"https://example.com\\\"}\\n\\n\
-                     You can also wait for elements: {\\\"url\\\": \\\"https://example.com\\\", \\\"wait_for_selector\\\": \\\".content\\\"}\\n\
+                    "Use browser_navigate with a url parameter. Example: {\\\"url\\\": \\\"https://www.rust-lang.org\\\"}\\n\\n\
+                     You can also wait for elements: {\\\"url\\\": \\\"https://httpbin.org/html\\\", \\\"wait_for_selector\\\": \\\"body\\\"}\\n\
                      Increase timeout if needed: {\\\"url\\\": \\\"https://slow-site.com\\\", \\\"timeout_ms\\\": 60000}",
                 ),
             },

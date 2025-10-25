@@ -63,10 +63,10 @@ async fn main() -> anyhow::Result<()> {
             writeln!(&mut stdout, "=== Test 3: Create page and navigate ===")?;
             stdout.reset()?;
 
-            match browser.new_page("https://example.com").await {
+            match browser.new_page("https://httpbin.org/html").await {
                 Ok(page) => {
                     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-                    writeln!(&mut stdout, "✓ Page created and navigated to example.com")?;
+                    writeln!(&mut stdout, "✓ Page created and navigated to httpbin.org/html")?;
                     stdout.reset()?;
 
                     // Wait a moment for page to load

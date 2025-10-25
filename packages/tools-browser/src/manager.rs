@@ -117,7 +117,7 @@ impl BrowserManager {
     /// let browser_arc = manager.get_or_launch().await?;
     /// let browser_guard = browser_arc.lock().await;
     /// if let Some(wrapper) = browser_guard.as_ref() {
-    ///     let page = wrapper.browser().new_page("https://example.com").await?;
+    ///     let page = wrapper.browser().new_page("https://httpbin.org/html").await?;
     /// }
     /// ```
     pub async fn get_or_launch(&self) -> Result<Arc<Mutex<Option<BrowserWrapper>>>> {

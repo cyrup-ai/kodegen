@@ -376,7 +376,9 @@ impl SurrealDBMemoryManager {
         use crate::memory::core::primitives::types::MemoryContent;
         use crate::memory::monitoring::operations::OperationStatus;
 
-        let id_str = schema.id.key().to_string();
+        // Extract just the ID portion from the RecordId, stripping SurrealDB angle brackets
+        let key_str = schema.id.key().to_string();
+        let id_str = key_str.trim_start_matches('⟨').trim_end_matches('⟩').to_string();
 
         let mut metadata = MemoryMetadata::with_memory_type(schema.memory_type);
         metadata.created_at = schema.metadata.created_at.clone();

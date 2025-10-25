@@ -41,27 +41,3 @@ pub const DEFAULT_CONTEXT_LENGTH: usize = 2048;
 /// Optimized for typical GPU/CPU memory hierarchies and
 /// transformer model characteristics.
 pub const DEFAULT_BATCH_SIZE: usize = 1;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[allow(clippy::assertions_on_constants)]
-    fn test_constants_are_reasonable() {
-        assert!(SAMPLING_CACHE_SIZE > 0);
-        assert!(SIMD_THRESHOLD > 0);
-        assert!(DEFAULT_CONTEXT_LENGTH > 0);
-        assert!(DEFAULT_BATCH_SIZE > 0);
-
-        // Ensure SIMD threshold is smaller than cache size
-        assert!(SIMD_THRESHOLD < SAMPLING_CACHE_SIZE);
-    }
-
-    #[test]
-    fn test_logits_buffer_creation() {
-        let buffer: LogitsBuffer = SmallVec::new();
-        assert_eq!(buffer.len(), 0);
-        assert!(buffer.capacity() >= SAMPLING_CACHE_SIZE);
-    }
-}

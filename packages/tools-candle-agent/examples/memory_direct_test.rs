@@ -2,14 +2,12 @@
 //!
 //! Uses MemoryCoordinator directly to test memory operations
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use kodegen_candle_agent::capability::registry::{FromRegistry, TextEmbeddingModel};
 use kodegen_candle_agent::memory::core::manager::coordinator::MemoryCoordinator;
-use kodegen_candle_agent::memory::core::manager::surreal::SurrealDBMemoryManager;
 use kodegen_candle_agent::memory::core::primitives::metadata::MemoryMetadata;
 use kodegen_candle_agent::memory::core::ops::filter::MemoryFilter;
 use kodegen_candle_agent::domain::memory::primitives::types::MemoryTypeEnum;
-use surrealdb::engine::any::connect;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -45,52 +43,12 @@ async fn initialize_memory_coordinator() -> Result<Arc<MemoryCoordinator>> {
         .ok_or_else(|| anyhow!("Stella embedding model not found in registry"))?;
     println!("  ✓ Loaded embedding model from registry");
 
-    // Database path setup
-    let db_path = dirs::cache_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kodegen")
-        .join("candle-agent-test.db");
-
-    // Ensure database directory exists
-    if let Some(parent) = db_path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .context("Failed to create database directory")?;
-    }
-    println!("  ✓ Database path: {}", db_path.display());
-
-    let db_url = format!("surrealkv://{}", db_path.display());
-
-    // Connect to database
-    let db = connect(&db_url)
+    // Initialize with library name - path managed internally at:
+    // $XDG_CONFIG_HOME/kodegen/memory/test.db
+    let coordinator = MemoryCoordinator::from_library("test", emb_model)
         .await
-        .context("Failed to connect to database")?;
-    println!("  ✓ Connected to SurrealDB");
-
-    // Initialize database namespace
-    db.use_ns("kodegen")
-        .use_db("candle_agent_test")
-        .await
-        .context("Failed to initialize database namespace")?;
-    println!("  ✓ Database namespace initialized");
-
-    // Create SurrealDBMemoryManager with embedding model
-    let surreal_manager = SurrealDBMemoryManager::with_embedding_model(db, emb_model.clone());
-
-    // Initialize database tables and schema
-    surreal_manager
-        .initialize()
-        .await
-        .map_err(|e| anyhow!("Failed to initialize memory tables: {:?}", e))?;
-    println!("  ✓ Database tables initialized");
-
-    let surreal_arc = Arc::new(surreal_manager);
-
-    // Create MemoryCoordinator
-    let coordinator = MemoryCoordinator::new(surreal_arc, emb_model)
-        .await
-        .map_err(|e| anyhow!("Failed to create memory coordinator: {:?}", e))?;
-    println!("  ✓ Memory coordinator created");
+        .map_err(|e| anyhow!("Failed to initialize memory coordinator: {:?}", e))?;
+    println!("  ✓ Memory coordinator initialized for 'test' library");
 
     Ok(Arc::new(coordinator))
 }
