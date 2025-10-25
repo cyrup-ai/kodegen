@@ -7,7 +7,7 @@ use surrealdb::Datetime;
 use crate::memory::primitives::types::MemoryTypeEnum;
 
 /// Metadata for memory nodes
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryMetadata {
     /// User ID associated with this memory
     pub user_id: Option<String>,
@@ -44,6 +44,12 @@ pub struct MemoryMetadata {
 
     /// Additional custom metadata as key-value pairs
     pub custom: serde_json::Value,
+}
+
+impl Default for MemoryMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryMetadata {
@@ -101,7 +107,7 @@ impl MemoryMetadata {
             category: category.to_string(),
             importance: 0.5,
             source: None,
-            created_at: Utc::now(),
+            created_at: Datetime::now(),
             last_accessed_at: None,
             embedding: None,
             custom: serde_json::Value::Object(serde_json::Map::new()),
@@ -199,10 +205,10 @@ pub struct MemoryFilter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeRange {
     /// Start time (inclusive)
-    pub start: Option<DateTime<Utc>>,
+    pub start: Option<Datetime>,
 
     /// End time (inclusive)
-    pub end: Option<DateTime<Utc>>,
+    pub end: Option<Datetime>,
 }
 
 /// Custom filter for metadata

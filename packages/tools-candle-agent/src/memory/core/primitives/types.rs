@@ -9,6 +9,7 @@ use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use surrealdb::Datetime as SurrealDatetime;
 
 use crate::memory::graph::entity::BaseEntity;
 use crate::memory::primitives::metadata::MemoryMetadata;
@@ -84,7 +85,7 @@ pub trait MemoryType: Debug + Send + Sync {
     fn description(&self) -> &str;
 
     /// Get the last updated timestamp
-    fn updated_at(&self) -> DateTime<Utc>;
+    fn updated_at(&self) -> SurrealDatetime;
 
     /// Get the metadata of the memory
     fn metadata(&self) -> &MemoryMetadata;
@@ -245,7 +246,7 @@ pub struct BaseMemory {
     /// Description of the memory
     pub description: String,
     /// Last updated timestamp
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: SurrealDatetime,
     /// Metadata
     pub metadata: MemoryMetadata,
     /// Content
@@ -265,7 +266,7 @@ impl BaseMemory {
             id: id.to_string(),
             name: name.to_string(),
             description: description.to_string(),
-            updated_at: chrono::Utc::now(),
+            updated_at: SurrealDatetime::now(),
             metadata: MemoryMetadata::with_type(memory_type),
             content,
         }
@@ -285,8 +286,8 @@ impl MemoryType for BaseMemory {
         &self.description
     }
 
-    fn updated_at(&self) -> DateTime<Utc> {
-        self.updated_at
+    fn updated_at(&self) -> SurrealDatetime {
+        self.updated_at.clone()
     }
 
     fn metadata(&self) -> &MemoryMetadata {
@@ -456,7 +457,7 @@ impl MemoryType for BaseMemory {
         let updated_at = get_attr("updated_at", &attributes)?
             .as_str()
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-            .map(|dt| dt.with_timezone(&Utc))
+            .map(|dt| SurrealDatetime::from(dt.with_timezone(&Utc)))
             .ok_or_else(|| Error::ConversionError("Invalid format for updated_at".to_string()))?;
 
         // Create metadata manually from attributes
@@ -503,7 +504,7 @@ impl MemoryType for BaseMemory {
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             && let Ok(parsed) = DateTime::parse_from_rfc3339(&created_str)
         {
-            metadata.created_at = parsed.with_timezone(&Utc);
+            metadata.created_at = SurrealDatetime::from(parsed.with_timezone(&Utc));
         }
         if let Some(keywords_val) = get_attr("keywords", &attributes).ok()
             && let Ok(keywords) = serde_json::from_value::<Vec<String>>(keywords_val)

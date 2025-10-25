@@ -9066,6 +9066,7 @@ dependencies = [
  "chromiumoxide_types",
  "chrono",
  "cyrup_sugars",
+ "cyrup_termcolor",
  "dirs 6.0.0",
  "extism-pdk",
  "futures",

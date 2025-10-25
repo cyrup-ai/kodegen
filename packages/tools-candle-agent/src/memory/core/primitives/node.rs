@@ -51,7 +51,7 @@ impl MemoryNode {
             content,
             content_hash,
             memory_type,
-            created_at: now,
+            created_at: now.clone(),
             updated_at: now,
             embedding: None,
             evaluation_status: OperationStatus::Pending,
@@ -62,7 +62,7 @@ impl MemoryNode {
 
     /// Create a new memory node with a specific ID
     pub fn with_id(id: String, memory_type: MemoryTypeEnum, content: MemoryContent) -> Self {
-        let now = Utc::now();
+        let now = Datetime::now();
 
         // Calculate content hash for deduplication
         let content_hash = crate::domain::memory::serialization::content_hash(&content.text);
@@ -72,7 +72,7 @@ impl MemoryNode {
             content,
             content_hash,
             memory_type,
-            created_at: now,
+            created_at: now.clone(),
             updated_at: now,
             embedding: None,
             evaluation_status: OperationStatus::Pending,
@@ -110,8 +110,8 @@ impl MemoryNode {
 
     /// Update the last accessed time
     pub fn update_last_accessed(&mut self) {
-        self.metadata.last_accessed_at = Some(Utc::now());
-        self.updated_at = Utc::now();
+        self.metadata.last_accessed_at = Some(Datetime::now());
+        self.updated_at = Datetime::now();
     }
 
     /// Get the importance value from metadata
@@ -120,8 +120,8 @@ impl MemoryNode {
     }
 
     /// Get the last accessed timestamp
-    pub fn last_accessed(&self) -> Option<DateTime<Utc>> {
-        self.metadata.last_accessed_at
+    pub fn last_accessed(&self) -> Option<Datetime> {
+        self.metadata.last_accessed_at.clone()
     }
 
     /// Get the cognitive evaluation status
@@ -132,7 +132,7 @@ impl MemoryNode {
     /// Set the cognitive evaluation status
     pub fn set_evaluation_status(&mut self, status: OperationStatus) {
         self.evaluation_status = status;
-        self.updated_at = Utc::now();
+        self.updated_at = Datetime::now();
     }
 
     /// Get base memory representation - returns a reference to self for now
@@ -143,7 +143,7 @@ impl MemoryNode {
 
 impl Default for MemoryNode {
     fn default() -> Self {
-        let now = Utc::now();
+        let now = Datetime::now();
         let content = MemoryContent::default();
         let content_hash = crate::domain::memory::serialization::content_hash(&content.text);
 
@@ -152,7 +152,7 @@ impl Default for MemoryNode {
             content,
             content_hash,
             memory_type: MemoryTypeEnum::default(),
-            created_at: now,
+            created_at: now.clone(),
             updated_at: now,
             embedding: None,
             evaluation_status: OperationStatus::Pending,
