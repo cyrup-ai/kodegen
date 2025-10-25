@@ -5,4 +5,4 @@
 pub mod qwen3_quantized;
 
 // Re-exports for convenience
-pub(crate) use qwen3_quantized::CandleQwen3QuantizedModel;
+pub use qwen3_quantized::CandleQwen3QuantizedModel;

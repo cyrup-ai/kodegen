@@ -106,10 +106,16 @@ impl Tool for BrowserNavigateTool {
                 ))
             })?;
         
-        // Wait for page to stabilize
-        // Simple fixed delay to ensure DOM is fully rendered
-        // TODO: Replace with proper lifecycle event waiting once chromiumoxide pattern is clarified
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        // Wait for page lifecycle to complete
+        // Pattern from web_search/search.rs - wait_for_navigation ensures page is fully loaded
+        page.wait_for_navigation()
+            .await
+            .map_err(|e| {
+                McpError::Other(anyhow::anyhow!(
+                    "Failed to wait for page load completion: {}",
+                    e
+                ))
+            })?;
 
         // Wait for selector if specified (exponential backoff)
         if let Some(selector) = &args.wait_for_selector {

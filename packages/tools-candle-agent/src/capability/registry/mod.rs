@@ -135,5 +135,3 @@ pub use runtime::{
 };
 
 // Test module
-#[cfg(test)]
-mod tests;

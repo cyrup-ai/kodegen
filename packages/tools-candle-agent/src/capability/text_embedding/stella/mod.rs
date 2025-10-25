@@ -8,7 +8,7 @@
 
 mod base;
 mod config;
-mod instruction;
+pub mod instruction;
 mod loaded;
 mod utils;
 

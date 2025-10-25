@@ -15,6 +15,6 @@ pub mod runner;
 pub use args::CliArgs;
 pub use completion::{CommandCompleter, ModelCompleter};
 pub use config::CliConfig;
-pub use handler::InputHandler;
+pub use handler::{CommandResult, InputHandler, InputHandlerResult};
 pub use prompt::PromptBuilder;
 pub use runner::CliRunner;
