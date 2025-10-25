@@ -805,16 +805,23 @@ fn create_bundles(
     let binaries = workspace
         .packages
         .values()
-        .filter(|pkg| {
-            // Check if package has binary targets
-            let manifest = std::fs::read_to_string(&pkg.cargo_toml_path).ok();
-            manifest
-                .map(|m| m.contains("[[bin]]") || (m.contains("name = ") && !m.contains("[lib]")))
-                .unwrap_or(false)
-        })
-        .map(|pkg| {
-            let is_main = pkg.name == "kodegen_install";
-            BundleBinary::new(pkg.name.clone(), is_main)
+        .filter_map(|pkg| {
+            // Read Cargo.toml to extract binary name
+            let manifest = std::fs::read_to_string(&pkg.cargo_toml_path).ok()?;
+            
+            // Parse TOML to find [[bin]] section and extract name
+            if let Ok(toml_value) = manifest.parse::<toml::Value>() {
+                if let Some(bin_array) = toml_value.get("bin").and_then(|v| v.as_array()) {
+                    // Get first binary name from [[bin]] array
+                    if let Some(bin_name) = bin_array.first()
+                        .and_then(|b| b.get("name"))
+                        .and_then(|n| n.as_str()) {
+                        let is_main = bin_name == "kodegen_install";
+                        return Some(BundleBinary::new(bin_name.to_string(), is_main));
+                    }
+                }
+            }
+            None
         })
         .collect::<Vec<_>>();
 
@@ -844,16 +851,21 @@ fn create_bundles(
         let binary_path_exe = binary_dir.join(format!("{}.exe", binary.name()));
 
         if !binary_path.exists() && !binary_path_exe.exists() {
+            // Generate build commands for all binaries
+            let build_commands = binaries
+                .iter()
+                .map(|b| format!("  cargo build --release --bin {}", b.name()))
+                .collect::<Vec<_>>()
+                .join("\n");
+            
             return Err(ReleaseError::Cli(CliError::ExecutionFailed {
                 command: "validate_binaries".to_string(),
                 reason: format!(
                     "Binary '{}' not found in {}\n\
-                     Build all binaries first:\n  \
-                     cargo build --release --bin kodegen_install\n  \
-                     cargo build --release --bin kodegen\n  \
-                     cargo build --release --bin kodegend",
+                     Build all binaries first:\n{}",
                     binary.name(),
-                    binary_dir.display()
+                    binary_dir.display(),
+                    build_commands
                 ),
             }));
         }

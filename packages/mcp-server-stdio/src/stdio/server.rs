@@ -322,8 +322,8 @@ impl ServerHandler for StdioProxyServer {
 
         // Check if tool is enabled
         if let Some(ref enabled) = self.enabled_tools {
-            if !enabled.contains(&tool_name) {
-                return Err(McpError::method_not_found(
+            if !enabled.contains(&*tool_name) {
+                return Err(McpError::invalid_params(
                     format!("Tool '{}' is not enabled", tool_name),
                     None,
                 ));
@@ -331,8 +331,8 @@ impl ServerHandler for StdioProxyServer {
         }
 
         // Route to appropriate category server
-        let (category, _port) = self.routing_table.get(tool_name.as_str()).ok_or_else(|| {
-            McpError::method_not_found(format!("Unknown tool: {}", tool_name), None)
+        let (category, _port) = self.routing_table.get(&*tool_name).ok_or_else(|| {
+            McpError::invalid_params(format!("Unknown tool: {}", tool_name), None)
         })?;
 
         let client = self.category_clients.get(*category).ok_or_else(|| {
@@ -400,10 +400,20 @@ impl ServerHandler for StdioProxyServer {
                 continue;
             }
 
+            // Convert schema Value to Arc<JsonObject>
+            let schema_obj = match tool_meta.schema.clone() {
+                serde_json::Value::Object(obj) => std::sync::Arc::new(obj),
+                _ => std::sync::Arc::new(serde_json::Map::new()),
+            };
+
             tools.push(Tool {
-                name: tool_meta.name.to_string(),
-                description: Some(tool_meta.description.to_string()),
-                input_schema: tool_meta.schema.clone(),
+                name: tool_meta.name.to_string().into(),
+                title: None,
+                description: Some(tool_meta.description.to_string().into()),
+                input_schema: schema_obj,
+                output_schema: None,
+                annotations: None,
+                icons: None,
             });
         }
 
@@ -418,10 +428,7 @@ impl ServerHandler for StdioProxyServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
         // Stdio mode does not support prompts (prompts require tool instantiation)
-        Err(McpError::method_not_found(
-            "Prompts not supported in stdio mode",
-            None,
-        ))
+        Err(McpError::invalid_request("Prompts not supported in stdio mode", None))
     }
 
     async fn list_prompts(

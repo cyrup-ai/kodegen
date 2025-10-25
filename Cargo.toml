@@ -9,7 +9,7 @@ members = [
     "packages/mcp-client",
     "packages/mcp-daemon",
     "packages/mcp-schema",
-    "packages/mcp-server",
+    "packages/mcp-server-stdio",
     "packages/mcp-server-sse",
     "packages/mcp-tool",
     "packages/simd",
