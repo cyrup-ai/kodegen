@@ -194,16 +194,13 @@ impl TextEmbeddingCapable for LoadedStellaModel {
                     .context("Stella forward pass failed")?;
                 log::info!("spawn_blocking: forward_norm completed");
 
-                // Extract first embedding
-                log::info!("spawn_blocking: About to call to_vec2");
-                let vec2 = embeddings
-                    .to_vec2::<f32>()
-                    .context("Failed to convert embeddings to vec")?;
-                log::info!("spawn_blocking: to_vec2 completed, extracting first");
-                vec2
-                    .into_iter()
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("No embeddings generated"))
+                // Extract first embedding - squeeze batch dimension then to_vec1
+                log::info!("spawn_blocking: About to squeeze and extract embedding");
+                embeddings
+                    .squeeze(0)
+                    .context("Failed to squeeze batch dimension")?
+                    .to_vec1::<f32>()
+                    .context("Failed to convert embedding to vec")
             })
             .await
             .context("Spawn blocking failed")??;

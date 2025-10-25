@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
         (tool_router, prompt_router) = register_tool(
             tool_router,
             prompt_router,
-            WebSearchTool::new(web_search_manager),
+            WebSearchTool::new(Arc::new(web_search_manager)),
         );
 
         Ok(RouterSet::new(tool_router, prompt_router, managers))
