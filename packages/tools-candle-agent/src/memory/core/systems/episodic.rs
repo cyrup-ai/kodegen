@@ -210,8 +210,8 @@ impl MemoryType for EpisodicMemory {
         &self.base.description
     }
 
-    fn updated_at(&self) -> DateTime<Utc> {
-        self.base.updated_at
+    fn updated_at(&self) -> surrealdb::Datetime {
+        self.base.updated_at.clone()
     }
 
     fn metadata(&self) -> &MemoryMetadata {
@@ -272,7 +272,7 @@ impl EpisodicMemory {
                 id: id.to_string(),
                 name: name.to_string(),
                 description: description.to_string(),
-                updated_at: Utc::now(),
+                updated_at: surrealdb::Datetime::now(),
                 metadata,
                 content: MemoryContent::new(""),
             },
@@ -378,7 +378,7 @@ impl EpisodicMemory {
 
                     // Convert to MemoryNode for storage
                     let mut metadata = MemoryMetadata::new();
-                    metadata.created_at = episodic.base.metadata.created_at;
+                    metadata.created_at = episodic.base.metadata.created_at.clone();
 
                     let content = match serde_json::to_string(&episodic.base.content) {
                         Ok(content_str) => MemoryContent::text(&content_str),
@@ -401,8 +401,8 @@ impl EpisodicMemory {
                         content,
                         content_hash,
                         memory_type: MemoryTypeEnum::Episodic,
-                        created_at: episodic.base.metadata.created_at,
-                        updated_at: episodic.base.updated_at,
+                        created_at: episodic.base.metadata.created_at.clone(),
+                        updated_at: episodic.base.updated_at.clone(),
                         embedding: None,
                         evaluation_status:
                             crate::memory::monitoring::operations::OperationStatus::Pending,

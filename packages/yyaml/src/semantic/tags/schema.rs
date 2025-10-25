@@ -244,12 +244,12 @@ impl<'input> SchemaProcessor<'input> {
                 return false;
             }
             let mut exp_part = "";
-            if let Some(exp_index) = frac_part.find(|c| c == 'e' || c == 'E') {
+            if let Some(exp_index) = frac_part.find(['e', 'E']) {
                 exp_part = &frac_part[exp_index..];
                 frac_part = &frac_part[..exp_index];
             }
             (int_part, frac_part, exp_part)
-        } else if let Some(exp_index) = value.find(|c| c == 'e' || c == 'E') {
+        } else if let Some(exp_index) = value.find(['e', 'E']) {
             (&value[..exp_index], "", &value[exp_index..])
         } else {
             return false;

@@ -1,7 +1,5 @@
 //! Search and retrieval operations for memories
 
-use std::time::SystemTime;
-
 use futures_util::StreamExt;
 
 use crate::domain::memory::primitives::node::MemoryNode;
@@ -217,14 +215,12 @@ impl MemoryCoordinator {
                     // Apply time range filter
                     if let Some(time_range) = &filter.time_range {
                         if let Some(start) = time_range.start {
-                            let start_system_time = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(start.timestamp() as u64);
-                            if memory.base_memory.created_at < start_system_time {
+                            if memory.base_memory.created_at < start.into() {
                                 return false;
                             }
                         }
                         if let Some(end) = time_range.end {
-                            let end_system_time = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(end.timestamp() as u64);
-                            if memory.base_memory.created_at >= end_system_time {
+                            if memory.base_memory.created_at >= end.into() {
                                 return false;
                             }
                         }

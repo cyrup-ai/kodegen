@@ -70,6 +70,12 @@ pub struct JsonScalarConstraint {
     core_processor: SchemaProcessor<'static>,
 }
 
+impl Default for JsonScalarConstraint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsonScalarConstraint {
     #[must_use]
     pub fn new() -> Self {

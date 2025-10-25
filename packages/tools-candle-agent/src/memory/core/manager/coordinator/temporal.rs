@@ -14,12 +14,11 @@ impl MemoryCoordinator {
         &self,
         memory: &mut crate::domain::memory::primitives::node::MemoryNode,
     ) -> Result<()> {
-        // Datetime derefs to DateTime<Utc>, so we can use it directly for duration calculations
-        let created_time = &*memory.base_memory.created_at;
+        // Access inner chrono::DateTime via public API for duration calculations
         let now = surrealdb::Datetime::now();
 
         // Calculate age of memory
-        let age = now.signed_duration_since(created_time);
+        let age = now.into_inner_ref().signed_duration_since(*memory.base_memory.created_at.into_inner_ref());
 
         // Calculate days old with fractional precision
         let days_old = age.num_seconds() as f64 / 86400.0; // seconds per day
@@ -62,7 +61,7 @@ impl MemoryCoordinator {
         memory: &mut crate::memory::core::primitives::node::MemoryNode,
     ) -> Result<()> {
         let now = surrealdb::Datetime::now();
-        let age = now.signed_duration_since(&*memory.created_at);
+        let age = now.into_inner_ref().signed_duration_since(*memory.created_at.into_inner_ref());
 
         // Calculate days old with fractional precision
         let days_old = age.num_seconds() as f64 / 86400.0;

@@ -87,12 +87,15 @@ impl MemoryNodeStats {
 
     /// Get last access time
     #[inline]
-    pub fn last_access_time(&self) -> Option<SystemTime> {
+    pub fn last_access_time(&self) -> Option<surrealdb::Datetime> {
         let nanos = self.last_access_nanos.load(Ordering::Relaxed);
         if nanos == 0 {
             None
         } else {
-            SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_nanos(nanos))
+            // Convert nanoseconds to Datetime
+            // Datetime uses milliseconds internally, so convert from nanos
+            let millis = (nanos / 1_000_000) as i64;
+            surrealdb::Datetime::from_timestamp_millis(millis).ok()
         }
     }
 }

@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::Datetime;
 
 use crate::memory::primitives::types::MemoryTypeEnum;
 
@@ -48,10 +48,10 @@ pub struct MemoryFilter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeRange {
     /// Start time (inclusive)
-    pub start: Option<DateTime<Utc>>,
+    pub start: Option<Datetime>,
 
     /// End time (exclusive)
-    pub end: Option<DateTime<Utc>>,
+    pub end: Option<Datetime>,
 }
 
 impl MemoryFilter {

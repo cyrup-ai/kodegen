@@ -1,6 +1,5 @@
 use std::fmt::{self, Debug, Display};
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use bytes::Bytes;
 use hashbrown::HashMap;
@@ -9,6 +8,7 @@ use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeStruct,
 };
+use surrealdb::Datetime;
 use uuid::Uuid;
 
 // Import for error conversion
@@ -357,9 +357,9 @@ pub struct BaseMemory {
     /// Content with zero-copy sharing
     pub content: MemoryContent,
     /// Creation timestamp with atomic operations
-    pub created_at: SystemTime,
+    pub created_at: Datetime,
     /// Last update timestamp with atomic operations
-    pub updated_at: SystemTime,
+    pub updated_at: Datetime,
     /// tokio async tasks access optimization
     pub metadata: Arc<tokio::sync::RwLock<HashMap<String, serde_json::Value>>>,
 }
@@ -368,12 +368,12 @@ impl BaseMemory {
     /// Create new base memory with inline UUID generation
     #[inline]
     pub fn new(id: Uuid, memory_type: MemoryTypeEnum, content: MemoryContent) -> Self {
-        let now = SystemTime::now();
+        let now = Datetime::now();
         Self {
             id,
             memory_type,
             content,
-            created_at: now,
+            created_at: now.clone(),
             updated_at: now,
             metadata: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }
@@ -388,7 +388,7 @@ impl BaseMemory {
     /// Update timestamp atomically
     #[inline]
     pub fn touch(&mut self) {
-        self.updated_at = SystemTime::now();
+        self.updated_at = Datetime::now();
     }
 
     /// Set metadata value
@@ -555,7 +555,7 @@ pub struct MemoryRelationship {
     /// Relationship strength (0.0 to 1.0)
     pub strength: f32,
     /// Creation timestamp
-    pub created_at: SystemTime,
+    pub created_at: Datetime,
 }
 
 impl MemoryRelationship {
@@ -574,7 +574,7 @@ impl MemoryRelationship {
             to_id,
             relationship_type,
             strength: strength.clamp(0.0, 1.0),
-            created_at: SystemTime::now(),
+            created_at: Datetime::now(),
         }
     }
 
@@ -595,7 +595,7 @@ impl MemoryRelationship {
             to_id: self.from_id,
             relationship_type: inverse_type,
             strength: self.strength,
-            created_at: self.created_at,
+            created_at: self.created_at.clone(),
         })
     }
 }

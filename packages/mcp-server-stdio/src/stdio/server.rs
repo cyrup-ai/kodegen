@@ -321,14 +321,13 @@ impl ServerHandler for StdioProxyServer {
         let tool_name = request.name.clone();
 
         // Check if tool is enabled
-        if let Some(ref enabled) = self.enabled_tools {
-            if !enabled.contains(&*tool_name) {
+        if let Some(ref enabled) = self.enabled_tools
+            && !enabled.contains(&*tool_name) {
                 return Err(McpError::invalid_params(
                     format!("Tool '{}' is not enabled", tool_name),
                     None,
                 ));
             }
-        }
 
         // Route to appropriate category server
         let (category, _port) = self.routing_table.get(&*tool_name).ok_or_else(|| {
@@ -389,11 +388,10 @@ impl ServerHandler for StdioProxyServer {
 
         for tool_meta in all_tool_metadata() {
             // Filter by enabled_tools if set
-            if let Some(ref enabled) = self.enabled_tools {
-                if !enabled.contains(tool_meta.name) {
+            if let Some(ref enabled) = self.enabled_tools
+                && !enabled.contains(tool_meta.name) {
                     continue;
                 }
-            }
 
             // Only include tools whose category server is connected
             if !self.category_clients.contains_key(tool_meta.category) {

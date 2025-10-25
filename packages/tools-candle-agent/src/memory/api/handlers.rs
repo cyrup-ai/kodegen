@@ -193,7 +193,7 @@ pub async fn get_health(
 
     Json(HealthResponse {
         status,
-        timestamp: chrono::Utc::now(),
+        timestamp: surrealdb::Datetime::now(),
     })
 }
 

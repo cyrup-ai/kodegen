@@ -388,10 +388,18 @@ type BagOfWords<'a> = BTreeSet<Cow<'a, [u8]>>;
 
 /// Returns the jaccard index (a measure of similarity) between sets of ngrams.
 fn jaccard_index(ngrams1: &BagOfWords<'_>, ngrams2: &BagOfWords<'_>) -> f64 {
+    // In practice, there should be fewer than u32::MAX flags
+    // If not, clamp to u32::MAX to avoid panic
     let union = u32::try_from(ngrams1.union(ngrams2).count())
-        .expect("fewer than u32::MAX flags");
+        .unwrap_or_else(|_| {
+            log::warn!("Ngram union count exceeds u32::MAX, clamping to u32::MAX");
+            u32::MAX
+        });
     let intersection = u32::try_from(ngrams1.intersection(ngrams2).count())
-        .expect("fewer than u32::MAX flags");
+        .unwrap_or_else(|_| {
+            log::warn!("Ngram intersection count exceeds u32::MAX, clamping to u32::MAX");
+            u32::MAX
+        });
     f64::from(intersection) / f64::from(union)
 }
 

@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
             BrowserWaitForTool::new(browser_manager.clone()),
         );
 
-        // Advanced browser tools with loopback MCP client (2 tools)
+        // Advanced browser tools (2 tools)
         (tool_router, prompt_router) = register_tool(
             tool_router,
             prompt_router,
@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
         (tool_router, prompt_router) = register_tool(
             tool_router,
             prompt_router,
-            BrowserResearchTool::new(server_url.clone()),
+            BrowserResearchTool::new(),
         );
 
         // Web search tool (1 tool)

@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use crossbeam_skiplist::SkipMap;
 use uuid::Uuid;
@@ -74,17 +73,17 @@ impl MemoryNode {
 
     /// Get creation time
     #[inline]
-    pub fn creation_time(&self) -> SystemTime {
+    pub fn creation_time(&self) -> surrealdb::Datetime {
         self.stats.record_read();
-        self.base_memory.created_at
+        self.base_memory.created_at.clone()
     }
 
     /// Get last accessed time from stats
     #[inline]
-    pub fn last_accessed(&self) -> SystemTime {
+    pub fn last_accessed(&self) -> surrealdb::Datetime {
         self.stats
             .last_access_time()
-            .unwrap_or(self.base_memory.created_at)
+            .unwrap_or(self.base_memory.created_at.clone())
     }
 
     /// Get importance from metadata

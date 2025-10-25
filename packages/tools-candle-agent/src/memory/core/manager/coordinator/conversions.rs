@@ -69,10 +69,8 @@ impl MemoryCoordinator {
                 .get("source")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            created_at: domain_node.base_memory.created_at.into(),
-            last_accessed_at: Some(chrono::DateTime::<chrono::Utc>::from(
-                domain_node.last_accessed(),
-            )),
+            created_at: domain_node.base_memory.created_at.clone(),
+            last_accessed_at: Some(domain_node.last_accessed()),
             embedding: embedding_vec.clone(),
             custom: serde_json::to_value(&domain_node.metadata.custom)
                 .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new())),

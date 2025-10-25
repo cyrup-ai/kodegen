@@ -1,8 +1,8 @@
 //! API models and request/response types
 //! This module contains the data structures used by the API
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use surrealdb::Datetime;
 
 use crate::memory::primitives::types::MemoryTypeEnum;
 
@@ -23,8 +23,8 @@ pub struct MemoryResponse {
     pub memory_type: MemoryTypeEnum,
     pub metadata: Option<serde_json::Value>,
     pub user_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Datetime,
+    pub updated_at: Datetime,
 }
 
 /// Search request
@@ -41,7 +41,7 @@ pub struct SearchRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthResponse {
     pub status: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Datetime,
 }
 
 /// Error response
@@ -49,5 +49,5 @@ pub struct HealthResponse {
 pub struct ErrorResponse {
     pub error: String,
     pub message: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Datetime,
 }

@@ -105,7 +105,7 @@ fn test_auto_mode_quits_on_binary() {
     let binary_content = b"normal text\x00FINDME\x00more binary";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Build searcher with Auto mode: quit on binary detection
     let mut searcher = SearcherBuilder::new()
@@ -135,7 +135,7 @@ fn test_binary_mode_converts_nulls() {
     let binary_content = b"text\x00FINDME\x00data";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Build searcher with Binary mode: convert nulls to newlines
     let mut searcher = SearcherBuilder::new()
@@ -160,7 +160,7 @@ fn test_null_bytes_at_start() {
     let binary_content = b"\x00\x00FINDME";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::convert(b'\x00'))
@@ -187,7 +187,7 @@ fn test_null_bytes_at_end() {
     let binary_content = b"FINDME\x00\x00";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::convert(b'\x00'))
@@ -214,7 +214,7 @@ fn test_consecutive_null_bytes() {
     let binary_content = b"text\x00\x00\x00data";
 
     let matcher = build_rust_matcher("data", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::convert(b'\x00'))
@@ -241,7 +241,7 @@ fn test_pattern_split_by_null_byte() {
     let binary_content = b"FI\x00NDME";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Test with Binary mode (convert)
     let mut searcher_binary = SearcherBuilder::new()
@@ -283,7 +283,7 @@ fn test_multiline_pattern_with_nulls() {
 
     // Single-line pattern should work
     let matcher_single = build_rust_matcher("line2", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::convert(b'\x00'))
@@ -308,7 +308,7 @@ fn test_text_mode_no_detection() {
     let binary_content = b"text\x00FINDME\x00data";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Build searcher with Text mode: no binary detection
     let mut searcher = SearcherBuilder::new()
@@ -343,10 +343,10 @@ fn test_normal_text_file_found_in_all_modes() {
         "Test fixture not found: {fixture_path:?}"
     );
 
-    let content = std::fs::read(&fixture_path).expect("Failed to read normal.txt");
+    let content = std::fs::read(&fixture_path).unwrap_or_else(|e| panic\!("Failed to read normal.txt: {e}"));
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Test with each binary detection mode
     let modes = vec![
@@ -361,7 +361,7 @@ fn test_normal_text_file_found_in_all_modes() {
         let mut sink = MatchCollector::new();
         searcher
             .search_slice(&matcher, &content, &mut sink)
-            .expect("Search failed");
+            .unwrap_or_else(|e| panic\!("Search failed: {e}"));
 
         assert!(
             sink.matches.len() >= 2,
@@ -389,10 +389,10 @@ fn test_binary_file_auto_mode_skips() {
         "Test fixture not found: {fixture_path:?}"
     );
 
-    let content = std::fs::read(&fixture_path).expect("Failed to read binary.bin");
+    let content = std::fs::read(&fixture_path).unwrap_or_else(|e| panic\!("Failed to read binary.bin: {e}"));
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::quit(b'\x00'))
@@ -423,10 +423,10 @@ fn test_binary_file_binary_mode_searches() {
         return;
     }
 
-    let content = std::fs::read(&fixture_path).expect("Failed to read binary.bin");
+    let content = std::fs::read(&fixture_path).unwrap_or_else(|e| panic\!("Failed to read binary.bin: {e}"));
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Test with convert mode
     let mut searcher = SearcherBuilder::new()
@@ -454,10 +454,10 @@ fn test_binary_file_text_mode_searches() {
         "Test fixture not found: {fixture_path:?}"
     );
 
-    let content = std::fs::read(&fixture_path).expect("Failed to read binary.bin");
+    let content = std::fs::read(&fixture_path).unwrap_or_else(|e| panic\!("Failed to read binary.bin: {e}"));
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     let mut searcher = SearcherBuilder::new()
         .binary_detection(BinaryDetection::none())
@@ -490,10 +490,10 @@ fn test_data_with_nulls_csv_modes() {
         return;
     }
 
-    let content = std::fs::read(&fixture_path).expect("Failed to read data_with_nulls.csv");
+    let content = std::fs::read(&fixture_path).unwrap_or_else(|e| panic\!("Failed to read data_with_nulls.csv: {e}"));
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Auto mode - will quit on nulls
     let mut searcher_auto = SearcherBuilder::new()
@@ -535,7 +535,7 @@ fn test_mode_comparison_on_binary_content() {
     let test_content = b"\x00FINDME on own line\n";
 
     let matcher = build_rust_matcher("FINDME", CaseMode::Sensitive, false, false)
-        .expect("Failed to build matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build matcher: {e}"));
 
     // Mode 1: Auto (quit on binary)
     let mut searcher_auto = SearcherBuilder::new()
@@ -579,11 +579,11 @@ fn test_literal_vs_regex_with_binary_modes() {
 
     // Literal pattern "FINDME.txt"
     let matcher_literal = build_rust_matcher("FINDME.txt", CaseMode::Sensitive, true, false)
-        .expect("Failed to build literal matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build literal matcher: {e}"));
 
     // Regex pattern "FINDME.*"
     let matcher_regex = build_rust_matcher("FINDME.*", CaseMode::Sensitive, false, false)
-        .expect("Failed to build regex matcher");
+        .unwrap_or_else(|e| panic\!("Failed to build regex matcher: {e}"));
 
     // Test both with Text mode (no binary detection)
     let mut searcher = SearcherBuilder::new()

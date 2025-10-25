@@ -159,15 +159,6 @@ pub enum Commands {
     Install,
 }
 
-/// Server mode selection
-#[derive(Debug, Clone)]
-pub enum ServerMode {
-    /// Run as stdio server (thin client that proxies to SSE server)
-    Stdio { proxy_url: String },
-    /// Run as SSE server on the specified address
-    Sse(SocketAddr),
-}
-
 impl Cli {
     /// Get the set of enabled tool categories
     ///
@@ -186,26 +177,6 @@ impl Cli {
 
         // No filter specified - enable all
         None
-    }
-
-    /// Determine which server mode to use
-    pub fn server_mode(&self) -> ServerMode {
-        if let Some(addr) = self.sse {
-            ServerMode::Sse(addr)
-        } else {
-            // Stdio mode always proxies to daemon's SSE server
-            // Default port: 30437 (matches daemon config default)
-            let proxy_url = self
-                .proxy_sse
-                .clone()
-                .unwrap_or_else(|| "http://127.0.0.1:30437".to_string());
-            ServerMode::Stdio { proxy_url }
-        }
-    }
-
-    /// Get the shutdown timeout as a Duration
-    pub fn shutdown_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(self.shutdown_timeout)
     }
 
     /// Get the SSE connection timeout with fallback to config
@@ -233,48 +204,24 @@ impl Cli {
     pub fn sse_retry_backoff_duration(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.sse_retry_backoff)
     }
-
-    /// Get TLS configuration if both cert and key are provided
-    pub fn tls_config(&self) -> Option<(std::path::PathBuf, std::path::PathBuf)> {
-        match (&self.tls_cert, &self.tls_key) {
-            (Some(cert), Some(key)) => Some((cert.clone(), key.clone())),
-            _ => None,
-        }
-    }
 }
 
-/// Get all available tool categories (based on compiled features)
+/// Get all available tool categories (runtime filtering via --tool/--tools)
 pub fn available_categories() -> Vec<&'static str> {
-    let categories = vec![
-        #[cfg(feature = "filesystem")]
+    vec![
         "filesystem",
-        #[cfg(feature = "terminal")]
         "terminal",
-        #[cfg(feature = "process")]
         "process",
-        #[cfg(feature = "introspection")]
         "introspection",
-        #[cfg(feature = "prompt")]
         "prompt",
-        #[cfg(feature = "reasoner")]
         "reasoner",
-        #[cfg(feature = "sequential_thinking")]
         "sequential_thinking",
-        #[cfg(feature = "claude_agent")]
         "claude_agent",
-        #[cfg(feature = "candle_agent")]
         "candle_agent",
-        #[cfg(feature = "citescrape")]
         "citescrape",
-        #[cfg(feature = "git")]
         "git",
-        #[cfg(feature = "github")]
         "github",
-        #[cfg(feature = "config")]
         "config",
-        #[cfg(feature = "database")]
         "database",
-    ];
-
-    categories
+    ]
 }

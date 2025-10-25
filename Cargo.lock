@@ -9409,8 +9409,10 @@ name = "kodegen_tools_prompt"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "chrono",
  "dirs 6.0.0",
  "gray_matter",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9421,6 +9423,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 
@@ -9454,8 +9458,10 @@ name = "kodegen_tools_sequential_thinking"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "chrono",
  "cyrup_termcolor",
  "dirs 6.0.0",
+ "kodegen_mcp_client",
  "kodegen_mcp_schema",
  "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
@@ -9466,6 +9472,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]

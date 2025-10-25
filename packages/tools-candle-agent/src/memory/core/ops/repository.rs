@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
+use surrealdb::Datetime;
 
 use crate::memory::filter::MemoryFilter;
 use crate::memory::primitives::{MemoryNode, MemoryRelationship, MemoryTypeEnum};
@@ -27,7 +27,7 @@ pub struct MemoryRepository {
     tag_index: HashMap<String, HashSet<String>>,
 
     /// Time-based index (sorted by creation time)
-    time_index: BTreeMap<DateTime<Utc>, HashSet<String>>,
+    time_index: BTreeMap<Datetime, HashSet<String>>,
 
     /// Relationships storage
     relationships: HashMap<String, Vec<MemoryRelationship>>,

@@ -6,23 +6,17 @@ use serde_json::{Value, json};
 
 /// Browser research tool that performs deep multi-page web research with AI summarization
 ///
-/// Uses loopback MCP client pattern from BrowserAgentTool to call web_search, browser_navigate,
-/// and browser_extract_text tools via the hot path.
+/// Calls web_search directly (same package) for DuckDuckGo search, then uses browser
+/// tools for navigation and content extraction.
 #[derive(Clone)]
-pub struct BrowserResearchTool {
-    server_url: String,
-}
+pub struct BrowserResearchTool;
 
 impl BrowserResearchTool {
-    /// Create new browser research tool with loopback server URL
+    /// Create new browser research tool
     ///
-    /// The server_url enables the tool to create an MCP client that calls back into
-    /// the same server's tools (web_search, browser_navigate, browser_extract_text).
-    ///
-    /// # Pattern
-    /// Follows BrowserAgentTool loopback pattern (packages/tools-browser/src/tools/browser_agent.rs:65-73)
-    pub fn new(server_url: String) -> Self {
-        Self { server_url }
+    /// No dependencies needed - creates its own BrowserManager for web_search.
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -50,22 +44,12 @@ impl Tool for BrowserResearchTool {
     }
 
     async fn execute(&self, args: Self::Args) -> Result<Value, McpError> {
-        // STEP 1: Create loopback MCP client (pattern from browser_agent.rs:100-107)
-        let (mcp_client, _connection) = kodegen_mcp_client::create_sse_client(&self.server_url)
-            .await
-            .map_err(|e| {
-                McpError::Other(anyhow::anyhow!(
-                    "Failed to create loopback MCP client to {}: {}.\n\
-                 Ensure SSE server is running and accessible.",
-                    self.server_url,
-                    e
-                ))
-            })?;
+        // STEP 1: Create BrowserManager for web_search
+        let browser_manager = std::sync::Arc::new(crate::web_search::BrowserManager::new());
 
-        // STEP 2: Create DeepResearch instance with MCP client
-        // Constructor signature from deep_research.rs:89-96
+        // STEP 2: Create DeepResearch instance with BrowserManager
         let research = DeepResearch::new(
-            std::sync::Arc::new(mcp_client),
+            browser_manager,
             args.temperature,
             args.max_tokens,
         );
@@ -81,8 +65,7 @@ impl Tool for BrowserResearchTool {
             timeout_seconds: args.timeout_seconds,
         });
 
-        // STEP 4: Execute research (calls web_search, browser_navigate, browser_extract_text via MCP)
-        // Method signature from deep_research.rs:98-138
+        // STEP 4: Execute research (calls web_search directly, browser tools via MCP)
         let results = research.research(&args.query, options).await.map_err(|e| {
             McpError::Other(anyhow::anyhow!(
                 "Research failed for query '{}': {}",

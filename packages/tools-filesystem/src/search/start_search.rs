@@ -249,7 +249,7 @@ impl Tool for StartSearchTool {
             binary_mode: args.binary_mode,
             multiline: args.multiline,
             max_filesize: args.max_filesize,
-            max_depth: args.max_depth.map(|d| d as usize),
+            max_depth: args.max_depth,
             only_matching: args.only_matching,
             list_files_only: args.list_files_only,
             sort_by: args.sort_by,

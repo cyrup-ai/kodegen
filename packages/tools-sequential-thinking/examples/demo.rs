@@ -14,9 +14,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Connect to kodegen server with sequential_thinking category
     let (conn, mut server) = common::connect_to_local_sse_server().await?;
-        common::ToolCategory::SequentialThinking,
-    ]))
-    .await?;
 
     // Wrap client with logging
     let workspace_root = common::find_workspace_root()

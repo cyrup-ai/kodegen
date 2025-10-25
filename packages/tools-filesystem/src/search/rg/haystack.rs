@@ -90,10 +90,15 @@ impl Haystack {
     /// is returned instead.
     pub(crate) fn path(&self) -> &Path {
         if self.strip_dot_prefix && self.dent.path().starts_with("./") {
-            // SAFETY: We just checked starts_with("./"), so strip_prefix("./") will succeed
-            self.dent.path().strip_prefix("./").expect(
-                "BUG: strip_prefix failed after starts_with check - this should never happen",
-            )
+            // We just checked starts_with("./"), so strip_prefix("./") should succeed
+            // If it somehow doesn't, fall back to the original path to avoid panicking
+            match self.dent.path().strip_prefix("./") {
+                Ok(stripped) => stripped,
+                Err(e) => {
+                    log::error!("BUG: strip_prefix failed after starts_with check: {e}");
+                    self.dent.path()
+                }
+            }
         } else {
             self.dent.path()
         }

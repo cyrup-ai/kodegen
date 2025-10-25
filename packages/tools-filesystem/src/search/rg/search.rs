@@ -266,9 +266,12 @@ impl<W: io::Write> SearchWorker<W> {
     fn search_preprocessor(&mut self, path: &Path) -> io::Result<()> {
         use std::{fs::File, process::Stdio};
 
-        // SAFETY: should_preprocess() ensures preprocessor is Some before calling this
+        // should_preprocess() ensures preprocessor is Some before calling this
+        // If it's None, this indicates a programming error in the contract
         let bin = self.config.preprocessor.as_ref()
-            .expect("BUG: search_preprocessor called with None preprocessor - should_preprocess() contract violated");
+            .ok_or_else(|| io::Error::other(
+                "BUG: search_preprocessor called with None preprocessor - should_preprocess() contract violated"
+            ))?;
         let mut cmd = std::process::Command::new(bin);
         cmd.arg(path).stdin(Stdio::from(File::open(path)?));
 

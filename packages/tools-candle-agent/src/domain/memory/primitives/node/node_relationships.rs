@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::time::SystemTime;
 
+use surrealdb::Datetime;
 use uuid::Uuid;
 
 use super::super::types::{
@@ -96,8 +96,8 @@ impl MemoryNode {
     /// Returns error if the reset operation fails
     pub async fn reset(&mut self, memory_type: MemoryTypeEnum) -> MemoryResult<()> {
         // 1. Update timestamps to now
-        let now = SystemTime::now();
-        self.base_memory.created_at = now;
+        let now = Datetime::now();
+        self.base_memory.created_at = now.clone();
         self.base_memory.updated_at = now;
 
         // 2. Update memory type

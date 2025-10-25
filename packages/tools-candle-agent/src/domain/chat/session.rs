@@ -406,7 +406,7 @@ fn store_conversation_in_memory<S: std::hash::BuildHasher>(
         keywords: vec![],
         category: "conversation".to_string(),
         source: Some("chat".to_string()),
-        created_at: chrono::Utc::now(),
+        created_at: surrealdb::Datetime::now(),
         last_accessed_at: None,
         embedding: None,
         custom: serde_json::Value::Object(serde_json::Map::new()),

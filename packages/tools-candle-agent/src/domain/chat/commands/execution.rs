@@ -698,10 +698,7 @@ async fn retrieve_conversation_messages(
                 content: mem.content().to_string(),
                 id: Some(mem.id().to_string()),
                 timestamp: Some(
-                    mem.creation_time()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs(),
+                    mem.creation_time().into_inner_ref().timestamp() as u64
                 ),
             }
         })

@@ -5,7 +5,6 @@ use std::time::Duration;
 
 // Workspace LLM infrastructure
 use kodegen_candle_agent::prelude::*;
-use kodegen_mcp_client::KodegenClient;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -49,17 +48,17 @@ impl Default for ResearchOptions {
     }
 }
 
-/// Deep research service using 100% hot path integration
+/// Deep research service using direct library integration
 ///
-/// All browser operations delegated to existing MCP tools:
-/// - web_search (citescrape) - DuckDuckGo search
-/// - browser_navigate - URL loading
-/// - browser_extract_text - Content extraction
+/// All browser operations call local functions directly:
+/// - web_search (local) - DuckDuckGo search via BrowserManager
+/// - browser_navigate - URL loading via BrowserManager
+/// - browser_extract_text - Content extraction via BrowserManager
 ///
 /// LLM operations use CandleFluentAi streaming (no trait objects).
 pub struct DeepResearch {
-    /// MCP client for calling all browser and search tools (HOT PATH)
-    mcp_client: Arc<KodegenClient>,
+    /// Browser manager for web_search and navigation
+    browser_manager: Arc<crate::web_search::BrowserManager>,
 
     /// LLM temperature for summarization (0.0 = deterministic, 2.0 = creative)
     temperature: f64,
@@ -72,17 +71,17 @@ pub struct DeepResearch {
 }
 
 impl DeepResearch {
-    /// Create new DeepResearch instance with MCP client
+    /// Create new DeepResearch instance with BrowserManager
     ///
-    /// All browser operations delegated to MCP tools - no direct browser access.
+    /// All browser operations call local web_search functions directly.
     ///
     /// # Arguments
-    /// * `mcp_client` - Client for calling web_search, browser_navigate, browser_extract_text
+    /// * `browser_manager` - Browser manager for web_search and navigation
     /// * `temperature` - LLM sampling temperature (0.0-2.0)
     /// * `max_tokens` - Maximum tokens for LLM generation
-    pub fn new(mcp_client: Arc<KodegenClient>, temperature: f64, max_tokens: u64) -> Self {
+    pub fn new(browser_manager: Arc<crate::web_search::BrowserManager>, temperature: f64, max_tokens: u64) -> Self {
         Self {
-            mcp_client,
+            browser_manager,
             temperature,
             max_tokens,
             visited_urls: Arc::new(Mutex::new(Vec::new())),
@@ -128,9 +127,9 @@ impl DeepResearch {
         Ok(results)
     }
 
-    /// Search for query using web_search tool
+    /// Search for query using web_search module directly
     ///
-    /// Calls citescrape's web_search tool which provides DuckDuckGo search
+    /// Calls local web_search which provides DuckDuckGo search
     /// with kromekover stealth, retries, and structured result parsing.
     ///
     /// # Arguments
@@ -140,58 +139,28 @@ impl DeepResearch {
     /// # Returns
     /// Vector of URLs from search results (up to 10)
     ///
-    /// # Hot Path Integration
-    /// This method calls the existing web_search tool instead of duplicating
-    /// DuckDuckGo search logic. Benefits:
-    /// - Reuses battle-tested implementation
-    /// - Automatic improvements when web_search is enhanced
-    /// - Consistent error handling and retry logic
-    /// - No direct browser access needed
-    ///
-    /// # Reference
-    /// Tool implementation: packages/tools-citescrape/src/mcp/web_search.rs
+    /// # Direct Integration
+    /// This method calls web_search directly (same package) instead of via MCP.
+    /// Benefits:
+    /// - Faster (no IPC overhead)
+    /// - Simpler (no serialization/deserialization)
+    /// - More reliable (no network/process dependencies)
     async fn search_query(
         &self,
         query: &str,
         _options: &ResearchOptions,
     ) -> Result<Vec<String>, UtilsError> {
-        debug!("Searching DuckDuckGo via web_search tool: {}", query);
+        debug!("Searching DuckDuckGo via web_search (direct): {}", query);
 
-        // Call web_search tool via MCP client
-        let result = self
-            .mcp_client
-            .call_tool(
-                "web_search",
-                serde_json::json!({
-                    "query": query
-                }),
-            )
+        // Call web_search directly (same package, no MCP needed)
+        let search_results = crate::web_search::search_with_manager(&self.browser_manager, query)
             .await
             .map_err(|e| UtilsError::BrowserError(e.to_string()))?;
 
-        // Parse MCP response
-        let response = if let Some(content) = result.content.first() {
-            if let Some(text) = content.as_text() {
-                serde_json::from_str::<serde_json::Value>(&text.text)
-                    .map_err(|e| UtilsError::JsonParseError(e.to_string()))?
-            } else {
-                return Err(UtilsError::JsonParseError("Expected text content".into()));
-            }
-        } else {
-            return Err(UtilsError::JsonParseError(
-                "No content in web_search result".into(),
-            ));
-        };
-
-        // Extract URLs from results array
-        let urls: Vec<String> = response["results"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|r| r["url"].as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default();
+        // Extract URLs from SearchResults
+        let urls: Vec<String> = search_results.results.iter()
+            .map(|r| r.url.clone())
+            .collect();
 
         if urls.is_empty() {
             warn!("web_search returned no results for query: {}", query);

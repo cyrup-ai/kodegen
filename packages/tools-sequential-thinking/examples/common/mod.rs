@@ -221,7 +221,7 @@ pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerH
 
     cleanup_port(SSE_PORT).await.ok();
 
-    eprintln!("🚀 Starting kodegen-sequential-thinking SSE server on port 30450...", BINARY_NAME, SSE_PORT);
+    eprintln!("🚀 Starting {} SSE server on port {}...", BINARY_NAME, SSE_PORT);
 
     let child = cmd.spawn().context("Failed to spawn SSE server process")?;
     let server_handle = ServerHandle::new(child);
