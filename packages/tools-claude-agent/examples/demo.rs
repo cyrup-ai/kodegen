@@ -198,7 +198,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting claude agent tools example");
 
     // Connect to kodegen server (already running with all tools)
-    let (conn, mut server) = common::connect_to_server_with_categories(None).await?;
+    let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
     let log_path =

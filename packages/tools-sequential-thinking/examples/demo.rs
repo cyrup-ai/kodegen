@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting sequential thinking tool example - comprehensive feature testing");
 
     // Connect to kodegen server with sequential_thinking category
-    let (conn, mut server) = common::connect_to_server_with_categories(Some(vec![
+    let (conn, mut server) = common::connect_to_local_sse_server().await?;
         common::ToolCategory::SequentialThinking,
     ]))
     .await?;

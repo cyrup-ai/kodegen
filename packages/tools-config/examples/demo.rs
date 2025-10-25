@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting config tools example - testing both get_config and set_config_value");
 
     // Connect to kodegen server (config tools are always enabled, no category needed)
-    let (conn, mut server) = common::connect_to_server_with_categories(None).await?;
+    let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
     let log_path =

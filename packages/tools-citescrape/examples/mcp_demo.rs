@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
 
     // Connect to kodegen server with citescrape tools
     let (conn, mut server) =
-        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Citescrape]))
+        common::connect_to_local_sse_server().await?;
             .await?;
 
     // Delete old log file to start fresh

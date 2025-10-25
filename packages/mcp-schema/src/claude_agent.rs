@@ -173,3 +173,48 @@ pub struct TerminateClaudeAgentSessionArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TerminateClaudeAgentSessionPromptArgs {}
+
+// ============================================================================
+// MEMORY TOOLS (for candle-agent)
+// ============================================================================
+
+// ========== Memorize Tool ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MemorizeArgs {
+    /// Library name to store the memory in
+    pub library: String,
+    /// Content to memorize
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MemorizePromptArgs {}
+
+// ========== Recall Tool ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RecallArgs {
+    /// Library name to search in
+    pub library: String,
+    /// Context/query to search for
+    pub context: String,
+    /// Maximum number of results (default: 10)
+    #[serde(default = "default_recall_limit")]
+    pub limit: usize,
+}
+
+fn default_recall_limit() -> usize {
+    10
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RecallPromptArgs {}
+
+// ========== List Memory Libraries Tool ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ListMemoryLibrariesArgs {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ListMemoryLibrariesPromptArgs {}

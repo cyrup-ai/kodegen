@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Connect to kodegen server with git category
     let (conn, mut server) =
-        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Git])).await?;
+        common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from("/Volumes/samsung_t9/kodegen/tmp/mcp-client/git.log");

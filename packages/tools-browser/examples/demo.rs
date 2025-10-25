@@ -21,10 +21,8 @@ async fn main() -> Result<()> {
     info!("🌐 Browser Tools Demo\n");
     info!("This example demonstrates browser automation capabilities.\n");
 
-    // Connect to kodegen server with browser category
-    let (conn, mut server) =
-        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Browser]))
-            .await?;
+    // Connect to local browser SSE server
+    let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from("/tmp/mcp-client/browser_demo.log");

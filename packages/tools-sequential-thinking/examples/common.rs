@@ -1,30 +1,31 @@
-//! Shared utilities for kodegen MCP client examples
+//! Shared utilities for browser SSE server examples
 //!
-//! This module provides common functionality for spawning and connecting to
-//! the kodegen server during development/testing.
+//! This module spawns the local kodegen-browser SSE server and connects to it.
 
 use anyhow::{Context, Result};
 use kodegen_mcp_client::{KodegenClient, KodegenConnection, create_sse_client};
 use rmcp::model::{CallToolResult, ServerInfo};
 use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use std::sync::{Mutex as StdMutex, OnceLock};
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
+use std::sync::Arc;
 
-/// Default SSE server URL for examples
-///
-/// Examples automatically spawn an SSE server and connect to this URL.
-// APPROVED BY DAVID MAPLE on 2025-10-23: Shared library code used by multiple examples
-#[allow(dead_code)]
-const DEFAULT_SSE_URL: &str = "http://127.0.0.1:18080/sse";
+/// Browser SSE server configuration
+const SSE_PORT: u16 = 30450;
+const BINARY_NAME: &str = "kodegen-sequential-thinking";
+const PACKAGE_NAME: &str = "kodegen_tools_sequential_thinking";
 
-/// Cached workspace root to avoid repeated cargo metadata executions
+/// SSE server URL for browser examples
+const SSE_URL: &str = "http://127.0.0.1:30450/sse";
+
+/// Cached workspace root
 static WORKSPACE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 static WORKSPACE_ROOT_INIT: StdMutex<()> = StdMutex::new(());
 
-/// Find the workspace root by querying cargo metadata
+/// Find workspace root using cargo metadata
 pub fn find_workspace_root() -> Result<&'static PathBuf> {
     if let Some(root) = WORKSPACE_ROOT.get() {
         return Ok(root);
@@ -67,142 +68,24 @@ pub fn find_workspace_root() -> Result<&'static PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("Failed to retrieve cached workspace root"))
 }
 
-/// Tool categories supported by the kodegen server
-///
-/// These map directly to the `--tools` CLI argument and compiled feature flags.
-/// Using an enum prevents typos and injection attacks at compile time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
-pub enum ToolCategory {
-    /// File operations (14 tools)
-    Filesystem,
-    /// Terminal sessions (5 tools)
-    Terminal,
-    /// Process management (2 tools)
-    Process,
-    /// Usage tracking (2 tools)
-    Introspection,
-    /// Prompt management (4 tools)
-    Prompt,
-    /// Reasoning chains (1 tool)
-    SequentialThinking,
-    /// Sub-agent delegation (5 tools)
-    ClaudeAgent,
-    /// Web crawling and search (4 tools)
-    Citescrape,
-    /// Git operations (20 tools)
-    Git,
-    /// GitHub API integration (16 tools)
-    Github,
-    /// Database operations (8 tools)
-    Database,
-    /// Browser automation (7 tools)
-    Browser,
-}
-
-/// All available tool categories
-///
-/// This const ensures all enum variants are constructed, which satisfies clippy's
-/// `dead_code` analysis across example binaries that each use only specific categories.
-#[allow(dead_code)]
-pub const ALL_CATEGORIES: &[ToolCategory] = &[
-    ToolCategory::Filesystem,
-    ToolCategory::Terminal,
-    ToolCategory::Process,
-    ToolCategory::Introspection,
-    ToolCategory::Prompt,
-    ToolCategory::SequentialThinking,
-    ToolCategory::ClaudeAgent,
-    ToolCategory::Citescrape,
-    ToolCategory::Git,
-    ToolCategory::Github,
-    ToolCategory::Database,
-    ToolCategory::Browser,
-];
-
-impl ToolCategory {
-    /// Convert enum to server-expected string format
-    ///
-    /// These strings MUST match exactly with:
-    /// - CLI argument parsing in server/src/cli.rs
-    /// - Feature flags in Cargo.toml
-    /// - Category checks in server/src/main.rs
-    #[allow(dead_code)]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Filesystem => "filesystem",
-            Self::Terminal => "terminal",
-            Self::Process => "process",
-            Self::Introspection => "introspection",
-            Self::Prompt => "prompt",
-            Self::SequentialThinking => "sequential_thinking",
-            Self::ClaudeAgent => "claude_agent",
-            Self::Citescrape => "citescrape",
-            Self::Git => "git",
-            Self::Github => "github",
-            Self::Database => "database",
-            Self::Browser => "browser",
-        }
-    }
-
-    /// Get a slice of all available tool categories
-    ///
-    /// This is useful for displaying help text or documentation about
-    /// all available tool categories across all examples.
-    #[allow(dead_code)]
-    pub fn all() -> &'static [ToolCategory] {
-        ALL_CATEGORIES
-    }
-
-    /// Get a display name for this category
-    #[allow(dead_code)]
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::Filesystem => "File operations",
-            Self::Terminal => "Terminal sessions",
-            Self::Process => "Process management",
-            Self::Introspection => "Usage tracking",
-            Self::Prompt => "Prompt management",
-            Self::SequentialThinking => "Reasoning chains",
-            Self::ClaudeAgent => "Sub-agent delegation",
-            Self::Citescrape => "Web crawling and search",
-            Self::Git => "Git operations",
-            Self::Github => "GitHub API integration",
-            Self::Database => "Database operations",
-            Self::Browser => "Browser automation",
-        }
-    }
-}
-
-/// Server process handle for lifecycle management
-///
-/// Manages the spawned kodegen server process and ensures proper cleanup.
-/// The server will be killed when this handle is dropped (safety fallback)
-/// or when `shutdown()` is called explicitly (preferred).
+/// Server process handle
 #[must_use = "ServerHandle must be kept alive or explicitly shutdown"]
 pub struct ServerHandle {
     child: Option<Child>,
 }
 
 impl ServerHandle {
-    /// Create a new server handle
     pub fn new(child: Child) -> Self {
         Self { child: Some(child) }
     }
 
-    /// Gracefully shutdown the server process
-    ///
-    /// Sends SIGTERM and waits up to 5 seconds for graceful shutdown.
-    /// If timeout expires, sends SIGKILL to force termination.
     pub async fn shutdown(&mut self) -> Result<()> {
         if let Some(mut child) = self.child.take() {
             eprintln!("🛑 Shutting down SSE server...");
 
-            // Try graceful shutdown first on Unix (SIGTERM)
             #[cfg(unix)]
             {
                 if let Some(pid) = child.id() {
-                    // Send SIGTERM using kill command
                     let _ = Command::new("kill")
                         .arg("-TERM")
                         .arg(pid.to_string())
@@ -211,13 +94,11 @@ impl ServerHandle {
                 }
             }
 
-            // On Windows, just kill directly since there's no graceful signal
             #[cfg(not(unix))]
             {
                 let _ = child.kill().await;
             }
 
-            // Wait up to 5 seconds for graceful shutdown
             match tokio::time::timeout(std::time::Duration::from_secs(5), child.wait()).await {
                 Ok(Ok(status)) => {
                     eprintln!(
@@ -243,26 +124,21 @@ impl ServerHandle {
 impl Drop for ServerHandle {
     fn drop(&mut self) {
         if let Some(mut child) = self.child.take() {
-            // Best effort cleanup - use blocking kill since we're in Drop
             eprintln!("⚠️  ServerHandle dropped without explicit shutdown, killing server...");
             let _ = child.start_kill();
         }
     }
 }
 
-/// Kill any processes listening on the specified port
-///
-/// Uses macOS `lsof` to find processes, then kills them with `kill -9`.
-/// Ignores errors (idempotent - safe to call even if port is free).
+/// Kill processes on specified port
 pub async fn cleanup_port(port: u16) -> Result<()> {
     eprintln!("🧹 Checking for processes on port {port}...");
 
-    // Find PIDs using the port
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()
         .await
-        .context("Failed to run lsof - is it installed?")?;
+        .context("Failed to run lsof")?;
 
     if output.status.success() && !output.stdout.is_empty() {
         let pids = String::from_utf8_lossy(&output.stdout);
@@ -278,10 +154,7 @@ pub async fn cleanup_port(port: u16) -> Result<()> {
     Ok(())
 }
 
-/// Connect to SSE server with retry logic
-///
-/// Polls server readiness until connection succeeds or timeout expires.
-/// Uses fixed retry interval (not exponential) since we're waiting for compilation.
+/// Connect to SSE server with retry
 pub async fn connect_with_retry(
     url: &str,
     total_timeout: std::time::Duration,
@@ -294,7 +167,6 @@ pub async fn connect_with_retry(
     loop {
         attempt += 1;
 
-        // Try to connect
         match create_sse_client(url).await {
             Ok(result) => {
                 eprintln!(
@@ -307,12 +179,10 @@ pub async fn connect_with_retry(
             Err(e) => {
                 let error: anyhow::Error = e.into();
 
-                // Check if timeout expired
                 if start.elapsed() >= total_timeout {
                     return Err(error);
                 }
 
-                // Log progress every 10 seconds
                 if last_progress_log.elapsed() >= std::time::Duration::from_secs(10) {
                     eprintln!(
                         "   Still waiting for server... ({:?} elapsed)",
@@ -321,59 +191,27 @@ pub async fn connect_with_retry(
                     last_progress_log = std::time::Instant::now();
                 }
 
-                // Sleep before retry
                 tokio::time::sleep(retry_interval).await;
             }
         }
     }
 }
 
-/// Connect to kodegen SSE server
-///
-/// Spawns a new SSE server process and connects to it.
-/// Returns both the MCP connection and a server handle for lifecycle management.
-///
-/// The server process will remain running until `ServerHandle::shutdown()` is called
-/// or the handle is dropped. Proper cleanup requires calling `shutdown()` explicitly.
-///
-/// # Example
-///
-/// ```no_run
-/// use common::ToolCategory;
-///
-/// let (conn, mut server) = connect_to_server_with_categories(
-///     Some(vec![ToolCategory::Filesystem])
-/// ).await?;
-///
-/// // Use connection for MCP operations...
-///
-/// // Clean up properly
-/// conn.close().await?;
-/// server.shutdown().await?;
-/// ```
-///
-/// # Errors
-///
-/// Returns error if the server fails to spawn or connection fails.
-// APPROVED BY DAVID MAPLE on 2025-10-23: Shared library code used by multiple examples
-#[allow(dead_code)]
-pub async fn connect_to_server_with_categories(
-    categories: Option<Vec<ToolCategory>>,
-) -> Result<(KodegenConnection, ServerHandle)> {
+/// Connect to local browser SSE server
+pub async fn connect_to_local_sse_server() -> Result<(KodegenConnection, ServerHandle)> {
     let workspace_root = find_workspace_root().context("Failed to find workspace root")?;
 
-    // Spawn SSE server as child process
     let mut cmd = Command::new("cargo");
     cmd.current_dir(workspace_root);
     cmd.args([
         "run",
         "--package",
-        "kodegen",
+        PACKAGE_NAME,
         "--bin",
-        "kodegen",
+        BINARY_NAME,
         "--",
         "--sse",
-        "127.0.0.1:18080",
+        &format!("127.0.0.1:{}", SSE_PORT),
     ]);
 
     // Pass through GITHUB_TOKEN if set
@@ -381,36 +219,26 @@ pub async fn connect_to_server_with_categories(
         cmd.env("GITHUB_TOKEN", token);
     }
 
-    // Add tool category filter if specified
-    if let Some(cats) = categories {
-        let cat_strs: Vec<&str> = cats.iter().map(ToolCategory::as_str).collect();
-        cmd.arg("--tools").arg(cat_strs.join(","));
-    }
+    cleanup_port(SSE_PORT).await.ok();
 
-    // Clean up any stale servers on the port
-    cleanup_port(18080).await.ok(); // Ignore errors - port might be free
+    eprintln!("🚀 Starting kodegen-sequential-thinking SSE server on port 30450...", BINARY_NAME, SSE_PORT);
 
-    eprintln!("🚀 Starting SSE server...");
-
-    // Spawn the server process and keep the handle
     let child = cmd.spawn().context("Failed to spawn SSE server process")?;
-
     let server_handle = ServerHandle::new(child);
 
-    // Wait for server to be ready with retry logic
     eprintln!("⏳ Waiting for server to be ready (this may take up to 90s on first compile)...");
     let (_client, connection) = connect_with_retry(
-        DEFAULT_SSE_URL,
-        std::time::Duration::from_secs(90), // Total timeout (generous for first compile)
-        std::time::Duration::from_millis(500), // Retry interval (fast enough to connect quickly)
+        SSE_URL,
+        std::time::Duration::from_secs(90),
+        std::time::Duration::from_millis(500),
     )
     .await
-    .context("Failed to connect to SSE server - check server logs")?;
+    .context("Failed to connect to SSE server")?;
 
     Ok((connection, server_handle))
 }
 
-/// JSONL log entry for tool calls
+/// JSONL log entry
 #[derive(Debug, serde::Serialize)]
 pub struct LogEntry {
     timestamp: String,
@@ -428,23 +256,20 @@ pub enum LogResult {
     Error { error: String },
 }
 
-/// Wraps `KodegenClient` to automatically log all tool calls to JSONL
+/// Logging wrapper for KodegenClient
 pub struct LoggingClient {
     inner: KodegenClient,
     log_file: Arc<Mutex<BufWriter<tokio::fs::File>>>,
 }
 
 impl LoggingClient {
-    /// Create a new logging client that writes to the specified log file
     pub async fn new(client: KodegenClient, log_path: impl AsRef<Path>) -> Result<Self> {
-        // Create parent directory if needed
         if let Some(parent) = log_path.as_ref().parent() {
             tokio::fs::create_dir_all(parent)
                 .await
                 .context("Failed to create log directory")?;
         }
 
-        // Open file in append mode
         let file = tokio::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -460,7 +285,6 @@ impl LoggingClient {
         })
     }
 
-    /// Call a tool and log the request/response
     pub async fn call_tool(
         &self,
         name: &str,
@@ -474,17 +298,13 @@ impl LoggingClient {
         result
     }
 
-    /// Call a tool with typed response and log the request/response
-    #[allow(dead_code)]
     pub async fn call_tool_typed<T: DeserializeOwned>(
         &self,
         name: &str,
         arguments: serde_json::Value,
     ) -> Result<T, kodegen_mcp_client::ClientError> {
-        // Call raw tool method which logs the full response
         let result = self.call_tool(name, arguments).await?;
 
-        // Extract text content from response
         let text_content = result
             .content
             .first()
@@ -495,7 +315,6 @@ impl LoggingClient {
                 ))
             })?;
 
-        // Deserialize to target type with context
         serde_json::from_str(&text_content.text).map_err(|e| {
             kodegen_mcp_client::ClientError::ParseError(format!(
                 "Failed to parse response from tool '{name}': {e}"
@@ -503,13 +322,10 @@ impl LoggingClient {
         })
     }
 
-    /// Get server info (passthrough to inner client)
-    #[allow(dead_code)] // Used by 14 examples, not all binaries
     pub fn server_info(&self) -> Option<&ServerInfo> {
         self.inner.server_info()
     }
 
-    // Private helper to log CallToolResult
     async fn log_call(
         &self,
         name: &str,
@@ -531,7 +347,6 @@ impl LoggingClient {
         self.log_entry(name, args, log_result, duration).await;
     }
 
-    // Private helper to write log entry
     async fn log_entry(
         &self,
         name: &str,
@@ -552,7 +367,6 @@ impl LoggingClient {
         }
     }
 
-    // Private helper to write JSONL
     async fn write_log_entry(&self, entry: &LogEntry) -> Result<()> {
         let json = serde_json::to_string(entry).context("Failed to serialize log entry")?;
 
@@ -568,44 +382,5 @@ impl LoggingClient {
         guard.flush().await.context("Failed to flush log")?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_all_category_variants_have_string_representation() {
-        // This test ensures all ToolCategory variants are constructed
-        // and have valid string representations. This satisfies clippy's
-        // dead_code analysis across example binaries.
-        for category in ToolCategory::all() {
-            let s = category.as_str();
-            assert!(
-                !s.is_empty(),
-                "Category {:?} has empty string representation",
-                category
-            );
-        }
-    }
-
-    #[test]
-    fn test_all_categories_constant_is_complete() {
-        // Verify ALL_CATEGORIES contains all 11 expected categories
-        assert_eq!(ALL_CATEGORIES.len(), 11, "Expected 11 tool categories");
-
-        // Verify each expected variant is present
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Filesystem));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Terminal));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Process));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Introspection));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Prompt));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::SequentialThinking));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::ClaudeAgent));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Citescrape));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Git));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Github));
-        assert!(ALL_CATEGORIES.contains(&ToolCategory::Database));
     }
 }

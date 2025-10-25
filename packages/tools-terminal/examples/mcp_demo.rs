@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Connect to kodegen server with terminal category
     let (conn, mut server) =
-        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Terminal]))
+        common::connect_to_local_sse_server().await?;
             .await?;
 
     // Wrap client with logging

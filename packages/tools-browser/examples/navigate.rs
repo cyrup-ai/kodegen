@@ -13,10 +13,8 @@ async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    // Connect to kodegen server with browser category
-    let (conn, mut server) =
-        common::connect_to_server_with_categories(Some(vec![common::ToolCategory::Browser]))
-            .await?;
+    // Connect to local browser SSE server
+    let (conn, mut server) = common::connect_to_local_sse_server().await?;
 
     // Wrap client with logging
     let log_path = std::path::PathBuf::from("/tmp/mcp-client/browser_navigate.log");
