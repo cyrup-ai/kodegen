@@ -11,6 +11,12 @@ pub struct DeletePromptTool {
 }
 
 impl DeletePromptTool {
+    /// Create with a pre-initialized PromptManager (for SSE server)
+    pub fn with_manager(manager: PromptManager) -> Self {
+        Self { manager }
+    }
+
+    /// Create with default manager (for standalone use)
     pub async fn new() -> Result<Self, McpError> {
         let manager = PromptManager::new();
         manager.init().await?;

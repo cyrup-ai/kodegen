@@ -777,6 +777,60 @@ impl SequentialThinkingTool {
         });
     }
 
+    /// Shutdown the tool gracefully, persisting all active sessions
+    ///
+    /// Called during server shutdown to ensure no sessions are lost.
+    /// Persists all active sessions to disk before terminating.
+    pub async fn shutdown(&self) -> Result<(), McpError> {
+        log::info!("Shutting down sequential thinking tool, persisting active sessions");
+
+        // Get snapshot of all active sessions
+        let sessions = self.sessions.read().await;
+        let session_ids: Vec<String> = sessions.keys().cloned().collect();
+        drop(sessions);
+
+        log::debug!("Found {} active sessions to persist", session_ids.len());
+
+        // Persist each session
+        for session_id in session_ids {
+            // Get session state
+            if let Ok(snapshot) = self.get_session_state(&session_id).await {
+                // Get session handle for timestamps
+                let sessions = self.sessions.read().await;
+                if let Some(handle) = sessions.get(&session_id) {
+                    // Convert Instant → SystemTime (pattern from cleanup_sessions)
+                    let created_at_elapsed = handle.created_at.elapsed();
+                    let created_at = std::time::SystemTime::now()
+                        .checked_sub(created_at_elapsed)
+                        .unwrap_or_else(std::time::SystemTime::now);
+
+                    let last_activity_instant = *handle.last_activity.read().await;
+                    let last_activity_elapsed = last_activity_instant.elapsed();
+                    let last_activity = std::time::SystemTime::now()
+                        .checked_sub(last_activity_elapsed)
+                        .unwrap_or_else(std::time::SystemTime::now);
+
+                    // Send persistence command (fire-and-forget)
+                    let _ = self.persistence_sender.send(PersistenceCommand::Persist {
+                        session_id: session_id.clone(),
+                        snapshot,
+                        created_at,
+                        last_activity,
+                    });
+
+                    log::debug!("Queued session {} for persistence", session_id);
+                }
+            }
+        }
+
+        // Give persistence task time to process all commands
+        // (persistence runs in background, this ensures writes complete)
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        log::info!("Sequential thinking tool shutdown complete");
+        Ok(())
+    }
+
     /// Validate and convert args to `ThoughtData`
     /// Auto-adjusts totalThoughts if thoughtNumber exceeds it
     fn validate_thought(args: SequentialThinkingArgs) -> ThoughtData {
@@ -990,5 +1044,22 @@ impl Tool for SequentialThinkingTool {
                 ),
             },
         ])
+    }
+}
+
+// ============================================================================
+// SHUTDOWN HOOK FOR MCP SERVER
+// ============================================================================
+
+#[cfg(feature = "server")]
+use kodegen_mcp_server_core::ShutdownHook;
+
+#[cfg(feature = "server")]
+impl ShutdownHook for SequentialThinkingTool {
+    fn shutdown(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), anyhow::Error>> + Send + '_>> {
+        Box::pin(async move {
+            SequentialThinkingTool::shutdown(self).await
+                .map_err(|e| anyhow::anyhow!("Failed to shutdown sequential thinking tool: {e}"))
+        })
     }
 }

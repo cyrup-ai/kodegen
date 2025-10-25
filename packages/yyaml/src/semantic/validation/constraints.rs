@@ -2,7 +2,8 @@
 
 use super::context::ValidationContext;
 use super::warnings::{ValidationWarning, WarningSeverity, WarningType};
-use crate::parser::ast::{Node, ScalarStyle};
+use crate::parser::ast::Node;
+use crate::lexer::ScalarStyle;
 use crate::semantic::tags::schema::SchemaProcessor;
 use crate::semantic::tags::{types::SchemaType, YamlType};
 use crate::semantic::{AnalysisContext, SemanticError};

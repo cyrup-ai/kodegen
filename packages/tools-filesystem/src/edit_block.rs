@@ -11,8 +11,6 @@ use kodegen_utils::fuzzy_search::{get_similarity_ratio, recursive_fuzzy_index_of
 use kodegen_utils::line_endings::{detect_line_ending, normalize_line_endings};
 use kodegen_utils::suggestions::{EditFailureReason, Suggestion, SuggestionContext};
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::Serialize;
 use serde_json::{Value, json};
 use std::time::Instant;
 use tokio::fs;

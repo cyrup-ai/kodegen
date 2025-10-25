@@ -14,6 +14,7 @@ pub mod sql_limiter;
 pub mod sql_parser;
 pub mod ssh_tunnel;
 pub mod validate;
+pub mod connection;
 
 // Tools (implemented in later tasks)
 pub mod tools;
@@ -35,6 +36,7 @@ pub use schema_queries::{
 pub use sql_limiter::apply_row_limit;
 pub use sql_parser::{extract_first_keyword, split_sql_statements, strip_comments};
 pub use ssh_tunnel::{SSHAuth, SSHConfig, SSHTunnel, TunnelConfig, establish_tunnel};
+pub use connection::{DatabaseConnection, setup_database_pool, warmup_pool};
 pub use tools::ExecuteSQLTool;
 pub use types::{
     DatabaseType, ExecuteOptions, SQLResult, StoredProcedure, TableColumn, TableIndex,

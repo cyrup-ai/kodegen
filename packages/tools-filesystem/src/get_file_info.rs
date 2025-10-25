@@ -3,8 +3,6 @@ use kodegen_mcp_schema::filesystem::{GetFileInfoArgs, GetFileInfoPromptArgs};
 use kodegen_mcp_tool::Tool;
 use kodegen_mcp_tool::error::McpError;
 use rmcp::model::{PromptArgument, PromptMessage, PromptMessageContent, PromptMessageRole};
-use schemars::JsonSchema;
-use serde::Serialize;
 use serde_json::{Value, json};
 use std::time::SystemTime;
 use tokio::fs;

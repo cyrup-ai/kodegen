@@ -220,3 +220,17 @@ impl Drop for BrowserManager {
         info!("BrowserManager dropping - browser will be cleaned up");
     }
 }
+
+// ShutdownHook implementation for MCP server integration
+#[cfg(feature = "server")]
+use kodegen_mcp_server_core::ShutdownHook;
+
+#[cfg(feature = "server")]
+impl ShutdownHook for BrowserManager {
+    fn shutdown(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + '_>> {
+        Box::pin(async move {
+            BrowserManager::shutdown(self).await
+        })
+    }
+}
+

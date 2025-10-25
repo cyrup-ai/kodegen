@@ -14,9 +14,9 @@ pub struct ServiceConfig {
     pub sse: Option<SseServerConfig>,
     /// MCP Streamable HTTP transport binding (host:port)
     pub mcp_bind: Option<String>,
-    /// Kodegen SSE server configuration
+    /// Category SSE servers (14 tool categories)
     #[serde(default)]
-    pub kodegen_sse: KodegenSseConfig,
+    pub category_servers: Vec<CategoryServerConfig>,
 }
 
 /// SSE server configuration
@@ -51,12 +51,6 @@ fn default_true() -> bool {
 fn default_sse_port() -> u16 {
     30436
 }
-fn default_kodegen_port() -> u16 {
-    30437
-}
-fn default_bind_address() -> String {
-    "127.0.0.1".to_string()
-}
 fn default_mcp_server_url() -> String {
     "http://127.0.0.1:3000".to_string()
 }
@@ -87,53 +81,21 @@ impl Default for SseServerConfig {
     }
 }
 
-/// Kodegen SSE server configuration
+/// Category SSE server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KodegenSseConfig {
-    /// Enable kodegen SSE server
+pub struct CategoryServerConfig {
+    pub name: String,
+    pub binary: String,
+    pub port: u16,
     #[serde(default = "default_true")]
     pub enabled: bool,
-
-    /// Port for kodegen SSE server
-    #[serde(default = "default_kodegen_port")]
-    pub port: u16,
-
-    /// Bind address
-    #[serde(default = "default_bind_address")]
-    pub bind_address: String,
-
-    /// Tool categories to enable
-    #[serde(default)]
-    pub enabled_tools: Option<Vec<String>>,
-
-    /// TLS certificate path (PEM format)
-    /// If not specified, auto-discovered from standard install locations
-    #[serde(default)]
-    pub tls_cert: Option<std::path::PathBuf>,
-
-    /// TLS private key path (PEM format)
-    /// If not specified, auto-discovered from standard install locations
-    #[serde(default)]
-    pub tls_key: Option<std::path::PathBuf>,
 }
 
-impl Default for KodegenSseConfig {
-    fn default() -> Self {
-        let (tls_cert, tls_key) = discover_certificate_paths();
-        Self {
-            enabled: true,
-            port: 30437,
-            bind_address: "127.0.0.1".to_string(),
-            enabled_tools: None,
-            tls_cert,
-            tls_key,
-        }
-    }
-}
+
 
 /// Discover certificate paths from standard installation locations
 /// Checks system-wide and user-level install directories
-fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path::PathBuf>) {
+pub fn discover_certificate_paths() -> (Option<std::path::PathBuf>, Option<std::path::PathBuf>) {
     use std::path::PathBuf;
 
     // Standard certificate file names
@@ -216,6 +178,97 @@ impl From<SseServerConfig> for crate::service::sse::SseConfig {
     }
 }
 
+impl ServiceConfig {
+    fn default_category_servers() -> Vec<CategoryServerConfig> {
+        vec![
+            CategoryServerConfig {
+                name: "browser".to_string(),
+                binary: "kodegen-browser".to_string(),
+                port: 30438,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "citescrape".to_string(),
+                binary: "kodegen-citescrape".to_string(),
+                port: 30439,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "claude-agent".to_string(),
+                binary: "kodegen-claude-agent".to_string(),
+                port: 30440,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "config".to_string(),
+                binary: "kodegen-config".to_string(),
+                port: 30441,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "database".to_string(),
+                binary: "kodegen-database".to_string(),
+                port: 30442,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "filesystem".to_string(),
+                binary: "kodegen-filesystem".to_string(),
+                port: 30443,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "git".to_string(),
+                binary: "kodegen-git".to_string(),
+                port: 30444,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "github".to_string(),
+                binary: "kodegen-github".to_string(),
+                port: 30445,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "introspection".to_string(),
+                binary: "kodegen-introspection".to_string(),
+                port: 30446,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "process".to_string(),
+                binary: "kodegen-process".to_string(),
+                port: 30447,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "prompt".to_string(),
+                binary: "kodegen-prompt".to_string(),
+                port: 30448,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "reasoner".to_string(),
+                binary: "kodegen-reasoner".to_string(),
+                port: 30449,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "sequential-thinking".to_string(),
+                binary: "kodegen-sequential-thinking".to_string(),
+                port: 30450,
+                enabled: true,
+            },
+            CategoryServerConfig {
+                name: "terminal".to_string(),
+                binary: "kodegen-terminal".to_string(),
+                port: 30451,
+                enabled: true,
+            },
+        ]
+    }
+}
+
 impl Default for ServiceConfig {
     fn default() -> Self {
         Self {
@@ -227,7 +280,7 @@ impl Default for ServiceConfig {
             services: vec![],
             sse: Some(SseServerConfig::default()),
             mcp_bind: Some("0.0.0.0:33399".into()),
-            kodegen_sse: KodegenSseConfig::default(),
+            category_servers: ServiceConfig::default_category_servers(),
         }
     }
 }

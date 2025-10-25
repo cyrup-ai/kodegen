@@ -1,8 +1,9 @@
 //! Main document validator implementation
 
 use super::{
-    ConstraintChecker, JsonScalarConstraint, StructureAnalyzer, ValidationContext, ValidationRuleSet,
+    ConstraintChecker, StructureAnalyzer, ValidationContext, ValidationRuleSet,
     ValidationWarning, WarningSeverity, WarningType,
+    constraints::JsonScalarConstraint,
 };
 use crate::parser::ast::{Document, Node};
 use crate::semantic::{AnalysisContext, SemanticError};
@@ -62,10 +63,6 @@ impl<'input> DocumentValidator<'input> {
             validator.validation_context.set_yaml_version(major, minor);
         }
 
-        validator
-            .validation_context
-            .set_schema_type(config.schema_type);
-
         if config.schema_type == crate::semantic::tags::types::SchemaType::Json {
             validator
                 .constraint_checker
@@ -82,8 +79,6 @@ impl<'input> DocumentValidator<'input> {
         analysis_context: &AnalysisContext<'input>,
     ) -> Result<Vec<ValidationWarning<'input>>, SemanticError> {
         self.validation_context.reset();
-        self.validation_context
-            .set_schema_type(analysis_context.schema_type());
         let mut warnings = Vec::new();
 
         // Validate the document node

@@ -135,10 +135,18 @@ impl ServiceManager {
         Ok(())
     }
 
-    /// Start the kodegen SSE server if configured
+    /// Start category SSE servers if configured
     pub async fn start_kodegen_sse_server(&mut self, cfg: &ServiceConfig) -> Result<()> {
-        let mut service =
-            crate::service::kodegen_sse::KodegenSseService::new(cfg.kodegen_sse.clone());
+        let configs = cfg.category_servers.clone();
+        
+        log::info!("Starting {} category SSE servers", configs.len());
+        for config in &configs {
+            if config.enabled {
+                log::info!("  {} (port {})", config.name, config.port);
+            }
+        }
+
+        let mut service = crate::service::kodegen_sse::KodegenSseService::new(configs);
         service.start().await?;
         self.kodegen_sse_service = Some(service);
         Ok(())

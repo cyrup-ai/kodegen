@@ -27,6 +27,7 @@ lru = "0.16"
 # MCP tool dependencies
 kodegen_mcp_schema = { path = "../mcp-schema" }
 kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
+kodegen_mcp_server_core = { path = "../mcp-server-sse" }
 rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
 schemars = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
@@ -96,3 +97,7 @@ path = "src/lib.rs"
 [[example]]
 name = "crawl_ratatui"
 path = "examples/crawl_ratatui.rs"
+
+[[bin]]
+name = "kodegen-citescrape"
+path = "src/main.rs"

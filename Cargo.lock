@@ -1359,18 +1359,18 @@ checksum = "1e4b40c7323adcfc0a41c4b88143ed58346ff65a288fc144329c5c45e05d70c6"
 
 [[package]]
 name = "bitfields"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcdbce6688e3ab66aff2ab413b762ccde9f37990e27bba0bb38a4b2ad1b5d877"
+checksum = "6f7b84260234ecc8ba5a13cac862569913ee84281f108e6520121de0d50ac4db"
 dependencies = [
  "bitfields-impl",
 ]
 
 [[package]]
 name = "bitfields-impl"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57413e4b276d883b77fb368b7b33ae6a5eb97692852d49a5394d4f72ba961827"
+checksum = "e80ed89419086de767177cc00f0a9af47c9b34646c7c6d2203cd04b2a15c672a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1910,9 +1910,9 @@ dependencies = [
 
 [[package]]
 name = "cap-fs-ext"
-version = "3.4.4"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e41cc18551193fe8fa6f15c1e3c799bc5ec9e2cfbfaa8ed46f37013e3e6c173c"
+checksum = "d5528f85b1e134ae811704e41ef80930f56e795923f866813255bc342cc20654"
 dependencies = [
  "cap-primitives",
  "cap-std",
@@ -1922,9 +1922,9 @@ dependencies = [
 
 [[package]]
 name = "cap-primitives"
-version = "3.4.4"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a1e394ed14f39f8bc26f59d4c0c010dbe7f0a1b9bafff451b1f98b67c8af62a"
+checksum = "b6cf3aea8a5081171859ef57bc1606b1df6999df4f1110f8eef68b30098d1d3a"
 dependencies = [
  "ambient-authority",
  "fs-set-times",
@@ -1940,9 +1940,9 @@ dependencies = [
 
 [[package]]
 name = "cap-rand"
-version = "3.4.4"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0acb89ccf798a28683f00089d0630dfaceec087234eae0d308c05ddeaa941b40"
+checksum = "d8144c22e24bbcf26ade86cb6501a0916c46b7e4787abdb0045a467eb1645a1d"
 dependencies = [
  "ambient-authority",
  "rand 0.8.5",
@@ -1950,9 +1950,9 @@ dependencies = [
 
 [[package]]
 name = "cap-std"
-version = "3.4.4"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07c0355ca583dd58f176c3c12489d684163861ede3c9efa6fd8bba314c984189"
+checksum = "b6dc3090992a735d23219de5c204927163d922f42f575a0189b005c62d37549a"
 dependencies = [
  "cap-primitives",
  "io-extras",
@@ -1962,9 +1962,9 @@ dependencies = [
 
 [[package]]
 name = "cap-time-ext"
-version = "3.4.4"
+version = "3.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "491af520b8770085daa0466978c75db90368c71896523f2464214e38359b1a5b"
+checksum = "def102506ce40c11710a9b16e614af0cde8e76ae51b1f48c04b8d79f4b671a80"
 dependencies = [
  "ambient-authority",
  "cap-primitives",
@@ -2128,9 +2128,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.41"
+version = "1.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9fe6cdbb24b6ade63616c0a0688e45bb56732262c158df3c0c4bea4ca47cb7"
+checksum = "739eb0f94557554b3ca9a86d2d37bebd49c5e6d0c1d2bda35ba5bdac830befc2"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -3845,15 +3845,15 @@ dependencies = [
 
 [[package]]
 name = "doc-comment"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
+checksum = "780955b8b195a21ab8e4ac6b60dd1dbdcec1dc6c51c0617964b08c81785e12c9"
 
 [[package]]
 name = "document-features"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
+checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
 ]
@@ -4878,9 +4878,9 @@ dependencies = [
 
 [[package]]
 name = "flate2"
-version = "1.1.4"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc5a4e564e38c699f2880d3fda590bedc2e69f3f84cd48b457bd892ce61d0aa9"
+checksum = "bfe33edd8e85a12a67454e37f8c75e730830d83e313556ab9ebf9ee7fbeb3bfb"
 dependencies = [
  "crc32fast",
  "libz-rs-sys",
@@ -7434,11 +7434,11 @@ dependencies = [
 
 [[package]]
 name = "home"
-version = "0.5.11"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
+checksum = "cc627f471c528ff0c4a49e1d5e60450c8f6461dd6d10ba9dcd3a61d3dff7728d"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8530,54 +8530,22 @@ name = "kodegen"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
- "base64 0.22.1",
- "chromiumoxide",
- "chromiumoxide_cdp",
- "chromiumoxide_types",
- "chrono",
  "clap",
  "cyrup_termcolor",
  "dirs 6.0.0",
  "env_logger",
- "futures",
- "gray_matter",
- "grep",
- "ignore",
  "kodegen_bundler_autoconfig",
  "kodegen_mcp_client",
+ "kodegen_mcp_schema",
  "kodegen_mcp_tool",
- "kodegen_tools_browser",
- "kodegen_tools_citescrape",
- "kodegen_tools_claude_agent",
  "kodegen_tools_config",
- "kodegen_tools_database",
- "kodegen_tools_filesystem",
- "kodegen_tools_git",
- "kodegen_tools_github",
- "kodegen_tools_introspection",
- "kodegen_tools_process",
- "kodegen_tools_prompt",
- "kodegen_tools_reasoner",
- "kodegen_tools_sequential_thinking",
- "kodegen_tools_terminal",
  "kodegen_utils",
  "log",
- "mime_guess",
- "minijinja",
- "once_cell",
- "parking_lot",
  "rand 0.9.2",
- "regex",
- "reqwest",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
- "sqlx",
- "sysinfo 0.37.2",
- "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "workspace-hack",
@@ -9101,6 +9069,7 @@ dependencies = [
  "kodegen_candle_agent",
  "kodegen_mcp_client",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "log",
  "once_cell",
@@ -9157,6 +9126,7 @@ dependencies = [
  "imurl",
  "jwalk",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kuchiki",
  "lazy_static",
@@ -9206,6 +9176,7 @@ dependencies = [
  "env_logger",
  "futures",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_prompt",
  "log",
@@ -9270,6 +9241,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "lazy-regex",
@@ -9295,11 +9267,9 @@ name = "kodegen_tools_filesystem"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
  "base64 0.22.1",
  "bstr",
  "chrono",
- "clap",
  "cyrup_termcolor",
  "dirs 6.0.0",
  "env_logger",
@@ -9309,6 +9279,7 @@ dependencies = [
  "grep-pcre2",
  "ignore",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
@@ -9317,13 +9288,11 @@ dependencies = [
  "regex",
  "reqwest",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
- "tokio-util",
  "uuid",
  "workspace-hack",
 ]
@@ -9333,19 +9302,16 @@ name = "kodegen_tools_git"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
  "chrono",
- "clap",
- "env_logger",
  "futures",
  "gix",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
  "log",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
@@ -9353,7 +9319,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
- "tokio-util",
  "walkdir",
  "workspace-hack",
 ]
@@ -9363,15 +9328,13 @@ name = "kodegen_tools_github"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
  "bytes",
  "chrono",
- "clap",
- "env_logger",
  "futures",
  "gix",
  "jsonwebtoken",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
@@ -9382,7 +9345,6 @@ dependencies = [
  "regex",
  "reqwest",
  "rmcp",
- "rustls",
  "schemars",
  "semver",
  "serde",
@@ -9393,7 +9355,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
- "tokio-util",
  "toml 0.9.8",
  "walkdir",
  "workspace-hack",
@@ -9404,20 +9365,16 @@ name = "kodegen_tools_introspection"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
- "clap",
- "env_logger",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
- "tokio-util",
  "workspace-hack",
 ]
 
@@ -9426,21 +9383,17 @@ name = "kodegen_tools_process"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
- "clap",
- "env_logger",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
  "sysinfo 0.37.2",
  "tokio",
- "tokio-util",
  "workspace-hack",
 ]
 
@@ -9452,6 +9405,7 @@ dependencies = [
  "dirs 6.0.0",
  "gray_matter",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "log",
  "minijinja",
@@ -9471,6 +9425,7 @@ dependencies = [
  "futures",
  "kodegen_candle_agent",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "lazy_static",
  "log",
@@ -9495,6 +9450,7 @@ dependencies = [
  "cyrup_termcolor",
  "dirs 6.0.0",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "log",
  "parking_lot",
@@ -9512,12 +9468,10 @@ name = "kodegen_tools_terminal"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "axum-server",
  "bytes",
  "chrono",
- "clap",
- "env_logger",
  "kodegen_mcp_schema",
+ "kodegen_mcp_server_core",
  "kodegen_mcp_tool",
  "kodegen_tools_config",
  "kodegen_utils",
@@ -9528,13 +9482,11 @@ dependencies = [
  "portable-pty",
  "regex",
  "rmcp",
- "rustls",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
- "tokio-util",
  "uuid",
  "vt100",
  "workspace-hack",
@@ -9840,9 +9792,9 @@ checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
 
 [[package]]
 name = "litrs"
-version = "0.4.2"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5e54036fe321fd421e10d732f155734c4e4afd610dd556d9a82833ab3ee0bed"
+checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lock_api"

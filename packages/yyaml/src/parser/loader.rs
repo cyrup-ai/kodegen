@@ -799,8 +799,7 @@ pub struct YamlReceiver {
     resolution_stack: Vec<usize>,
     // Billion laughs protection
     alias_count: usize,
-    // Schema for scalar type inference
-    schema: SchemaType,
+    // Schema processor for scalar type inference
     schema_processor: SchemaProcessor<'static>,
 }
 
@@ -827,7 +826,6 @@ impl YamlReceiver {
             anchors: HashMap::with_capacity(16), // Reasonable anchor count
             resolution_stack: Vec::with_capacity(8), // Rare deep circular refs
             alias_count: 0,                      // Start with no aliases processed
-            schema,
             schema_processor: processor,
         }
     }

@@ -229,34 +229,31 @@ impl<'input> SchemaProcessor<'input> {
         Self::is_json_float_body(number_body)
     }
 
-    fn is_json_float_body(mut value: &str) -> bool {
+    fn is_json_float_body(value: &str) -> bool {
         if value.is_empty() {
             return false;
         }
 
-        let mut integer_part = value;
-        let mut fraction_part = "";
-        let mut exponent_part = "";
-
-        if let Some(dot_index) = value.find('.') {
+        let (integer_part, fraction_part, exponent_part) = if let Some(dot_index) = value.find('.') {
             if dot_index == value.len() - 1 {
                 return false;
             }
-            integer_part = &value[..dot_index];
-            fraction_part = &value[dot_index + 1..];
-            if fraction_part.is_empty() {
+            let int_part = &value[..dot_index];
+            let mut frac_part = &value[dot_index + 1..];
+            if frac_part.is_empty() {
                 return false;
             }
-            if let Some(exp_index) = fraction_part.find(|c| c == 'e' || c == 'E') {
-                exponent_part = &fraction_part[exp_index..];
-                fraction_part = &fraction_part[..exp_index];
+            let mut exp_part = "";
+            if let Some(exp_index) = frac_part.find(|c| c == 'e' || c == 'E') {
+                exp_part = &frac_part[exp_index..];
+                frac_part = &frac_part[..exp_index];
             }
+            (int_part, frac_part, exp_part)
         } else if let Some(exp_index) = value.find(|c| c == 'e' || c == 'E') {
-            integer_part = &value[..exp_index];
-            exponent_part = &value[exp_index..];
+            (&value[..exp_index], "", &value[exp_index..])
         } else {
             return false;
-        }
+        };
 
         if !Self::is_json_integer(integer_part) {
             return false;

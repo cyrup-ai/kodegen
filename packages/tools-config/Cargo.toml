@@ -22,23 +22,16 @@ kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
 kodegen_mcp_schema = { path = "../mcp-schema", version = "0.0.1" }
 kodegen_utils = { path = "../utils" , version = "0.0.1" }
 
-# MCP SDK - for Tool implementation and SSE server
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-sse-server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
+# MCP SDK - for Tool implementation and SSE server (manual due to circular dependency with mcp-server-core)
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-sse-server"], version = "0.8.1" }
 
-# CLI argument parsing - for binary
+# Dependencies for manual SSE server (can't use mcp-server-core due to circular dependency)
 clap = { version = "4.5", features = ["derive"] }
-
-# TLS/HTTPS - for binary
-rustls = { version = "0.23", features = ["ring"] }
-
-# HTTP server - for binary SSE server
 axum-server = { version = "0.7", features = ["tls-rustls"] }
-
-# Cancellation tokens - for graceful shutdown
 tokio-util = "0.7"
-
-# Logging initialization - for binary
 env_logger = "0.11"
+log = "0.4"
+rustls = "0.23"
 
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
@@ -53,9 +46,6 @@ schemars = "1.0"
 # Error handling
 anyhow = "1.0"
 thiserror = "2.0"
-
-# Logging
-log = "0.4"
 
 # Process management
 sysinfo = "0.37"

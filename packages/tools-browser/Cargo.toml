@@ -15,7 +15,8 @@ crate-type = ["lib"]
 # MCP tool dependencies
 kodegen_mcp_schema = { path = "../mcp-schema" }
 kodegen_mcp_tool = { path = "../mcp-tool", version = "0.0.1" }
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server"] }
+kodegen_mcp_server_core = { path = "../mcp-server-sse" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-sse-server"] }
 schemars = "1.0"
 
 # Async runtime
@@ -77,7 +78,13 @@ workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 [features]
 default = ["basic"]
 basic = []
+server = []
 agent = ["kodegen_candle_agent", "cyrup_sugars", "kodegen_mcp_client", "chrono"]
 research = ["agent", "urlencoding"]
 pdk = ["extism-pdk"]
 full = ["agent", "research", "pdk"]
+
+[[bin]]
+name = "kodegen-browser"
+path = "src/main.rs"
+required-features = ["server"]

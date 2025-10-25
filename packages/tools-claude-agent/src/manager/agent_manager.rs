@@ -131,6 +131,33 @@ impl Drop for AgentManager {
 }
 
 impl AgentManager {
+    /// Gracefully shutdown the AgentManager
+    ///
+    /// Terminates all active sessions and cancels the cleanup task.
+    /// Should be called before dropping to ensure clean shutdown.
+    pub async fn shutdown(&self) -> Result<()> {
+        log::info!("Shutting down AgentManager...");
+        
+        // Get all active session IDs
+        let session_ids: Vec<String> = {
+            let sessions = self.active_sessions.lock().await;
+            sessions.keys().cloned().collect()
+        };
+        
+        // Terminate all active sessions
+        for session_id in session_ids {
+            log::debug!("Terminating session: {}", session_id);
+            if let Err(e) = self.terminate_session(&session_id).await {
+                log::warn!("Failed to terminate session {}: {}", session_id, e);
+            }
+        }
+        
+        log::info!("AgentManager shutdown complete");
+        Ok(())
+    }
+}
+
+impl AgentManager {
     /// Spawn a new Claude agent session
     ///
     /// Creates a new `ClaudeSDKClient` with the specified options, sends the initial prompt,
@@ -562,5 +589,18 @@ fn calculate_has_more(offset: i64, messages_returned: usize, total_messages: usi
         (offset as usize + messages_returned) < total_messages
     } else {
         false
+    }
+}
+
+// ShutdownHook implementation for MCP server integration
+#[cfg(feature = "server")]
+use kodegen_mcp_server_core::ShutdownHook;
+
+#[cfg(feature = "server")]
+impl ShutdownHook for AgentManager {
+    fn shutdown(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + '_>> {
+        Box::pin(async move {
+            AgentManager::shutdown(self).await.map_err(|e| anyhow::anyhow!("{}", e))
+        })
     }
 }

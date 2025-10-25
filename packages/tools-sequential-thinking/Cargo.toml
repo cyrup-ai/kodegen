@@ -20,9 +20,10 @@ license = "Apache-2.0 OR MIT"
 [dependencies]
 kodegen_mcp_tool = { path = "../mcp-tool" , version = "0.0.1" }
 kodegen_mcp_schema = { path = "../mcp-schema", version = "0.0.1" }
+kodegen_mcp_server_core = { path = "../mcp-server-sse", optional = true }
 
 # MCP SDK - for Tool implementation and prompt types
-rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"], version = "0.8.1" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", branch = "main", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "transport-sse-server"], version = "0.8.1" }
 
 # Async runtime - for tokio::sync::RwLock
 tokio = { version = "1.48", features = ["full"] }
@@ -56,3 +57,13 @@ workspace-hack = { version = "0.0.1", path = "../../workspace-hack" }
 [lib]
 name = "kodegen_tools_sequential_thinking"
 path = "src/lib.rs"
+
+[features]
+default = ["basic"]
+basic = []
+server = ["kodegen_mcp_server_core"]
+
+[[bin]]
+name = "kodegen-sequential-thinking"
+path = "src/main.rs"
+required-features = ["server"]
