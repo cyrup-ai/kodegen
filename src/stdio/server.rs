@@ -442,12 +442,17 @@ impl ServerHandler for StdioProxyServer {
         })
     }
 
+    /// Resources are not implemented in stdio mode.
+    ///
+    /// This server focuses on tool execution via HTTP category servers.
+    /// Resources capability is not advertised, so clients should not call these methods.
+    /// These methods exist only to satisfy the ServerHandler trait.
     async fn list_resources(
         &self,
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        // No resources in this implementation
+        // Resources not supported in stdio mode (similar to prompts)
         Ok(ListResourcesResult {
             resources: vec![],
             next_cursor: None,
@@ -456,12 +461,16 @@ impl ServerHandler for StdioProxyServer {
 
     async fn read_resource(
         &self,
-        request: ReadResourceRequestParam,
+        _request: ReadResourceRequestParam,
         _: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
-        Err(McpError::resource_not_found(
-            "resource_not_found",
-            Some(json!({ "uri": request.uri })),
+        // Resources not supported in stdio mode
+        Err(McpError::invalid_request(
+            "Resources not supported in stdio mode",
+            Some(json!({
+                "message": "This server only supports tools. Resources are not available in stdio mode.",
+                "uri": _request.uri
+            }))
         ))
     }
 
@@ -470,6 +479,7 @@ impl ServerHandler for StdioProxyServer {
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
+        // Resources not supported in stdio mode
         Ok(ListResourceTemplatesResult {
             next_cursor: None,
             resource_templates: Vec::new(),
