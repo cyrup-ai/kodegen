@@ -62,7 +62,9 @@ async fn main() -> Result<()> {
     }
 
     // Generate unique instance ID for this server run
-    let instance_id = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
+    let timestamp = chrono::Utc::now();
+    let pid = std::process::id();
+    let instance_id = format!("{}-{}", timestamp.format("%Y%m%d-%H%M%S-%9f"), pid);
 
     // Initialize shared components
     let config_manager = kodegen_tools_config::ConfigManager::new();
