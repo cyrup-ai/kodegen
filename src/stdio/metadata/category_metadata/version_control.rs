@@ -1,0 +1,317 @@
+//! Version control tools: git, github
+
+use kodegen_mcp_schema::*;
+use crate::stdio::metadata::types::{build_schema, ToolMetadata};
+
+pub fn version_control_tools() -> Vec<ToolMetadata> {
+    vec![
+        // GIT (20 tools)
+        ToolMetadata {
+            name: "git_add",
+            category: "git",
+            description: "Stage file changes for commit in a Git repository. Specify paths to stage specific files.' } fn read_only() -> bool { false // Modifies index } fn ...",
+            schema: build_schema::<git::GitAddArgs>(),
+        },
+        ToolMetadata {
+            name: "git_branch_create",
+            category: "git",
+            description: "Create a new branch in a Git repository. Optionally specify a starting point and checkout the branch after creation.' } fn read_only() -> bool { fa...",
+            schema: build_schema::<git::GitBranchCreateArgs>(),
+        },
+        ToolMetadata {
+            name: "git_branch_delete",
+            category: "git",
+            description: "Delete a branch from a Git repository. Cannot delete the currently checked-out branch.' } fn read_only() -> bool { false // Modifies repository } f...",
+            schema: build_schema::<git::GitBranchDeleteArgs>(),
+        },
+        ToolMetadata {
+            name: "git_branch_list",
+            category: "git",
+            description: "List all local branches in a Git repository.' } fn read_only() -> bool { true // Only reads, doesn't modify } fn destructive() -> bool { false } fn...",
+            schema: build_schema::<git::GitBranchListArgs>(),
+        },
+        ToolMetadata {
+            name: "git_branch_rename",
+            category: "git",
+            description: "Rename a branch in a Git repository. Automatically updates HEAD if renaming the current branch.' } fn read_only() -> bool { false // Modifies repos...",
+            schema: build_schema::<git::GitBranchRenameArgs>(),
+        },
+        ToolMetadata {
+            name: "git_checkout",
+            category: "git",
+            description: "Checkout a Git reference (branch, tag, or commit) or restore specific files. Without paths: switches branches/commits. With paths: restores files f...",
+            schema: build_schema::<git::GitCheckoutArgs>(),
+        },
+        ToolMetadata {
+            name: "git_clone",
+            category: "git",
+            description: "Clone a remote Git repository to a local path. Supports shallow cloning (limited history) and branch-specific cloning. The destination path must no...",
+            schema: build_schema::<git::GitCloneArgs>(),
+        },
+        ToolMetadata {
+            name: "git_commit",
+            category: "git",
+            description: "Create a new commit in a Git repository. Optionally specify author information and stage all modified files.' } fn read_only() -> bool { false // C...",
+            schema: build_schema::<git::GitCommitArgs>(),
+        },
+        ToolMetadata {
+            name: "git_discover",
+            category: "git",
+            description: "Discover a Git repository by searching upward from the given path. This will traverse parent directories until it finds a .git directory or reaches...",
+            schema: build_schema::<git::GitDiscoverArgs>(),
+        },
+        ToolMetadata {
+            name: "git_fetch",
+            category: "git",
+            description: "Fetch updates from a remote repository. Downloads objects and refs from another repository.' } fn read_only() -> bool { false // Fetches refs } fn ...",
+            schema: build_schema::<git::GitFetchArgs>(),
+        },
+        ToolMetadata {
+            name: "git_init",
+            category: "git",
+            description: "Initialize a new Git repository at the specified path. Supports both normal repositories (with working directory) and bare repositories (without wo...",
+            schema: build_schema::<git::GitInitArgs>(),
+        },
+        ToolMetadata {
+            name: "git_log",
+            category: "git",
+            description: "List commit history from a Git repository. Optionally filter by file path and limit the number of results.' } fn read_only() -> bool { true // Only...",
+            schema: build_schema::<git::GitLogArgs>(),
+        },
+        ToolMetadata {
+            name: "git_merge",
+            category: "git",
+            description: "Merge a branch or commit into the current branch. Joins two or more development histories together.' } fn read_only() -> bool { false // Modifies H...",
+            schema: build_schema::<git::GitMergeArgs>(),
+        },
+        ToolMetadata {
+            name: "git_open",
+            category: "git",
+            description: "Open an existing Git repository at the specified path. The repository must already exist at the given location.' } fn read_only() -> bool { true //...",
+            schema: build_schema::<git::GitOpenArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_add",
+            category: "git",
+            description: "Create a new worktree linked to the repository. Allows working on multiple branches simultaneously.' } fn read_only() -> bool { false // Creates wo...",
+            schema: build_schema::<git::GitWorktreeAddArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_list",
+            category: "git",
+            description: "List all worktrees in the repository with detailed status. Returns main worktree and all linked worktrees with their paths, branches, lock status, ...",
+            schema: build_schema::<git::GitWorktreeListArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_lock",
+            category: "git",
+            description: "Lock a worktree to prevent deletion. Useful for worktrees on removable media or network drives.' } fn read_only() -> bool { false // Writes lock fi...",
+            schema: build_schema::<git::GitWorktreeLockArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_prune",
+            category: "git",
+            description: "Remove stale worktree administrative files. Cleans up .git/worktrees/ entries for worktrees whose directories have been manually deleted. Returns l...",
+            schema: build_schema::<git::GitWorktreePruneArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_remove",
+            category: "git",
+            description: "Remove a worktree and its associated administrative files. Cannot remove locked worktrees without force flag.' } fn read_only() -> bool { false // ...",
+            schema: build_schema::<git::GitWorktreeRemoveArgs>(),
+        },
+        ToolMetadata {
+            name: "git_worktree_unlock",
+            category: "git",
+            description: "Unlock a locked worktree. Removes the lock that prevents worktree deletion.' } fn read_only() -> bool { false // Removes lock file } fn destructive...",
+            schema: build_schema::<git::GitWorktreeUnlockArgs>(),
+        },
+        // GITHUB (31 tools)
+        ToolMetadata {
+            name: "add_issue_comment",
+            category: "github",
+            description: "Add a comment to an existing GitHub issue. Supports Markdown formatting in the comment body. Requires GITHUB_TOKEN environment variable with write ...",
+            schema: build_schema::<github::AddIssueCommentArgs>(),
+        },
+        ToolMetadata {
+            name: "add_pull_request_review_comment",
+            category: "github",
+            description: "Add an inline review comment to a pull request (comment on specific lines of code). Supports single-line, multi-line, and threaded comments. Requir...",
+            schema: build_schema::<github::AddPullRequestReviewCommentArgs>(),
+        },
+        ToolMetadata {
+            name: "code_scanning_alerts",
+            category: "github",
+            description: "List code scanning security alerts for a GitHub repository. Returns alerts with details about vulnerabilities, their severity, location, and status...",
+            schema: build_schema::<github::CodeScanningAlertsArgs>(),
+        },
+        ToolMetadata {
+            name: "create_branch",
+            category: "github",
+            description: "Create a new branch from a commit SHA' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent() -> bool { false } fn o...",
+            schema: build_schema::<github::CreateBranchArgs>(),
+        },
+        ToolMetadata {
+            name: "create_issue",
+            category: "github",
+            description: "Create a new issue in a GitHub repository. Supports setting title, body, labels, and assignees. Requires GITHUB_TOKEN environment variable with app...",
+            schema: build_schema::<github::CreateIssueArgs>(),
+        },
+        ToolMetadata {
+            name: "create_or_update_file",
+            category: "github",
+            description: "Create a new file or update an existing file in a GitHub repository' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idemp...",
+            schema: build_schema::<github::CreateOrUpdateFileArgs>(),
+        },
+        ToolMetadata {
+            name: "create_pull_request",
+            category: "github",
+            description: "Create a new pull request in a GitHub repository' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent() -> bool { f...",
+            schema: build_schema::<github::CreatePullRequestArgs>(),
+        },
+        ToolMetadata {
+            name: "create_pull_request_review",
+            category: "github",
+            description: "Create a review on a pull request (approve, request changes, or comment). Requires GITHUB_TOKEN environment variable with repo permissions.' } fn r...",
+            schema: build_schema::<github::CreatePullRequestReviewArgs>(),
+        },
+        ToolMetadata {
+            name: "create_repository",
+            category: "github",
+            description: "Create a new repository under the authenticated user's account' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent...",
+            schema: build_schema::<github::CreateRepositoryArgs>(),
+        },
+        ToolMetadata {
+            name: "fork_repository",
+            category: "github",
+            description: "Fork a repository to your account or an organization' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent() -> bool...",
+            schema: build_schema::<github::ForkRepositoryArgs>(),
+        },
+        ToolMetadata {
+            name: "get_commit",
+            category: "github",
+            description: "Get detailed information about a specific commit' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bool { tr...",
+            schema: build_schema::<github::GetCommitArgs>(),
+        },
+        ToolMetadata {
+            name: "get_file_contents",
+            category: "github",
+            description: "Get file or directory contents from a GitHub repository' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bo...",
+            schema: build_schema::<github::GetFileContentsArgs>(),
+        },
+        ToolMetadata {
+            name: "get_issue",
+            category: "github",
+            description: "Fetch a single GitHub issue by number. Returns detailed issue information including title, body, state, labels, assignees, comments count, and time...",
+            schema: build_schema::<github::GetIssueArgs>(),
+        },
+        ToolMetadata {
+            name: "get_issue_comments",
+            category: "github",
+            description: "Fetch all comments for a GitHub issue. Returns an array of comment objects including author, body, timestamps, and metadata. Comments are returned ...",
+            schema: build_schema::<github::GetIssueCommentsArgs>(),
+        },
+        ToolMetadata {
+            name: "get_me",
+            category: "github",
+            description: "Get information about the authenticated GitHub user. Returns user profile details including login, name, email, avatar, bio, company, location, rep...",
+            schema: build_schema::<github::GetMeArgs>(),
+        },
+        ToolMetadata {
+            name: "get_pull_request_files",
+            category: "github",
+            description: "Get all files changed in a pull request with their diff stats' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent()...",
+            schema: build_schema::<github::GetPullRequestFilesArgs>(),
+        },
+        ToolMetadata {
+            name: "get_pull_request_reviews",
+            category: "github",
+            description: "Get all reviews for a pull request. Shows approval status, requested changes, and comments from reviewers. Requires GITHUB_TOKEN environment variab...",
+            schema: build_schema::<github::GetPullRequestReviewsArgs>(),
+        },
+        ToolMetadata {
+            name: "get_pull_request_status",
+            category: "github",
+            description: "Get detailed status information about a pull request including merge status, checks, and review state' } fn read_only() -> bool { true } fn destruc...",
+            schema: build_schema::<github::GetPullRequestStatusArgs>(),
+        },
+        ToolMetadata {
+            name: "list_branches",
+            category: "github",
+            description: "List all branches in a repository' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bool { true } fn open_wo...",
+            schema: build_schema::<github::ListBranchesArgs>(),
+        },
+        ToolMetadata {
+            name: "list_commits",
+            category: "github",
+            description: "List commits in a repository with filtering options' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bool {...",
+            schema: build_schema::<github::ListCommitsArgs>(),
+        },
+        ToolMetadata {
+            name: "list_issues",
+            category: "github",
+            description: "List and filter issues in a GitHub repository. Supports filtering by state, labels, assignee, and pagination. Returns an array of issue objects. Re...",
+            schema: build_schema::<github::ListIssuesArgs>(),
+        },
+        ToolMetadata {
+            name: "merge_pull_request",
+            category: "github",
+            description: "Merge a pull request in a GitHub repository' } fn read_only() -> bool { false } fn destructive() -> bool { true } fn idempotent() -> bool { false }...",
+            schema: build_schema::<github::MergePullRequestArgs>(),
+        },
+        ToolMetadata {
+            name: "push_files",
+            category: "github",
+            description: "Push multiple files to a GitHub repository in a single commit. All files are added atomically (creates tree, commit, and updates ref). File content...",
+            schema: build_schema::<github::PushFilesArgs>(),
+        },
+        ToolMetadata {
+            name: "request_copilot_review",
+            category: "github",
+            description: "Request GitHub Copilot to review a pull request (experimental feature). Triggers automated code review from Copilot. Requires GITHUB_TOKEN and Copi...",
+            schema: build_schema::<github::RequestCopilotReviewArgs>(),
+        },
+        ToolMetadata {
+            name: "search_code",
+            category: "github",
+            description: "Search code across GitHub repositories using GitHub's code search syntax' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn i...",
+            schema: build_schema::<github::SearchCodeArgs>(),
+        },
+        ToolMetadata {
+            name: "search_issues",
+            category: "github",
+            description: "Search for issues across GitHub using GitHub's powerful search syntax. Supports filtering by repository, state, labels, assignee, author, dates, an...",
+            schema: build_schema::<github::SearchIssuesArgs>(),
+        },
+        ToolMetadata {
+            name: "search_repositories",
+            category: "github",
+            description: "Search GitHub repositories using GitHub's repository search syntax' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempot...",
+            schema: build_schema::<github::SearchRepositoriesArgs>(),
+        },
+        ToolMetadata {
+            name: "search_users",
+            category: "github",
+            description: "Search GitHub users using GitHub's user search syntax' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bool...",
+            schema: build_schema::<github::SearchUsersArgs>(),
+        },
+        ToolMetadata {
+            name: "secret_scanning_alerts",
+            category: "github",
+            description: "List secret scanning alerts (leaked credentials) for a GitHub repository. Returns alerts about exposed secrets like API keys, tokens, passwords, an...",
+            schema: build_schema::<github::SecretScanningAlertsArgs>(),
+        },
+        ToolMetadata {
+            name: "update_issue",
+            category: "github",
+            description: "Update an existing GitHub issue. Supports partial updates - only specified fields will be modified. Can update title, body, state (open/closed), la...",
+            schema: build_schema::<github::UpdateIssueArgs>(),
+        },
+        ToolMetadata {
+            name: "update_pull_request",
+            category: "github",
+            description: "Update an existing pull request in a GitHub repository' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent() -> bo...",
+            schema: build_schema::<github::UpdatePullRequestArgs>(),
+        },
+    ]
+}
