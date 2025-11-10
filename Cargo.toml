@@ -35,7 +35,7 @@ kodegen_mcp_schema = { version = "0.1" }  # For static tool metadata
 kodegen_tools_config = { version = "0.1" }
 kodegen_mcp_tool = { version = "0.1" }
 kodegen_utils = { version = "0.1" }
-kodegen_bundler_autoconfig = { version = "0.1", path = "../kodegen-bundler-autoconfig" }
+kodegen_bundler_autoconfig = { version = "0.1" }
 kodegen_mcp_client = { version = "0.1" }
 
 # CLI argument parsing
