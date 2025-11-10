@@ -177,7 +177,7 @@ pub struct StdioProxyServer {
     usage_tracker: UsageTracker,
 
     /// Configuration manager
-    config_manager: kodegen_tools_config::ConfigManager,
+    config_manager: kodegen_config_manager::ConfigManager,
 }
 
 impl StdioProxyServer {
@@ -190,7 +190,7 @@ impl StdioProxyServer {
     /// * `http_config` - HTTP connection configuration (retry, timeout, etc.)
     /// * `shutdown_token` - Cancellation token for graceful shutdown during initialization
     pub async fn new(
-        config_manager: kodegen_tools_config::ConfigManager,
+        config_manager: kodegen_config_manager::ConfigManager,
         usage_tracker: UsageTracker,
         enabled_tools: &Option<std::collections::HashSet<String>>,
         http_config: HttpConnectionConfig,

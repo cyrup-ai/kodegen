@@ -242,7 +242,7 @@ impl Cli {
     /// Get the HTTP connection timeout with fallback to config
     pub fn http_connection_timeout(
         &self,
-        config_manager: &kodegen_tools_config::ConfigManager,
+        config_manager: &kodegen_config_manager::ConfigManager,
     ) -> std::time::Duration {
         let seconds = self
             .http_timeout

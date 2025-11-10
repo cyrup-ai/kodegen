@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
     let instance_id = format!("{}-{}", timestamp.format("%Y%m%d-%H%M%S-%9f"), pid);
 
     // Initialize shared components
-    let config_manager = kodegen_tools_config::ConfigManager::new();
+    let config_manager = kodegen_config_manager::ConfigManager::new();
     config_manager.init().await?;
     let usage_tracker = UsageTracker::new(instance_id.clone());
 

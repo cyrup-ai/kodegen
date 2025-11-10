@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -31,8 +31,8 @@ macos = "public.app-category.developer-tools"
 
 [dependencies]
 cyrup_termcolor = "2"
-kodegen_mcp_schema = { version = "0.1" }  # For static tool metadata
-kodegen_tools_config = { version = "0.1" }
+kodegen_mcp_schema = { version = "0.1" }
+kodegen_config_manager = { version = "0.1" }
 kodegen_mcp_tool = { version = "0.1" }
 kodegen_utils = { version = "0.1" }
 kodegen_bundler_autoconfig = { version = "0.1" }
