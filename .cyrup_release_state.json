@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "save_version": 1,
+  "release_id": "release-0.1.3-1762866045",
+  "target_version": "0.1.3",
+  "version_bump": "Patch",
+  "started_at": "2025-11-11T13:00:45.158626Z",
+  "updated_at": "2025-11-11T13:00:46.519574Z",
+  "current_phase": "VersionUpdate",
+  "checkpoints": [],
+  "version_state": null,
+  "git_state": null,
+  "github_state": null,
+  "publish_state": null,
+  "errors": [],
+  "config": {
+    "dry_run_first": true,
+    "push_to_remote": true,
+    "inter_package_delay_ms": 15000,
+    "registry": null,
+    "allow_dirty": false,
+    "additional_options": {}
+  }
+}
