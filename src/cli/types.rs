@@ -144,10 +144,11 @@ pub struct Cli {
     #[arg(long)]
     pub http_no_retry: bool,
 
-    /// HTTP server host (default: mcp.kodegen.ai)
-    /// Use 127.0.0.1 for local testing without daemon
-    #[arg(long, value_name = "HOST", default_value = "mcp.kodegen.ai")]
-    pub host: String,
+    /// HTTP server host
+    /// Defaults to 127.0.0.1 when --no-tls is used (local testing)
+    /// Defaults to mcp.kodegen.ai otherwise (production)
+    #[arg(long, value_name = "HOST")]
+    pub host: Option<String>,
 
     /// Disable TLS for HTTP connections (use HTTP instead of HTTPS)
     /// Useful for local testing without certificates
@@ -263,6 +264,22 @@ impl Cli {
     /// Get the initial HTTP retry backoff duration
     pub fn http_retry_backoff_duration(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.http_retry_backoff)
+    }
+
+    /// Get the effective HTTP host based on --no-tls and --host flags
+    ///
+    /// Returns:
+    /// - Explicit --host value if provided
+    /// - "127.0.0.1" if --no-tls is set without explicit --host (local testing)
+    /// - "mcp.kodegen.ai" otherwise (production default)
+    pub fn effective_host(&self) -> &str {
+        if let Some(ref host) = self.host {
+            host
+        } else if self.no_tls {
+            "127.0.0.1"
+        } else {
+            "mcp.kodegen.ai"
+        }
     }
 }
 

@@ -235,7 +235,7 @@ impl StdioProxyServer {
             })?;
 
             let protocol = if http_config.no_tls { "http" } else { "https" };
-            let url = format!("{}://{}:{}/", protocol, http_config.host, port);
+            let url = format!("{}://{}:{}/mcp", protocol, http_config.host, port);
             
             log::debug!("Connecting to {category} server at {url}");
 

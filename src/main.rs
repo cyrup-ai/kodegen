@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
         connection_timeout: cli.http_connection_timeout(&config_manager),
         max_retries: cli.http_max_retries(),
         retry_backoff: cli.http_retry_backoff_duration(),
-        host: cli.host.clone(),
+        host: cli.effective_host().to_string(),
         no_tls: cli.no_tls,
     };
 
