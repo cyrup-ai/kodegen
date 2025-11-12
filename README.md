@@ -345,7 +345,7 @@ start_search({
 })
 ```
 
-**Other filesystem tools:** `read_multiple_files`, `move_file`, `delete_file`, `delete_directory`, `create_directory`, `get_file_info`, `list_directory`, `get_more_search_results`, `stop_search`, `list_searches`
+**Other filesystem tools:** `read_multiple_files`, `move_file`, `delete_file`, `delete_directory`, `create_directory`, `get_file_info`, `list_directory`, `get_search_results`, `stop_search`, `list_searches`
 
 ### Terminal Tools (5 tools)
 

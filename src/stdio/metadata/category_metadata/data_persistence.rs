@@ -80,7 +80,7 @@ pub fn data_persistence_tools() -> Vec<ToolMetadata> {
             schema: build_schema::<filesystem::GetFileInfoArgs>(),
         },
         ToolMetadata {
-            name: "get_more_search_results",
+            name: "get_search_results",
             category: "filesystem",
             description: "Get more results from an active search with offset-based pagination.nn Supports partial result reading with:n - 'offset' (start result index, defau...",
             schema: build_schema::<filesystem::GetMoreSearchResultsArgs>(),
