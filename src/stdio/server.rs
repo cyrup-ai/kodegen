@@ -1,5 +1,5 @@
 // packages/server/src/stdio/server.rs
-use anyhow::Result;
+use anyhow::{Context, Result};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
 use rmcp::{
@@ -16,6 +16,7 @@ use rmcp::{
 };
 use serde_json::json;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -160,12 +161,19 @@ async fn connect_with_retry(
 pub struct StdioProxyServer {
     /// HTTP clients for each category server (category -> client)
     /// Each client is cheap to clone (Arc pointers internally)
-    category_clients: HashMap<String, kodegen_mcp_client::KodegenClient>,
+    /// Use Arc<RwLock> for interior mutability (allows reconnection via &self)
+    category_clients: Arc<tokio::sync::RwLock<HashMap<String, kodegen_mcp_client::KodegenClient>>>,
 
     /// Connection lifecycle managers for each category (not Clone)
     /// When these are dropped, HTTP connections will be closed
     #[allow(dead_code)]
-    category_connections: Vec<kodegen_mcp_client::KodegenConnection>,
+    category_connections: Arc<tokio::sync::RwLock<Vec<kodegen_mcp_client::KodegenConnection>>>,
+
+    /// HTTP config for reconnection
+    http_config: HttpConnectionConfig,
+
+    /// Shutdown token for reconnection
+    shutdown_token: CancellationToken,
 
     /// Routing table: tool_name -> (category, port)
     routing_table: HashMap<&'static str, (&'static str, u16)>,
@@ -276,13 +284,65 @@ impl StdioProxyServer {
         );
 
         Ok(Self {
-            category_clients,
-            category_connections,
+            category_clients: Arc::new(tokio::sync::RwLock::new(category_clients)),
+            category_connections: Arc::new(tokio::sync::RwLock::new(category_connections)),
+            http_config: http_config.clone(),
+            shutdown_token: shutdown_token.clone(),
             routing_table,
             enabled_tools: enabled_tools_set,
             usage_tracker,
             config_manager,
         })
+    }
+
+    /// Reconnect to a category server after session expiry
+    ///
+    /// Creates a new HTTP session with the category server and updates the
+    /// category_clients map. The old connection is dropped automatically.
+    ///
+    /// # Arguments
+    /// * `category` - Category name (e.g., "filesystem", "terminal")
+    ///
+    /// # Returns
+    /// * `Ok(new_client)` - New client with fresh session
+    /// * `Err(anyhow::Error)` - Connection failed after retries
+    async fn reconnect_category(
+        &self,
+        category: &str,
+    ) -> Result<kodegen_mcp_client::KodegenClient> {
+        let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+        let port = port_map.get(category).copied().ok_or_else(|| {
+            anyhow::anyhow!("No port assignment for category: {}", category)
+        })?;
+
+        let protocol = if self.http_config.no_tls { "http" } else { "https" };
+        let url = format!("{}://{}:{}/mcp", protocol, self.http_config.host, port);
+
+        log::info!("Reconnecting to {} server at {}", category, url);
+
+        let (new_client, new_connection) = connect_with_retry(
+            &url,
+            self.http_config.max_retries,
+            self.http_config.retry_backoff,
+            self.http_config.connection_timeout,
+            &self.shutdown_token,
+        )
+        .await
+        .with_context(|| format!("Failed to reconnect to {} server", category))?;
+
+        // Update the category_clients map with new client
+        let mut clients = self.category_clients.write().await;
+        clients.insert(category.to_string(), new_client.clone());
+        drop(clients);
+
+        // Store new connection to keep it alive
+        let mut connections = self.category_connections.write().await;
+        connections.push(new_connection);
+        drop(connections);
+
+        log::info!("Reconnected to {} server successfully", category);
+
+        Ok(new_client)
     }
 
     /// Serve the stdio server
@@ -335,7 +395,8 @@ impl ServerHandler for StdioProxyServer {
             McpError::invalid_params(format!("Unknown tool: {}", tool_name), None)
         })?;
 
-        let client = self.category_clients.get(*category).ok_or_else(|| {
+        let clients = self.category_clients.read().await;
+        let client = clients.get(*category).cloned().ok_or_else(|| {
             McpError::internal_error(
                 format!(
                     "Category server '{}' not connected (tool: {})",
@@ -344,6 +405,7 @@ impl ServerHandler for StdioProxyServer {
                 None,
             )
         })?;
+        drop(clients);
 
         log::debug!(
             "Proxying tool call '{}' to category '{}' server",
@@ -358,16 +420,66 @@ impl ServerHandler for StdioProxyServer {
         };
 
         // Call tool via category HTTP client
-        let result = match client.call_tool(&tool_name, args).await {
-            Ok(result) => Ok(result),
-            Err(e) => {
+        let mut result = client.call_tool(&tool_name, args.clone()).await;
+
+        // Handle session expiry with automatic reconnection and retry
+        if let Err(ref e) = result {
+            let error_str: String = format!("{:?}", e);
+            
+            // Detect 401/Unauthorized errors (session expired)
+            if error_str.contains("401") || error_str.contains("Unauthorized") {
+                log::warn!(
+                    "Session expired for category '{}' (tool: {}). Attempting reconnection...",
+                    category,
+                    tool_name
+                );
+
+                // Attempt to reconnect to the category server
+                match self.reconnect_category(category).await {
+                    Ok(new_client) => {
+                        log::info!(
+                            "Reconnection successful for category '{}'. Retrying tool call '{}'...",
+                            category,
+                            tool_name
+                        );
+
+                        // Retry the tool call with the new client
+                        result = new_client.call_tool(&tool_name, args).await;
+
+                        match &result {
+                            Ok(_) => {
+                                log::info!(
+                                    "Tool call '{}' succeeded after session recovery",
+                                    tool_name
+                                );
+                            }
+                            Err(retry_error) => {
+                                log::error!(
+                                    "Tool call '{}' failed after session recovery: {}",
+                                    tool_name,
+                                    retry_error
+                                );
+                            }
+                        }
+                    }
+                    Err(reconnect_error) => {
+                        log::error!(
+                            "Failed to reconnect to category '{}' server: {}",
+                            category,
+                            reconnect_error
+                        );
+                        // Keep the original error
+                    }
+                }
+            } else {
                 log::error!("HTTP proxy error for tool '{}': {}", tool_name, e);
-                Err(McpError::internal_error(
-                    format!("HTTP proxy error: {}", e),
-                    None,
-                ))
             }
-        };
+        }
+
+        // Convert result to McpError if needed
+        let result = result.map_err(|e| {
+            McpError::internal_error(format!("HTTP proxy error: {}", e), None)
+        });
 
         // Track usage metrics
         if result.is_ok() {
@@ -387,6 +499,9 @@ impl ServerHandler for StdioProxyServer {
         // Serve tool metadata from static metadata (no tool instantiation)
         let mut tools = Vec::new();
 
+        // Acquire read lock for category_clients
+        let clients = self.category_clients.read().await;
+
         for tool_meta in all_tool_metadata() {
             // Filter by enabled_tools if set
             if let Some(ref enabled) = self.enabled_tools
@@ -395,7 +510,7 @@ impl ServerHandler for StdioProxyServer {
                 }
 
             // Only include tools whose category server is connected
-            if !self.category_clients.contains_key(tool_meta.category) {
+            if !clients.contains_key(tool_meta.category) {
                 continue;
             }
 
@@ -415,6 +530,8 @@ impl ServerHandler for StdioProxyServer {
                 icons: None,
             });
         }
+
+        drop(clients);
 
         log::debug!("Serving {} tools from static metadata", tools.len());
 
