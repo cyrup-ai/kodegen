@@ -47,7 +47,7 @@ pub struct Cli {
 
     /// Enable specific tools by name (comma-separated)
     ///
-    /// Example: --tools read_file,write_file,start_terminal
+    /// Example: --tools fs_read_file,fs_write_file,start_terminal
     ///
     /// If not specified, all tools are enabled.
     #[arg(long, value_delimiter = ',', conflicts_with = "tool")]
@@ -55,7 +55,7 @@ pub struct Cli {
 
     /// Enable specific tool by name (can be specified multiple times)
     ///
-    /// Example: --tool read_file --tool write_file --tool start_terminal
+    /// Example: --tool fs_read_file --tool fs_write_file --tool start_terminal
     ///
     /// If not specified, all tools are enabled.
     #[arg(long = "tool", conflicts_with = "tools")]
@@ -67,8 +67,8 @@ pub struct Cli {
     /// ```json
     /// {
     ///   "tools": [
-    ///     "read_file",
-    ///     "write_file",
+    ///     "fs_read_file",
+    ///     "fs_write_file",
     ///     "start_terminal"
     ///   ]
     /// }

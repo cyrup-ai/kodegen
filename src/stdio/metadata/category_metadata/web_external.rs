@@ -5,7 +5,7 @@ use crate::stdio::metadata::types::{build_schema, ToolMetadata};
 
 pub fn web_external_tools() -> Vec<ToolMetadata> {
     vec![
-        // BROWSER (13 tools)
+        // BROWSER (14 tools)
         ToolMetadata {
             name: "browser_agent",
             category: "browser",
@@ -55,59 +55,59 @@ pub fn web_external_tools() -> Vec<ToolMetadata> {
             schema: build_schema::<browser::BrowserWaitArgs>(),
         },
         ToolMetadata {
-            name: "get_research_result",
+            name: "browser_get_research_result",
             category: "browser",
             description: "Get final results from a completed browser research session.nn Returns comprehensive summary, sources, key findings, and individual page results.nn ...",
             schema: build_schema::<browser::GetResearchResultArgs>(),
         },
         ToolMetadata {
-            name: "get_research_status",
+            name: "browser_get_research_status",
             category: "browser",
             description: "Get current status and progress of a browser research session.nn Returns status (running/completed/failed/cancelled), runtime, pages visited, and ...",
             schema: build_schema::<browser::GetResearchStatusArgs>(),
         },
         ToolMetadata {
-            name: "list_research_sessions",
+            name: "browser_list_research_sessions",
             category: "browser",
             description: "List all active browser research sessions.nn Shows session ID, query, status, runtime, and progress for each session.nn Useful for tracking multiple...",
             schema: build_schema::<browser::ListResearchSessionsArgs>(),
         },
         ToolMetadata {
-            name: "start_browser_research",
+            name: "browser_start_research",
             category: "browser",
             description: "Start async browser research session that runs in background.nn Searches web, crawls multiple pages, and generates AI summaries without blocking.nn...",
             schema: build_schema::<browser::StartBrowserResearchArgs>(),
         },
         ToolMetadata {
-            name: "stop_browser_research",
+            name: "browser_stop_research",
             category: "browser",
             description: "Cancel a running browser research session.nn Aborts the background research task and marks session as cancelled.nn Does nothing if research is alr...",
             schema: build_schema::<browser::StopBrowserResearchArgs>(),
         },
-        // CITESCRAPE (4 tools)
         ToolMetadata {
-            name: "get_crawl_results",
-            category: "citescrape",
-            description: "Check crawl status and retrieve results for active or completed crawls. Returns progress information for running crawls and summary with file list ...",
-            schema: build_schema::<citescrape::GetCrawlResultsArgs>(),
-        },
-        ToolMetadata {
-            name: "search_crawl_results",
-            category: "citescrape",
-            description: "Full-text search across crawled documentation using Tantivy. Supports advanced query syntax including text, phrase, boolean, field-specific, and fu...",
-            schema: build_schema::<citescrape::SearchCrawlResultsArgs>(),
-        },
-        ToolMetadata {
-            name: "start_crawl",
-            category: "citescrape",
-            description: "Start a background web crawl that saves content to markdown/HTML/JSON and optionally indexes for full-text search. Returns immediately with crawl_i...",
-            schema: build_schema::<citescrape::StartCrawlArgs>(),
-        },
-        ToolMetadata {
-            name: "web_search",
-            category: "citescrape",
+            name: "browser_web_search",
+            category: "browser",
             description: "Perform a web search using DuckDuckGo and return structured results with titles, URLs, and snippets.nn Returns up to 10 search results with:n - ran...",
             schema: build_schema::<citescrape::WebSearchArgs>(),
+        },
+        // CITESCRAPE (3 tools)
+        ToolMetadata {
+            name: "scrape_check_results",
+            category: "citescrape",
+            description: "Check crawl status and retrieve results for active or completed crawls. Returns progress information for running crawls and summary with file list ...",
+            schema: build_schema::<citescrape::ScrapeCheckResultsArgs>(),
+        },
+        ToolMetadata {
+            name: "scrape_search_results",
+            category: "citescrape",
+            description: "Full-text search across crawled documentation using Tantivy. Supports advanced query syntax including text, phrase, boolean, field-specific, and fu...",
+            schema: build_schema::<citescrape::ScrapeSearchResultsArgs>(),
+        },
+        ToolMetadata {
+            name: "scrape_url",
+            category: "citescrape",
+            description: "Start a background web crawl that saves content to markdown/HTML/JSON and optionally indexes for full-text search. Returns immediately with crawl_i...",
+            schema: build_schema::<citescrape::ScrapeUrlArgs>(),
         },
     ]
 }

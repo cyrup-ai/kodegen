@@ -301,51 +301,51 @@ cargo install --path . \
 
 ### Filesystem Tools (14 tools)
 
-#### `read_file`
+#### `fs_read_file`
 Read file contents with offset/length support for massive files.
 
 ```javascript
-read_file({
+fs_read_file({
   "file_path": "src/main.rs",
   "offset": 0,
   "limit": 100
 })
 ```
 
-#### `write_file`
+#### `fs_write_file`
 Write or append content to files with atomic operations.
 
 ```javascript
-write_file({
+fs_write_file({
   "file_path": "output.txt",
   "content": "Hello, world!",
   "append": false
 })
 ```
 
-#### `edit_block`
+#### `fs_edit_block`
 Surgical text replacement with automatic fuzzy matching.
 
 ```javascript
-edit_block({
+fs_edit_block({
   "file_path": "src/main.rs",
   "old_string": "fn process_data",
   "new_string": "async fn process_data"
 })
 ```
 
-#### `start_search`
+#### `fs_start_search`
 Start streaming search across codebase with regex support.
 
 ```javascript
-start_search({
+fs_start_search({
   "pattern": "TODO:",
   "path": ".",
   "regex": false
 })
 ```
 
-**Other filesystem tools:** `read_multiple_files`, `move_file`, `delete_file`, `delete_directory`, `create_directory`, `get_file_info`, `list_directory`, `get_search_results`, `stop_search`, `list_searches`
+**Other filesystem tools:** `fs_read_multiple_files`, `fs_move_file`, `fs_delete_file`, `fs_delete_directory`, `fs_create_directory`, `fs_get_file_info`, `fs_list_directory`, `fs_get_search_results`, `fs_stop_search`, `fs_list_searches`
 
 ### Terminal Tools (5 tools)
 
@@ -390,7 +390,7 @@ spawn_claude_agent({
 
 ### Prompt Management (4 tools)
 
-#### `add_prompt`
+#### `prompt_add`
 Create reusable prompt templates with Jinja2.
 
 ```javascript
@@ -401,12 +401,12 @@ add_prompt({
 })
 ```
 
-**Other prompt tools:** `edit_prompt`, `delete_prompt`, `get_prompt`
+**Other prompt tools:** `prompt_edit`, `prompt_delete`, `prompt_get`
 
 ### Introspection (2 tools)
 
-- `get_usage_stats` - Track tool usage and performance metrics
-- `get_recent_tool_calls` - Inspect recent tool invocations
+- `inspect_usage_stats` - Track tool usage and performance metrics
+- `inspect_tool_calls` - Inspect recent tool invocations
 
 ### Process Management (2 tools)
 

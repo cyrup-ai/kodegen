@@ -20,29 +20,29 @@ pub fn infrastructure_tools() -> Vec<ToolMetadata> {
         },
         // INTROSPECTION (2 tools)
         ToolMetadata {
-            name: "get_recent_tool_calls",
+            name: "inspect_tool_calls",
             category: "introspection",
             description: "Get recent tool call history with their arguments and outputs. Returns chronological list of tool calls made during this session. Supports paginati...",
-            schema: build_schema::<introspection::GetRecentToolCallsArgs>(),
+            schema: build_schema::<introspection::InspectToolCallsArgs>(),
         },
         ToolMetadata {
-            name: "get_usage_stats",
+            name: "inspect_usage_stats",
             category: "introspection",
             description: "Get usage statistics for debugging and analysis. Returns summary of tool usage, success/failure rates, and performance metrics.' } async fn execute...",
-            schema: build_schema::<introspection::GetUsageStatsArgs>(),
+            schema: build_schema::<introspection::InspectUsageStatsArgs>(),
         },
         // PROCESS (2 tools)
         ToolMetadata {
-            name: "kill_process",
+            name: "process_kill",
             category: "process",
             description: "Terminate a running process by its PID. Sends SIGKILL signal to forcefully stop the process. Use with caution as this does not allow graceful shutd...",
-            schema: build_schema::<process::KillProcessArgs>(),
+            schema: build_schema::<process::ProcessKillArgs>(),
         },
         ToolMetadata {
-            name: "list_processes",
+            name: "process_list",
             category: "process",
             description: "List all running processes with PID, command name, CPU usage, and memory usage. Supports filtering by process name and limiting results. Returns co...",
-            schema: build_schema::<process::ListProcessesArgs>(),
+            schema: build_schema::<process::ProcessListArgs>(),
         },
     ]
 }

@@ -38,57 +38,57 @@ pub fn ai_reasoning_tools() -> Vec<ToolMetadata> {
         },
         // CANDLE_AGENT (4 tools)
         ToolMetadata {
-            name: "memorize",
+            name: "memory_memorize",
             category: "candle_agent",
             description: "Store content in a named memory library with automatic embedding generation. The memory will be tagged with the library name and can be retrieved later using recall(). Each library is a separate namespace for organizing memories.",
             schema: build_schema::<claude_agent::MemorizeArgs>(),
         },
         ToolMetadata {
-            name: "check_memorize_status",
+            name: "memory_check_memorize_status",
             category: "candle_agent",
             description: "Check the status of an async memorize operation started with memorize().\n\nReturns current status, progress information, and memory_id when complete.\n\nStatus values:\n- IN_PROGRESS: Task is still running (loading content, generating embeddings, storing)\n- COMPLETED: Task finished successfully (memory_id available)\n- FAILED: Task failed (error message available)\n\nPoll this repeatedly (with delays) until status is COMPLETED or FAILED.\nProgress includes current stage (Loading content, Generating embeddings, Storing in database)\nand file counts for multi-file operations.",
             schema: build_schema::<claude_agent::CheckMemorizeStatusArgs>(),
         },
         ToolMetadata {
-            name: "recall",
+            name: "memory_recall",
             category: "candle_agent",
             description: "Retrieve relevant memories from a library using semantic search. Searches for content similar to the provided context and returns the most relevant results. Uses vector similarity (cosine) to find semantically related memories.",
             schema: build_schema::<claude_agent::RecallArgs>(),
         },
         ToolMetadata {
-            name: "list_memory_libraries",
+            name: "memory_list_libraries",
             category: "candle_agent",
             description: "List all unique memory library names that have been created. Returns a list of all libraries that contain at least one memory. Use this to discover what libraries are available for recall.",
             schema: build_schema::<claude_agent::ListMemoryLibrariesArgs>(),
         },
         // PROMPT (4 tools)
         ToolMetadata {
-            name: "add_prompt",
+            name: "prompt_add",
             category: "prompt",
             description: "Create a new prompt template. The content must include YAML frontmatter with metadata (title, description, categories, author) followed by the temp...",
             schema: build_schema::<prompt::AddPromptArgs>(),
         },
         ToolMetadata {
-            name: "delete_prompt",
+            name: "prompt_delete",
             category: "prompt",
             description: "Delete a prompt template. Requires confirm=true for safety. This action cannot be undone. Default prompts can be deleted but will be recreated on n...",
             schema: build_schema::<prompt::DeletePromptArgs>(),
         },
         ToolMetadata {
-            name: "edit_prompt",
+            name: "prompt_edit",
             category: "prompt",
             description: "Edit an existing prompt template. Provide the prompt name and complete new content (including YAML frontmatter). The content is validated before sa...",
             schema: build_schema::<prompt::EditPromptArgs>(),
         },
         ToolMetadata {
-            name: "get_prompt",
+            name: "prompt_get",
             category: "prompt",
             description: "Browse and retrieve prompt templates. nn Actions:n - list_categories: Show all prompt categoriesn - list_prompts: List all prompts (optionally filt...",
             schema: build_schema::<prompt::GetPromptArgs>(),
         },
         // REASONER (1 tool)
         ToolMetadata {
-            name: "sequential_thinking_reasoner",
+            name: "reasoner",
             category: "reasoner",
             description: "Advanced reasoning tool with multiple strategies (Beam Search, MCTS). Processes thoughts step-by-step, supports branching and revision, and tracks best reasoning paths. Use for complex problem-solving that requires exploration of multiple solution approaches.\n\nStrategies:\n- beam_search: Breadth-first exploration (default)\n- mcts: Monte Carlo Tree Search with UCB1\n- mcts_002_alpha: High exploration MCTS variant\n- mcts_002alt_alpha: Length-rewarding MCTS variant\n\nOptional VoyageAI Embedding Integration: Set VOYAGE_API_KEY environment variable to enable semantic coherence scoring.",
             schema: build_schema::<reasoning::ReasonerArgs>(),
