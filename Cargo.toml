@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -41,7 +41,7 @@ kodegen_mcp_client = { version = "0.2" }
 clap = { version = "4", features = ["derive", "env"] }
 
 # MCP SDK
-rmcp = { version = "0.8", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"]}
+rmcp = { version = "0.8", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

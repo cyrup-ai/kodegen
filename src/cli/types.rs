@@ -292,7 +292,7 @@ pub fn available_categories() -> Vec<&'static str> {
         "introspection",
         "prompt",
         "reasoner",
-        "sequential_thinking",
+        kodegen_mcp_schema::reasoning::SEQUENTIAL_THINKING,
         "claude_agent",
         "candle_agent",
         "citescrape",
