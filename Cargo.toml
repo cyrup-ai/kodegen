@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]

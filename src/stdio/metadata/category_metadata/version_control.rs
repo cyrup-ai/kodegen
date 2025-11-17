@@ -5,7 +5,7 @@ use crate::stdio::metadata::types::{build_schema, ToolMetadata};
 
 pub fn version_control_tools() -> Vec<ToolMetadata> {
     vec![
-        // GIT (20 tools)
+        // GIT (21 tools)
         ToolMetadata {
             name: GIT_ADD,
             category: "git",
@@ -53,6 +53,12 @@ pub fn version_control_tools() -> Vec<ToolMetadata> {
             category: "git",
             description: "Create a new commit in a Git repository. Optionally specify author information and stage all modified files.' } fn read_only() -> bool { false // C...",
             schema: build_schema::<git::GitCommitArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_DIFF,
+            category: "git",
+            description: "Show differences between Git revisions. Compare two commits, branches, or working directory against HEAD. Displays file changes with statistics.' } fn read_only() -> bool { true } fn destructive() -> bool { false } fn idempotent() -> bool { true }",
+            schema: build_schema::<git::GitDiffArgs>(),
         },
         ToolMetadata {
             name: GIT_DISCOVER,
