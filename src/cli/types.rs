@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 
-/// Toolset configuration loaded from YAML file
+/// Toolset configuration loaded from JSON file
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsetConfig {
     /// List of individual tool names to enable
@@ -220,7 +220,7 @@ impl Cli {
     /// Returns None if no filter specified (enable all tools)
     /// Returns Some(HashSet) if filter specified (enable only these tools)
     pub fn enabled_tools(&self) -> anyhow::Result<Option<HashSet<String>>> {
-        // Priority 1: --toolset (YAML file)
+        // Priority 1: --toolset (JSON file)
         if let Some(ref path) = self.toolset {
             let config = ToolsetConfig::from_file(path)?;
             return Ok(Some(config.tools.into_iter().collect()));

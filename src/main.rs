@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
             eprintln!();
             eprintln!("Tip: Use --list-tools to see all available tools");
             eprintln!("Tip: Use --toolset path/to/toolset.yaml to load from config file");
-            std::process::exit(1);
+            return Err(anyhow::anyhow!("Invalid tool names specified"));
         }
     }
 
@@ -79,45 +79,12 @@ async fn main() -> Result<()> {
     // Create cancellation token for graceful shutdown during initialization
     let shutdown_token = tokio_util::sync::CancellationToken::new();
 
-    // Spawn signal handler for SIGINT and SIGTERM
+    // Spawn cross-platform signal handler
     let signal_token = shutdown_token.clone();
     tokio::spawn(async move {
-        let ctrl_c = tokio::signal::ctrl_c();
-
-        #[cfg(unix)]
-        {
-            use tokio::signal::unix::{SignalKind, signal};
-            let mut sigterm = match signal(SignalKind::terminate()) {
-                Ok(s) => s,
-                Err(e) => {
-                    log::warn!("Failed to register SIGTERM handler: {e}");
-                    // Fall back to just SIGINT
-                    if ctrl_c.await.is_ok() {
-                        signal_token.cancel();
-                    }
-                    return;
-                }
-            };
-
-            tokio::select! {
-                _ = ctrl_c => {
-                    log::debug!("Received SIGINT, cancelling initialization");
-                    signal_token.cancel();
-                }
-                _ = sigterm.recv() => {
-                    log::debug!("Received SIGTERM, cancelling initialization");
-                    signal_token.cancel();
-                }
-            }
-        }
-
-        #[cfg(not(unix))]
-        {
-            if ctrl_c.await.is_ok() {
-                log::debug!("Received Ctrl+C, cancelling initialization");
-                signal_token.cancel();
-            }
-        }
+        wait_for_interrupt().await;
+        log::debug!("Received interrupt signal, cancelling initialization");
+        signal_token.cancel();
     });
 
     // Configure HTTP client connections to category servers
@@ -130,17 +97,76 @@ async fn main() -> Result<()> {
     };
 
     // Create stdio proxy server (connects to category servers on ports 30437-30449)
-    let server = stdio::StdioProxyServer::new(
+    let server = match stdio::StdioProxyServer::new(
         config_manager,
         usage_tracker,
         &enabled_tools,
         http_config,
         shutdown_token,
     )
-    .await?;
+    .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!(
+                "STDIO_HEALTH: Stdio server failed to start due to category connection failures: {}",
+                e
+            );
+            log::error!(
+                "STDIO_HEALTH: Check that category HTTP servers are running (use 'just mcp' to start all servers)"
+            );
+            return Err(e);
+        }
+    };
 
     // Serve stdio transport (thin client mode)
     server.serve_stdio().await?;
 
     Ok(())
+}
+
+/// Wait for interrupt signal (cross-platform)
+#[cfg(unix)]
+async fn wait_for_interrupt() {
+    use tokio::signal::unix::{signal, SignalKind};
+    
+    let mut sigterm_result = signal(SignalKind::terminate());
+    let mut sigint_result = signal(SignalKind::interrupt());
+    
+    match (sigterm_result.as_mut(), sigint_result.as_mut()) {
+        (Ok(sigterm), Ok(sigint)) => {
+            tokio::select! {
+                _ = sigterm.recv() => {}
+                _ = sigint.recv() => {}
+            }
+        }
+        (Ok(sigterm), Err(_)) => {
+            let _ = sigterm.recv().await;
+        }
+        (Err(_), Ok(sigint)) => {
+            let _ = sigint.recv().await;
+        }
+        (Err(_), Err(_)) => {
+            // If both fail, just wait forever (shouldn't happen)
+            let () = std::future::pending().await;
+        }
+    }
+}
+
+/// Wait for interrupt signal (cross-platform)
+#[cfg(windows)]
+async fn wait_for_interrupt() {
+    use tokio::signal::windows;
+    
+    let ctrl_c_result = windows::ctrl_c();
+    
+    match ctrl_c_result {
+        Ok(mut ctrl_c) => {
+            let _ = ctrl_c.recv().await;
+        }
+        Err(_) => {
+            // If ctrl_c fails, wait forever (shouldn't happen)
+            let () = std::future::pending().await;
+        }
+    }
 }

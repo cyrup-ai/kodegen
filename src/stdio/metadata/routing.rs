@@ -1,6 +1,7 @@
 //! Port assignments and routing table for category HTTP servers.
 
 use std::collections::HashMap;
+use once_cell::sync::Lazy;
 
 use super::category_metadata::all_tool_metadata;
 
@@ -23,8 +24,11 @@ pub const CATEGORY_PORTS: &[(&str, u16)] = &[
     ("terminal", 30451),
 ];
 
-/// Build routing table: tool_name -> (category, port)
-pub fn build_routing_table() -> HashMap<&'static str, (&'static str, u16)> {
+/// Global routing table: tool_name -> (category, port)
+/// 
+/// Initialized lazily on first access. Built once and reused across all server instances.
+/// Contains mappings for all ~109 tools to their respective category servers and ports.
+static ROUTING_TABLE: Lazy<HashMap<&'static str, (&'static str, u16)>> = Lazy::new(|| {
     let mut table = HashMap::new();
     let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
     
@@ -35,4 +39,12 @@ pub fn build_routing_table() -> HashMap<&'static str, (&'static str, u16)> {
     }
     
     table
+});
+
+/// Get the global routing table.
+/// 
+/// Returns a reference to the lazily-initialized static routing table.
+/// First call initializes the table, subsequent calls return cached reference.
+pub fn get_routing_table() -> &'static HashMap<&'static str, (&'static str, u16)> {
+    &ROUTING_TABLE
 }

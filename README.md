@@ -501,6 +501,54 @@ sequential_thinking({
 })
 ```
 
+## Error Handling: RMCP Integration
+
+### How RMCP Errors Appear in Logs
+
+The stdio server logs RMCP initialization and transport errors at INFO/ERROR levels:
+
+**Connection failures during startup:**
+```
+ERROR Failed to connect to filesystem server at https://mcp.kodegen.ai:30438/mcp: connection closed during init (connection closed during: initialize response)
+WARN  2 of 7 category servers failed to connect and are offline. Server starting with reduced functionality.
+```
+
+**Session/transport failures during tool calls:**
+```
+ERROR Session/transport broken for tool 'read_file' (category: filesystem): connection closed during init - connection closed during: tool call response. Attempting recovery...
+INFO  Reconnection successful for category 'filesystem'. Retrying tool call 'read_file'...
+INFO  Tool call 'read_file' succeeded after recovery
+```
+
+**Timeout errors:**
+```
+ERROR Tool 'complex_search' timed out after 30s (operation: call_tool)
+```
+
+### Behavior When Categories Are Offline
+
+**Some categories offline:**
+- Server starts successfully
+- Offline categories are excluded from `list_tools` results
+- Tool calls to offline categories fail fast with clear error
+- Automatic reconnection attempts on first tool call to offline category
+
+**All categories offline:**
+- Server fails to start with error: `Failed to connect to all 7 category servers. See errors above.`
+- Individual ERROR logs show why each category failed
+
+### Recovery Behavior
+
+The stdio server automatically recovers from:
+- HTTP 401 (session expired) → reconnect and retry once
+- RMCP ConnectionClosed errors → reconnect and retry once  
+- RMCP TransportClosed errors → reconnect and retry once
+
+No recovery for:
+- Timeouts (logged and returned as error)
+- Protocol errors (logged and returned as error)
+- Parse errors (logged and returned as error)
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

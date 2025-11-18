@@ -20,7 +20,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::metadata::{all_tool_metadata, build_routing_table, CATEGORY_PORTS};
+use super::metadata::{all_tool_metadata, get_routing_table, CATEGORY_PORTS};
+use super::session_mapper::SessionMapper;
+use uuid::Uuid;
 
 /// Configuration for HTTP connection retry logic
 #[derive(Debug, Clone)]
@@ -186,6 +188,14 @@ pub struct StdioProxyServer {
 
     /// Configuration manager
     config_manager: kodegen_config_manager::ConfigManager,
+
+    /// Session ID mapper for isolating stdio connections
+    /// Maps (connection_id, client_session_id) -> unique server_session_id
+    session_mapper: SessionMapper,
+
+    /// Unique connection ID for this stdio server instance
+    /// Generated once per stdio connection to isolate sessions
+    connection_id: String,
 }
 
 impl StdioProxyServer {
@@ -205,7 +215,7 @@ impl StdioProxyServer {
         shutdown_token: CancellationToken,
     ) -> Result<Self> {
         // Build routing table from static metadata
-        let routing_table = build_routing_table();
+        let routing_table = get_routing_table().clone();
 
         // Determine which categories need HTTP connections based on enabled TOOLS
         let mut categories_to_connect: std::collections::HashSet<&str> = std::collections::HashSet::new();
@@ -292,6 +302,8 @@ impl StdioProxyServer {
             enabled_tools: enabled_tools_set,
             usage_tracker,
             config_manager,
+            session_mapper: SessionMapper::new(),
+            connection_id: Uuid::new_v4().to_string(),
         })
     }
 
@@ -414,10 +426,35 @@ impl ServerHandler for StdioProxyServer {
         );
 
         // Convert arguments to JSON value
-        let args = match request.arguments {
+        let mut args = match request.arguments {
             Some(map) => serde_json::Value::Object(map),
             None => serde_json::Value::Object(serde_json::Map::new()),
         };
+
+        // Handle session ID mapping for tools that use session_id
+        // This isolates sessions from different stdio connections when proxying to HTTP servers
+        if let serde_json::Value::Object(ref mut map) = args
+            && let Some(client_session_id) = map.get("session_id").and_then(|v| v.as_str())
+        {
+            // Map client's session_id to a unique server session_id for this connection
+            let server_session_id = self.session_mapper.map_session_id(
+                &self.connection_id,
+                client_session_id,
+            );
+
+            log::debug!(
+                "Mapped session_id for tool '{}': client='{}' -> server='{}'",
+                tool_name,
+                client_session_id,
+                server_session_id
+            );
+
+            // Replace session_id in args with the mapped server session_id
+            map.insert(
+                "session_id".to_string(),
+                serde_json::Value::String(server_session_id),
+            );
+        }
 
         // Call tool via category HTTP client
         let mut result = client.call_tool(&tool_name, args.clone()).await;
@@ -476,9 +513,19 @@ impl ServerHandler for StdioProxyServer {
             }
         }
 
-        // Convert result to McpError if needed
+        // Convert ClientError to ErrorData, preserving MCP errors from upstream
         let result = result.map_err(|e| {
-            McpError::internal_error(format!("HTTP proxy error: {}", e), None)
+            match e {
+                // Extract the MCP error if it's already wrapped in a ServiceError
+                kodegen_mcp_client::ClientError::ServiceError(
+                    rmcp::ServiceError::McpError(mcp_err)
+                ) => mcp_err,
+                // For other errors, wrap as internal error
+                other => McpError::internal_error(
+                    format!("HTTP client error: {}", other),
+                    None
+                ),
+            }
         });
 
         // Track usage metrics
@@ -611,5 +658,38 @@ impl ServerHandler for StdioProxyServer {
         // Store client info (fire-and-forget, errors logged in background task)
         let _ = self.config_manager.set_client_info(request.client_info).await;
         Ok(self.get_info())
+    }
+}
+
+impl Drop for StdioProxyServer {
+    fn drop(&mut self) {
+        // Clean up all session mappings for this connection
+        //
+        // This fires when the last Arc<StdioProxyServer> reference is dropped
+        // (after the stdio connection closes and all request handlers finish).
+        //
+        // The cleanup is synchronous and fast:
+        // - O(n) where n = total mappings in DashMap (typically < 100)
+        // - DashMap uses lock-free iteration with per-shard read locks
+        // - Removal is O(1) per key with fine-grained per-shard write locks
+        //
+        // Safe because:
+        // - cleanup_connection takes &self (DashMap provides interior mutability)
+        // - No new tool calls can arrive (connection is closed)
+        // - We have exclusive &mut self access (last Arc being dropped)
+        let cleaned = self.session_mapper.cleanup_connection(&self.connection_id);
+
+        if cleaned > 0 {
+            log::info!(
+                "StdioProxyServer dropping: cleaned up {} session mapping(s) for connection {}",
+                cleaned,
+                self.connection_id
+            );
+        } else {
+            log::debug!(
+                "StdioProxyServer dropping: no session mappings to clean up for connection {}",
+                self.connection_id
+            );
+        }
     }
 }

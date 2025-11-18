@@ -1,9 +1,10 @@
-//! Static metadata for all 109 tools across 14 categories.
+//! Static metadata for all tools across 14 categories.
 //!
 //! This module aggregates tool metadata from organized category submodules
 //! to avoid instantiating tool objects at runtime.
 
 use super::types::ToolMetadata;
+use once_cell::sync::Lazy;
 
 mod ai_reasoning;
 mod data_persistence;
@@ -19,9 +20,9 @@ use infrastructure::infrastructure_tools;
 use version_control::version_control_tools;
 use web_external::web_external_tools;
 
-/// All 109 tools with static metadata.
-pub fn all_tool_metadata() -> Vec<ToolMetadata> {
-    let mut tools = Vec::with_capacity(109);
+/// All tools with static metadata, cached and sorted alphabetically.
+static CACHED_TOOL_METADATA: Lazy<Vec<ToolMetadata>> = Lazy::new(|| {
+    let mut tools = Vec::new();
     
     // Add infrastructure tools (config, introspection, process)
     tools.extend(infrastructure_tools());
@@ -41,5 +42,13 @@ pub fn all_tool_metadata() -> Vec<ToolMetadata> {
     // Add AI and reasoning tools (claude_agent, candle_agent, reasoner, sequential_thinking, prompt)
     tools.extend(ai_reasoning_tools());
     
+    // Sort alphabetically by tool name for consistent ordering
+    tools.sort_by(|a, b| a.name.cmp(b.name));
+    
     tools
+});
+
+/// Returns a static reference to all tool metadata (cached, sorted).
+pub fn all_tool_metadata() -> &'static [ToolMetadata] {
+    &CACHED_TOOL_METADATA
 }

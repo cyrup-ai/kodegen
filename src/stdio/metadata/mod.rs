@@ -9,4 +9,4 @@ mod types;
 
 // Re-export public items (only what's used externally)
 pub use category_metadata::all_tool_metadata;
-pub use routing::{build_routing_table, CATEGORY_PORTS};
+pub use routing::{get_routing_table, CATEGORY_PORTS};
