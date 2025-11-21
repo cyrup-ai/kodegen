@@ -5,7 +5,7 @@ use crate::stdio::metadata::types::{build_schema, ToolMetadata};
 
 pub fn web_external_tools() -> Vec<ToolMetadata> {
     vec![
-        // BROWSER (14 tools)
+        // BROWSER (9 tools)
         ToolMetadata {
             name: BROWSER_AGENT,
             category: "browser",
@@ -49,34 +49,10 @@ pub fn web_external_tools() -> Vec<ToolMetadata> {
             schema: build_schema::<browser::BrowserTypeTextArgs>(),
         },
         ToolMetadata {
-            name: BROWSER_GET_RESEARCH_RESULT,
+            name: browser::BROWSER_RESEARCH,
             category: "browser",
-            description: "Get final results from a completed browser research session.nn Returns comprehensive summary, sources, key findings, and individual page results.nn ...",
-            schema: build_schema::<browser::GetResearchResultArgs>(),
-        },
-        ToolMetadata {
-            name: BROWSER_GET_RESEARCH_STATUS,
-            category: "browser",
-            description: "Get current status and progress of a browser research session.nn Returns status (running/completed/failed/cancelled), runtime, pages visited, and ...",
-            schema: build_schema::<browser::GetResearchStatusArgs>(),
-        },
-        ToolMetadata {
-            name: BROWSER_LIST_RESEARCH_SESSIONS,
-            category: "browser",
-            description: "List all active browser research sessions.nn Shows session ID, query, status, runtime, and progress for each session.nn Useful for tracking multiple...",
-            schema: build_schema::<browser::ListResearchSessionsArgs>(),
-        },
-        ToolMetadata {
-            name: BROWSER_START_RESEARCH,
-            category: "browser",
-            description: "Start async browser research session that runs in background.nn Searches web, crawls multiple pages, and generates AI summaries without blocking.nn...",
-            schema: build_schema::<browser::StartBrowserResearchArgs>(),
-        },
-        ToolMetadata {
-            name: BROWSER_STOP_RESEARCH,
-            category: "browser",
-            description: "Cancel a running browser research session.nn Aborts the background research task and marks session as cancelled.nn Does nothing if research is alr...",
-            schema: build_schema::<browser::StopBrowserResearchArgs>(),
+            description: "Deep web research with real-time progress streaming. Searches web, crawls multiple pages, extracts content, generates AI summaries. Blocks until complete (20-120s depending on pages). Returns comprehensive report with sources.",
+            schema: build_schema::<browser::BrowserResearchArgs>(),
         },
         ToolMetadata {
             name: BROWSER_WEB_SEARCH,

@@ -575,6 +575,7 @@ impl ServerHandler for StdioProxyServer {
                 output_schema: None,
                 annotations: None,
                 icons: None,
+                meta: None,
             });
         }
 

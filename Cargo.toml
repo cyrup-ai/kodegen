@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.2.4"
+version = "0.3.1"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -31,11 +31,11 @@ macos = "public.app-category.developer-tools"
 
 [dependencies]
 cyrup_termcolor = "2"
-kodegen_mcp_schema = { version = "0.2" }
-kodegen_config_manager = { version = "0.2" }
-kodegen_mcp_tool = { version = "0.2" }
-kodegen_utils = { version = "0.2" }
-kodegen_mcp_client = { version = "0.2" }
+kodegen_mcp_schema = { version = "0.3" }
+kodegen_config_manager = { version = "0.3" }
+kodegen_mcp_tool = { version = "0.3" }
+kodegen_utils = { version = "0.3" }
+kodegen_mcp_client = { version = "0.3" }
 
 # Lazy static initialization
 once_cell = "1.20"
@@ -44,7 +44,7 @@ once_cell = "1.20"
 clap = { version = "4", features = ["derive", "env"] }
 
 # MCP SDK
-rmcp = { version = "0.8", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
+rmcp = { version = "0.9", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

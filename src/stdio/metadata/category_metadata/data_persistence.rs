@@ -48,7 +48,7 @@ pub fn data_persistence_tools() -> Vec<ToolMetadata> {
             description: "List all tables in a schema. If schema not provided, uses default schema (public for PostgreSQL, current database for MySQL, main for SQLite, dbo f...",
             schema: build_schema::<database::ListTablesArgs>(),
         },
-        // FILESYSTEM (14 tools)
+        // FILESYSTEM (11 tools)
         ToolMetadata {
             name: filesystem::FS_CREATE_DIRECTORY,
             category: "filesystem",
@@ -80,22 +80,10 @@ pub fn data_persistence_tools() -> Vec<ToolMetadata> {
             schema: build_schema::<filesystem::FsGetFileInfoArgs>(),
         },
         ToolMetadata {
-            name: filesystem::FS_GET_SEARCH_RESULTS,
-            category: "filesystem",
-            description: "Get more results from an active search with offset-based pagination.nn Supports partial result reading with:n - 'offset' (start result index, defau...",
-            schema: build_schema::<filesystem::FsGetMoreSearchResultsArgs>(),
-        },
-        ToolMetadata {
             name: filesystem::FS_LIST_DIRECTORY,
             category: "filesystem",
             description: "List all files and directories in a specified path. Returns entries prefixed with [DIR] or [FILE] to distinguish types. Supports filtering hidden f...",
             schema: build_schema::<filesystem::FsListDirectoryArgs>(),
-        },
-        ToolMetadata {
-            name: filesystem::FS_LIST_SEARCHES,
-            category: "filesystem",
-            description: "List all active searches.nn Shows search IDs, search types, patterns, status, and runtime.n Similar to list_sessions for terminal processes. Useful...",
-            schema: build_schema::<filesystem::FsListSearchesArgs>(),
         },
         ToolMetadata {
             name: filesystem::FS_MOVE_FILE,
@@ -116,16 +104,10 @@ pub fn data_persistence_tools() -> Vec<ToolMetadata> {
             schema: build_schema::<filesystem::FsReadMultipleFilesArgs>(),
         },
         ToolMetadata {
-            name: filesystem::FS_START_SEARCH,
+            name: filesystem::FS_SEARCH,
             category: "filesystem",
-            description: "🚀 BLAZING-FAST SEARCH (10-100x faster than grep). Respects .gitignore automatically. Built on ripgrep.nn QUICK START:n • Find files: fs_start_searc...",
-            schema: build_schema::<filesystem::FsStartSearchArgs>(),
-        },
-        ToolMetadata {
-            name: filesystem::FS_STOP_SEARCH,
-            category: "filesystem",
-            description: "Stop an active search session.nn Stops the background search process gracefully. Use this when you've found what you need or if a search is taking ...",
-            schema: build_schema::<filesystem::FsStopSearchArgs>(),
+            description: "🚀 BLAZING-FAST SEARCH (10-100x faster than grep). Respects .gitignore automatically. Built on ripgrep.nn QUICK START:n • Find files: fs_search(patt...",
+            schema: build_schema::<filesystem::FsSearchArgs>(),
         },
         ToolMetadata {
             name: filesystem::FS_WRITE_FILE,
