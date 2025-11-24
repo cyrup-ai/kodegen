@@ -1,0 +1,29 @@
+{
+  "tools": [
+    "browser_research",
+    "browser_web_search",
+    "config_get",
+    "config_set",
+    "fs_create_directory",
+    "fs_delete_directory",
+    "fs_delete_file",
+    "fs_edit_block",
+    "fs_get_file_info",
+    "fs_list_directory",
+    "fs_move_file",
+    "fs_read_file",
+    "fs_read_multiple_files",
+    "fs_search",
+    "fs_write_file",
+    "memory_list_libraries",
+    "memory_memorize",
+    "memory_recall",
+    "process_kill",
+    "process_list",
+    "scrape_check_results",
+    "scrape_search_results",
+    "scrape_url",
+    "sequential_thinking",
+    "terminal_run_command"
+  ]
+}

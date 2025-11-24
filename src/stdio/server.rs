@@ -1,7 +1,9 @@
 // packages/server/src/stdio/server.rs
 use anyhow::{Context, Result};
+use kodegen_mcp_client::{X_KODEGEN_CONNECTION_ID, X_KODEGEN_GITROOT, X_KODEGEN_PWD};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
+use reqwest::header::{HeaderMap, HeaderValue};
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
     model::{
@@ -16,6 +18,7 @@ use rmcp::{
 };
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -51,6 +54,19 @@ impl Default for HttpConnectionConfig {
     }
 }
 
+/// Find git repository root by walking up from start directory
+fn find_git_root(start: &Path) -> Option<PathBuf> {
+    let mut current = start.to_path_buf();
+    loop {
+        if current.join(".git").exists() {
+            return Some(current);
+        }
+        if !current.pop() {
+            return None;
+        }
+    }
+}
+
 /// Connect to HTTP server with exponential backoff retry
 ///
 /// Attempts connection up to `max_attempts` times with exponential backoff.
@@ -69,6 +85,7 @@ impl Default for HttpConnectionConfig {
 /// * `Err` - Connection failed (timeout, cancellation, or connection error)
 async fn connect_with_retry(
     url: &str,
+    connection_id: &str,
     max_attempts: u32,
     initial_backoff: Duration,
     timeout: Duration,
@@ -79,13 +96,32 @@ async fn connect_with_retry(
 )> {
     let mut backoff = initial_backoff;
 
+    // Build infrastructure context headers
+    let mut session_headers = HeaderMap::new();
+
+    // Connection ID - identifies this stdio connection instance
+    if let Ok(value) = HeaderValue::from_str(connection_id) {
+        session_headers.insert(X_KODEGEN_CONNECTION_ID, value);
+    }
+
+    // Current working directory and git root from environment
+    if let Ok(pwd) = std::env::var("PWD") {
+        if let Ok(value) = HeaderValue::from_str(&pwd) {
+            session_headers.insert(X_KODEGEN_PWD, value);
+        }
+        if let Some(git_root) = find_git_root(Path::new(&pwd))
+            && let Ok(value) = HeaderValue::from_str(git_root.to_string_lossy().as_ref()) {
+            session_headers.insert(X_KODEGEN_GITROOT, value);
+        }
+    }
+
     for attempt in 1..=max_attempts {
         log::debug!(
             "HTTP connection attempt {attempt}/{max_attempts} to {url} (timeout: {timeout:?})"
         );
 
         // Race connection against timeout and cancellation
-        let connect_future = kodegen_mcp_client::create_streamable_client(url);
+        let connect_future = kodegen_mcp_client::create_streamable_client(url, session_headers.clone());
         let result = tokio::select! {
             res = connect_future => Some(res),
             () = tokio::time::sleep(timeout) => None,
@@ -214,6 +250,10 @@ impl StdioProxyServer {
         http_config: HttpConnectionConfig,
         shutdown_token: CancellationToken,
     ) -> Result<Self> {
+        // Generate connection ID for this stdio server instance
+        // This UUID identifies the stdio connection and is sent to all backend servers
+        let connection_id = Uuid::new_v4().to_string();
+
         // Build routing table from static metadata
         let routing_table = get_routing_table().clone();
 
@@ -259,6 +299,7 @@ impl StdioProxyServer {
 
             match connect_with_retry(
                 &url,
+                &connection_id,
                 http_config.max_retries,
                 http_config.retry_backoff,
                 http_config.connection_timeout,
@@ -303,7 +344,7 @@ impl StdioProxyServer {
             usage_tracker,
             config_manager,
             session_mapper: SessionMapper::new(),
-            connection_id: Uuid::new_v4().to_string(),
+            connection_id,
         })
     }
 
@@ -334,6 +375,7 @@ impl StdioProxyServer {
 
         let (new_client, new_connection) = connect_with_retry(
             &url,
+            &self.connection_id,
             self.http_config.max_retries,
             self.http_config.retry_backoff,
             self.http_config.connection_timeout,
