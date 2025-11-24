@@ -1,5 +1,5 @@
 ---
-allowed-tools: Task, mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal_run_command, mcp__kodegen__terminal_send_input, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__scrape_check_results, mcp__kodegen__scrape_search_results, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research
+allowed-tools: Task, mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__scrape_check_results, mcp__kodegen__scrape_search_results, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research
 description: Use sub-agents to qa code review task files in parallel
 ---
 # DELEGATE TASK EXECUTION TO SUB-AGENTS
@@ -55,7 +55,7 @@ DO NOT USE `git` commands of any type. other coders are coding and you will be d
 - use `mcp__kodegen__sequential_thinking` and ULTRATHINK to think step by step about the task
 - use `mcp__kodegen__fs_search` to quickly identify the files that the task specified for modification
 - use `mcp__kodegen__fs_read_file` and/or `mcp__kodegen__fs_read_multiple_files` to read files
-- use `mcp__kodegen__terminal_run_command` to run `cargo clippy`
+- use `mcp__kodegen__terminal` to run `cargo clippy`
 - use `mcp__kodegen__fs_edit_block` to modify the {{absolute_file_path}} task file if incomplete or lacking in any way
 - use `mcp__kodegen__fs_delete_file` to delete the {{absolute_file_path}} task file if it's a perfect 10/10
 - feel free to any other allowed `mcp__kodegen__*` commands as needed

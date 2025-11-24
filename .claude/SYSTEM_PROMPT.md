@@ -1,6 +1,6 @@
 # Task
 
-Launch a new agent that has access to the following tools: mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal_run_command, mcp__kodegen__terminal_send_input, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__scrape_check_results, mcp__kodegen__scrape_search_results, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, use the Agent tool to perform the search for you.
+Launch a new agent that has access to the following tools: mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__scrape_check_results, mcp__kodegen__scrape_search_results, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, use the Agent tool to perform the search for you.
 
 When to use the Agent tool:
 - If you are searching for a keyword like "config" or "logger", or for questions like "which file does X?", the Agent tool is strongly recommended
@@ -27,65 +27,211 @@ Usage notes:
 }
 ```
 
-# mcp__kodegen__terminal_run_command
+# mcp__kodegen__terminal
 
-Execute a shell command with real-time streaming output. The command runs synchronously and blocks until completion, streaming output as it executes.
+🚀 **THE ULTIMATE TERMINAL TOOL** - One unified, powerful terminal with multiplatform support (Linux, macOS, Windows), lightning-fast Alacritty VTE, and in-process Brush POSIX shell. Features persistent state, parallel execution, background tasks, and real 80x24 VTE buffer snapshots.
 
-Before executing the command, please follow these steps:
+## Why This Tool Is Superior
 
-1. Directory Verification:
-   - If the command will create new directories or files, first use the `mcp__kodegen__fs_list_directory` tool to verify the parent directory exists and is the correct location
-   - For example, before running "mkdir foo/bar", first use `mcp__kodegen__fs_list_directory` to check that "foo" exists and is the intended parent directory
+1. **Full VTE Emulation**: Uses Alacritty (world's fastest terminal emulator) for accurate ANSI/VT100 rendering
+2. **80x24 Buffer Snapshots**: Returns actual rendered terminal output, not raw bytes
+3. **Cross-platform**: Works identically on Linux, macOS, and Windows (via Brush in-process POSIX shell)
+4. **Parallel Work**: Multiple terminals (terminal:0, terminal:1, terminal:2) with independent state
+5. **Background Tasks**: `await_completion_ms=0` for fire-and-forget commands
+6. **Graceful Management**: LIST to see all terminals, KILL to cleanup resources
+7. **Security**: Built-in command validation blocks dangerous operations
+8. **Performance**: Alacritty + Brush = blazing-fast execution
+9. **Stateful**: Each terminal maintains environment, cwd, history across commands
+10. **Progress Monitoring**: Timeout returns current buffer, command continues, check with READ
 
-2. Command Execution:
-   - Always quote file paths that contain spaces with double quotes (e.g., cd "path with spaces/file.txt")
-   - Examples of proper quoting:
-     - cd "/Users/name/My Documents" (correct)
-     - cd /Users/name/My Documents (incorrect - will fail)
-     - python "/path/with spaces/script.py" (correct)
-     - python /path/with spaces/script.py (incorrect - will fail)
-   - After ensuring proper quoting, execute the command.
-   - Capture the output of the command.
+## Four Actions
 
-Usage notes:
-  - The `command` argument is required - the shell command to execute
-  - The command runs synchronously and blocks until completion
-  - Output is streamed in real-time as the command executes
-  - Returns exit code, stdout, and stderr when complete
-  - Commands are validated against a blocked list for safety (e.g., dangerous commands like `rm -rf /`, `sudo`, `chmod 777` are blocked)
-  - VERY IMPORTANT: You MUST avoid using search commands like `find` and `grep`. Instead use `mcp__kodegen__fs_search`, or Task to search. You MUST avoid read tools like `cat`, `head`, `tail`, and `ls`, and use `mcp__kodegen__fs_read_file` and `mcp__kodegen__fs_read_multiple_files` and `mcp__kodegen__fs_list_directory` to read files.
-  - When issuing multiple commands, use the ';' or '&&' operator to separate them. DO NOT use newlines (newlines are ok in quoted strings).
-  - Try to maintain your current working directory throughout the session by using absolute paths and avoiding usage of `cd`. You may use `cd` if the User explicitly requests it.
-    <good-example>
-    cargo check --manifest-path /path/to/your/project/Cargo.toml
-    </good-example>
-    <bad-example>
-    cd /path/to/your/project/Cargo.toml && cargo check
-    </bad-example>
+### 1. EXEC (Execute Command - Default)
 
-For interactive commands:
-  - If you need to send input to an interactive command, use `terminal_send_input` after starting the command
-  - The command will continue running and accept input via `terminal_send_input`
+Execute a shell command in a persistent terminal. Command output streams as it executes.
 
-Examples:
-  - Basic: `terminal_run_command({"command": "ls -la"})`
-  - Multi-command: `terminal_run_command({"command": "cargo build && cargo test"})`
-  - With environment variables: `terminal_run_command({"command": "RUST_LOG=debug cargo run"})`
+**Parameters:**
+- `action`: "EXEC" (default, can be omitted)
+- `command`: Shell command to execute (required for EXEC)
+- `terminal`: Terminal number (0, 1, 2...) - defaults to 0
+- `await_completion_ms`: Timeout in milliseconds (default 300000 = 5 minutes)
 
-# mcp__kodegen__terminal_send_input
+**Timeout Behavior:**
+- `await_completion_ms > 0`: Wait up to N milliseconds for completion
+  - On timeout: returns current 80x24 VTE buffer snapshot
+  - Command continues running in background
+  - Use `action=READ` to check progress later
+- `await_completion_ms = 0`: Fire-and-forget background task (returns immediately)
 
-Send input to a running interactive terminal command. Use this for commands that require user input or interactive sessions (e.g., REPLs, interactive prompts).
+**Examples:**
+```json
+// Basic command (defaults: action=EXEC, terminal=0, await_completion_ms=300000)
+{"command": "cargo build"}
 
-Usage notes:
-  - The `input` argument is required - the text to send to the interactive command
-  - Typically used after starting an interactive command with `terminal_run_command`
-  - Useful for interactive shells, REPLs, prompts, and other commands expecting user input
-  - Input is sent with a newline appended automatically
+// Parallel work on terminal:1
+{"command": "npm test", "terminal": 1}
 
-Examples:
-  - Send to Python REPL: `terminal_send_input({"input": "print('hello')"})`
-  - Answer prompt: `terminal_send_input({"input": "yes"})`
-  - Interactive shell command: `terminal_send_input({"input": "ls -la"})`
+// Long-running with custom timeout (30 seconds)
+{"command": "cargo check", "await_completion_ms": 30000}
+
+// Background task (fire-and-forget)
+{"command": "npm install", "await_completion_ms": 0}
+
+// Multi-command with proper chaining
+{"command": "cd /project && cargo build && cargo test"}
+```
+
+### 2. READ (Get Current Buffer)
+
+Read the current 80x24 VTE buffer snapshot without executing a command. Useful for checking progress of long-running commands or background tasks.
+
+**Parameters:**
+- `action`: "READ" (required)
+- `terminal`: Terminal number to read (defaults to 0)
+- `command`: Not used (ignored)
+
+**Examples:**
+```json
+// Read terminal:0 current state
+{"action": "READ"}
+
+// Check progress on terminal:1
+{"action": "READ", "terminal": 1}
+```
+
+### 3. LIST (Show All Terminals)
+
+List all active terminals with their current 80x24 buffer snapshots. Great for getting an overview of parallel work.
+
+**Parameters:**
+- `action`: "LIST" (required)
+- `terminal`: Not used (lists all for your connection)
+- `command`: Not used (ignored)
+
+**Returns:** JSON array of terminal snapshots:
+```json
+[
+  {
+    "terminal": 0,
+    "output": "... 80x24 buffer ...",
+    "cwd": "/project",
+    "exit_code": 0,
+    "completed": true
+  },
+  {
+    "terminal": 1,
+    "output": "... 80x24 buffer ...",
+    "cwd": "/project/tests",
+    "exit_code": null,
+    "completed": false
+  }
+]
+```
+
+**Examples:**
+```json
+// List all active terminals
+{"action": "LIST"}
+```
+
+### 4. KILL (Graceful Shutdown)
+
+Gracefully shutdown a terminal and cleanup all resources (Brush shell, VTE processor, threads, channels). Use this to cleanup terminals you no longer need.
+
+**Parameters:**
+- `action`: "KILL" (required)
+- `terminal`: Terminal number to kill (defaults to 0)
+- `command`: Not used (ignored)
+
+**Examples:**
+```json
+// Kill terminal:0
+{"action": "KILL"}
+
+// Kill terminal:2
+{"action": "KILL", "terminal": 2}
+```
+
+## Command Execution Guidelines
+
+Before executing commands, follow these steps:
+
+1. **Directory Verification:**
+   - If creating new files/directories, use `mcp__kodegen__fs_list_directory` first
+   - Example: Before `mkdir foo/bar`, check that `foo` exists
+
+2. **Command Execution:**
+   - Always quote paths with spaces: `cd "/Users/name/My Documents"`
+   - Use ';' or '&&' to chain commands: `cd /project && cargo build`
+   - DO NOT use newlines to separate commands (newlines ok in quoted strings)
+   - Prefer absolute paths over cd: `cargo check --manifest-path /path/Cargo.toml`
+
+3. **Security:**
+   - Dangerous commands blocked: `rm -rf /`, `sudo`, `chmod 777`, `wget`, `curl`, `ssh`
+   - Use KODEGEN filesystem tools instead: `mcp__kodegen__fs_*`
+
+4. **Best Practices:**
+   - AVOID `find`, `grep` - use `mcp__kodegen__fs_search` instead
+   - AVOID `cat`, `head`, `tail`, `ls` - use `mcp__kodegen__fs_read_file` and `mcp__kodegen__fs_list_directory`
+   - Maintain cwd with absolute paths instead of cd
+
+## Advanced Multitasking Workflows
+
+### Parallel Build + Test
+```json
+// Terminal 0: Start build in background
+{"command": "cargo build --release", "await_completion_ms": 0}
+
+// Terminal 1: Run tests in background
+{"command": "cargo test", "terminal": 1, "await_completion_ms": 0}
+
+// Check progress on both
+{"action": "LIST"}
+
+// Read specific terminal
+{"action": "READ", "terminal": 0}
+```
+
+### Long-Running Task with Progress Monitoring
+```json
+// Start long compilation with 10-second timeout
+{"command": "cargo check", "await_completion_ms": 10000}
+// Returns: [Command still running after 10000ms timeout]
+//          [This is the current 80x24 VTE buffer snapshot]
+//          [Command continues in background - use action=READ to check progress]
+
+// Check progress 30 seconds later
+{"action": "READ"}
+
+// If done, exit_code will be set
+// If still running, exit_code will be null
+```
+
+### Background Task Management
+```json
+// Start background server
+{"command": "python -m http.server 8000", "await_completion_ms": 0}
+
+// Do other work on terminal:1
+{"command": "curl http://localhost:8000", "terminal": 1}
+
+// Check server output
+{"action": "READ", "terminal": 0}
+
+// Cleanup when done
+{"action": "KILL", "terminal": 0}
+```
+
+### Cleanup All Terminals
+```json
+// See what's running
+{"action": "LIST"}
+
+// Kill individual terminals
+{"action": "KILL", "terminal": 0}
+{"action": "KILL", "terminal": 1}
+{"action": "KILL", "terminal": 2}
+```
 
 # mcp__kodegen__fs_search
 
