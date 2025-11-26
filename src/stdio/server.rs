@@ -308,7 +308,9 @@ impl StdioProxyServer {
             .await
             {
                 Ok((client, connection)) => {
-                    category_clients.insert(category.to_string(), client);
+                    // Use 15-minute timeout for proxy - backend servers handle their own timeouts
+                    let client_with_extended_timeout = client.with_timeout(Duration::from_secs(900));
+                    category_clients.insert(category.to_string(), client_with_extended_timeout);
                     category_connections.push(connection);
                     log::info!("Connected to {category} server (port {port})");
                 }
@@ -385,8 +387,11 @@ impl StdioProxyServer {
         .with_context(|| format!("Failed to reconnect to {} server", category))?;
 
         // Update the category_clients map with new client
+        // Use 15-minute timeout for proxy - backend servers handle their own timeouts
+        let new_client_extended = new_client.with_timeout(Duration::from_secs(900));
+
         let mut clients = self.category_clients.write().await;
-        clients.insert(category.to_string(), new_client.clone());
+        clients.insert(category.to_string(), new_client_extended.clone());
         drop(clients);
 
         // Store new connection to keep it alive
@@ -396,7 +401,7 @@ impl StdioProxyServer {
 
         log::info!("Reconnected to {} server successfully", category);
 
-        Ok(new_client)
+        Ok(new_client_extended)
     }
 
     /// Serve the stdio server
