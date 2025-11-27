@@ -310,7 +310,7 @@ Read file contents with offset/length support for massive files.
 
 ```javascript
 fs_read_file({
-  "file_path": "src/main.rs",
+  "path": "src/main.rs",
   "offset": 0,
   "limit": 100
 })
@@ -321,7 +321,7 @@ Write or append content to files with atomic operations.
 
 ```javascript
 fs_write_file({
-  "file_path": "output.txt",
+  "path": "output.txt",
   "content": "Hello, world!",
   "append": false
 })
@@ -332,24 +332,13 @@ Surgical text replacement with automatic fuzzy matching.
 
 ```javascript
 fs_edit_block({
-  "file_path": "src/main.rs",
+  "path": "src/main.rs",
   "old_string": "fn process_data",
   "new_string": "async fn process_data"
 })
 ```
 
-#### `fs_start_search`
-Start streaming search across codebase with regex support.
-
-```javascript
-fs_start_search({
-  "pattern": "TODO:",
-  "path": ".",
-  "regex": false
-})
-```
-
-**Other filesystem tools:** `fs_read_multiple_files`, `fs_move_file`, `fs_delete_file`, `fs_delete_directory`, `fs_create_directory`, `fs_get_file_info`, `fs_list_directory`, `fs_get_search_results`, `fs_stop_search`, `fs_list_searches`
+**Other filesystem tools:** `fs_read_multiple_files`, `fs_move_file`, `fs_delete_file`, `fs_delete_directory`, `fs_create_directory`, `fs_get_file_info`, `fs_list_directory`, `fs_search`
 
 ### Terminal Tools (5 tools)
 
@@ -435,12 +424,12 @@ start_search({
 
 // 2. Read the file
 read_file({
-  "file_path": "src/processor.rs"
+  "path": "src/processor.rs"
 })
 
 // 3. Make the function async
 edit_block({
-  "file_path": "src/processor.rs",
+  "path": "src/processor.rs",
   "old_string": "fn process_data(input: &str) -> Result<Data>",
   "new_string": "async fn process_data(input: &str) -> Result<Data>"
 })

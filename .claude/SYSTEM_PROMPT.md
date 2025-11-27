@@ -537,7 +537,7 @@ Usage:
 ```typescript
 {
   // The absolute path to the file to modify
-  file_path: string;
+  path: string;
   // The text to replace
   old_string: string;
   // The text to replace it with (must be different from old_string)
@@ -598,7 +598,7 @@ Apply surgical text replacements to files. Takes old_string and new_string, and 
 ## Parameters
 
 **Required:**
-- `file_path` (string): Path to the file to edit
+- `path` (string): Path to the file to edit
 - `old_string` (string): The exact string to search for and replace
 - `new_string` (string): The replacement string
 
@@ -625,14 +625,14 @@ Apply surgical text replacements to files. Takes old_string and new_string, and 
 ```typescript
 // Replace single occurrence (default)
 {
-  file_path: "/path/to/file.rs",
+  path: "/path/to/file.rs",
   old_string: "fn old_name() {",
   new_string: "fn new_name() {"
 }
 
 // Replace all occurrences of a variable
 {
-  file_path: "/path/to/file.rs",
+  path: "/path/to/file.rs",
   old_string: "oldVar",
   new_string: "newVar",
   expected_replacements: 5
@@ -640,7 +640,7 @@ Apply surgical text replacements to files. Takes old_string and new_string, and 
 
 // Replace multi-line block
 {
-  file_path: "/path/to/file.rs",
+  path: "/path/to/file.rs",
   old_string: "pub struct Config {\n    port: u16,\n}",
   new_string: "pub struct Config {\n    port: u16,\n    host: String,\n}"
 }

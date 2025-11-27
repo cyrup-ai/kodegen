@@ -3,9 +3,10 @@ use clap::Parser;
 use kodegen_utils::usage_tracker::UsageTracker;
 
 mod cli;
+mod commands;
 mod stdio;
 
-use cli::Cli;
+use cli::{Cli, Commands};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,6 +15,19 @@ async fn main() -> Result<()> {
 
     // Parse CLI arguments
     let cli = Cli::parse();
+
+    // Handle subcommands FIRST (before stdio server logic)
+    if let Some(command) = cli.command {
+        return match command {
+            Commands::Install => {
+                println!("Install not yet implemented");
+                Ok(())
+            }
+            Commands::Monitor { interval } => {
+                commands::handle_monitor(interval).await
+            }
+        };
+    }
 
     // Handle list-categories flag
     if cli.list_categories {

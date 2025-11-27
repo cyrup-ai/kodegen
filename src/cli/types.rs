@@ -212,6 +212,12 @@ pub struct Cli {
 pub enum Commands {
     /// Automatically configure MCP-compatible editors
     Install,
+    /// Monitor memory usage of all backend MCP servers
+    Monitor {
+        /// Polling interval in seconds (default: 10)
+        #[arg(long, default_value = "10")]
+        interval: u64,
+    },
 }
 
 impl Cli {
