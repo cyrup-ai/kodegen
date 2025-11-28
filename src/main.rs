@@ -26,6 +26,26 @@ async fn main() -> Result<()> {
             Commands::Monitor { interval } => {
                 commands::handle_monitor(interval).await
             }
+            Commands::Claude {
+                toolset,
+                model,
+                session_id,
+                system_prompt,
+                disallowed_tools,
+                mcp_config,
+                passthrough_args,
+            } => {
+                commands::handle_claude(
+                    toolset,
+                    model,
+                    session_id,
+                    system_prompt,
+                    disallowed_tools,
+                    mcp_config,
+                    passthrough_args,
+                )
+                .await
+            }
         };
     }
 

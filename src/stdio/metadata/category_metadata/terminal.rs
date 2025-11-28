@@ -1,11 +1,10 @@
-//! Execution tools: terminal
+//! Terminal tools: persistent shell sessions
 
 use kodegen_mcp_schema::terminal::{TERMINAL, TerminalInput};
 use crate::stdio::metadata::types::{build_schema, ToolMetadata};
 
-pub fn execution_tools() -> Vec<ToolMetadata> {
+pub fn terminal_tools() -> Vec<ToolMetadata> {
     vec![
-        // TERMINAL (unified tool)
         ToolMetadata {
             name: TERMINAL,
             category: "terminal",

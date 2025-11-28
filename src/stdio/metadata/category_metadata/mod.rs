@@ -1,4 +1,4 @@
-//! Static metadata for all tools across 14 categories.
+//! Static metadata for all tools across 15 categories.
 //!
 //! This module aggregates tool metadata from organized category submodules
 //! to avoid instantiating tool objects at runtime.
@@ -6,41 +6,63 @@
 use super::types::ToolMetadata;
 use once_cell::sync::Lazy;
 
-mod ai_reasoning;
-mod data_persistence;
-mod execution;
-mod infrastructure;
-mod version_control;
-mod web_external;
+// Agent packages
+mod claude_agent;
+mod candle_agent;
 
-use ai_reasoning::ai_reasoning_tools;
-use data_persistence::data_persistence_tools;
-use execution::execution_tools;
-use infrastructure::infrastructure_tools;
-use version_control::version_control_tools;
-use web_external::web_external_tools;
+// Tool packages
+mod browser;
+mod citescrape;
+mod config;
+mod database;
+mod filesystem;
+mod git;
+mod github;
+mod introspection;
+mod process;
+mod prompt;
+mod reasoner;
+mod sequential_thinking;
+mod terminal;
+
+use claude_agent::claude_agent_tools;
+use candle_agent::candle_agent_tools;
+use browser::browser_tools;
+use citescrape::citescrape_tools;
+use config::config_tools;
+use database::database_tools;
+use filesystem::filesystem_tools;
+use git::git_tools;
+use github::github_tools;
+use introspection::introspection_tools;
+use process::process_tools;
+use prompt::prompt_tools;
+use reasoner::reasoner_tools;
+use sequential_thinking::sequential_thinking_tools;
+use terminal::terminal_tools;
 
 /// All tools with static metadata, cached and sorted alphabetically.
 static CACHED_TOOL_METADATA: Lazy<Vec<ToolMetadata>> = Lazy::new(|| {
     let mut tools = Vec::new();
     
-    // Add infrastructure tools (config, introspection, process)
-    tools.extend(infrastructure_tools());
+    // Agent packages
+    tools.extend(claude_agent_tools());
+    tools.extend(candle_agent_tools());
     
-    // Add version control tools (git, github)
-    tools.extend(version_control_tools());
-    
-    // Add data and persistence tools (database, filesystem)
-    tools.extend(data_persistence_tools());
-    
-    // Add execution tools (terminal)
-    tools.extend(execution_tools());
-    
-    // Add web and external tools (browser, citescrape)
-    tools.extend(web_external_tools());
-    
-    // Add AI and reasoning tools (claude_agent, candle_agent, reasoner, sequential_thinking, prompt)
-    tools.extend(ai_reasoning_tools());
+    // Tool packages (alphabetical)
+    tools.extend(browser_tools());
+    tools.extend(citescrape_tools());
+    tools.extend(config_tools());
+    tools.extend(database_tools());
+    tools.extend(filesystem_tools());
+    tools.extend(git_tools());
+    tools.extend(github_tools());
+    tools.extend(introspection_tools());
+    tools.extend(process_tools());
+    tools.extend(prompt_tools());
+    tools.extend(reasoner_tools());
+    tools.extend(sequential_thinking_tools());
+    tools.extend(terminal_tools());
     
     // Sort alphabetically by tool name for consistent ordering
     tools.sort_by(|a, b| a.name.cmp(b.name));

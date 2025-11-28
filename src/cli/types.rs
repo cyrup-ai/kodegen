@@ -1,29 +1,9 @@
-use anyhow::Context;
 use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 
-/// Toolset configuration loaded from JSON file
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolsetConfig {
-    /// List of individual tool names to enable
-    pub tools: Vec<String>,
-}
-
-impl ToolsetConfig {
-    /// Load toolset config from JSON file
-    pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read toolset file: {}", path.display()))?;
-        
-        // Parse as JSON
-        let config: ToolsetConfig = serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse toolset file as JSON: {}", path.display()))?;
-        
-        Ok(config)
-    }
-}
+// Re-export ToolsetConfig from toolset module
+pub use crate::cli::toolset::ToolsetConfig;
 
 /// KODEGEN MCP Server - Memory-efficient, blazing-fast tools for AI agents
 ///
@@ -212,11 +192,56 @@ pub struct Cli {
 pub enum Commands {
     /// Automatically configure MCP-compatible editors
     Install,
+    
     /// Monitor memory usage of all backend MCP servers
     Monitor {
         /// Polling interval in seconds (default: 10)
         #[arg(long, default_value = "10")]
         interval: u64,
+    },
+    
+    /// Launch Claude CLI with kodegen MCP integration and intelligent defaults
+    Claude {
+        /// Toolset configurations to load (default: ["core"])
+        /// 
+        /// Can be:
+        /// - "core" - resolves to .kodegen/toolset/core.json or XDG_CONFIG_HOME/kodegen/toolset/core.json
+        /// - Absolute path - uses file at that location
+        /// - Relative path - resolves relative to current directory
+        ///
+        /// Multiple toolsets are merged together.
+        #[arg(long, default_value = "core")]
+        toolset: Vec<String>,
+
+        /// Model to use (default: "sonnet")
+        #[arg(long, default_value = "sonnet")]
+        model: String,
+
+        /// Session ID (auto-generated if not provided)
+        /// Must be a valid UUID if provided
+        #[arg(long)]
+        session_id: Option<String>,
+
+        /// Path to system prompt file
+        /// If not provided, searches:
+        /// 1. {git_root}/.kodegen/claude/SYSTEM_PROMPT.md
+        /// 2. {XDG_CONFIG_HOME}/kodegen/claude/SYSTEM_PROMPT.md
+        #[arg(long)]
+        system_prompt: Option<std::path::PathBuf>,
+
+        /// Tools to disallow (default: built-in file tools)
+        /// Default: ["Bash", "Read", "Write", "Edit", "Update", "WebSearch", "Fetch"]
+        #[arg(long, value_delimiter = ',')]
+        disallowed_tools: Option<Vec<String>>,
+
+        /// Override MCP config (advanced)
+        /// If not provided, dynamically constructs config for kodegen stdio server
+        #[arg(long)]
+        mcp_config: Option<Vec<String>>,
+
+        /// All other arguments to pass through to claude CLI
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        passthrough_args: Vec<String>,
     },
 }
 

@@ -1,11 +1,10 @@
-//! Web and external tools: browser, citescrape
+//! Browser tools: web page interaction, navigation, research
 
 use kodegen_mcp_schema::*;
 use crate::stdio::metadata::types::{build_schema, ToolMetadata};
 
-pub fn web_external_tools() -> Vec<ToolMetadata> {
+pub fn browser_tools() -> Vec<ToolMetadata> {
     vec![
-        // BROWSER (9 tools)
         ToolMetadata {
             name: BROWSER_AGENT,
             category: "browser",
@@ -59,25 +58,6 @@ pub fn web_external_tools() -> Vec<ToolMetadata> {
             category: "browser",
             description: "Perform a web search using DuckDuckGo and return structured results with titles, URLs, and snippets.nn Returns up to 10 search results with:n - ran...",
             schema: build_schema::<citescrape::WebSearchArgs>(),
-        },
-        // CITESCRAPE (3 tools)
-        ToolMetadata {
-            name: citescrape::SCRAPE_CHECK_RESULTS,
-            category: "citescrape",
-            description: "Check crawl status and retrieve results for active or completed crawls. Returns progress information for running crawls and summary with file list ...",
-            schema: build_schema::<citescrape::ScrapeCheckResultsArgs>(),
-        },
-        ToolMetadata {
-            name: citescrape::SCRAPE_SEARCH_RESULTS,
-            category: "citescrape",
-            description: "Full-text search across crawled documentation using Tantivy. Supports advanced query syntax including text, phrase, boolean, field-specific, and fu...",
-            schema: build_schema::<citescrape::ScrapeSearchResultsArgs>(),
-        },
-        ToolMetadata {
-            name: citescrape::SCRAPE_URL,
-            category: "citescrape",
-            description: "Start a background web crawl that saves content to markdown/HTML/JSON and optionally indexes for full-text search. Returns immediately with crawl_i...",
-            schema: build_schema::<citescrape::ScrapeUrlArgs>(),
         },
     ]
 }
