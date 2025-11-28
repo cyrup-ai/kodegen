@@ -31,11 +31,11 @@ macos = "public.app-category.developer-tools"
 
 [dependencies]
 cyrup_termcolor = "2"
-kodegen_mcp_schema = { version = "0.3" }
-kodegen_config_manager = { version = "0.3" }
-kodegen_mcp_tool = { version = "0.3" }
-kodegen_utils = { version = "0.3" }
-kodegen_mcp_client = { version = "0.3" }
+kodegen_mcp_schema = { version = "0.3", path = "../kodegen-mcp-schema" }
+kodegen_config_manager = { version = "0.3", path = "../kodegen-config-manager" }
+kodegen_mcp_tool = { version = "0.3", path = "../kodegen-mcp-tool" }
+kodegen_utils = { version = "0.3", path = "../kodegen-utils" }
+kodegen_mcp_client = { version = "0.3", path = "../kodegen-mcp-client" }
 
 # Lazy static initialization
 once_cell = "1.20"
