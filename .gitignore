@@ -289,3 +289,4 @@ chrome_data*/
 **/target/
 
 # ============== </kodegen> ==============
+.claude
