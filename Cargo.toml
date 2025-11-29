@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -31,6 +31,7 @@ macos = "public.app-category.developer-tools"
 
 [dependencies]
 cyrup_termcolor = "2"
+kodegen_config = { version = "0.1" }
 kodegen_mcp_schema = { version = "0.3" }
 kodegen_config_manager = { version = "0.3" }
 kodegen_mcp_tool = { version = "0.3" }
@@ -52,6 +53,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
+futures = "0.3"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

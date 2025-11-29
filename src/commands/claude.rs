@@ -146,9 +146,9 @@ async fn find_system_prompt() -> Option<PathBuf> {
         }
     }
 
-    // Try XDG_CONFIG_HOME
-    if let Some(config_dir) = dirs::config_dir() {
-        let path = config_dir.join("kodegen/claude/SYSTEM_PROMPT.md");
+    // Try user config directory
+    if let Ok(config_dir) = kodegen_config::KodegenConfig::user_config_dir() {
+        let path = config_dir.join("claude/SYSTEM_PROMPT.md");
         if path.exists() {
             return Some(path);
         }

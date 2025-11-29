@@ -1,5 +1,6 @@
 // packages/server/src/stdio/server.rs
 use anyhow::{Context, Result};
+use futures::future;
 use kodegen_mcp_client::{X_KODEGEN_CONNECTION_ID, X_KODEGEN_GITROOT, X_KODEGEN_PWD};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
@@ -739,5 +740,109 @@ impl Drop for StdioProxyServer {
                 self.connection_id
             );
         }
+
+        // Notify all backend servers of connection drop (fire-and-forget async)
+        let server_clone = Arc::new(tokio::sync::RwLock::new(StdioProxyServerClone {
+            category_clients: self.category_clients.clone(),
+            connection_id: self.connection_id.clone(),
+            http_config: self.http_config.clone(),
+        }));
+
+        tokio::spawn(async move {
+            let server = server_clone.read().await;
+            notify_backends_helper(&server).await;
+        });
     }
+}
+
+/// Helper struct for async notification in Drop
+struct StdioProxyServerClone {
+    category_clients: Arc<tokio::sync::RwLock<HashMap<String, kodegen_mcp_client::KodegenClient>>>,
+    connection_id: String,
+    http_config: HttpConnectionConfig,
+}
+
+/// Helper function to notify backends (called from spawned task)
+async fn notify_backends_helper(server: &StdioProxyServerClone) {
+    let start = std::time::Instant::now();
+    let clients = server.category_clients.read().await;
+    let categories: Vec<String> = clients.keys().cloned().collect();
+    drop(clients);
+
+    log::info!(
+        "Notifying {} backend server(s) of connection {} drop",
+        categories.len(),
+        server.connection_id
+    );
+
+    // Spawn parallel notification tasks
+    let mut tasks = Vec::new();
+    let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+
+    for category in categories {
+        let connection_id = server.connection_id.clone();
+        let http_config = server.http_config.clone();
+        let port = *port_map.get(category.as_str()).unwrap_or(&0);
+
+        let task = tokio::spawn(async move {
+            let protocol = if http_config.no_tls { "http" } else { "https" };
+            let url = format!(
+                "{}://{}:{}/mcp/connection/{}",
+                protocol, http_config.host, port, connection_id
+            );
+
+            log::debug!(
+                "Notifying {} server of connection {} drop",
+                category,
+                connection_id
+            );
+
+            // Send DELETE request with 5-second timeout
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap();
+
+            match client.delete(&url).send().await {
+                Ok(response) => {
+                    if response.status().is_success() || response.status() == 204 {
+                        log::debug!(
+                            "{} server acknowledged connection {} cleanup",
+                            category,
+                            connection_id
+                        );
+                    } else {
+                        log::warn!(
+                            "{} server returned {} for connection {} cleanup",
+                            category,
+                            response.status(),
+                            connection_id
+                        );
+                    }
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Failed to notify {} server of connection {} drop: {}",
+                        category,
+                        connection_id,
+                        e
+                    );
+                }
+            }
+        });
+
+        tasks.push(task);
+    }
+
+    // Wait for all notifications to complete (with timeout)
+    let results: Vec<Result<(), tokio::task::JoinError>> = future::join_all(tasks).await;
+    let successful = results.iter().filter(|r| r.is_ok()).count();
+
+    log::info!(
+        "Connection {} drop notification: {}/{} server(s) notified in {:?}",
+        server.connection_id,
+        successful,
+        results.len(),
+        start.elapsed()
+    );
 }

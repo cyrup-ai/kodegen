@@ -76,17 +76,28 @@ pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
                         elapsed,
                         requests_delta
                     );
-                }
-            }
 
-            snapshots.insert(
-                name.to_string(),
-                ServerSnapshot {
-                    memory: health.memory_used,
-                    requests: health.requests_processed,
-                    timestamp: now,
-                },
-            );
+                    // Update snapshot ONLY when we print
+                    snapshots.insert(
+                        name.to_string(),
+                        ServerSnapshot {
+                            memory: health.memory_used,
+                            requests: health.requests_processed,
+                            timestamp: now,
+                        },
+                    );
+                }
+            } else {
+                // First snapshot
+                snapshots.insert(
+                    name.to_string(),
+                    ServerSnapshot {
+                        memory: health.memory_used,
+                        requests: health.requests_processed,
+                        timestamp: now,
+                    },
+                );
+            }
         }
 
         sleep(Duration::from_secs(interval_secs)).await;

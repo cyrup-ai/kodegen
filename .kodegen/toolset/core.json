@@ -20,8 +20,6 @@
     "memory_recall",
     "process_kill",
     "process_list",
-    "scrape_check_results",
-    "scrape_search_results",
     "scrape_url",
     "sequential_thinking",
     "terminal"

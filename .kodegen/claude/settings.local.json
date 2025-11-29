@@ -100,15 +100,23 @@
       "mcp__kodegen__prompt_edit",
       "mcp__kodegen__prompt_get",
       "mcp__kodegen__reasoner",
-      "mcp__kodegen__scrape_check_results",
-      "mcp__kodegen__scrape_search_results",
       "mcp__kodegen__scrape_url",
       "mcp__kodegen__sequential_thinking",
-      "mcp__kodegen__terminal"
+      "mcp__kodegen__terminal",
+      "WebFetch(domain:rust-lang.github.io)"
     ],
-    "deny": ["Read", "Write", "Fetch", "Bash", "Update", "WebSearch"],
+    "deny": [
+      "Read",
+      "Write",
+      "Fetch",
+      "Bash",
+      "Update",
+      "WebSearch"
+    ],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["kodegen"]
+  "enabledMcpjsonServers": [
+    "kodegen"
+  ]
 }

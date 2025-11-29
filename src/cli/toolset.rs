@@ -13,7 +13,8 @@
 //! - macOS: ~/Library/Application Support/kodegen/toolset/
 //! - Windows: %APPDATA%\kodegen\toolset\
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
+use kodegen_config::KodegenConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
@@ -78,33 +79,9 @@ pub async fn resolve_toolset_path(spec: &str) -> Result<PathBuf> {
         return Ok(path_buf);
     }
     
-    // Treat as toolset name - search standard locations
-    let mut searched = Vec::new();
-    
-    // Try git root
-    if let Some(git_root) = find_git_root().await {
-        let path = git_root.join(format!(".kodegen/toolset/{}.json", spec));
-        searched.push(path.display().to_string());
-        if path.exists() {
-            return Ok(path);
-        }
-    }
-    
-    // Try config dir (cross-platform)
-    if let Some(config_dir) = dirs::config_dir() {
-        let path = config_dir.join(format!("kodegen/toolset/{}.json", spec));
-        searched.push(path.display().to_string());
-        if path.exists() {
-            return Ok(path);
-        }
-    }
-    
-    // Not found - show helpful error
-    bail!(
-        "Toolset '{}' not found. Searched:\n  {}\n\nCreate one of these files with:\n{{\n  \"tools\": [\"tool1\", \"tool2\"]\n}}",
-        spec,
-        searched.join("\n  ")
-    );
+    // Treat as toolset name - use centralized resolution
+    // The error message from resolve_toolset already includes searched paths
+    KodegenConfig::resolve_toolset(spec)
 }
 
 /// Load toolset JSON file and extract tool names
