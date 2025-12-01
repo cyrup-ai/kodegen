@@ -8,7 +8,7 @@ use the `Task` tool (subagents) to execute IN PARALLEL each of the tasks in `tas
 
 ## IN PARALLEL
 
-Identify 10 tasks that can be executed in parallel (or N numer < 10 in none exist)
+Identify $1 tasks that can be executed in parallel (or N numer < $1 in none exist)
 
 ## CHOOSE TASKS THAT AREN'T SEQUENTIALLY DEPENDENT
 
@@ -66,7 +66,7 @@ Given this, we can execute 1 task from each grouping in parallel, and ensure our
 
 ## CONTINUING AS COMPLETED
 
-*manage 10 sub-agents at at a time*
+*manage $1 sub-agents at at a time*
 
 - spawn new subagents as the initial ones complete 
 - continue spawning until all tasks in the `task/*.md` dir are reported as completed by the sub-agents.  
@@ -142,5 +142,6 @@ DO NOT USE `git` commands of any type. other coders are coding and you will be d
 - use `mcp__kodegen__fs_edit_block` to modify the task file
 - use `mcp__kodegen__terminal` to run `cargo clippy`
 - feel free to any other allowed `mcp__kodegen__*` commands as needed
+- do not use any tools outside `mcp__kodegen__*` ... these tools have everything you need for task execution
 
 ```

@@ -94,6 +94,10 @@ pub struct Cli {
     #[arg(long)]
     pub list_tools: bool,
 
+    /// List available bundled toolsets and exit
+    #[arg(long)]
+    pub list_toolsets: bool,
+
     /// Graceful shutdown timeout in seconds for HTTP server (default: 30)
     /// Can also be set via `KODEGEN_SHUTDOWN_TIMEOUT_SECS` environment variable
     #[arg(
@@ -205,11 +209,18 @@ pub enum Commands {
         /// Toolset configurations to load (default: ["core"])
         /// 
         /// Can be:
-        /// - "core" - resolves to .kodegen/toolset/core.json or XDG_CONFIG_HOME/kodegen/toolset/core.json
+        /// - Bundled toolset name - e.g., "core" (automatically resolved from embedded assets)
         /// - Absolute path - uses file at that location
         /// - Relative path - resolves relative to current directory
         ///
+        /// Resolution order:
+        /// 1. If path (contains / or \): use that path
+        /// 2. If name: search {git_root}/.kodegen/toolset/{name}.json
+        /// 3. If name: search {XDG_CONFIG}/kodegen/toolset/{name}.json
+        /// 4. If name: use embedded bundled toolset
+        ///
         /// Multiple toolsets are merged together.
+        /// Use --list-toolsets to see available bundled toolsets.
         #[arg(long, default_value = "core")]
         toolset: Vec<String>,
 
@@ -222,10 +233,12 @@ pub enum Commands {
         #[arg(long)]
         session_id: Option<String>,
 
-        /// Path to system prompt file
-        /// If not provided, searches:
-        /// 1. {git_root}/.kodegen/claude/SYSTEM_PROMPT.md
-        /// 2. {XDG_CONFIG_HOME}/kodegen/claude/SYSTEM_PROMPT.md
+        /// Path to custom system prompt file (optional)
+        ///
+        /// If not provided, uses the bundled default system prompt embedded in the binary.
+        /// If provided, reads and uses the content from the specified file path.
+        ///
+        /// The embedded default is sourced from .kodegen/claude/SYSTEM_PROMPT.md at build time.
         #[arg(long)]
         system_prompt: Option<std::path::PathBuf>,
 
@@ -243,6 +256,18 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         passthrough_args: Vec<String>,
     },
+
+    /// Hook utilities for Claude Code plugin integration
+    Hook {
+        #[command(subcommand)]
+        hook_command: HookCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum HookCommands {
+    /// Send platform-native notifications from hook events
+    Notify,
 }
 
 impl Cli {

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
 use uuid::Uuid;
+use crate::embedded;
 
 /// Handle the `kodegen claude` subcommand
 pub async fn handle_claude(
@@ -14,6 +15,12 @@ pub async fn handle_claude(
     mcp_config: Option<Vec<String>>,
     passthrough_args: Vec<String>,
 ) -> Result<()> {
+    // Auto-configure KODEGEN plugin if not already present
+    if super::ensure_plugin_configured() {
+        eprintln!("✓ KODEGEN plugin configured for Claude Code");
+        eprintln!("  Source: github:cyrup-ai/kodegen-claude-plugin");
+    }
+
     // 1. Find claude binary in PATH
     let claude_bin = find_claude_binary()?;
 
@@ -23,11 +30,17 @@ pub async fn handle_claude(
     // 3. Resolve toolset paths and load tool names
     let tool_names = load_toolsets(&toolset).await?;
 
-    // 4. Find system prompt if not explicitly provided
-    let system_prompt_path = if let Some(p) = system_prompt {
-        Some(p)
+    // 4. Load system prompt content (embedded default or custom file)
+    let system_prompt_content = if let Some(path) = system_prompt {
+        // User provided custom prompt file - read and use it
+        tokio::fs::read_to_string(&path)
+            .await
+            .with_context(|| format!("Failed to read custom system prompt from {:?}", path))?
     } else {
-        find_system_prompt().await
+        // Use embedded default from bundled .kodegen/claude/SYSTEM_PROMPT.md
+        embedded::system_prompt()
+            .context("Embedded SYSTEM_PROMPT.md not found - this is a build error")?
+            .to_string()
     };
 
     // 5. Build allowed-tools list with mcp__kodegen__ prefix
@@ -73,10 +86,8 @@ pub async fn handle_claude(
         cmd.arg("--allowed-tools").arg(allowed_tools.join(","));
     }
 
-    // Apply system prompt if found
-    if let Some(prompt_path) = system_prompt_path {
-        cmd.arg("--system-prompt").arg(prompt_path);
-    }
+    // Apply system prompt content (always present - embedded or custom)
+    cmd.arg("--system-prompt").arg(&system_prompt_content);
 
     // Apply MCP configs
     for config in &mcp_config_json {
@@ -134,27 +145,6 @@ fn resolve_session_id(provided: Option<String>) -> Result<String> {
 /// Load and merge toolsets from multiple sources
 async fn load_toolsets(toolsets: &[String]) -> Result<Vec<String>> {
     crate::cli::load_and_merge_toolsets(toolsets).await
-}
-
-/// Find SYSTEM_PROMPT.md in standard locations
-async fn find_system_prompt() -> Option<PathBuf> {
-    // Try git root first
-    if let Some(git_root) = crate::cli::find_git_root().await {
-        let path = git_root.join(".kodegen/claude/SYSTEM_PROMPT.md");
-        if path.exists() {
-            return Some(path);
-        }
-    }
-
-    // Try user config directory
-    if let Ok(config_dir) = kodegen_config::KodegenConfig::user_config_dir() {
-        let path = config_dir.join("claude/SYSTEM_PROMPT.md");
-        if path.exists() {
-            return Some(path);
-        }
-    }
-
-    None
 }
 
 /// Build MCP config JSON for kodegen stdio server

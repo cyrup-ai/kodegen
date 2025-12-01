@@ -4,7 +4,9 @@ use kodegen_utils::usage_tracker::UsageTracker;
 
 mod cli;
 mod commands;
+mod hooks;
 mod stdio;
+mod embedded;
 
 use cli::{Cli, Commands};
 
@@ -46,6 +48,9 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            Commands::Hook { hook_command } => match hook_command {
+                cli::HookCommands::Notify => hooks::notify::run().await,
+            },
         };
     }
 
@@ -63,6 +68,15 @@ async fn main() -> Result<()> {
         println!("Available tools:");
         for tool in cli::available_tools() {
             println!("  - {tool}");
+        }
+        return Ok(());
+    }
+
+    // Handle list-toolsets flag
+    if cli.list_toolsets {
+        println!("Available bundled toolsets:");
+        for toolset in embedded::list_toolsets() {
+            println!("  - {}", toolset);
         }
         return Ok(());
     }

@@ -38,6 +38,16 @@ impl ToolsetConfig {
     }
 }
 
+/// Load toolset from embedded assets
+fn load_embedded_toolset(name: &str) -> Result<ToolsetConfig> {
+    let path = format!("toolset/{}.json", name);
+    let content = crate::embedded::get_file(&path)
+        .ok_or_else(|| anyhow::anyhow!("Embedded toolset '{}' not found", name))?;
+    
+    serde_json::from_str(content)
+        .with_context(|| format!("Failed to parse embedded toolset '{}'", name))
+}
+
 /// Resolve toolset specification to absolute file path
 ///
 /// Auto-detects whether spec is a toolset name or file path:
@@ -79,13 +89,33 @@ pub async fn resolve_toolset_path(spec: &str) -> Result<PathBuf> {
         return Ok(path_buf);
     }
     
-    // Treat as toolset name - use centralized resolution
-    // The error message from resolve_toolset already includes searched paths
-    KodegenConfig::resolve_toolset(spec)
+    // Not a path - resolve as toolset name
+    match KodegenConfig::resolve_toolset(spec) {
+        Ok(path) => Ok(path),
+        Err(e) => {
+            // Filesystem search failed - try embedded toolsets
+            let embedded_path = format!("toolset/{}.json", spec);
+            if crate::embedded::get_file(&embedded_path).is_some() {
+                // Create a temporary marker path that load_toolset_file() will recognize
+                Ok(PathBuf::from(format!("embedded:{}", spec)))
+            } else {
+                // Not found anywhere - return original error with additional context
+                Err(e).with_context(|| format!("Toolset '{}' not found in filesystem or embedded toolsets", spec))
+            }
+        }
+    }
 }
 
 /// Load toolset JSON file and extract tool names
 pub async fn load_toolset_file(path: &Path) -> Result<Vec<String>> {
+    let path_str = path.to_string_lossy();
+    
+    // Check for embedded toolset marker
+    if let Some(name) = path_str.strip_prefix("embedded:") {
+        let config = load_embedded_toolset(name)?;
+        return Ok(config.tools);
+    }
+    
     let content = tokio::fs::read_to_string(path).await
         .with_context(|| format!("Failed to read toolset file: {}", path.display()))?;
 
@@ -119,24 +149,4 @@ pub async fn load_and_merge_toolsets(specs: &[String]) -> Result<Vec<String>> {
     }
 
     Ok(all_tools.into_iter().collect())
-}
-
-/// Find git repository root by walking up from current directory
-///
-/// Returns None if current directory is not inside a git repository.
-pub async fn find_git_root() -> Option<PathBuf> {
-    let current_dir = std::env::current_dir().ok()?;
-    
-    tokio::task::spawn_blocking(move || {
-        match gix::discover(&current_dir) {
-            Ok(repo) => {
-                let work_dir = repo.work_dir()?;
-                Some(work_dir.to_path_buf())
-            }
-            Err(_) => None,
-        }
-    })
-    .await
-    .ok()
-    .flatten()
 }

@@ -1,10 +1,10 @@
 // packages/server/src/stdio/server.rs
 use anyhow::{Context, Result};
 use futures::future;
-use kodegen_mcp_client::{X_KODEGEN_CONNECTION_ID, X_KODEGEN_GITROOT, X_KODEGEN_PWD};
+use kodegen_mcp_client::{X_KODEGEN_GITROOT, X_KODEGEN_PWD};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
     model::{
@@ -27,6 +27,9 @@ use tokio_util::sync::CancellationToken;
 use super::metadata::{all_tool_metadata, get_routing_table, CATEGORY_PORTS};
 use super::session_mapper::SessionMapper;
 use uuid::Uuid;
+
+// MCP standard session header (matches rmcp HEADER_SESSION_ID constant)
+const MCP_SESSION_ID: &str = "Mcp-Session-Id";
 
 /// Configuration for HTTP connection retry logic
 #[derive(Debug, Clone)]
@@ -100,9 +103,10 @@ async fn connect_with_retry(
     // Build infrastructure context headers
     let mut session_headers = HeaderMap::new();
 
-    // Connection ID - identifies this stdio connection instance
+    // MCP Session ID - identifies this stdio connection instance
+    // Reuse connection_id as the MCP session ID (required for rmcp to inject HTTP Parts)
     if let Ok(value) = HeaderValue::from_str(connection_id) {
-        session_headers.insert(X_KODEGEN_CONNECTION_ID, value);
+        session_headers.insert(HeaderName::from_static(MCP_SESSION_ID), value);
     }
 
     // Current working directory and git root from environment

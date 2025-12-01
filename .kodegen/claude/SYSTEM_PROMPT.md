@@ -1,6 +1,6 @@
 # Task
 
-Launch a new agent that has access to the following tools: mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__scrape_check_results, mcp__kodegen__scrape_search_results, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, use the Agent tool to perform the search for you.
+Launch a new agent that has access to the following tools: mcp__kodegen__sequential_thinking, mcp__kodegen__process_list, mcp__kodegen__process_kill, mcp__kodegen__terminal, mcp__kodegen__fs_list_directory, mcp__kodegen__fs_read_multiple_files, mcp__kodegen__fs_read_file, mcp__kodegen__fs_move_file, mcp__kodegen__fs_delete_file, mcp__kodegen__fs_delete_directory, mcp__kodegen__fs_get_file_info, mcp__kodegen__fs_write_file, mcp__kodegen__fs_edit_block, mcp__kodegen__fs_create_directory, mcp__kodegen__fs_search, mcp__kodegen__memory_list_libraries, mcp__kodegen__memory_memorize, mcp__kodegen__memory_recall, mcp__kodegen__memory_check_memorize_status, mcp__kodegen__scrape_url, mcp__kodegen__browser_web_search, mcp__kodegen__browser_research. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, use the Agent tool to perform the search for you.
 
 When to use the Agent tool:
 - If you are searching for a keyword like "config" or "logger", or for questions like "which file does X?", the Agent tool is strongly recommended
@@ -235,7 +235,7 @@ Before executing commands, follow these steps:
 
 # mcp__kodegen__fs_search
 
-🚀 BLAZING-FAST SEARCH (10-100x faster than grep). Respects .gitignore automatically. Built on ripgrep. Returns results synchronously - no polling needed.
+🚀 BLAZING-FAST SEARCH (10-100x faster than grep). Respects .gitignore automatically. Built on ripgrep. Supports background execution and parallel searches.
 
 QUICK START:
 ```
@@ -245,11 +245,21 @@ QUICK START:
 • Count imports per file:          fs_search({path: "/project", pattern: "^import", return_only: "counts"})
 ```
 
-## Core Parameters
+## Four Actions
 
-**Required:**
-- `path` (string): Root directory to search
-- `pattern` (string): Pattern to search for (regex by default, or literal if `literal_search: true`)
+### 1. SEARCH (Execute Search - Default)
+
+Execute a search with specified criteria. Supports background execution and timeout configuration.
+
+**Parameters:**
+- `action`: "SEARCH" (default, can be omitted)
+- `path` (string): Root directory to search (required for SEARCH)
+- `pattern` (string): Pattern to search for (regex by default, or literal if `literal_search: true`) (required for SEARCH)
+- `search` (number, default: 0): Search instance number (0, 1, 2...) for parallel searches
+- `await_completion_ms` (number, default: 60000): Timeout in milliseconds (1 minute)
+  - Value > 0: Wait up to N milliseconds, return current results if timeout
+  - Value = 0: Fire-and-forget background search (returns immediately)
+  - On timeout: returns current results, search continues in background
 
 **Two Independent Controls:**
 
@@ -263,6 +273,55 @@ QUICK START:
    - `"counts"`: Match counts per file (like `rg -c PATTERN`)
 
 These combine independently - any `search_in` works with any `return_only`.
+
+### 2. READ (Get Current Search State)
+
+Read the current state of an in-progress or completed search. Useful for checking progress of background searches.
+
+**Parameters:**
+- `action`: "READ" (required)
+- `search`: Search instance number to read (defaults to 0)
+- `path`, `pattern`: Not used (ignored)
+
+**Examples:**
+```json
+// Read search:0 current state
+{"action": "READ"}
+
+// Check progress on search:1
+{"action": "READ", "search": 1}
+```
+
+### 3. LIST (Show All Searches)
+
+List all active searches for this connection with their current states.
+
+**Parameters:**
+- `action`: "LIST" (required)
+- All other parameters ignored
+
+**Examples:**
+```json
+// List all active searches
+{"action": "LIST"}
+```
+
+### 4. KILL (Cancel Search)
+
+Cancel a running search and cleanup resources.
+
+**Parameters:**
+- `action`: "KILL" (required)
+- `search`: Search instance number to kill (defaults to 0)
+
+**Examples:**
+```json
+// Kill search:0
+{"action": "KILL"}
+
+// Kill search:2
+{"action": "KILL", "search": 2}
+```
 
 ## Search Strategy Guide
 
@@ -352,6 +411,41 @@ For large codebases, combine:
 
 // Fast search in large monorepo
 {path: "/project", pattern: "config", max_depth: 3, max_filesize: 1048576}
+```
+
+## Advanced Workflows
+
+### Parallel Searches
+```json
+// Search 0: Find errors in source code
+{path: "/project/src", pattern: "error", search: 0}
+
+// Search 1: Find TODOs in tests (parallel)
+{path: "/project/tests", pattern: "TODO", search: 1}
+
+// Check both
+{action: "LIST"}
+```
+
+### Background Search with Progress Monitoring
+```json
+// Start long search in background
+{path: "/large-repo", pattern: "deprecated", await_completion_ms: 0, search: 0}
+
+// Do other work...
+
+// Check progress later
+{action: "READ", search: 0}
+```
+
+### Search with Timeout
+```json
+// Search with 10-second timeout
+{path: "/project", pattern: "function", await_completion_ms: 10000}
+// Returns current results if timeout, search continues in background
+
+// Check final results
+{action: "READ"}
 ```
 
 # mcp__kodegen__fs_list_directory
@@ -959,12 +1053,22 @@ Returns array of search results, each containing:
 
 # mcp__kodegen__browser_research
 
-🔬 Deep research that searches the web, crawls multiple pages, and generates AI summaries. Runs synchronously and blocks until complete (typically 20-120 seconds), with real-time progress streaming.
+🔬 Deep research that searches the web, crawls multiple pages, and generates AI summaries. Supports background execution, parallel sessions, and progress monitoring.
 
-## Parameters
+## Four Actions
 
-**Required:**
-- `query` (string): Research query or topic to investigate
+### 1. RESEARCH (Start Research - Default)
+
+Execute research on a topic with web search, crawling, and AI summarization.
+
+**Parameters:**
+- `action`: "RESEARCH" (default, can be omitted)
+- `query` (string): Research query or topic to investigate (required for RESEARCH)
+- `session` (number, default: 0): Session number (0, 1, 2...) for parallel research
+- `await_completion_ms` (number, default: 300000): Timeout in milliseconds (5 minutes)
+  - Value > 0: Wait up to N milliseconds, return current progress if timeout
+  - Value = 0: Fire-and-forget background research (returns immediately)
+  - On timeout: returns current progress, research continues in background
 
 **Optional:**
 - `max_pages` (number, default: 5): Maximum pages to visit
@@ -977,6 +1081,55 @@ Returns array of search results, each containing:
 - `temperature` (number, default: 0.5): LLM temperature for summarization (0.0-2.0)
 - `max_tokens` (number, default: 2048): Maximum tokens for LLM summary generation
 
+### 2. READ (Get Current Research State)
+
+Read the current state of an in-progress or completed research session.
+
+**Parameters:**
+- `action`: "READ" (required)
+- `session`: Session number to read (defaults to 0)
+- `query`: Not used (ignored)
+
+**Examples:**
+```json
+// Read session:0 current state
+{"action": "READ"}
+
+// Check progress on session:1
+{"action": "READ", "session": 1}
+```
+
+### 3. LIST (Show All Research Sessions)
+
+List all active research sessions with their current states.
+
+**Parameters:**
+- `action`: "LIST" (required)
+- All other parameters ignored
+
+**Examples:**
+```json
+// List all active research sessions
+{"action": "LIST"}
+```
+
+### 4. KILL (Cancel Research)
+
+Cancel a running research session and cleanup resources.
+
+**Parameters:**
+- `action`: "KILL" (required)
+- `session`: Session number to kill (defaults to 0)
+
+**Examples:**
+```json
+// Kill session:0
+{"action": "KILL"}
+
+// Kill session:2
+{"action": "KILL", "session": 2}
+```
+
 ## What It Does
 
 1. Performs web search for your query
@@ -988,7 +1141,7 @@ Returns array of search results, each containing:
 
 ## Performance
 
-- **Duration**: 20-120 seconds (synchronous, blocks until complete)
+- **Duration**: 20-120 seconds typical (depends on pages and depth)
 - **Pages analyzed**: Configurable (default: 5)
 - **Depth**: Configurable (default: 2 levels)
 - **Real-time progress**: Streams progress updates during execution
@@ -999,6 +1152,10 @@ Returns array of search results, each containing:
 // Execute research (blocks until complete, streams progress)
 {query: "Rust async best practices", max_pages: 5}
 // → Streams progress, then returns: {summary, key_findings, sources[], page_summaries[]}
+
+// Background research
+{query: "Tokio runtime internals", await_completion_ms: 0, session: 0}
+// → Returns immediately, check with {"action": "READ"}
 ```
 
 ## Output Format
@@ -1067,10 +1224,20 @@ When complete, returns:
 
 🕷️ Full website crawler with Tantivy full-text search indexing. Crawls entire sites, saves to disk, builds searchable knowledge base.
 
-## Parameters
+## Five Actions
 
-**Required:**
-- `url` (string): Target URL to crawl
+### 1. CRAWL (Start Crawl - Default)
+
+Start crawling a website, saving content to disk and building a search index.
+
+**Parameters:**
+- `action`: "CRAWL" (default, can be omitted)
+- `url` (string): Target URL to crawl (required for CRAWL)
+- `crawl_id` (number, default: 0): Crawl instance number (0, 1, 2...) for multiple crawls
+- `await_completion_ms` (number, default: 600000): Timeout in milliseconds (10 minutes)
+  - Value > 0: Wait up to N milliseconds, return current progress if timeout
+  - Value = 0: Fire-and-forget background crawl (returns immediately)
+  - On timeout: returns current progress, crawl continues in background
 
 **Optional:**
 - `output_dir` (string): Output directory for crawled content (default: auto-generated)
@@ -1083,13 +1250,80 @@ When complete, returns:
 - `allow_subdomains` (boolean, default: false): Allow subdomain crawling
 - `content_types` (array): Content types to generate (e.g., ["markdown", "html", "json"])
 
+### 2. READ (Get Crawl Status)
+
+Read the current state of an in-progress or completed crawl.
+
+**Parameters:**
+- `action`: "READ" (required)
+- `crawl_id`: Crawl instance number to read (defaults to 0)
+- `url`: Not used (ignored)
+
+**Examples:**
+```json
+// Read crawl:0 current state
+{"action": "READ"}
+
+// Check progress on crawl:1
+{"action": "READ", "crawl_id": 1}
+```
+
+### 3. LIST (Show All Crawls)
+
+List all active crawls with their current states.
+
+**Parameters:**
+- `action`: "LIST" (required)
+- All other parameters ignored
+
+**Examples:**
+```json
+// List all active crawls
+{"action": "LIST"}
+```
+
+### 4. KILL (Cancel Crawl)
+
+Cancel a running crawl and cleanup resources.
+
+**Parameters:**
+- `action`: "KILL" (required)
+- `crawl_id`: Crawl instance number to kill (defaults to 0)
+
+**Examples:**
+```json
+// Kill crawl:0
+{"action": "KILL"}
+```
+
+### 5. SEARCH (Search Crawled Content)
+
+Search the indexed content from a crawl using full-text search.
+
+**Parameters:**
+- `action`: "SEARCH" (required)
+- `crawl_id` (number, default: 0): Which crawl to search
+- `query` (string): Search query (required for SEARCH)
+- `search_limit` (number, default: 10): Maximum search results
+- `search_offset` (number, default: 0): Result offset for pagination
+- `search_highlight` (boolean, default: true): Enable result highlighting
+
+**Examples:**
+```json
+// Search crawled content
+{"action": "SEARCH", "crawl_id": 0, "query": "async runtime", "search_limit": 10}
+
+// Search with pagination
+{"action": "SEARCH", "crawl_id": 0, "query": "tokio", "search_offset": 10, "search_limit": 10}
+```
+
 ## What It Does
 
 1. Crawls target website respecting robots.txt
 2. Saves pages as markdown/HTML/JSON files
 3. Optionally captures screenshots
 4. Builds Tantivy full-text search index
-5. Runs in background, poll for completion
+5. Runs in background with progress monitoring
 6. Creates searchable offline knowledge base
 
 ## Performance
@@ -1098,21 +1332,21 @@ When complete, returns:
 - **Rate**: 2 requests/second (default, configurable)
 - **Storage**: Pages saved to disk
 - **Search**: Tantivy index for instant full-text search
-- **Returns immediately**: Get crawl_id, poll for status
+- **Background execution**: Use await_completion_ms for async crawling
 
 ## Workflow
 
 ```typescript
-// 1. Start crawl (returns immediately with crawl_id)
-{url: "https://docs.rs/tokio", max_depth: 4, enable_search: true}
-// → Returns: {crawl_id: "xyz-789...", output_dir: "/path/to/output"}
+// 1. Start crawl (returns immediately)
+{url: "https://docs.rs/tokio", max_depth: 4, enable_search: true, await_completion_ms: 0}
+// → Returns: {crawl_id: 0, output_dir: "/path/to/output"}
 
 // 2. Check status (poll periodically)
-scrape_check_results({crawl_id: "xyz-789..."})
+{"action": "READ", "crawl_id": 0}
 // → Returns: {status: "running", pages_crawled: 45, runtime: 120}
 
 // 3. Search crawled content (works during and after crawl)
-scrape_search_results({crawl_id: "xyz-789...", query: "async runtime", limit: 10})
+{"action": "SEARCH", "crawl_id": 0, "query": "async runtime", "search_limit": 10}
 // → Returns: {results: [{title, url, snippet, score}...]}
 
 // 4. Access files directly
