@@ -9,7 +9,9 @@ pub use kodegen_mcp_schema::terminal::{TerminalInput, TerminalOutput};
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Content {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     #[serde(other)]
     Other,
 }
@@ -40,7 +42,7 @@ pub struct HookInput {
     pub hook_event_name: String,
 
     // PostToolUse-specific fields
-    /// Tool name (e.g., "mcp__kodegen__terminal", "Write", "Read")
+    /// Tool name (e.g., "mcp__plugin_kodegen_kodegen__terminal", "Write", "Read")
     #[serde(default)]
     pub tool_name: Option<String>,
 

@@ -18,7 +18,7 @@ pub async fn run() -> Result<()> {
             } else {
                 // Only notify for terminal tool on success
                 match input.tool_name.as_deref() {
-                    Some("mcp__kodegen__terminal") => Some(build_terminal_notification(&input)),
+                    Some("mcp__plugin_kodegen_kodegen__terminal") => Some(build_terminal_notification(&input)),
                     _ => None, // Silent exit for non-terminal success
                 }
             }

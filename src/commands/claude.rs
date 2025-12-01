@@ -43,10 +43,10 @@ pub async fn handle_claude(
             .to_string()
     };
 
-    // 5. Build allowed-tools list with mcp__kodegen__ prefix
+    // 5. Build allowed-tools list with mcp__plugin_kodegen_kodegen__ prefix
     let allowed_tools: Vec<String> = tool_names
         .iter()
-        .map(|tool| format!("mcp__kodegen__{}", tool))
+        .map(|tool| format!("mcp__plugin_kodegen_kodegen__{}", tool))
         .collect();
 
     // 6. Build disallowed-tools list (defaults if not provided)
@@ -155,7 +155,7 @@ async fn build_kodegen_mcp_config(toolsets: &[String]) -> Result<String> {
 
     // Build the command args
     let mut cmd_args = vec!["kodegen".to_string()];
-    
+
     if !use_tls {
         cmd_args.push("--no-tls".to_string());
     }

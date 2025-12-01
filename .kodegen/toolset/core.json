@@ -1,7 +1,8 @@
 {
   "tools": [
+    "browser_agent",
     "browser_research",
-    "browser_web_search",
+    "claude_agent",
     "config_get",
     "config_set",
     "fs_create_directory",
@@ -15,13 +16,21 @@
     "fs_read_multiple_files",
     "fs_search",
     "fs_write_file",
+    "git_clone",
+    "git_diff",
+    "github_get_file_contents",
+    "github_search_code",
+    "github_search_issues",
+    "github_search_repositories",
     "memory_list_libraries",
     "memory_memorize",
     "memory_recall",
     "process_kill",
     "process_list",
+    "reasoner",
     "scrape_url",
     "sequential_thinking",
-    "terminal"
+    "terminal",
+    "web_search"
   ]
 }

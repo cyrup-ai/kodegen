@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "kodegen": {
-      "command": "kodegen",
-      "args": ["--no-tls", "--toolset", "~/.config/kodegen/toolset/core.json"],
-      "env": {}
-    }
-  }
-}
