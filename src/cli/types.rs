@@ -2,9 +2,6 @@ use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 
-// Re-export ToolsetConfig from toolset module
-pub use crate::cli::toolset::ToolsetConfig;
-
 /// KODEGEN MCP Server - Memory-efficient, blazing-fast tools for AI agents
 ///
 /// Available tool categories:
@@ -41,7 +38,12 @@ pub struct Cli {
     #[arg(long = "tool", conflicts_with = "tools")]
     pub tool: Vec<String>,
 
-    /// Load tool names from JSON file
+    /// Load tool names from toolset (name or path)
+    ///
+    /// Can be:
+    /// - Bundled toolset name: "core" (resolved from embedded assets)
+    /// - Absolute path: /path/to/toolset.json
+    /// - Relative path: ./my-toolset.json
     ///
     /// JSON format:
     /// ```json
@@ -54,9 +56,10 @@ pub struct Cli {
     /// }
     /// ```
     ///
+    /// Example: --toolset core
     /// Example: --toolset ~/.config/kodegen/toolset.json
-    #[arg(long, value_name = "PATH", conflicts_with_all = ["tool", "tools"])]
-    pub toolset: Option<std::path::PathBuf>,
+    #[arg(long, value_name = "NAME_OR_PATH", conflicts_with_all = ["tool", "tools"])]
+    pub toolset: Option<String>,
 
     /// Run as HTTP server (streaming HTTP transport) instead of stdio
     /// Example: --http 127.0.0.1:30437
@@ -275,11 +278,11 @@ impl Cli {
     ///
     /// Returns None if no filter specified (enable all tools)
     /// Returns Some(HashSet) if filter specified (enable only these tools)
-    pub fn enabled_tools(&self) -> anyhow::Result<Option<HashSet<String>>> {
-        // Priority 1: --toolset (JSON file)
-        if let Some(ref path) = self.toolset {
-            let config = ToolsetConfig::from_file(path)?;
-            return Ok(Some(config.tools.into_iter().collect()));
+    pub async fn enabled_tools(&self) -> anyhow::Result<Option<HashSet<String>>> {
+        // Priority 1: --toolset (name or path)
+        if let Some(ref spec) = self.toolset {
+            let tools = crate::cli::load_and_merge_toolsets(std::slice::from_ref(spec)).await?;
+            return Ok(Some(tools.into_iter().collect()));
         }
 
         // Priority 2: --tools (comma-separated)

@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
     }
 
     // Get enabled tools from CLI (--tool/--tools/--toolset)
-    let enabled_tools = cli.enabled_tools()?;
+    let enabled_tools = cli.enabled_tools().await?;
 
     // VALIDATE IMMEDIATELY - before any initialization
     if let Some(ref tools) = enabled_tools {

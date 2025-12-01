@@ -25,18 +25,6 @@ pub struct ToolsetConfig {
     pub tools: Vec<String>,
 }
 
-impl ToolsetConfig {
-    /// Load toolset config from JSON file
-    pub fn from_file(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read toolset file: {}", path.display()))?;
-        
-        let config: ToolsetConfig = serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse toolset file as JSON: {}", path.display()))?;
-        
-        Ok(config)
-    }
-}
 
 /// Load toolset from embedded assets
 fn load_embedded_toolset(name: &str) -> Result<ToolsetConfig> {

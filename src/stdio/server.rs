@@ -1,7 +1,7 @@
 // packages/server/src/stdio/server.rs
 use anyhow::{Context, Result};
 use futures::future;
-use kodegen_mcp_client::{X_KODEGEN_GITROOT, X_KODEGEN_PWD};
+use kodegen_mcp_client::{X_KODEGEN_CONNECTION_ID, X_KODEGEN_GITROOT, X_KODEGEN_PWD};
 use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -28,8 +28,6 @@ use super::metadata::{all_tool_metadata, get_routing_table, CATEGORY_PORTS};
 use super::session_mapper::SessionMapper;
 use uuid::Uuid;
 
-// MCP standard session header (matches rmcp HEADER_SESSION_ID constant)
-const MCP_SESSION_ID: &str = "Mcp-Session-Id";
 
 /// Configuration for HTTP connection retry logic
 #[derive(Debug, Clone)]
@@ -103,20 +101,19 @@ async fn connect_with_retry(
     // Build infrastructure context headers
     let mut session_headers = HeaderMap::new();
 
-    // MCP Session ID - identifies this stdio connection instance
-    // Reuse connection_id as the MCP session ID (required for rmcp to inject HTTP Parts)
+    // Connection ID - identifies this stdio connection instance for resource isolation
     if let Ok(value) = HeaderValue::from_str(connection_id) {
-        session_headers.insert(HeaderName::from_static(MCP_SESSION_ID), value);
+        session_headers.insert(HeaderName::from_static(X_KODEGEN_CONNECTION_ID), value);
     }
 
     // Current working directory and git root from environment
     if let Ok(pwd) = std::env::var("PWD") {
         if let Ok(value) = HeaderValue::from_str(&pwd) {
-            session_headers.insert(X_KODEGEN_PWD, value);
+            session_headers.insert(HeaderName::from_static(X_KODEGEN_PWD), value);
         }
         if let Some(git_root) = find_git_root(Path::new(&pwd))
             && let Ok(value) = HeaderValue::from_str(git_root.to_string_lossy().as_ref()) {
-            session_headers.insert(X_KODEGEN_GITROOT, value);
+            session_headers.insert(HeaderName::from_static(X_KODEGEN_GITROOT), value);
         }
     }
 
