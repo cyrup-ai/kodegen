@@ -106,12 +106,12 @@ async fn connect_with_retry(
         session_headers.insert(HeaderName::from_static(X_KODEGEN_CONNECTION_ID), value);
     }
 
-    // Current working directory and git root from environment
-    if let Ok(pwd) = std::env::var("PWD") {
-        if let Ok(value) = HeaderValue::from_str(&pwd) {
+    // Current working directory and git root from OS
+    if let Ok(pwd) = std::env::current_dir() {
+        if let Ok(value) = HeaderValue::from_str(pwd.to_string_lossy().as_ref()) {
             session_headers.insert(HeaderName::from_static(X_KODEGEN_PWD), value);
         }
-        if let Some(git_root) = find_git_root(Path::new(&pwd))
+        if let Some(git_root) = find_git_root(&pwd)
             && let Ok(value) = HeaderValue::from_str(git_root.to_string_lossy().as_ref()) {
             session_headers.insert(HeaderName::from_static(X_KODEGEN_GITROOT), value);
         }
