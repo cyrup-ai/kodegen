@@ -1,0 +1,6 @@
+{
+  "tools": [
+    "config_get",
+    "config_set"
+  ]
+}

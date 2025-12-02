@@ -1,0 +1,6 @@
+{
+  "tools": [
+    "scrape_url",
+    "web_search"
+  ]
+}

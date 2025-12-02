@@ -1,5 +1,8 @@
 use anyhow::Result;
-use kodegen_native_notify::{NotificationBuilder, NotificationManager, Platform, RichText};
+use kodegen_native_notify::{
+    ImageData, ImagePlacement, MediaAttachment, NotificationBuilder,
+    NotificationManager, Platform, RichText, Url,
+};
 
 use super::{read_hook_input, HookInput};
 
@@ -31,11 +34,22 @@ pub async fn run() -> Result<()> {
         return Ok(());
     };
 
-    let notification = NotificationBuilder::new()
+    let mut builder = NotificationBuilder::new()
         .with_title(&title)
         .with_body(RichText::html(&body_html))
-        .with_platforms(vec![Platform::MacOS, Platform::Windows, Platform::Linux])
-        .build();
+        .with_platforms(vec![Platform::MacOS, Platform::Windows, Platform::Linux]);
+
+    // Add KODEGEN logo as app icon for Windows/macOS
+    if let Ok(logo_url) = Url::parse(LOGO_URL) {
+        builder = builder.with_media(MediaAttachment::Image {
+            data: ImageData::Url(logo_url),
+            placement: ImagePlacement::AppIcon,  // Circle icon on Windows, attachment on macOS
+            alt_text: Some("KODEGEN".to_string()),
+            dimensions: Some((128, 128)),
+        });
+    }
+
+    let notification = builder.build()?;
 
     let manager = NotificationManager::new();
     let _ = manager.send(notification).await;

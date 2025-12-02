@@ -1,0 +1,25 @@
+{
+  "tools": [
+    "git_add",
+    "git_branch_create",
+    "git_branch_delete",
+    "git_branch_list",
+    "git_branch_rename",
+    "git_checkout",
+    "git_clone",
+    "git_commit",
+    "git_diff",
+    "git_discover",
+    "git_fetch",
+    "git_init",
+    "git_log",
+    "git_merge",
+    "git_open",
+    "git_worktree_add",
+    "git_worktree_list",
+    "git_worktree_lock",
+    "git_worktree_prune",
+    "git_worktree_remove",
+    "git_worktree_unlock"
+  ]
+}

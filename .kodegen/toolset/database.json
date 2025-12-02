@@ -1,0 +1,11 @@
+{
+  "tools": [
+    "db_execute_sql",
+    "db_list_schemas",
+    "db_list_tables",
+    "db_pool_stats",
+    "db_stored_procedures",
+    "db_table_indexes",
+    "db_table_schema"
+  ]
+}

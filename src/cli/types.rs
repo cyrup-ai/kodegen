@@ -245,16 +245,6 @@ pub enum Commands {
         #[arg(long)]
         system_prompt: Option<std::path::PathBuf>,
 
-        /// Tools to disallow (default: built-in file tools)
-        /// Default: ["Bash", "Read", "Write", "Edit", "Update", "WebSearch", "Fetch"]
-        #[arg(long, value_delimiter = ',')]
-        disallowed_tools: Option<Vec<String>>,
-
-        /// Override MCP config (advanced)
-        /// If not provided, dynamically constructs config for kodegen stdio server
-        #[arg(long)]
-        mcp_config: Option<Vec<String>>,
-
         /// All other arguments to pass through to claude CLI
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         passthrough_args: Vec<String>,

@@ -1,0 +1,6 @@
+{
+  "tools": [
+    "inspect_tool_calls",
+    "inspect_usage_stats"
+  ]
+}

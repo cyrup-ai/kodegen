@@ -1,0 +1,6 @@
+{
+  "tools": [
+    "process_kill",
+    "process_list"
+  ]
+}

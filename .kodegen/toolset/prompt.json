@@ -1,0 +1,8 @@
+{
+  "tools": [
+    "prompt_add",
+    "prompt_delete",
+    "prompt_edit",
+    "prompt_get"
+  ]
+}

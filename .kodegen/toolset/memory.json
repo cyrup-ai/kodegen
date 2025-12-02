@@ -1,0 +1,8 @@
+{
+  "tools": [
+    "memory_check_memorize_status",
+    "memory_list_libraries",
+    "memory_memorize",
+    "memory_recall"
+  ]
+}

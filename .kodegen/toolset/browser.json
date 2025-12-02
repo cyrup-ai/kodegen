@@ -1,0 +1,13 @@
+{
+  "tools": [
+    "browser_agent",
+    "browser_click",
+    "browser_extract_text",
+    "browser_navigate",
+    "browser_research",
+    "browser_screenshot",
+    "browser_scroll",
+    "browser_type_text",
+    "browser_web_search"
+  ]
+}
