@@ -131,5 +131,65 @@ pub fn git_tools() -> Vec<ToolMetadata> {
             description: "Unlock a locked worktree. Removes the lock that prevents worktree deletion.' } fn read_only() -> bool { false // Removes lock file } fn destructive...",
             schema: build_schema::<git::GitWorktreeUnlockArgs>(),
         },
+        ToolMetadata {
+            name: GIT_HISTORY,
+            category: "git",
+            description: "Get detailed commit history with file changes. Shows commits with their messages, authors, timestamps, and affected files.",
+            schema: build_schema::<git::GitHistoryArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_PULL,
+            category: "git",
+            description: "Pull changes from a remote repository. Fetches and merges changes from the remote branch into the current branch.",
+            schema: build_schema::<git::GitPullArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_PUSH,
+            category: "git",
+            description: "Push commits to a remote repository. Uploads local commits to the remote branch.",
+            schema: build_schema::<git::GitPushArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_REMOTE_ADD,
+            category: "git",
+            description: "Add a new remote repository. Creates a new remote reference for fetching and pushing.",
+            schema: build_schema::<git::GitRemoteAddArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_REMOTE_LIST,
+            category: "git",
+            description: "List all remote repositories. Shows all configured remotes with their URLs.",
+            schema: build_schema::<git::GitRemoteListArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_REMOTE_REMOVE,
+            category: "git",
+            description: "Remove a remote repository. Deletes the remote reference from the repository configuration.",
+            schema: build_schema::<git::GitRemoteRemoveArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_RESET,
+            category: "git",
+            description: "Reset current HEAD to specified state. Supports soft, mixed, and hard reset modes.",
+            schema: build_schema::<git::GitResetArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_STATUS,
+            category: "git",
+            description: "Show the working tree status. Displays staged, unstaged, and untracked files.",
+            schema: build_schema::<git::GitStatusArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_STASH,
+            category: "git",
+            description: "Stash changes in a dirty working directory. Saves local modifications and reverts to a clean working tree.",
+            schema: build_schema::<git::GitStashArgs>(),
+        },
+        ToolMetadata {
+            name: GIT_TAG,
+            category: "git",
+            description: "Create, list, or delete tags. Manages repository tags for marking specific commits.",
+            schema: build_schema::<git::GitTagArgs>(),
+        },
     ]
 }

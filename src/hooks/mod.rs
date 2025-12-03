@@ -4,9 +4,10 @@ use serde::Deserialize;
 
 // Re-export the actual schema types from kodegen-mcp-schema
 pub use kodegen_mcp_schema::terminal::{TerminalInput, TerminalOutput};
+pub use kodegen_mcp_schema::{deserialize_tool_output, AnyToolOutput};
 
 /// MCP Content - tagged enum matching rmcp structure
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Content {
     Text {
@@ -17,7 +18,7 @@ pub enum Content {
 }
 
 /// MCP CallToolResult - structure of tool_response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CallToolResult {
     pub content: Vec<Content>,
@@ -85,20 +86,56 @@ impl HookInput {
         })
     }
 
-    /// Extract TerminalOutput from tool_response.content[0].text (when NOT an error)
+    /// Extract TerminalOutput from tool_response using proper MCP deserialization
     pub fn terminal_output(&self) -> Option<TerminalOutput> {
         if self.is_tool_error() {
             return None;
         }
-        self.tool_response.as_ref().and_then(|result| {
-            result.content.first().and_then(|content| {
-                if let Content::Text { text } = content {
-                    serde_json::from_str(text).ok()
-                } else {
-                    None
-                }
-            })
-        })
+
+        // Get the tool name - must be terminal tool
+        let tool_name = self.tool_name.as_deref()?;
+        if tool_name != "mcp__plugin_kodegen_kodegen__terminal" {
+            return None;
+        }
+
+        // Serialize the tool_response to JSON string for deserialization
+        let tool_response = self.tool_response.as_ref()?;
+        let response_json = serde_json::to_string(tool_response).ok()?;
+
+        // Use the new deserialization function with the canonical tool name
+        // The deserialization expects "terminal", not the full MCP name
+        let result = deserialize_tool_output("terminal", &response_json).ok()?;
+
+        // Extract the typed output from the result
+        match result.typed {
+            AnyToolOutput::Terminal(output) => Some(output),
+            _ => None,
+        }
+    }
+
+    /// Get the display text from tool_response (for notifications, logs, etc.)
+    pub fn display_text(&self) -> Option<String> {
+        if self.is_tool_error() {
+            return self.error_message();
+        }
+
+        // Get the tool name
+        let tool_name = self.tool_name.as_deref()?;
+
+        // Map full MCP name to canonical tool name
+        let canonical_name = if tool_name.starts_with("mcp__plugin_kodegen_kodegen__") {
+            tool_name.strip_prefix("mcp__plugin_kodegen_kodegen__")?
+        } else {
+            tool_name
+        };
+
+        // Serialize the tool_response to JSON string for deserialization
+        let tool_response = self.tool_response.as_ref()?;
+        let response_json = serde_json::to_string(tool_response).ok()?;
+
+        // Use the new deserialization function to get display text
+        let result = deserialize_tool_output(canonical_name, &response_json).ok()?;
+        Some(result.display)
     }
 
     /// Extract TerminalInput from tool_input

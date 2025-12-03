@@ -191,5 +191,17 @@ pub fn github_tools() -> Vec<ToolMetadata> {
             description: "Update an existing pull request in a GitHub repository' } fn read_only() -> bool { false } fn destructive() -> bool { false } fn idempotent() -> bo...",
             schema: build_schema::<github::UpdatePullRequestArgs>(),
         },
+        ToolMetadata {
+            name: GITHUB_LIST_PULL_REQUESTS,
+            category: "github",
+            description: "List pull requests in a GitHub repository. Supports filtering by state (open, closed, all) and sorting options. Returns PR details including number, title, state, author, and timestamps.",
+            schema: build_schema::<github::ListPullRequestsArgs>(),
+        },
+        ToolMetadata {
+            name: GITHUB_DELETE_BRANCH,
+            category: "github",
+            description: "Delete a branch from a GitHub repository. Removes the branch reference from the remote repository. Cannot delete the default branch.",
+            schema: build_schema::<github::DeleteBranchArgs>(),
+        },
     ]
 }

@@ -95,14 +95,14 @@ fn build_terminal_notification(input: &HookInput) -> (String, String) {
     let exit_code = output.as_ref().and_then(|o| o.exit_code);
     let duration_ms = output.as_ref().map(|o| o.duration_ms).unwrap_or(0);
     let completed = output.as_ref().map(|o| o.completed).unwrap_or(true);
-    let terminal_output = output.as_ref().map(|o| o.output.as_str()).unwrap_or("");
+    let terminal_output = input.display_text().unwrap_or_default();
 
     let cwd = &input.cwd;
     let transcript_link = format_transcript_link(&input.transcript_path);
 
     let cmd_short = truncate(&command, 40);
     let duration = format_duration(duration_ms);
-    let output_preview = truncate_output(terminal_output, 20);
+    let output_preview = truncate_output(&terminal_output, 20);
 
     let (icon, status) = match (exit_code, completed) {
         (Some(0), true) => ("✓", "success".to_string()),
