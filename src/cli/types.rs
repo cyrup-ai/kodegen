@@ -259,8 +259,10 @@ pub enum Commands {
 
 #[derive(Subcommand, Debug)]
 pub enum HookCommands {
-    /// Send platform-native notifications from hook events
-    Notify,
+    /// Handle PostToolUse hook events (runs after tool execution completes)
+    PostToolUse,
+    /// Handle Stop hook events (runs when Claude Code finishes responding)
+    Stop,
 }
 
 impl Cli {

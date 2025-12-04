@@ -4,30 +4,48 @@ use kodegen_native_notify::{
     NotificationManager, Platform, RichText, Url,
 };
 
-use super::{read_hook_input, HookInput};
+use super::PostToolUseInput;
 
 /// KODEGEN logo URL for branding in notifications
 const LOGO_URL: &str = "https://kodegen.ai/assets/icon_128x128@2x.png";
 
-/// Run the notify hook
+/// Run the notify hook for PostToolUse events
 pub async fn run() -> Result<()> {
-    let input = read_hook_input()?;
+    let input: PostToolUseInput = serde_json::from_reader(std::io::stdin())?;
 
-    let notification_data = match input.hook_event_name.as_str() {
-        "PostToolUse" => {
-            // Check for tool errors FIRST - notify on ANY tool error
-            if input.is_tool_error() {
-                Some(build_error_notification(&input))
-            } else {
-                // Only notify for terminal tool on success
-                match input.tool_name.as_deref() {
-                    Some("mcp__plugin_kodegen_kodegen__terminal") => Some(build_terminal_notification(&input)),
-                    _ => None, // Silent exit for non-terminal success
-                }
-            }
+    // Validate hook event name
+    if input.hook_event_name != "PostToolUse" {
+        log::warn!(
+            "Expected hook_event_name 'PostToolUse', got '{}' in session {}",
+            input.hook_event_name,
+            input.session_id
+        );
+        return Ok(());
+    }
+
+    // Only handle kodegen MCP tools
+    if !input.is_kodegen_tool() {
+        return Ok(());
+    }
+
+    // Log tool execution for debugging
+    log::debug!(
+        "PostToolUse hook: session={}, tool={}, permission_mode={}, tool_use_id={}",
+        input.session_id,
+        input.tool_name,
+        input.permission_mode,
+        input.tool_use_id
+    );
+
+    // Check for tool errors FIRST - notify on ANY tool error
+    let notification_data = if input.is_tool_error() {
+        Some(build_error_notification(&input))
+    } else {
+        // Only notify for terminal tool on success
+        match input.canonical_tool_name() {
+            Some("terminal") => Some(build_terminal_notification(&input)),
+            _ => None, // Silent exit for non-terminal success
         }
-        "SessionEnd" => Some(build_session_end_notification(&input)),
-        _ => None,
     };
 
     let Some((title, body_html)) = notification_data else {
@@ -58,11 +76,9 @@ pub async fn run() -> Result<()> {
 }
 
 /// Build HTML notification for tool errors (ANY tool)
-fn build_error_notification(input: &HookInput) -> (String, String) {
-    let tool_name = input.tool_name.as_deref().unwrap_or("unknown");
-    let error_msg = input
-        .error_message()
-        .unwrap_or_else(|| "Unknown error".to_string());
+fn build_error_notification(input: &PostToolUseInput) -> (String, String) {
+    let tool_name = input.canonical_tool_name().unwrap_or("unknown");
+    let error_msg = "Tool execution failed";  // Generic error message
     let cwd = &input.cwd;
     let transcript_link = format_transcript_link(&input.transcript_path);
 
@@ -75,7 +91,7 @@ fn build_error_notification(input: &HookInput) -> (String, String) {
             <p>{}</p>
         </div>"#,
         LOGO_URL,
-        html_escape(&error_msg),
+        html_escape(error_msg),
         html_escape(cwd),
         transcript_link
     );
@@ -84,7 +100,7 @@ fn build_error_notification(input: &HookInput) -> (String, String) {
 }
 
 /// Build HTML notification for terminal command completion
-fn build_terminal_notification(input: &HookInput) -> (String, String) {
+fn build_terminal_notification(input: &PostToolUseInput) -> (String, String) {
     let command = input
         .terminal_input()
         .and_then(|ti| ti.command)
@@ -95,7 +111,13 @@ fn build_terminal_notification(input: &HookInput) -> (String, String) {
     let exit_code = output.as_ref().and_then(|o| o.exit_code);
     let duration_ms = output.as_ref().map(|o| o.duration_ms).unwrap_or(0);
     let completed = output.as_ref().map(|o| o.completed).unwrap_or(true);
-    let terminal_output = input.display_text().unwrap_or_default();
+
+    // Get display text from tool_response (first content item would be display)
+    let terminal_output = input.tool_response
+        .get("display")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let cwd = &input.cwd;
     let transcript_link = format_transcript_link(&input.transcript_path);
@@ -126,25 +148,6 @@ fn build_terminal_notification(input: &HookInput) -> (String, String) {
         html_escape(cwd),
         html_escape(&output_preview),
         transcript_link
-    );
-
-    (title, body)
-}
-
-/// Build HTML notification for session end
-fn build_session_end_notification(input: &HookInput) -> (String, String) {
-    let reason = input.reason.as_deref().unwrap_or("unknown");
-    let session_short = truncate(&input.session_id, 8);
-    let transcript_link = format_transcript_link(&input.transcript_path);
-
-    let title = format!("Claude Session Ended ({})", session_short);
-    let body = format!(
-        r#"<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;">
-            <img src="{}" width="24" height="24" alt="KODEGEN"/>
-            <p>{}</p>
-            <p>{}</p>
-        </div>"#,
-        LOGO_URL, reason, transcript_link
     );
 
     (title, body)

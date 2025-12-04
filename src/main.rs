@@ -45,7 +45,8 @@ async fn main() -> Result<()> {
                 .await
             }
             Commands::Hook { hook_command } => match hook_command {
-                cli::HookCommands::Notify => hooks::notify::run().await,
+                cli::HookCommands::PostToolUse => hooks::notify::run().await,
+                cli::HookCommands::Stop => hooks::stop::run().await,
             },
         };
     }

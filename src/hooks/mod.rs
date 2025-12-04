@@ -1,35 +1,16 @@
 pub mod notify;
+pub mod stop;
 
 use serde::Deserialize;
 
 // Re-export the actual schema types from kodegen-mcp-schema
 pub use kodegen_mcp_schema::terminal::{TerminalInput, TerminalOutput};
-pub use kodegen_mcp_schema::{deserialize_tool_output, AnyToolOutput};
+pub use kodegen_mcp_schema::{deserialize_typed_only, AnyToolOutput};
 
-/// MCP Content - tagged enum matching rmcp structure
-#[derive(Debug, Deserialize, serde::Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Content {
-    Text {
-        text: String,
-    },
-    #[serde(other)]
-    Other,
-}
-
-/// MCP CallToolResult - structure of tool_response
-#[derive(Debug, Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CallToolResult {
-    pub content: Vec<Content>,
-    #[serde(default)]
-    pub is_error: Option<bool>,
-}
-
-/// Hook input from Claude Code - matches the JSON sent to stdin
+/// PostToolUse hook input from Claude Code
 /// See: https://docs.anthropic.com/en/docs/claude-code/hooks
 #[derive(Debug, Deserialize)]
-pub struct HookInput {
+pub struct PostToolUseInput {
     /// Session identifier
     pub session_id: String,
 
@@ -39,115 +20,86 @@ pub struct HookInput {
     /// Current working directory
     pub cwd: String,
 
-    /// Hook event name: "PostToolUse", "SessionEnd", etc.
+    /// Permission mode: "default", "plan", "acceptEdits", or "bypassPermissions"
+    pub permission_mode: String,
+
+    /// Hook event name (should be "PostToolUse")
     pub hook_event_name: String,
 
-    // PostToolUse-specific fields
     /// Tool name (e.g., "mcp__plugin_kodegen_kodegen__terminal", "Write", "Read")
-    #[serde(default)]
-    pub tool_name: Option<String>,
+    pub tool_name: String,
 
-    /// Tool input - deserialize based on tool_name
-    #[serde(default)]
-    pub tool_input: Option<serde_json::Value>,
+    /// Tool input - raw JSON (varies by tool)
+    pub tool_input: serde_json::Value,
 
-    /// Tool response - MCP CallToolResult structure
-    #[serde(default)]
-    pub tool_response: Option<CallToolResult>,
+    /// Tool response - raw JSON with success field and tool-specific fields
+    pub tool_response: serde_json::Value,
 
-    // SessionEnd-specific fields
-    /// Reason for session end
-    #[serde(default)]
-    pub reason: Option<String>,
+    /// Tool use ID from Claude
+    pub tool_use_id: String,
 }
 
-impl HookInput {
-    /// Check if tool response is an error
+/// Stop hook input from Claude Code
+/// See: https://docs.anthropic.com/en/docs/claude-code/hooks
+#[derive(Debug, Deserialize)]
+pub struct StopInput {
+    /// Session identifier
+    pub session_id: String,
+
+    /// Path to the transcript JSONL file
+    pub transcript_path: String,
+
+    /// Permission mode: "default", "plan", "acceptEdits", or "bypassPermissions"
+    pub permission_mode: String,
+
+    /// Hook event name (should be "Stop")
+    pub hook_event_name: String,
+
+    /// True when Claude Code is already continuing as a result of a stop hook
+    pub stop_hook_active: bool,
+}
+
+impl PostToolUseInput {
+    /// Check if this is a kodegen MCP tool event
+    pub fn is_kodegen_tool(&self) -> bool {
+        self.tool_name.starts_with("mcp__plugin_kodegen_kodegen__")
+    }
+
+    /// Get canonical tool name (strip MCP prefix)
+    /// Returns Some("terminal") for "mcp__plugin_kodegen_kodegen__terminal"
+    pub fn canonical_tool_name(&self) -> Option<&str> {
+        self.tool_name.strip_prefix("mcp__plugin_kodegen_kodegen__")
+    }
+
+    /// Check if tool errored (success field is false)
     pub fn is_tool_error(&self) -> bool {
         self.tool_response
-            .as_ref()
-            .and_then(|r| r.is_error)
+            .get("success")
+            .and_then(|v| v.as_bool())
+            .map(|success| !success)
             .unwrap_or(false)
     }
 
-    /// Get error message from tool_response (when is_error = true)
-    pub fn error_message(&self) -> Option<String> {
-        if !self.is_tool_error() {
-            return None;
-        }
-        self.tool_response.as_ref().and_then(|result| {
-            result.content.first().and_then(|content| {
-                if let Content::Text { text } = content {
-                    Some(text.clone())
-                } else {
-                    None
-                }
-            })
-        })
+    /// Deserialize tool_response into our AnyToolOutput enum
+    ///
+    /// This handles the fact that Claude Code adds a `success` field to tool responses.
+    /// Our schema types don't have this field, but serde ignores unknown fields by default.
+    pub fn typed_output(&self) -> Option<AnyToolOutput> {
+        let canonical_name = self.canonical_tool_name()?;
+        let json_str = serde_json::to_string(&self.tool_response).ok()?;
+        deserialize_typed_only(canonical_name, &json_str).ok()
     }
 
-    /// Extract TerminalOutput from tool_response using proper MCP deserialization
+    /// Get terminal output if this is a terminal tool
     pub fn terminal_output(&self) -> Option<TerminalOutput> {
-        if self.is_tool_error() {
-            return None;
-        }
-
-        // Get the tool name - must be terminal tool
-        let tool_name = self.tool_name.as_deref()?;
-        if tool_name != "mcp__plugin_kodegen_kodegen__terminal" {
-            return None;
-        }
-
-        // Serialize the tool_response to JSON string for deserialization
-        let tool_response = self.tool_response.as_ref()?;
-        let response_json = serde_json::to_string(tool_response).ok()?;
-
-        // Use the new deserialization function with the canonical tool name
-        // The deserialization expects "terminal", not the full MCP name
-        let result = deserialize_tool_output("terminal", &response_json).ok()?;
-
-        // Extract the typed output from the result
-        match result.typed {
+        match self.typed_output()? {
             AnyToolOutput::Terminal(output) => Some(output),
             _ => None,
         }
     }
 
-    /// Get the display text from tool_response (for notifications, logs, etc.)
-    pub fn display_text(&self) -> Option<String> {
-        if self.is_tool_error() {
-            return self.error_message();
-        }
-
-        // Get the tool name
-        let tool_name = self.tool_name.as_deref()?;
-
-        // Map full MCP name to canonical tool name
-        let canonical_name = if tool_name.starts_with("mcp__plugin_kodegen_kodegen__") {
-            tool_name.strip_prefix("mcp__plugin_kodegen_kodegen__")?
-        } else {
-            tool_name
-        };
-
-        // Serialize the tool_response to JSON string for deserialization
-        let tool_response = self.tool_response.as_ref()?;
-        let response_json = serde_json::to_string(tool_response).ok()?;
-
-        // Use the new deserialization function to get display text
-        let result = deserialize_tool_output(canonical_name, &response_json).ok()?;
-        Some(result.display)
-    }
-
     /// Extract TerminalInput from tool_input
     pub fn terminal_input(&self) -> Option<TerminalInput> {
-        self.tool_input
-            .as_ref()
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        serde_json::from_value(self.tool_input.clone()).ok()
     }
-}
-
-/// Read hook input from stdin
-pub fn read_hook_input() -> anyhow::Result<HookInput> {
-    let stdin = std::io::stdin();
-    Ok(serde_json::from_reader(stdin)?)
 }
