@@ -5,7 +5,7 @@ use tokio::process::Command;
 use uuid::Uuid;
 
 /// GitHub raw URL for the default system prompt
-const SYSTEM_PROMPT_URL: &str = "https://raw.githubusercontent.com/cyrup-ai/kodegen-claude-plugin/refs/heads/main/SYSTEM_PROMPT.md";
+const SYSTEM_PROMPT_URL: &str = "https://raw.githubusercontent.com/cyrup-ai/kodegen-claude-plugin/refs/heads/main/plugins/kg/SYSTEM_PROMPT.md";
 
 /// Handle the `kodegen claude` subcommand
 pub async fn handle_claude(
@@ -44,7 +44,7 @@ pub async fn handle_claude(
     // 5. Build allowed-tools list with mcp__plugin_kodegen_kodegen__ prefix
     let allowed_tools: Vec<String> = tool_names
         .iter()
-        .map(|tool| format!("mcp__plugin_kodegen_kodegen__{}", tool))
+        .map(|tool| format!("mcp__plugin_kg_kodegen__{}", tool))
         .collect();
 
     // 6. Build command arguments
@@ -74,10 +74,13 @@ pub async fn handle_claude(
     eprintln!("Session ID: {}", session_id);
 
     // 9. Spawn and wait for claude process
-    let mut child = cmd.spawn()
+    let mut child = cmd
+        .spawn()
         .context("Failed to spawn claude CLI - ensure 'claude' is installed and in PATH")?;
 
-    let status = child.wait().await
+    let status = child
+        .wait()
+        .await
         .context("Failed to wait for claude process")?;
 
     // 10. Print session ID again on exit for easy copying
@@ -93,16 +96,16 @@ pub async fn handle_claude(
 
 /// Find the claude binary in PATH
 fn find_claude_binary() -> Result<PathBuf> {
-    which::which("claude")
-        .context("Claude CLI not found in PATH. Install from: https://github.com/anthropics/claude-code")
+    which::which("claude").context(
+        "Claude CLI not found in PATH. Install from: https://github.com/anthropics/claude-code",
+    )
 }
 
 /// Generate new session ID or validate provided one
 fn resolve_session_id(provided: Option<String>) -> Result<String> {
     if let Some(id) = provided {
         // Validate it's a valid UUID
-        Uuid::parse_str(&id)
-            .context("Invalid session ID format - must be a valid UUID")?;
+        Uuid::parse_str(&id).context("Invalid session ID format - must be a valid UUID")?;
         Ok(id)
     } else {
         // Generate new UUIDv4
@@ -124,10 +127,7 @@ async fn fetch_system_prompt() -> Result<String> {
         .context("Failed to fetch system prompt from GitHub")?;
 
     if !response.status().is_success() {
-        anyhow::bail!(
-            "Failed to fetch system prompt: HTTP {}",
-            response.status()
-        );
+        anyhow::bail!("Failed to fetch system prompt: HTTP {}", response.status());
     }
 
     let content = response
