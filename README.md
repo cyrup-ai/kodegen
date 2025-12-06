@@ -4,7 +4,7 @@
 
 # KODEGEN.ᴀɪ
 
-**Ultimate MCP Auto-Coding Toolset**
+**Context-Effecient, Blazing-Fast MCP Dev Tools**
 
 KODEGEN.ᴀɪ delivers a blazing-fast Rust-native MCP Server (Model Context Protocol) with 100+ elite auto-coding tools designed for professional, autonomous code generation and predictable high-quality results. Every tool has been thoughtfully hyper-optimized for speed (code it faster) and context efficiency (code it cheaper).
 
