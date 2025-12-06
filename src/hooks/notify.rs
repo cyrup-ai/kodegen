@@ -4,7 +4,7 @@ use kodegen_native_notify::{
     NotificationManager, Platform, RichText, Url,
 };
 
-use super::PostToolUseInput;
+use super::{PostToolUseInput, PostToolUseResponse, PostToolUseHookOutput};
 
 /// KODEGEN logo URL for branding in notifications
 const LOGO_URL: &str = "https://kodegen.ai/assets/icon_128x128@2x.png";
@@ -20,11 +20,29 @@ pub async fn run() -> Result<()> {
             input.hook_event_name,
             input.session_id
         );
+        let response = PostToolUseResponse {
+            decision: None,
+            reason: None,
+            hook_specific_output: Some(PostToolUseHookOutput {
+                hook_event_name: "PostToolUse".to_string(),
+                additional_context: None,
+            }),
+        };
+        println!("{}", serde_json::to_string(&response)?);
         return Ok(());
     }
 
     // Only handle kodegen MCP tools
     if !input.is_kodegen_tool() {
+        let response = PostToolUseResponse {
+            decision: None,
+            reason: None,
+            hook_specific_output: Some(PostToolUseHookOutput {
+                hook_event_name: "PostToolUse".to_string(),
+                additional_context: None,
+            }),
+        };
+        println!("{}", serde_json::to_string(&response)?);
         return Ok(());
     }
 
@@ -49,6 +67,16 @@ pub async fn run() -> Result<()> {
     };
 
     let Some((title, body_html)) = notification_data else {
+        // Output hook response to Claude Code
+        let response = PostToolUseResponse {
+            decision: None,
+            reason: None,
+            hook_specific_output: Some(PostToolUseHookOutput {
+                hook_event_name: "PostToolUse".to_string(),
+                additional_context: None,
+            }),
+        };
+        println!("{}", serde_json::to_string(&response)?);
         return Ok(());
     };
 
@@ -72,6 +100,18 @@ pub async fn run() -> Result<()> {
     let manager = NotificationManager::new();
     let _ = manager.send(notification).await;
     manager.shutdown().await;
+
+    // Output hook response to Claude Code
+    let response = PostToolUseResponse {
+        decision: None,
+        reason: None,
+        hook_specific_output: Some(PostToolUseHookOutput {
+            hook_event_name: "PostToolUse".to_string(),
+            additional_context: None,
+        }),
+    };
+    println!("{}", serde_json::to_string(&response)?);
+
     Ok(())
 }
 

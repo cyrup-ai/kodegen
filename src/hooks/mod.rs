@@ -1,7 +1,7 @@
 pub mod notify;
 pub mod stop;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // Re-export the actual schema types from kodegen-mcp-schema
 pub use kodegen_mcp_schema::terminal::{TerminalInput, TerminalOutput};
@@ -58,6 +58,47 @@ pub struct StopInput {
     /// True when Claude Code is already continuing as a result of a stop hook
     pub stop_hook_active: bool,
 }
+
+// ============================================================================
+// HOOK RESPONSE TYPES
+// ============================================================================
+
+/// Decision enum for hooks
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Decision {
+    #[allow(dead_code)]
+    Block,
+}
+
+/// Response for PostToolUse hooks
+#[derive(Debug, Serialize)]
+pub struct PostToolUseResponse {
+    pub decision: Option<Decision>,
+    pub reason: Option<String>,
+    #[serde(rename = "hookSpecificOutput")]
+    pub hook_specific_output: Option<PostToolUseHookOutput>,
+}
+
+/// Hook-specific output for PostToolUse
+#[derive(Debug, Serialize)]
+pub struct PostToolUseHookOutput {
+    #[serde(rename = "hookEventName")]
+    pub hook_event_name: String,
+    #[serde(rename = "additionalContext")]
+    pub additional_context: Option<String>,
+}
+
+/// Response for Stop hooks
+#[derive(Debug, Serialize)]
+pub struct StopResponse {
+    pub decision: Option<Decision>,
+    pub reason: Option<String>,
+}
+
+// ============================================================================
+// IMPLEMENTATIONS
+// ============================================================================
 
 impl PostToolUseInput {
     /// Check if this is a kodegen MCP tool event

@@ -20,7 +20,6 @@ KODEGEN.ᴀɪ delivers a blazing-fast Rust-native MCP Server (Model Context Prot
 - [kodegen-claude-agent](https://github.com/cyrup-ai/kodegen-claude-agent)
 - [kodegen-mcp-client](https://github.com/cyrup-ai/kodegen-mcp-client)
 - [kodegen-mcp-schema](https://github.com/cyrup-ai/kodegen-mcp-schema)
-- [kodegen-mcp-tool](https://github.com/cyrup-ai/kodegen-mcp-tool)
 - [kodegen-server-http](https://github.com/cyrup-ai/kodegen-server-http)
 - [kodegen-simd](https://github.com/cyrup-ai/kodegen-simd)
 - [kodegen-tools-browser](https://github.com/cyrup-ai/kodegen-tools-browser)

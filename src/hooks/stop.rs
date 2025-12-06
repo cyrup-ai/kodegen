@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::StopInput;
+use super::{StopInput, StopResponse};
 
 /// Run the stop hook for Stop events
 ///
@@ -15,6 +15,11 @@ pub async fn run() -> Result<()> {
             input.hook_event_name,
             input.session_id
         );
+        let response = StopResponse {
+            decision: None,
+            reason: None,
+        };
+        println!("{}", serde_json::to_string(&response)?);
         return Ok(());
     }
 
@@ -32,6 +37,13 @@ pub async fn run() -> Result<()> {
     // - Send notification about session completion
     // - Log session statistics
     // - Cleanup temporary resources
+
+    // Output hook response to Claude Code
+    let response = StopResponse {
+        decision: None,
+        reason: None,
+    };
+    println!("{}", serde_json::to_string(&response)?);
 
     Ok(())
 }

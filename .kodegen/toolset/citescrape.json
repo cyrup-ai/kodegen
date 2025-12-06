@@ -1,5 +1,6 @@
 {
   "tools": [
+    "fetch",
     "scrape_url",
     "web_search"
   ]

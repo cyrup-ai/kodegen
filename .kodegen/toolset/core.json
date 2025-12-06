@@ -5,6 +5,7 @@
     "claude_agent",
     "config_get",
     "config_set",
+    "fetch",
     "fs_create_directory",
     "fs_delete_directory",
     "fs_delete_file",

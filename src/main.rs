@@ -117,7 +117,7 @@ async fn main() -> Result<()> {
     let usage_tracker = UsageTracker::new(instance_id.clone());
 
     // Initialize tool call history tracking
-    kodegen_mcp_tool::tool_history::init_global_history(instance_id).await;
+    kodegen_mcp_schema::tool::tool_history::init_global_history(instance_id).await;
 
     log::info!("Starting stdio server (thin client with static metadata)");
 

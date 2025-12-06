@@ -24,7 +24,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use super::metadata::{all_tool_metadata, get_routing_table, CATEGORY_PORTS};
+use super::metadata::{get_routing_table, CATEGORY_PORTS};
+use kodegen_mcp_schema::ToolMetadata;
 use super::session_mapper::SessionMapper;
 use uuid::Uuid;
 
@@ -264,7 +265,7 @@ impl StdioProxyServer {
         
         if let Some(enabled) = enabled_tools {
             // Find which categories are needed for the enabled tools
-            for tool_meta in all_tool_metadata() {
+            for tool_meta in inventory::iter::<ToolMetadata> {
                 if enabled.contains(tool_meta.name) {
                     categories_to_connect.insert(tool_meta.category);
                 }
@@ -427,6 +428,7 @@ impl ServerHandler for StdioProxyServer {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder()
                 .enable_tools()
+                .enable_prompts()
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
@@ -598,7 +600,7 @@ impl ServerHandler for StdioProxyServer {
         // Acquire read lock for category_clients
         let clients = self.category_clients.read().await;
 
-        for tool_meta in all_tool_metadata() {
+        for tool_meta in inventory::iter::<ToolMetadata> {
             // Filter by enabled_tools if set
             if let Some(ref enabled) = self.enabled_tools
                 && !enabled.contains(tool_meta.name) {
@@ -610,8 +612,8 @@ impl ServerHandler for StdioProxyServer {
                 continue;
             }
 
-            // Convert schema Value to Arc<JsonObject>
-            let schema_obj = match tool_meta.schema.clone() {
+            // Convert schema Value to Arc<JsonObject> (call the fn pointer)
+            let schema_obj = match (tool_meta.args_schema)() {
                 serde_json::Value::Object(obj) => std::sync::Arc::new(obj),
                 _ => std::sync::Arc::new(serde_json::Map::new()),
             };
@@ -637,11 +639,26 @@ impl ServerHandler for StdioProxyServer {
 
     async fn get_prompt(
         &self,
-        _request: GetPromptRequestParam,
+        request: GetPromptRequestParam,
         _context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
-        // Stdio mode does not support prompts (prompts require tool instantiation)
-        Err(McpError::invalid_request("Prompts not supported in stdio mode", None))
+        // Find the tool metadata for the requested prompt
+        let tool = inventory::iter::<ToolMetadata>()
+            .find(|t| t.name == request.name)
+            .ok_or_else(|| McpError::invalid_request("Unknown prompt", None))?;
+
+        // Convert prompt arguments to JSON Value for generate_prompts
+        let args = request.arguments
+            .map(|args| serde_json::to_value(args).unwrap_or_default())
+            .unwrap_or(serde_json::Value::Null);
+
+        // Call the prompt generation function
+        let messages = (tool.generate_prompts)(&args);
+
+        Ok(GetPromptResult {
+            description: Some(tool.description.to_string()),
+            messages,
+        })
     }
 
     async fn list_prompts(
@@ -649,9 +666,19 @@ impl ServerHandler for StdioProxyServer {
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, McpError> {
-        // Stdio mode does not support prompts
+        // Return all tools as prompts
+        let prompts = inventory::iter::<ToolMetadata>().map(|tool| {
+            rmcp::model::Prompt {
+                name: tool.name.to_string(),
+                description: Some(tool.description.to_string()),
+                arguments: Some((tool.prompt_arguments)()),
+                title: None,
+                icons: None,
+            }
+        }).collect();
+
         Ok(ListPromptsResult {
-            prompts: vec![],
+            prompts,
             next_cursor: None,
         })
     }

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 
-use super::category_metadata::all_tool_metadata;
+use kodegen_mcp_schema::ToolMetadata;
 
 /// Port assignments for category HTTP servers (matches daemon config.rs allocation).
 pub const CATEGORY_PORTS: &[(&str, u16)] = &[
@@ -25,19 +25,19 @@ pub const CATEGORY_PORTS: &[(&str, u16)] = &[
 ];
 
 /// Global routing table: tool_name -> (category, port)
-/// 
+///
 /// Initialized lazily on first access. Built once and reused across all server instances.
-/// Contains mappings for all ~109 tools to their respective category servers and ports.
+/// Contains mappings for all tools to their respective category servers and ports.
 static ROUTING_TABLE: Lazy<HashMap<&'static str, (&'static str, u16)>> = Lazy::new(|| {
     let mut table = HashMap::new();
     let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
-    
-    for tool in all_tool_metadata() {
+
+    for tool in inventory::iter::<ToolMetadata>() {
         if let Some(&port) = port_map.get(tool.category) {
             table.insert(tool.name, (tool.category, port));
         }
     }
-    
+
     table
 });
 
