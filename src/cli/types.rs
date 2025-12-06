@@ -356,7 +356,9 @@ pub fn available_categories() -> Vec<&'static str> {
 
 /// Get all available tool names (individual tools, not categories)
 pub fn available_tools() -> Vec<&'static str> {
-    inventory::iter::<kodegen_mcp_schema::ToolMetadata>()
+    let mut tools: Vec<&'static str> = inventory::iter::<kodegen_mcp_schema::ToolMetadata>()
         .map(|tool| tool.name)
-        .collect()
+        .collect();
+    tools.sort();
+    tools
 }
