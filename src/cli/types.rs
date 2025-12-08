@@ -337,20 +337,22 @@ impl Cli {
 /// Get all available tool categories (runtime filtering via --tool/--tools)
 pub fn available_categories() -> Vec<&'static str> {
     vec![
-        "filesystem",
-        "terminal",
-        "process",
-        "introspection",
-        "prompt",
-        "reasoner",
-        kodegen_mcp_schema::reasoning::SEQUENTIAL_THINKING,
-        "claude_agent",
-        "candle_agent",
-        "citescrape",
-        "git",
-        "github",
-        "config",
-        "database",
+        kodegen_config::CATEGORY_BROWSER,
+        kodegen_config::CATEGORY_CANDLE_AGENT,
+        kodegen_config::CATEGORY_CITESCRAPE,
+        kodegen_config::CATEGORY_CLAUDE_AGENT,
+        kodegen_config::CATEGORY_CONFIG,
+        kodegen_config::CATEGORY_DATABASE,
+        kodegen_config::CATEGORY_FILESYSTEM,
+        kodegen_config::CATEGORY_GIT,
+        kodegen_config::CATEGORY_GITHUB,
+        kodegen_config::CATEGORY_INTROSPECTION,
+        kodegen_config::CATEGORY_MEMORY,
+        kodegen_config::CATEGORY_PROCESS,
+        kodegen_config::CATEGORY_PROMPT,
+        kodegen_config::CATEGORY_REASONER,
+        kodegen_config::CATEGORY_SEQUENTIAL_THINKING,
+        kodegen_config::CATEGORY_TERMINAL,
     ]
 }
 

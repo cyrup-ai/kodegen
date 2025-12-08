@@ -5,24 +5,8 @@ use once_cell::sync::Lazy;
 
 use kodegen_mcp_schema::ToolMetadata;
 
-/// Port assignments for category HTTP servers (matches daemon config.rs allocation).
-pub const CATEGORY_PORTS: &[(&str, u16)] = &[
-    ("browser", 30438),
-    ("candle_agent", 30452),
-    ("citescrape", 30439),
-    ("claude_agent", 30440),
-    ("config", 30441),
-    ("database", 30442),
-    ("filesystem", 30443),
-    ("git", 30444),
-    ("github", 30445),
-    ("introspection", 30446),
-    ("process", 30447),
-    ("prompt", 30448),
-    ("reasoner", 30449),
-    ("sequential_thinking", 30450),
-    ("terminal", 30451),
-];
+/// Re-export canonical port assignments from kodegen-config (single source of truth)
+pub use kodegen_config::CATEGORY_PORTS;
 
 /// Global routing table: tool_name -> (category, port)
 ///

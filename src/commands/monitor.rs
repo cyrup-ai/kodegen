@@ -20,23 +20,7 @@ struct ServerSnapshot {
 }
 
 pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
-    let servers = vec![
-        ("filesystem", 30438),
-        ("terminal", 30439),
-        ("process", 30440),
-        ("git", 30441),
-        ("github", 30442),
-        ("browser", 30443),
-        ("citescrape", 30444),
-        ("database", 30445),
-        ("config", 30446),
-        ("prompt", 30447),
-        ("reasoner", 30448),
-        ("sequential-thinking", 30449),
-        ("introspection", 30450),
-        ("claude-agent", 30451),
-        ("candle-agent", 30452),
-    ];
+    let servers = kodegen_config::CATEGORY_PORTS;
 
     let client = reqwest::Client::new();
     let mut snapshots: HashMap<String, ServerSnapshot> = HashMap::new();

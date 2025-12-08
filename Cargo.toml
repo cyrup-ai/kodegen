@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.8.3"
+version = "0.10.0"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -31,12 +31,11 @@ macos = "public.app-category.developer-tools"
 
 [dependencies]
 cyrup_termcolor = "2"
-kodegen_config = { version = "0.8" }
-kodegen_mcp_schema = { version = "0.8" }
-kodegen_config_manager = { version = "0.8" }
-kodegen_utils = { version = "0.8" }
-kodegen_mcp_client = { version = "0.8" }
-kodegen_native_notify = { version = "0.8" }
+kodegen_config = { version = "0.10" }
+kodegen_mcp_schema = { version = "0.10" }
+kodegen_config_manager = { version = "0.10" }
+kodegen_mcp_client = { version = "0.10" }
+kodegen_native_notify = { version = "0.10" }
 
 # Lazy static initialization
 once_cell = "1.21"

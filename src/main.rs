@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::Parser;
-use kodegen_utils::usage_tracker::UsageTracker;
 
 mod cli;
 mod commands;
@@ -106,18 +105,9 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Generate unique instance ID for this server run
-    let timestamp = chrono::Utc::now();
-    let pid = std::process::id();
-    let instance_id = format!("{}-{}", timestamp.format("%Y%m%d-%H%M%S-%9f"), pid);
-
     // Initialize shared components
     let config_manager = kodegen_config_manager::ConfigManager::new();
     config_manager.init().await?;
-    let usage_tracker = UsageTracker::new(instance_id.clone());
-
-    // Initialize tool call history tracking
-    kodegen_mcp_schema::tool::tool_history::init_global_history(instance_id).await;
 
     log::info!("Starting stdio server (thin client with static metadata)");
 
@@ -144,7 +134,6 @@ async fn main() -> Result<()> {
     // Create stdio proxy server (connects to category servers on ports 30437-30449)
     let server = match stdio::StdioProxyServer::new(
         config_manager,
-        usage_tracker,
         &enabled_tools,
         http_config,
         shutdown_token,

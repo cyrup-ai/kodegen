@@ -61,7 +61,7 @@ pub async fn run() -> Result<()> {
     } else {
         // Only notify for terminal tool on success
         match input.canonical_tool_name() {
-            Some("terminal") => Some(build_terminal_notification(&input)),
+            Some(kodegen_config::CATEGORY_TERMINAL) => Some(build_terminal_notification(&input)),
             _ => None, // Silent exit for non-terminal success
         }
     };

@@ -2,7 +2,6 @@
 use anyhow::{Context, Result};
 use futures::future;
 use kodegen_mcp_client::{X_KODEGEN_CONNECTION_ID, X_KODEGEN_GITROOT, X_KODEGEN_PWD};
-use kodegen_utils::usage_tracker::UsageTracker;
 use rand::Rng;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::{
@@ -222,9 +221,6 @@ pub struct StdioProxyServer {
     /// Enabled tool names (filtered by --tool/--tools CLI args)
     enabled_tools: Option<std::collections::HashSet<String>>,
 
-    /// Usage tracker for metrics
-    usage_tracker: UsageTracker,
-
     /// Configuration manager
     config_manager: kodegen_config_manager::ConfigManager,
 
@@ -242,13 +238,11 @@ impl StdioProxyServer {
     ///
     /// # Arguments
     /// * `config_manager` - Configuration manager
-    /// * `usage_tracker` - Usage metrics tracker
     /// * `enabled_tools` - Individual tool names to enable (from CLI --tool/--tools/--toolset)
     /// * `http_config` - HTTP connection configuration (retry, timeout, etc.)
     /// * `shutdown_token` - Cancellation token for graceful shutdown during initialization
     pub async fn new(
         config_manager: kodegen_config_manager::ConfigManager,
-        usage_tracker: UsageTracker,
         enabled_tools: &Option<std::collections::HashSet<String>>,
         http_config: HttpConnectionConfig,
         shutdown_token: CancellationToken,
@@ -346,7 +340,6 @@ impl StdioProxyServer {
             shutdown_token: shutdown_token.clone(),
             routing_table,
             enabled_tools: enabled_tools_set,
-            usage_tracker,
             config_manager,
             session_mapper: SessionMapper::new(),
             connection_id,
@@ -565,7 +558,7 @@ impl ServerHandler for StdioProxyServer {
         }
 
         // Convert ClientError to ErrorData, preserving MCP errors from upstream
-        let result = result.map_err(|e| {
+        result.map_err(|e| {
             match e {
                 // Extract the MCP error if it's already wrapped in a ServiceError
                 kodegen_mcp_client::ClientError::ServiceError(
@@ -577,16 +570,7 @@ impl ServerHandler for StdioProxyServer {
                     None
                 ),
             }
-        });
-
-        // Track usage metrics
-        if result.is_ok() {
-            self.usage_tracker.track_success(&tool_name);
-        } else {
-            self.usage_tracker.track_failure(&tool_name);
-        }
-
-        result
+        })
     }
 
     async fn list_tools(
