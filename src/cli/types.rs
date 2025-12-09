@@ -335,7 +335,7 @@ impl Cli {
 }
 
 /// Get all available tool categories (runtime filtering via --tool/--tools)
-pub fn available_categories() -> Vec<&'static str> {
+pub fn available_categories() -> Vec<&'static kodegen_config::Category> {
     vec![
         kodegen_config::CATEGORY_BROWSER,
         kodegen_config::CATEGORY_CANDLE_AGENT,

@@ -261,13 +261,13 @@ impl StdioProxyServer {
             // Find which categories are needed for the enabled tools
             for tool_meta in inventory::iter::<ToolMetadata> {
                 if enabled.contains(tool_meta.name) {
-                    categories_to_connect.insert(tool_meta.category);
+                    categories_to_connect.insert(tool_meta.category.name);
                 }
             }
         } else {
             // No filter - connect to all categories
             for &(category, _port) in CATEGORY_PORTS {
-                categories_to_connect.insert(category);
+                categories_to_connect.insert(category.name);
             }
         }
         
@@ -282,7 +282,10 @@ impl StdioProxyServer {
         // Connect to each category server
         let mut category_clients = HashMap::new();
         let mut category_connections = Vec::new();
-        let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+        let port_map: HashMap<&str, u16> = CATEGORY_PORTS
+            .iter()
+            .map(|(cat, port)| (cat.name, *port))
+            .collect();
 
         for category in categories_vec {
             let port = port_map.get(category).copied().ok_or_else(|| {
@@ -361,7 +364,10 @@ impl StdioProxyServer {
         &self,
         category: &str,
     ) -> Result<kodegen_mcp_client::KodegenClient> {
-        let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+        let port_map: HashMap<&str, u16> = CATEGORY_PORTS
+            .iter()
+            .map(|(cat, port)| (cat.name, *port))
+            .collect();
         let port = port_map.get(category).copied().ok_or_else(|| {
             anyhow::anyhow!("No port assignment for category: {}", category)
         })?;
@@ -592,7 +598,7 @@ impl ServerHandler for StdioProxyServer {
                 }
 
             // Only include tools whose category server is connected
-            if !clients.contains_key(tool_meta.category) {
+            if !clients.contains_key(tool_meta.category.name) {
                 continue;
             }
 
@@ -789,7 +795,10 @@ async fn notify_backends_helper(server: &StdioProxyServerClone) {
 
     // Spawn parallel notification tasks
     let mut tasks = Vec::new();
-    let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+    let port_map: HashMap<&str, u16> = CATEGORY_PORTS
+        .iter()
+        .map(|(cat, port)| (cat.name, *port))
+        .collect();
 
     for category in categories {
         let connection_id = server.connection_id.clone();

@@ -14,11 +14,14 @@ pub use kodegen_config::CATEGORY_PORTS;
 /// Contains mappings for all tools to their respective category servers and ports.
 static ROUTING_TABLE: Lazy<HashMap<&'static str, (&'static str, u16)>> = Lazy::new(|| {
     let mut table = HashMap::new();
-    let port_map: HashMap<&str, u16> = CATEGORY_PORTS.iter().copied().collect();
+    let port_map: HashMap<&str, u16> = CATEGORY_PORTS
+        .iter()
+        .map(|(cat, port)| (cat.name, *port))
+        .collect();
 
     for tool in inventory::iter::<ToolMetadata>() {
-        if let Some(&port) = port_map.get(tool.category) {
-            table.insert(tool.name, (tool.category, port));
+        if let Some(&port) = port_map.get(tool.category.name) {
+            table.insert(tool.name, (tool.category.name, port));
         }
     }
 

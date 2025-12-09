@@ -45,7 +45,7 @@ pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
 
             let now = Instant::now();
 
-            if let Some(prev) = snapshots.get(*name) {
+            if let Some(prev) = snapshots.get(name.name) {
                 let memory_growth = health.memory_used.saturating_sub(prev.memory);
                 let threshold = 100 * 1024 * 1024;
 
@@ -55,7 +55,7 @@ pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
 
                     println!(
                         "[{}] Memory growth: {} over {:?} ({} requests)",
-                        name,
+                        name.name,
                         format_bytes(memory_growth),
                         elapsed,
                         requests_delta
@@ -63,7 +63,7 @@ pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
 
                     // Update snapshot ONLY when we print
                     snapshots.insert(
-                        name.to_string(),
+                        name.name.to_string(),
                         ServerSnapshot {
                             memory: health.memory_used,
                             requests: health.requests_processed,
@@ -74,7 +74,7 @@ pub async fn handle_monitor(interval_secs: u64) -> Result<()> {
             } else {
                 // First snapshot
                 snapshots.insert(
-                    name.to_string(),
+                    name.name.to_string(),
                     ServerSnapshot {
                         memory: health.memory_used,
                         requests: health.requests_processed,
