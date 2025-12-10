@@ -13,6 +13,8 @@ pub async fn handle_claude(
     model: String,
     session_id: Option<String>,
     system_prompt: Option<PathBuf>,
+    disallowed_tools: String,
+    permission_mode: String,
     passthrough_args: Vec<String>,
 ) -> Result<()> {
     // Auto-configure KODEGEN plugin if not already present
@@ -61,6 +63,12 @@ pub async fn handle_claude(
 
     // Apply system prompt content (always present - fetched or custom)
     cmd.arg("--system-prompt").arg(&system_prompt_content);
+
+    // Apply disallowed tools
+    cmd.arg("--disallowed-tools").arg(&disallowed_tools);
+
+    // Apply permission mode
+    cmd.arg("--permission-mode").arg(&permission_mode);
 
     // Pass through all other arguments
     cmd.args(&passthrough_args);

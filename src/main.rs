@@ -32,6 +32,8 @@ async fn main() -> Result<()> {
                 model,
                 session_id,
                 system_prompt,
+                disallowed_tools,
+                permission_mode,
                 passthrough_args,
             } => {
                 commands::handle_claude(
@@ -39,6 +41,8 @@ async fn main() -> Result<()> {
                     model,
                     session_id,
                     system_prompt,
+                    disallowed_tools,
+                    permission_mode,
                     passthrough_args,
                 )
                 .await

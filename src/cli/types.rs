@@ -199,18 +199,18 @@ pub struct Cli {
 pub enum Commands {
     /// Automatically configure MCP-compatible editors
     Install,
-    
+
     /// Monitor memory usage of all backend MCP servers
     Monitor {
         /// Polling interval in seconds (default: 10)
         #[arg(long, default_value = "10")]
         interval: u64,
     },
-    
+
     /// Launch Claude CLI with kodegen MCP integration and intelligent defaults
     Claude {
         /// Toolset configurations to load (default: ["core"])
-        /// 
+        ///
         /// Can be:
         /// - Bundled toolset name - e.g., "core" (automatically resolved from embedded assets)
         /// - Absolute path - uses file at that location
@@ -244,6 +244,23 @@ pub enum Commands {
         /// The embedded default is sourced from .kodegen/claude/SYSTEM_PROMPT.md at build time.
         #[arg(long)]
         system_prompt: Option<std::path::PathBuf>,
+
+        /// Comma-separated list of tools to disallow (default: "Edit,Update,Read,Fetch,Write,Glob,Grep,WebSearch,WebFetch,NotebookEdit")
+        ///
+        /// These tools will be blocked from use by the Claude CLI session.
+        /// Can be overridden by providing a different list.
+        #[arg(
+            long,
+            default_value = "Bash,Search,Edit,Update,Read,Fetch,Write,Glob,Grep,WebSearch,WebFetch,NotebookEdit"
+        )]
+        disallowed_tools: String,
+
+        /// Permission mode for tool usage (default: "dontAsk")
+        ///
+        /// Controls how Claude handles tool permission requests.
+        /// Can be overridden by providing a different mode.
+        #[arg(long, default_value = "dontAsk")]
+        permission_mode: String,
 
         /// All other arguments to pass through to claude CLI
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
