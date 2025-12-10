@@ -664,12 +664,14 @@ impl ServerHandler for StdioProxyServer {
                 arguments: Some((tool.prompt_arguments)()),
                 title: None,
                 icons: None,
+                meta: None,
             }
         }).collect();
 
         Ok(ListPromptsResult {
             prompts,
             next_cursor: None,
+            meta: None,
         })
     }
 
@@ -687,6 +689,7 @@ impl ServerHandler for StdioProxyServer {
         Ok(ListResourcesResult {
             resources: vec![],
             next_cursor: None,
+            meta: None,
         })
     }
 
@@ -714,6 +717,7 @@ impl ServerHandler for StdioProxyServer {
         Ok(ListResourceTemplatesResult {
             next_cursor: None,
             resource_templates: Vec::new(),
+            meta: None,
         })
     }
 

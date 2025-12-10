@@ -1,6 +1,6 @@
 [package]
 name = "kodegen"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2024"
 description = "KODEGEN.ᴀɪ: Memory-efficient, Blazing-Fast, MCP tools for code generation agents."
 authors = ["KODEGEN.ᴀɪ"]
@@ -44,7 +44,7 @@ once_cell = "1.21"
 clap = { version = "4", features = ["derive", "env"] }
 
 # MCP SDK
-rmcp = { version = "0.10", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-sse-client", "transport-sse-client-reqwest", "transport-sse-server", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
+rmcp = { version = "0.11", features = ["client", "schemars", "server", "transport-child-process", "transport-io", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 
 # HTTP client (matches kodegen-mcp-client and rmcp versions)
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }

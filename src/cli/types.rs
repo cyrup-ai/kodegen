@@ -338,7 +338,7 @@ impl Cli {
 pub fn available_categories() -> Vec<&'static kodegen_config::Category> {
     vec![
         kodegen_config::CATEGORY_BROWSER,
-        kodegen_config::CATEGORY_CANDLE_AGENT,
+        kodegen_config::CATEGORY_CANDLE_AGENT, // Serves memory tools
         kodegen_config::CATEGORY_CITESCRAPE,
         kodegen_config::CATEGORY_CLAUDE_AGENT,
         kodegen_config::CATEGORY_CONFIG,
@@ -347,7 +347,7 @@ pub fn available_categories() -> Vec<&'static kodegen_config::Category> {
         kodegen_config::CATEGORY_GIT,
         kodegen_config::CATEGORY_GITHUB,
         kodegen_config::CATEGORY_INTROSPECTION,
-        kodegen_config::CATEGORY_MEMORY,
+        // CATEGORY_MEMORY removed - memory tools are served by candle_agent
         kodegen_config::CATEGORY_PROCESS,
         kodegen_config::CATEGORY_PROMPT,
         kodegen_config::CATEGORY_REASONER,
