@@ -14,7 +14,6 @@ pub async fn handle_claude(
     session_id: Option<String>,
     system_prompt: Option<PathBuf>,
     disallowed_tools: String,
-    permission_mode: String,
     passthrough_args: Vec<String>,
 ) -> Result<()> {
     // Auto-configure KODEGEN plugin if not already present
@@ -26,8 +25,8 @@ pub async fn handle_claude(
     // 1. Find claude binary in PATH
     let claude_bin = find_claude_binary()?;
 
-    // 2. Generate or validate session ID
-    let session_id = resolve_session_id(session_id)?;
+    // 2. Check if resume/continue flags are present
+    let should_use_session_id = !has_resume_or_continue_flag(&passthrough_args);
 
     // 3. Resolve toolset paths and load tool names
     let tool_names = load_toolsets(&toolset).await?;
@@ -54,7 +53,13 @@ pub async fn handle_claude(
 
     // Apply defaults
     cmd.arg("--model").arg(&model);
-    cmd.arg("--session-id").arg(&session_id);
+
+    // Only add session-id if not using resume/continue
+    if should_use_session_id {
+        let session_id = resolve_session_id(session_id)?;
+        cmd.arg("--session-id").arg(&session_id);
+        eprintln!("Session ID: {}", session_id);
+    }
 
     // Apply allowed tools
     if !allowed_tools.is_empty() {
@@ -67,9 +72,6 @@ pub async fn handle_claude(
     // Apply disallowed tools
     cmd.arg("--disallowed-tools").arg(&disallowed_tools);
 
-    // Apply permission mode
-    cmd.arg("--permission-mode").arg(&permission_mode);
-
     // Pass through all other arguments
     cmd.args(&passthrough_args);
 
@@ -78,10 +80,7 @@ pub async fn handle_claude(
     cmd.stdout(Stdio::inherit());
     cmd.stderr(Stdio::inherit());
 
-    // 8. Print session ID for user reference
-    eprintln!("Session ID: {}", session_id);
-
-    // 9. Spawn and wait for claude process
+    // 7. Spawn and wait for claude process
     let mut child = cmd
         .spawn()
         .context("Failed to spawn claude CLI - ensure 'claude' is installed and in PATH")?;
@@ -90,9 +89,6 @@ pub async fn handle_claude(
         .wait()
         .await
         .context("Failed to wait for claude process")?;
-
-    // 10. Print session ID again on exit for easy copying
-    eprintln!("\nSession completed: {}", session_id);
 
     // Exit with same code as claude
     if !status.success() {
@@ -146,4 +142,17 @@ async fn fetch_system_prompt() -> Result<String> {
     eprintln!("✓ System prompt fetched ({} bytes)", content.len());
 
     Ok(content)
+}
+
+/// Check if passthrough arguments contain resume or continue flags
+///
+/// These flags are incompatible with --session-id, so we need to detect them
+/// and avoid appending session-id when they're present.
+fn has_resume_or_continue_flag(args: &[String]) -> bool {
+    args.iter().any(|arg| {
+        arg == "--resume" 
+        || arg == "-r" 
+        || arg == "--continue" 
+        || arg == "-c"
+    })
 }

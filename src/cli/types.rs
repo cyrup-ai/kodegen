@@ -193,6 +193,14 @@ pub struct Cli {
     /// SSH password for password-based authentication
     #[arg(long, env = "SSH_PASSWORD")]
     pub ssh_password: Option<String>,
+    
+    /// Enable automatic config file watching and hot-reload
+    ///
+    /// When enabled, the server will monitor the config file for changes
+    /// and automatically reload configuration after a 1-second debounce.
+    /// This is useful during development and configuration iteration.
+    #[arg(long)]
+    pub watch_config: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -254,13 +262,6 @@ pub enum Commands {
             default_value = "Bash,Search,Edit,Update,Read,Fetch,Write,Glob,Grep,WebSearch,WebFetch,NotebookEdit"
         )]
         disallowed_tools: String,
-
-        /// Permission mode for tool usage (default: "dontAsk")
-        ///
-        /// Controls how Claude handles tool permission requests.
-        /// Can be overridden by providing a different mode.
-        #[arg(long, default_value = "dontAsk")]
-        permission_mode: String,
 
         /// All other arguments to pass through to claude CLI
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]

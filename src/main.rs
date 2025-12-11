@@ -33,7 +33,6 @@ async fn main() -> Result<()> {
                 session_id,
                 system_prompt,
                 disallowed_tools,
-                permission_mode,
                 passthrough_args,
             } => {
                 commands::handle_claude(
@@ -42,7 +41,6 @@ async fn main() -> Result<()> {
                     session_id,
                     system_prompt,
                     disallowed_tools,
-                    permission_mode,
                     passthrough_args,
                 )
                 .await
@@ -110,8 +108,14 @@ async fn main() -> Result<()> {
     }
 
     // Initialize shared components
-    let config_manager = kodegen_config_manager::ConfigManager::new();
+    let mut config_manager = kodegen_config_manager::ConfigManager::new();
     config_manager.init().await?;
+    
+    // Enable file watching if requested
+    if cli.watch_config {
+        config_manager.enable_file_watching().await?;
+        log::info!("Config file watching enabled via --watch-config flag");
+    }
 
     log::info!("Starting stdio server (thin client with static metadata)");
 
