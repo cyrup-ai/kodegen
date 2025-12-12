@@ -13,7 +13,7 @@ use rmcp::{
         ProtocolVersion, ReadResourceRequestParam, ReadResourceResult, ServerCapabilities,
         ServerInfo, Tool,
     },
-    service::RequestContext,
+    service::{QuitReason, RequestContext},
     transport::stdio,
 };
 use serde_json::json;
@@ -410,13 +410,35 @@ impl StdioProxyServer {
     pub async fn serve_stdio(self) -> Result<()> {
         log::info!("Starting stdio server (thin client mode with static metadata)");
 
-        // Use rmcp's stdio transport
-        let service = self.serve(stdio()).await.inspect_err(|e| {
-            log::error!("serving error: {e:?}");
-        })?;
-        service.waiting().await?;
+        // Clone shutdown token before self is moved
+        let shutdown_token = self.shutdown_token.clone();
 
-        log::info!("Stdio server stopped");
+        // Use rmcp's stdio transport with cancellation token support
+        let service = self
+            .serve_with_ct(stdio(), shutdown_token)
+            .await
+            .inspect_err(|e| {
+                log::error!("serving error: {e:?}");
+            })?;
+        
+        // Wait for service to complete (will exit when cancellation token is triggered)
+        match service.waiting().await {
+            Ok(QuitReason::Cancelled) => {
+                log::info!("Stdio server stopped gracefully (cancelled by signal)");
+            }
+            Ok(QuitReason::Closed) => {
+                log::info!("Stdio server stopped (connection closed)");
+            }
+            Ok(QuitReason::JoinError(e)) => {
+                log::error!("Stdio server task panicked: {:?}", e);
+                return Err(anyhow::anyhow!("Server task failed: {:?}", e));
+            }
+            Err(e) => {
+                log::error!("Failed to wait for stdio server: {:?}", e);
+                return Err(anyhow::anyhow!("Server wait failed: {:?}", e));
+            }
+        }
+
         Ok(())
     }
 }

@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
     let signal_token = shutdown_token.clone();
     tokio::spawn(async move {
         wait_for_interrupt().await;
-        log::debug!("Received interrupt signal, cancelling initialization");
+        log::info!("Received interrupt signal (Ctrl+C), initiating graceful shutdown");
         signal_token.cancel();
     });
 
